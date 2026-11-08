@@ -57,9 +57,8 @@ as a numbered block.
    paths or reasons. Show the owner its points in short; change the mockup only for the points the
    owner accepts.
 8. Hand the mockup to the owner as a file attachment in the chat (in Claude Code: `SendUserFile` with
-   `display: render`); one click opens it in the built-in browser. The generated page links
-   `mockups.css`, which a sent or `file://` page does not load, so send a copy with the CSS
-   inlined, written to the session scratchpad (not the repo). Do not open the browser pane
+   `display: render`); one click opens it in the built-in browser. The generated page carries its
+   styles inside, so send the file from the mockups folder as it is. Do not open the browser pane
    yourself.
 9. Commit the finished series as the project's rules say about commits: the spec, the generated
    HTML, `index.html` and any `mockups.css` or config change. Nothing else. A series still being

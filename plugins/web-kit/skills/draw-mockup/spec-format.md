@@ -11,9 +11,10 @@ web-kit-mockups --check                  # validate specs and fail if the HTML i
 web-kit-mockups --dir <mockups folder>   # another folder than docs/mockups
 ```
 
-Never edit the generated `*.html` files by hand: the next build overwrites them. The pages link
-`mockups.css` in the mockups folder; the project owns that file (palette, phone frame), so a new look for
-every mockup is one change there. The project's `mockups.css` wins: when the folder has none, the generator
+Never edit the generated `*.html` files by hand: the next build overwrites them. Every page carries a copy of
+`mockups.css` of the mockups folder inside it, so one sent file keeps its look; the project owns that file
+(palette, phone frame), so a new look for every mockup is one change there and a rebuild (`--check` reports
+the pages stale until then). The project's `mockups.css` wins: when the folder has none, the generator
 writes a neutral default (`scripts/default-mockups.css` of the plugin) as `mockups.css` once and never
 overwrites an existing file, so a project restyles by editing its own copy. Optional `mockups.config.json` in the mockups folder sets the texts
 that differ per project: `title` (index title, default "Mockups"), `pageNote` (the line under every
