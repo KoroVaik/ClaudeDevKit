@@ -3,7 +3,7 @@
 //        node build-mockups.mjs [--dir <mockups folder>] --check    validate specs, fail if generated files are stale
 // The mockups folder defaults to docs/mockups under the git root of the current directory and must exist.
 // A spec with "frame": "desktop" draws wide admin-style screens instead of phones (one mockups folder per frame kind).
-// Optional <mockups folder>/mockups.config.json: { "title", "pageNote", "indexNote", "userLetters", "stepTitle" }. A mockups.css missing from the folder is written from default-mockups.css
+// Optional <mockups folder>/mockups.config.json: { "title", "pageNote", "indexNote", "indexIntro", "filterPlaceholder", "screenCount", "userLetters", "stepTitle" }. A mockups.css missing from the folder is written from default-mockups.css
 // (next to this script); an existing one is the project's and is never touched.
 // Optional <mockups folder>/parts/<name>.json: a JSON array of blocks that specs reuse with { "type": "part", "name": "<name>" }. The spec format is in skills/draw-mockup/spec-format.md. No dependencies.
 import { spawnSync } from 'node:child_process';
@@ -43,6 +43,10 @@ const INDEX_TITLE = config.title ?? 'Mockups';
 const USER_LETTERS = { A: 'A', B: 'B', ...(config.userLetters ?? {}) };
 const STEP_TITLE = config.stepTitle ?? 'Step {current} of {total}';
 const PAGE_NOTE = config.pageNote ?? 'Low-fidelity wireframe. Not an accepted UI.';
+// Index texts: {count} is replaced by a number. Without them the index uses the English defaults below.
+const INDEX_INTRO = config.indexIntro;
+const FILTER_PLACEHOLDER = config.filterPlaceholder ?? 'Filter by title or group';
+const SCREEN_COUNT = config.screenCount;
 
 const NAME_RE = /^[a-z0-9]+(-[a-z0-9]+)*$/;
 const TONES = ['ok', 'warn'];
@@ -558,7 +562,7 @@ function indexHtml(entries) {
         .sort((a, b) => a.spec.title.localeCompare(b.spec.title))
         .map((e) => {
           const phones = Object.keys(screensOf(e.spec)).length;
-          const meta = `${phones} screen${phones === 1 ? '' : 's'}`;
+          const meta = SCREEN_COUNT ? SCREEN_COUNT.replace('{count}', phones) : `${phones} screen${phones === 1 ? '' : 's'}`;
           const hay = esc(`${e.spec.title} ${e.spec.summary ?? ''} ${g}`.toLowerCase());
           return `    <a class="item" href="${e.name}.html" data-hay="${hay}"><strong>${esc(e.spec.title)}</strong><span>${esc(e.spec.summary ?? '')}</span><span class="meta">${esc(meta)}</span></a>`;
         });
@@ -588,9 +592,9 @@ function indexHtml(entries) {
 
 <div class="page-head">
   <h1>${esc(INDEX_TITLE)}</h1>
-  <p>Low-fidelity ${kindWord}wireframes of ${kindWord === 'desktop ' ? 'screens' : 'user flows'} (${entries.length}). Open any file in a browser; no server is needed.</p>
+  <p>${INDEX_INTRO ? esc(INDEX_INTRO.replace('{count}', entries.length)) : `Low-fidelity ${kindWord}wireframes of ${kindWord === 'desktop ' ? 'screens' : 'user flows'} (${entries.length}). Open any file in a browser; no server is needed.`}</p>
 ${config.indexNote ? `  <p>${withCode(config.indexNote)}</p>
-` : ''}  <input id="filter" type="search" placeholder="Filter by title or group" aria-label="Filter mockups">
+` : ''}  <input id="filter" type="search" placeholder="${esc(FILTER_PLACEHOLDER)}" aria-label="${esc(FILTER_PLACEHOLDER)}">
 </div>
 
 <div class="list">

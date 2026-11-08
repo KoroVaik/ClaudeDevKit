@@ -18,8 +18,10 @@ writes a neutral default (`scripts/default-mockups.css` of the plugin) as `mocku
 overwrites an existing file, so a project restyles by editing its own copy. Optional `mockups.config.json` in the mockups folder sets the texts
 that differ per project: `title` (index title, default "Mockups"), `pageNote` (the line under every
 board's title), `indexNote` (a line under the index title; `` `code` `` spans work), `userLetters`
-(`{ "A": "A", "B": "B" }`: the letters shown in the phone tag for users A and B) and `stepTitle` (the hover text of
-the step dots, default "Step {current} of {total}").
+(`{ "A": "A", "B": "B" }`: the letters shown in the phone tag for users A and B), `stepTitle` (the hover text of
+the step dots, default "Step {current} of {total}"), `indexIntro` (the line under the index title, `{count}` is the
+number of mockups), `filterPlaceholder` (the index search box) and `screenCount` (the line under each index entry,
+`{count}` is its number of screens). Every text a viewer reads can be set here in the project's language.
 
 The generator is run from anywhere inside the project's git repository and resolves `docs/mockups` from the
 repository root; with `--dir` the folder is relative to the current directory. The folder (with its `src/`)
