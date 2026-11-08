@@ -375,3 +375,26 @@ a:hover { color: #d8e4ee; }
   background: var(--bg); color: var(--text); text-align: left; }
 .region.on .region-cover > .region-title { color: var(--source); font-weight: 700;
   background: color-mix(in srgb, var(--source) 12%, var(--bg)); }
+
+/* Page map screen ("map": true): a compact chip (caption, then a tiny thumbnail of the page), the same size folded and
+   open; a click opens the readable map as a popover under the chip, so the board does not move. In the thumbnail the
+   highlighted region is solid, the other regions are outlines, the menu rail is a muted strip; no names. */
+.cell:has(> .step > .map-fold) { justify-content: flex-start; }
+.map-fold { position: relative; }
+.map-fold > summary { display: inline-flex; align-items: center; gap: 12px; padding: 6px 6px 6px 12px; border: 1px dashed var(--divider);
+  border-radius: 10px; color: var(--muted); font-size: 13px; cursor: pointer; list-style: none; }
+.map-fold > summary::-webkit-details-marker { display: none; }
+.map-fold > summary:hover, .map-fold[open] > summary { border-style: solid; background: var(--selected); color: var(--text); }
+.map-fold > summary:focus-visible { outline: 2px solid var(--source); outline-offset: 2px; }
+.map-fold > summary > .map-caption::before { content: "▸ "; }
+.map-fold[open] > summary > .map-caption::before { content: "▾ "; }
+.screen.map-thumb { flex: none; min-height: 0; pointer-events: none; background: var(--card); }
+.screen.map-thumb .screen-body { min-height: 0; }
+.screen.map-thumb * { visibility: hidden; }
+.screen.map-thumb :is(.menu, .region) { visibility: visible; }
+.screen.map-thumb .menu { background: var(--border); border-right: 0; }
+.screen.map-thumb .region { border: calc(1.5px / var(--scale)) solid var(--frame); background: transparent; }
+.screen.map-thumb .region.on { border-color: var(--source); background: var(--source); }
+.map-open { position: absolute; top: calc(100% + 6px); left: 0; z-index: 30; width: max-content; padding: 6px; cursor: pointer;
+  background: var(--bg); border: 1px solid var(--divider); border-radius: 12px; box-shadow: 0 12px 32px #000a; }
+.map-open:hover { outline: 2px solid var(--frame); }

@@ -55,6 +55,7 @@ const FRAMES = ['phone', 'desktop'];
 const CARD_TONES = ['ok', 'warn', 'danger'];
 const SCREEN_W_MIN = 240;
 const SCREEN_W_MAX = 1440;
+const MAP_THUMB_SCALE = 0.075;
 
 // A board draws its screens as phone frames (default) or as wide desktop screens (spec "frame": "desktop").
 // The screens map is "phones" for a phone board; "screens" is accepted as the same map for a desktop board.
@@ -350,6 +351,10 @@ function renderScreen(id, p, file) {
     `${where}: width must be an integer ${SCREEN_W_MIN}-${SCREEN_W_MAX} (px)`);
   need(file, p.scale === undefined || (typeof p.scale === 'number' && p.scale >= 0.2 && p.scale <= 1),
     `${where}: scale must be a number 0.2-1`);
+  // "map": the page map screen, folded by default under its caption so it does not take the board's space; it is
+  // drawn at "scale" (default 0.4).
+  need(file, p.map === undefined || p.map === true, `${where}: map must be true`);
+  const scale = p.scale ?? (p.map ? 0.4 : undefined);
   let menu = '';
   if (p.menu !== undefined) {
     const m = p.menu;
@@ -368,15 +373,25 @@ function renderScreen(id, p, file) {
     body = `<div class="faded">${main}</div><div class="dim"></div><div class="popup">${close}${renderBlocks(o.blocks, file, `${where} overlay`)}</div>`;
   }
   const tag = p.step ? `<span class="user-tag">${p.step}</span>` : '';
-  const style = [p.width ? `width:${p.width}px` : '', p.scale ? `zoom:${p.scale};--scale:${p.scale}` : ''].filter(Boolean).join(';');
-  return `<div class="caption">${tag}${esc(p.caption)}</div><div class="screen${p.width ? ' sized' : ''}${p.scale ? ' scaled' : ''}"${style ? ` style="${style}"` : ''}>${body}</div>`;
+  const style = [p.width ? `width:${p.width}px` : '', scale ? `zoom:${scale};--scale:${scale}` : ''].filter(Boolean).join(';');
+  const screen = `<div class="screen${p.width ? ' sized' : ''}${scale ? ' scaled' : ''}"${style ? ` style="${style}"` : ''}>${body}</div>`;
+  if (p.map) {
+    // The chip is a compact strip, the same size folded and open: the caption, then a tiny thumbnail of the page (the
+    // highlighted region filled, no names). Opening shows the readable map as a popover under the chip, so the board
+    // does not move.
+    const thumb = `<div class="screen scaled map-thumb" style="${p.width ? `width:${p.width}px;` : ''}zoom:${MAP_THUMB_SCALE};--scale:${MAP_THUMB_SCALE}">${body}</div>`;
+    // A click on the opened map folds it again, like a click on the chip.
+    const open = `<div class="map-open" onclick="this.closest('details').open = false">${screen}</div>`;
+    return `<details class="map-fold"><summary class="caption"><span class="map-caption">${tag}${esc(p.caption)}</span>${thumb}</summary>${open}</details>`;
+  }
+  return `<div class="caption">${tag}${esc(p.caption)}</div>${screen}`;
 }
 
 function renderPhone(id, p, file, frame = 'phone') {
   if (frame === 'desktop') return renderScreen(id, p, file);
   need(file, p.menu === undefined, `phone "${id}": "menu" is for desktop boards`);
   need(file, p.width === undefined, `phone "${id}": "width" is for desktop boards; a phone has a fixed width`);
-  need(file, p.scale === undefined, `phone "${id}": "scale" is for desktop boards`);
+  need(file, p.scale === undefined && p.map === undefined, `phone "${id}": "scale" and "map" are for desktop boards`);
   const where = `phone "${id}"`;
   need(file, p && typeof p === 'object', `${where} must be an object`);
   need(file, isText(p.caption), `${where} needs "caption"`);
@@ -478,6 +493,14 @@ function renderBoard(spec, file) {
 
 // ---------- pages ----------
 
+// Folds every opened page map on Escape or on a click outside it (a click on the chip or on the map is handled by the
+// details element and the map's own onclick). Emitted once per page that has a map.
+const MAP_SCRIPT = `<script>
+const foldMaps = (keep) => document.querySelectorAll('details.map-fold[open]').forEach((d) => { if (!keep || !d.contains(keep)) d.open = false; });
+document.addEventListener('click', (e) => foldMaps(e.target));
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape') foldMaps(); });
+</script>`;
+
 function pageHtml(name, spec, file) {
   need(file, isText(spec.title), '"title" is required');
   need(file, FRAMES.includes(frameOf(spec)), `"frame" must be one of ${FRAMES.join(', ')}`);
@@ -508,7 +531,7 @@ function pageHtml(name, spec, file) {
 </div>
 
 ${board}
-
+${board.includes('class="map-fold"') ? MAP_SCRIPT : ''}
 </body>
 </html>
 `;

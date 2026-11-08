@@ -100,6 +100,10 @@ branches and notes work as on a phone board. A screen takes `caption`, optional 
   forced minimum height: it is as tall as its content. A phone screen with `width` fails the build.
 - `scale` - a number 0.2-1 that draws the whole screen smaller (the page map, "Page map"); names on covered
   regions grow back so they stay readable, and the menu rail loses its text. Desktop boards only.
+- `map: true` - the page map screen ("Page map"): a compact chip, left-aligned in the board, with the caption and a tiny
+  thumbnail of the page (the highlighted region filled, the other regions outlines, no names). A click opens the readable
+  map as a popover under the chip, over the flow's screens, so the board does not move; a click on the map, on the chip,
+  outside the map or Escape folds it. Drawn at `scale` (default `0.4`). Desktop boards only.
 
 `columns` and `card` build the page area; all other blocks work as on a phone, restyled for a desktop (`topbar` is the
 page heading, `tabs` are page tabs, buttons keep their width). `user` is for phone boards only. One mockups folder
@@ -107,8 +111,8 @@ holds one kind of board: a project with both keeps phone boards and desktop boar
 
 ### Page map
 
-A flow that concerns only one part of a page shows only that part. It starts with a map screen: the real page,
-scaled down with `scale` (for example `0.4`), each section wrapped in a `region` with `cover: true` and the region the
+A flow that concerns only one part of a page shows only that part. It starts with a map screen (`map: true`, folded
+until the viewer opens it, so a flow whose place is clear from its title costs no space): the real page, scaled down, each section wrapped in a `region` with `cover: true` and the region the
 flow is about marked `on: true`. A covered region keeps its blocks' real size and place, so the map has the page's
 proportions; the `on` region draws them as a skeleton (shapes without text), every other region hides them behind two
 calm bars, so the map stays quiet. The name sits on the region's border. Build the page from parts
