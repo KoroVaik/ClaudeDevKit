@@ -69,7 +69,7 @@ Block names such as `dish` and the day-header `tone` values (`choice`, `chosen`,
 | `tabbar` | `items`, `active` (index); put a `spacer` before it to pin it to the bottom |
 | `columns` | desktop areas side by side: `cols`, 2+ entries `{ width, blocks }`; `width` is px (a number) or `"1fr"`, `"2fr"` (default `1fr`) |
 | `card` | a titled panel: `title`, `aside` (grey text at the right of the title), `tone` (`ok`, `warn`, `danger`: the border color), `muted: true` (faded back), `blocks` |
-| `region` | a labelled area of a page map: `title` (required), `on: true` (highlights the area a flow is about: solid colored border and a light fill), `blocks` (nested blocks, typically more `region` or `columns` of regions; without them two faint bars under the title mean "this area has content") |
+| `region` | a labelled area of a page map: `title` (required on the `on` region; on a map leave it out where the name does not fit, but keep a few names so the viewer can tell where the region is), `on: true` (highlights the area a flow is about: solid colored border and a light fill), `blocks` (nested blocks, typically more `region` or `columns` of regions; without them two faint bars under the title mean "this area has content"), `cover: true` (with `blocks`: the blocks keep their size; the `on` region draws them as a text-free skeleton, others hide them behind two bars, "Page map") |
 | `toast` | `text`, `action` (for example "Undo"), `oneLine: true` (cut the text with an ellipsis instead of wrapping), `expanded` (`{ title, collapse }`: the opened state with a small photo, the full `title` and a «collapse» line) |
 | `part` | `name`: a reusable block list from `parts/<name>.json`, expanded in place ("Parts"); no other fields |
 
@@ -98,6 +98,8 @@ branches and notes work as on a phone board. A screen takes `caption`, optional 
 - `overlay` - only `popup` (centered, dims the whole screen).
 - `width` - an integer 240-1440 (px) that sets this screen's width instead of `--screen-w`. A screen with `width` has no
   forced minimum height: it is as tall as its content. A phone screen with `width` fails the build.
+- `scale` - a number 0.2-1 that draws the whole screen smaller (the page map, "Page map"); names on covered
+  regions grow back so they stay readable, and the menu rail loses its text. Desktop boards only.
 
 `columns` and `card` build the page area; all other blocks work as on a phone, restyled for a desktop (`topbar` is the
 page heading, `tabs` are page tabs, buttons keep their width). `user` is for phone boards only. One mockups folder
@@ -105,10 +107,14 @@ holds one kind of board: a project with both keeps phone boards and desktop boar
 
 ### Page map
 
-A flow that concerns only one part of a page shows only that part. It starts with a map screen: the whole page drawn
-from `region` blocks (outlined areas with names, in rows or in `columns`), with the region the flow is about marked
-`on: true`. The screens that follow draw that part only, each at its own `width` (for example the width of the part
-in the real page). A deep component can be shown inside its parent by nesting `region` blocks in `blocks`.
+A flow that concerns only one part of a page shows only that part. It starts with a map screen: the real page,
+scaled down with `scale` (for example `0.4`), each section wrapped in a `region` with `cover: true` and the region the
+flow is about marked `on: true`. A covered region keeps its blocks' real size and place, so the map has the page's
+proportions; the `on` region draws them as a skeleton (shapes without text), every other region hides them behind two
+calm bars, so the map stays quiet. The name sits on the region's border. Build the page from parts
+(one part per section) and use the same parts in the full-page mockup and in the map, so the two never drift. Leave
+out the names that do not fit; keep a few so the viewer can tell where the region is. The screens that follow draw
+that part only, each at its own `width` (for example the width of the part in the real page).
 
 ## Parts
 

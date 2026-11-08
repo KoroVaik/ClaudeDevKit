@@ -354,3 +354,24 @@ a:hover { color: #d8e4ee; }
 .region > .bar { align-self: center; opacity: 0.5; }
 .region.on { border: 2px solid var(--source); background: rgba(150, 206, 250, 0.12); }
 .region.on > .region-title { color: var(--source); font-size: 14px; }
+
+/* Covered region (page map): the real blocks keep their size and place. The "on" region draws them as a skeleton -
+   shapes stay, text becomes grey bars; every other region hides them and shows two calm centered bars, so the map
+   stays quiet. The name sits on the top border line like a fieldset legend and grows by 1/scale so it stays readable
+   on a scaled-down map screen ("scale"); there the menu rail loses its text too. */
+.region.covered { position: relative; padding: 0; }
+.region.covered > .region-content { pointer-events: none; }
+.region.covered:not(.on) > .region-content { visibility: hidden; }
+.region.covered > .region-content, .region.covered > .region-content *,
+.screen.scaled .menu div { color: transparent !important; -webkit-text-fill-color: transparent; }
+.region.covered > .region-content :is(.list-row > span, .name, .sub, .title, .card-title, .aside, .field-label, .qty) {
+  background: var(--border); border-radius: 4px; }
+.region-cover { position: absolute; inset: 0; pointer-events: none; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: calc(6px / var(--scale, 1)); }
+.region-cover > .bar { height: calc(8px / var(--scale, 1)); opacity: 0.5; }
+.region.on > .region-cover > .bar { display: none; }
+.region-cover > .region-title { position: absolute; top: 0; left: calc(12px / var(--scale, 1)); transform: translateY(-50%);
+  padding: 0 0.5em; font-size: calc(12px / var(--scale, 1)); line-height: 1; white-space: nowrap;
+  background: var(--bg); color: var(--text); text-align: left; }
+.region.on .region-cover > .region-title { color: var(--source); font-weight: 700;
+  background: color-mix(in srgb, var(--source) 12%, var(--bg)); }

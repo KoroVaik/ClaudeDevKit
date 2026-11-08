@@ -258,13 +258,22 @@ const blocks = {
   // A labelled area of a page map (dashed outline); "on" highlights the area a flow is about.
   // Without "blocks" two faint bars under the title say the area has content.
   region(b, file) {
-    need(file, isText(b.title), 'region needs "title"');
+    // A map region may go without a name where it does not fit; the region a flow is about always has one.
+    need(file, b.title === undefined ? !b.on : isText(b.title), b.on ? 'an "on" region needs "title"' : 'region "title" must be text');
+    const title = b.title === undefined ? '' : `<div class="region-title">${esc(b.title)}</div>`;
     need(file, b.on === undefined || typeof b.on === 'boolean', 'region on must be true or false');
     need(file, b.blocks === undefined || (Array.isArray(b.blocks) && b.blocks.length > 0), 'region blocks must be a non-empty array');
+    need(file, b.cover === undefined || (b.cover === true && b.blocks !== undefined), 'region cover must be true and needs "blocks"');
+    // "cover": the blocks keep their real size and place (a page map drawn from the real page, so its proportions match
+    // the full screen). Only the "on" region shows them, as a text-free skeleton; the others show two calm bars.
+    if (b.cover) {
+      const cover = `<div class="region-cover">${title}<div class="bar" style="width:40%"></div><div class="bar" style="width:25%"></div></div>`;
+      return `<div class="region covered${b.on ? ' on' : ''}"><div class="region-content">${renderBlocks(b.blocks, file, 'region')}</div>${cover}</div>`;
+    }
     const inner = b.blocks === undefined
       ? '<div class="bar" style="width:70%"></div><div class="bar" style="width:45%"></div>'
       : renderBlocks(b.blocks, file, 'region');
-    return `<div class="region${b.on ? ' on' : ''}"><div class="region-title">${esc(b.title)}</div>${inner}</div>`;
+    return `<div class="region${b.on ? ' on' : ''}">${title}${inner}</div>`;
   },
 };
 
@@ -339,6 +348,8 @@ function renderScreen(id, p, file) {
   need(file, p.step === undefined || (Number.isInteger(p.step) && p.step > 0), `${where}: step must be a positive integer`);
   need(file, p.width === undefined || (Number.isInteger(p.width) && p.width >= SCREEN_W_MIN && p.width <= SCREEN_W_MAX),
     `${where}: width must be an integer ${SCREEN_W_MIN}-${SCREEN_W_MAX} (px)`);
+  need(file, p.scale === undefined || (typeof p.scale === 'number' && p.scale >= 0.2 && p.scale <= 1),
+    `${where}: scale must be a number 0.2-1`);
   let menu = '';
   if (p.menu !== undefined) {
     const m = p.menu;
@@ -357,13 +368,15 @@ function renderScreen(id, p, file) {
     body = `<div class="faded">${main}</div><div class="dim"></div><div class="popup">${close}${renderBlocks(o.blocks, file, `${where} overlay`)}</div>`;
   }
   const tag = p.step ? `<span class="user-tag">${p.step}</span>` : '';
-  return `<div class="caption">${tag}${esc(p.caption)}</div><div class="screen${p.width ? ' sized' : ''}"${p.width ? ` style="width:${p.width}px"` : ''}>${body}</div>`;
+  const style = [p.width ? `width:${p.width}px` : '', p.scale ? `zoom:${p.scale};--scale:${p.scale}` : ''].filter(Boolean).join(';');
+  return `<div class="caption">${tag}${esc(p.caption)}</div><div class="screen${p.width ? ' sized' : ''}${p.scale ? ' scaled' : ''}"${style ? ` style="${style}"` : ''}>${body}</div>`;
 }
 
 function renderPhone(id, p, file, frame = 'phone') {
   if (frame === 'desktop') return renderScreen(id, p, file);
   need(file, p.menu === undefined, `phone "${id}": "menu" is for desktop boards`);
   need(file, p.width === undefined, `phone "${id}": "width" is for desktop boards; a phone has a fixed width`);
+  need(file, p.scale === undefined, `phone "${id}": "scale" is for desktop boards`);
   const where = `phone "${id}"`;
   need(file, p && typeof p === 'object', `${where} must be an object`);
   need(file, isText(p.caption), `${where} needs "caption"`);
