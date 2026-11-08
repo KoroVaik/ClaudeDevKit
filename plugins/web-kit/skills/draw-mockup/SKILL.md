@@ -26,7 +26,7 @@ overrides the defaults here.
   look.
 
 Do not invent product behavior. If the flow is not described yet, draw the minimum, say in the
-spec `notes` which parts are placeholders, and list the open questions at the end of the reply
+spec `authorNotes` which parts are placeholders, and list the open questions at the end of the reply
 as a numbered block.
 
 ## Steps
@@ -104,8 +104,9 @@ Screen text is the least that keeps the screen clear; explanations go in the boa
 - Every screen is reached by an arrow with the action that led to it. Each path of the flow,
   the first one included, starts with a `branch` row: a title and `given` with the precondition
   ("**Precondition:** an item is already chosen"). A popup or warning is never the first screen of a
-  branch: draw the screen it opens from. Design changes and their reasons go in one
-  note below the board.
+  branch: draw the screen it opens from.
+- Service text never shows on the page: sources, what is approximated or left out, design changes and their reasons go
+  in the spec's `authorNotes`. The viewer sees at most one short `notes` line under the title.
 - In a flow with two people, set `user` (`A` or `B`) on every phone: the frame color and the
   "A1"/"B4" tag (letters set in `mockups.config.json`) show whose phone it is, so the caption does not repeat the name.
 - A mockup never changes rules. A new product rule goes to its feature or standard

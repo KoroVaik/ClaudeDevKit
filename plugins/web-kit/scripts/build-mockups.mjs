@@ -55,6 +55,7 @@ const FRAMES = ['phone', 'desktop'];
 const CARD_TONES = ['ok', 'warn', 'danger'];
 const SCREEN_W_MIN = 240;
 const SCREEN_W_MAX = 1440;
+const NOTE_MAX = 160;
 const MAP_THUMB_SCALE = 0.075;
 
 // A board draws its screens as phone frames (default) or as wide desktop screens (spec "frame": "desktop").
@@ -508,7 +509,11 @@ function pageHtml(name, spec, file) {
   need(file, spec.screens === undefined || frameOf(spec) === 'desktop', '"screens" is for a desktop board; a phone board uses "phones"');
   const screens = screensOf(spec);
   need(file, screens && typeof screens === 'object' && Object.keys(screens).length > 0, `"${frameOf(spec) === 'desktop' ? 'screens' : 'phones'}" is required`);
-  const source = spec.source ? `<p>Source: ${esc(spec.source)}</p>` : '';
+  // The page shows the viewer at most one short note. Service text (sources, what is approximated, decisions) goes to
+  // "authorNotes", which stays in the JSON for the next editor and is never rendered; "source" is not rendered either.
+  need(file, spec.notes === undefined || (Array.isArray(spec.notes) && spec.notes.length <= 1 && spec.notes.every((n) => isText(n) && n.length <= NOTE_MAX)),
+    `"notes" is at most one line of up to ${NOTE_MAX} characters for the viewer; put service text in "authorNotes"`);
+  need(file, spec.authorNotes === undefined || (Array.isArray(spec.authorNotes) && spec.authorNotes.every(isText)), '"authorNotes" must be an array of strings');
   const notes = (spec.notes ?? []).map((n) => `<p>${rich(n)}</p>`).join('\n  ');
   const board = renderBoard(spec, file);
   return `<!doctype html>
@@ -525,7 +530,6 @@ function pageHtml(name, spec, file) {
 <div class="page-head">
   <p><a href="index.html">&larr; All mockups</a></p>
   <h1>${esc(spec.title)}</h1>
-  ${source}
   ${notes}
   <p>${esc(PAGE_NOTE)}</p>
 </div>
@@ -554,7 +558,7 @@ function indexHtml(entries) {
         .sort((a, b) => a.spec.title.localeCompare(b.spec.title))
         .map((e) => {
           const phones = Object.keys(screensOf(e.spec)).length;
-          const meta = [e.spec.source, `${phones} screen${phones === 1 ? '' : 's'}`].filter(Boolean).join(' · ');
+          const meta = `${phones} screen${phones === 1 ? '' : 's'}`;
           const hay = esc(`${e.spec.title} ${e.spec.summary ?? ''} ${g}`.toLowerCase());
           return `    <a class="item" href="${e.name}.html" data-hay="${hay}"><strong>${esc(e.spec.title)}</strong><span>${esc(e.spec.summary ?? '')}</span><span class="meta">${esc(meta)}</span></a>`;
         });

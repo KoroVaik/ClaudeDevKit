@@ -34,8 +34,9 @@ The file name is lowercase words joined by hyphens and becomes the page name.
 | `title` | yes | Page title and index entry. |
 | `group` | no | Section in the index (for example `Choice`); default `Other`. |
 | `summary` | no | One line in the index. |
-| `source` | no | Where the flow is described (for example `docs/features/pick-item.md`). |
-| `notes` | no | Extra paragraphs in the page header. |
+| `source` | no | Where the flow is described (for example `docs/features/pick-item.md`). Kept in the JSON, not shown. |
+| `notes` | no | At most one short line (160 characters) under the title, for the viewer. |
+| `authorNotes` | no | Service text for the next editor: sources, what is approximated or left out, decisions. Never shown. |
 | `frame` | no | `phone` (default) or `desktop` ("Desktop boards"). |
 | `phones` | yes | Map `id` -> phone (below). A desktop board may call it `screens`. |
 | `layout` | yes | Rows of cells that place the phones (below). |
