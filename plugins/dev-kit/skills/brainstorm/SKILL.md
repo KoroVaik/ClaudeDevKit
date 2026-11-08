@@ -31,7 +31,7 @@ overrides them.
 - Facts first: what the product really does today and what the feature rules already say - read it,
   do not guess. Mark claims known / assumed in a few words. If an idea contradicts a feature rule
   or a standard, say so in a few words; the idea may still live, but the owner must reopen the rule.
-- Do not judge ideas while generating. No code names or internal labels in chat; plain words.
+- Do not judge ideas while generating. No code names or internal labels in chat; plain words. Plain does not mean self-coined: for a concept that has a glossary entry (docs/glossary.md or the project's equivalent), use that name and never a "Do not say" synonym, in chat and in mockup captions. Look the name up before you coin a word; if there is no entry, propose a name to the owner.
 - Write nothing but backlog entries: no decisions, no `PROGRESS.md`, no feature or tech docs, no code.
 - Do not invent a market. Judge by fit with the people who really use the product and by the cost of
   one honest test, not by trends.
