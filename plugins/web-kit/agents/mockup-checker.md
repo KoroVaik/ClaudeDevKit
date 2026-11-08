@@ -26,7 +26,7 @@ differences. If the app does not answer, say so and stop; never start or restart
 - The spec format reference explains the spec: what each block type and field means.
 - The spec gives each phone's caption, blocks in order, overlay, and the arrows between phones;
   an arrow label is the user action that leads to the next phone.
-- `notes` say which parts are placeholders. Mockups are low fidelity: grey boxes, placeholder
+- `authorNotes` (and, in older specs, `notes`) say which parts are placeholders or approximated. Mockups are low fidelity: grey boxes, placeholder
   photos and names, no final typography.
 
 ## Compare
