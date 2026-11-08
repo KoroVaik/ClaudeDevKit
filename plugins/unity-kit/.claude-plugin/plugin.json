@@ -1,0 +1,6 @@
+{
+  "name": "unity-kit",
+  "version": "0.1.0",
+  "description": "Unity extension: working with the open editor through a bridge, a Unity operator agent and scene sketches",
+  "author": { "name": "KoroVaik" }
+}

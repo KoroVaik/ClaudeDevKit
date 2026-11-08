@@ -1,0 +1,356 @@
+/* Default styles for low-fidelity mobile wireframes (web-kit): a neutral dark palette. The generator writes this file only
+   when the mockups folder has no mockups.css; a project's own file is never overwritten and wins. */
+:root {
+  --bg: #1a1a1a;
+  --card: #222222;
+  --selected: #2b2b2b;
+  --hover: #303030;
+  --text: #f2f2f2;
+  --muted: #a0a0a0;
+  --border: #363636;
+  --divider: #484848;
+  --frame: #777777;
+  --save: #d9d9d9;
+  --approve: #6ee599;
+  --attention: #c69e39;
+  --source: #96cefa;
+  --danger: #f87171;
+  --user-a: #96cefa;
+  --user-b: #f0a6c8;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  padding: 24px;
+  background: #121212;
+  color: var(--text);
+  font: 15px/1.4 system-ui, "Segoe UI", Roboto, sans-serif;
+}
+
+a { color: #b0c4d4; }
+a:hover { color: #d8e4ee; }
+
+.page-head { max-width: 1100px; margin: 0 auto 24px; }
+.page-head h1 { margin: 0 0 8px; font-size: 22px; }
+.page-head p { margin: 4px 0; color: var(--muted); font-size: 13px; }
+
+/* Column and row sizes are set inline by the web-kit mockup generator (110px arrow-only columns, 72px arrow-only rows). */
+.board {
+  display: grid;
+  justify-content: center;
+  align-items: center;
+  /* One standard vertical gap between all rows; arrows provide the horizontal spacing */
+  gap: 24px 0;
+  overflow-x: auto;
+  padding-bottom: 16px;
+}
+
+.cell { display: flex; align-items: center; justify-content: center; }
+.cell > .note { margin-right: auto; }
+/* Frames in one row start at the same height, whatever their caption or action length */
+.cell-phone { align-self: start; }
+
+.step { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+.step > .caption { color: var(--muted); font-size: 13px; text-align: center; max-width: 250px; }
+
+/* Whose phone it is in a two-person flow: frame color plus a tag before the caption */
+.phone.user-a { border-color: var(--user-a); }
+.phone.user-b { border-color: var(--user-b); }
+.user-tag { display: inline-block; margin-right: 6px; padding: 0 7px; border-radius: 9px; color: #121212; background: var(--frame); font-weight: 700; }.user-tag.user-a { background: var(--user-a); }
+.user-tag.user-b { background: var(--user-b); }
+
+.link {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 2px;
+  color: var(--text);
+  font-size: 13px;
+  text-align: center;
+}
+.link .glyph { font-size: 22px; line-height: 1; color: var(--frame); }
+
+.note { max-width: 520px; padding-left: 24px; color: var(--muted); font-size: 13px; }
+/* A note in one column must not widen a phone column and push its arrows aside */
+.note.narrow { max-width: 250px; padding-left: 0; }
+
+/* Branch header: a full-width divider that starts a separate path of the flow */
+.cell-branch { justify-content: stretch; }
+.branch { width: 100%; padding-top: 16px; border-top: 1px solid var(--divider); }
+.cell-branch:first-child .branch { padding-top: 0; border-top: 0; }
+.branch-title { font-size: 17px; font-weight: 700; }
+.branch-given { margin-top: 4px; color: var(--muted); font-size: 13px; }
+
+/* Phone frame */
+.phone {
+  position: relative;
+  width: 250px;
+  height: 520px;
+  padding: 14px 12px;
+  background: var(--bg);
+  border: 2px solid var(--divider);
+  border-radius: 28px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  font-size: 13px;
+}
+
+.topbar { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.topbar .title { font-size: 15px; font-weight: 600; }
+.topbar .aside { color: var(--muted); font-size: 12px; }
+/* Dish card: photo, then name on the page background */
+.dish { display: flex; flex-direction: column; gap: 4px; }
+/* The name must sit visibly closer to its own photo than to the next dish */
+.dish + .dish { margin-top: 12px; }
+/* A card cut by the bottom edge shows that the list scrolls; only it may shrink */
+.dish.peek { flex: 1 1 0; min-height: 0; overflow: hidden; }
+.dish.peek > * { flex-shrink: 0; }
+.phone:has(.dish.peek) > :not(.peek) { flex-shrink: 0; }
+.photo {
+  position: relative;
+  height: 112px;
+  border-radius: 10px;
+  background: var(--card);
+  border: 1px dashed var(--frame);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--muted);
+  font-size: 12px;
+}
+.photo.big { height: 130px; }
+/* Rejection layer: reasons sit on the dish itself over a translucent red tint */
+.photo.with-reject { height: auto; min-height: 112px; align-items: stretch; justify-content: stretch; }
+.reject {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px;
+  border-radius: 9px;
+  background: rgba(248, 113, 113, 0.22);
+  color: var(--text);
+}
+.reject .chip:not(.on) { background: rgba(26, 26, 26, 0.7); }
+.reject-line { height: 1px; background: rgba(243, 244, 246, 0.35); }
+.badge {
+  position: absolute;
+  left: 8px;
+  bottom: 8px;
+  padding: 2px 8px;
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.65);
+  color: var(--text);
+  font-size: 12px;
+}
+.name { font-size: 14px; font-weight: 600; }
+.sub { color: var(--muted); font-size: 12px; }
+.sub.ok { color: var(--approve); }
+.sub.warn { color: var(--attention); }
+
+.bar { height: 9px; border-radius: 4px; background: var(--divider); }
+.spacer { flex: 1; }
+
+/* Controls */
+.btn {
+  min-height: 34px;
+  padding: 6px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  font-size: 13px;
+}
+.btn.save { background: var(--save); border-color: var(--save); color: var(--bg); }
+.btn.approve { background: var(--approve); border-color: var(--approve); color: var(--bg); }
+.btn-cell { display: flex; flex-direction: column; gap: 4px; }
+.btn-caption { color: var(--muted); font-size: 10px; text-align: center; }
+.row { display: flex; gap: 8px; }
+.row > * { flex: 1; }
+
+.chip {
+  display: inline-block;
+  padding: 4px 10px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  font-size: 12px;
+  color: var(--text);
+}
+.chip.s { padding: 2px 7px; font-size: 10px; }
+.chip.m { padding: 5px 12px; font-size: 13px; }
+.chip.l { padding: 7px 15px; font-size: 16px; }
+/* Chip states: plain = grey border; hinted = colored border, no fill;
+   selected = solid fill with dark text. Color carries meaning: light = for now, yellow = less often, red = never. */
+.chip.danger { color: var(--danger); border-color: var(--danger); }
+.chip.warn { color: var(--attention); border-color: var(--attention); }
+.chip.on { background: var(--save); border-color: var(--save); color: var(--bg); }
+.chip.on.warn { background: var(--attention); border-color: var(--attention); color: var(--bg); }
+.chip.on.danger { background: var(--danger); border-color: var(--danger); color: var(--bg); }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+
+/* Compact progress in the title row: the title names the step, the dots show where it is */
+.mini-steps { display: flex; align-items: center; gap: 5px; margin-left: auto; }
+.mini-steps i { display: grid; place-items: center; width: 18px; height: 18px; border: 1.5px solid var(--border); border-radius: 50%; color: var(--muted); font-size: 10px; font-style: normal; }
+.mini-steps i.done { border-color: var(--frame); background: var(--frame); color: #121212; }
+.mini-steps i.on { width: 22px; height: 22px; border-color: var(--save); background: var(--save); color: #121212; font-size: 12px; font-weight: 700; }
+
+/* Bottom navigation; put a spacer before it so it sits at the bottom of the phone */
+.tabbar { display: flex; margin: 0 -12px -14px; border-top: 1px solid var(--divider); background: var(--card); }
+.tabbar div { flex: 1; padding: 9px 0 12px; color: var(--muted); font-size: 11px; text-align: center; }
+.tabbar div.on { color: var(--text); font-weight: 700; }
+
+/* Short confirmation after an action, with an optional undo */
+.toast { display: flex; justify-content: space-between; gap: 8px; padding: 8px 10px; border-radius: 8px; background: var(--hover); font-size: 12px; }
+.toast strong { color: var(--approve); }
+.toast.one-line > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.toast.one-line strong { flex: none; }
+.toast.open { flex-direction: column; gap: 8px; }
+.toast-row { display: flex; justify-content: space-between; gap: 8px; }
+.toast-body { display: flex; align-items: center; gap: 8px; }
+.toast-fold { color: var(--muted); text-align: center; }
+
+/* Text input: label above an empty box with a muted placeholder */
+.field { display: flex; flex-direction: column; gap: 4px; }
+.field-label { color: var(--muted); font-size: 12px; }
+.field-box { min-height: 30px; padding: 6px 8px; border: 1px solid var(--border); border-radius: 8px; color: var(--muted); font-size: 12px; }
+
+.tabs { display: flex; border-bottom: 1px solid var(--divider); }
+.tabs div { flex: 1; padding: 8px 0; text-align: center; color: var(--muted); }
+.tabs div.on { color: var(--text); border-bottom: 2px solid var(--save); font-weight: 600; }
+
+.list-row { display: flex; justify-content: space-between; padding: 7px 0; border-bottom: 1px solid var(--border); }
+.list-row .qty { color: var(--muted); }
+.list-row > span:first-child { display: flex; align-items: center; gap: 8px; }
+.thumb { flex: none; width: 26px; height: 26px; border-radius: 6px; background: var(--card); border: 1px dashed var(--frame); }
+.thumb.l { width: 40px; height: 40px; }
+
+/* Overlays */
+.dim { position: absolute; inset: 0; background: rgba(8, 8, 12, 0.7); }
+.popup {
+  position: absolute;
+  left: 14px;
+  right: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  padding: 12px;
+  border: 1px solid var(--frame);
+  border-radius: 14px;
+  background: var(--card);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.popup .close { position: absolute; right: 10px; top: 8px; color: var(--muted); font-size: 16px; }
+.sheet {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding: 14px 12px 16px;
+  border-top: 1px solid var(--frame);
+  border-radius: 18px 18px 0 0;
+  background: var(--card);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.sheet h3 { margin: 0; font-size: 14px; }
+.faded { display: flex; flex-direction: column; gap: 10px; opacity: 0.35; }
+
+/* Day header (a topbar with "tone"): a band in a muted color of the step with «‹», the step as the
+   title and the partner's status; the thin step line at its bottom edge has the brighter tone */
+.topbar.day { flex-direction: column; align-items: stretch; gap: 0; margin: -14px -12px 0; padding: 6px 12px 0; background: var(--band); }
+.topbar.day.no-bar { padding-bottom: 6px; border-bottom: 1px solid var(--tone); }
+.topbar.day .row { display: flex; align-items: center; gap: 6px; min-height: 28px; }
+.topbar.day .row > * { flex: none; }
+.topbar.day .title { min-width: 0; }
+.tone-choice { --tone: var(--save); --band: var(--card); }
+.tone-chosen { --tone: var(--attention); --band: #2b2717; }
+.tone-cooking { --tone: #e08a3c; --band: #33221a; }
+.tone-done { --tone: var(--approve); --band: #18291f; }
+.steps-bar { display: flex; gap: 2px; margin: 5px -12px 0; }
+.steps-bar i { flex: 1; height: 3px; background: var(--border); }
+.steps-bar i.on { background: var(--tone); }
+.topbar .back-icon { display: grid; place-items: center; width: 28px; height: 28px; border-radius: 50%; background: #ffffff14; color: var(--text); }
+/* The chevron is drawn with borders: a text «‹» sits below the circle's center */
+.topbar .back-icon::before { content: ""; width: 8px; height: 8px; margin-left: 3px; border-left: 2px solid currentColor; border-bottom: 2px solid currentColor; transform: rotate(45deg); }
+/* A faint «?» after the title says the title can be tapped for a hint */
+.topbar .title.has-hint { position: relative; display: inline-flex; align-items: center; gap: 6px; }
+.topbar .title-q { display: grid; place-items: center; width: 17px; height: 17px; border: 1.5px solid currentColor; border-radius: 50%; font-size: 10px; font-weight: 700; opacity: .35; }
+.topbar .partner { position: relative; display: flex; align-items: center; gap: 5px; margin-left: auto; padding: 3px 7px 3px 3px; border-radius: 14px; background: #ffffff0d; color: var(--text); font-size: 11px; }
+.topbar .partner i { display: grid; place-items: center; width: 18px; height: 18px; border-radius: 50%; color: #121212; font-size: 10px; font-style: normal; font-weight: 700; }
+.topbar .partner.user-a i { background: var(--user-a); }
+.topbar .partner.user-b i { background: var(--user-b); }
+.typing { display: inline-flex; width: 14px; font-weight: 700; }
+.typing b { animation: typing 1.2s infinite; opacity: 0; }
+.typing b:nth-child(2) { animation-delay: .3s; }
+.typing b:nth-child(3) { animation-delay: .6s; }
+@keyframes typing { 0%, 15% { opacity: 0; } 25%, 85% { opacity: 1; } 100% { opacity: 0; } }
+/* The bubble shown for a few seconds after a tap on the title or the partner */
+.topbar .hint { position: absolute; top: calc(100% + 8px); z-index: 1; width: max-content; max-width: 170px; padding: 6px 10px; border-radius: 10px; background: var(--save); color: #121212; font-size: 12px; font-weight: 600; line-height: 1.3; box-shadow: 0 4px 14px #0008; }
+.topbar .hint::before { content: ""; position: absolute; top: -5px; border: 5px solid transparent; border-top: 0; border-bottom-color: var(--save); }
+.topbar .title .hint { left: -6px; }
+.topbar .title .hint::before { left: 14px; }
+.topbar .partner .hint { right: -4px; }
+.topbar .partner .hint::before { right: 12px; }
+
+/* Desktop screen (spec "frame": "desktop"): an admin-style page at its real width, with an optional menu rail */
+.step.wide { align-items: flex-start; }
+.step.wide > .caption { max-width: none; text-align: left; }
+.screen {
+  position: relative;
+  width: var(--screen-w, 1440px);
+  min-height: 560px;
+  background: var(--bg);
+  border: 2px solid var(--divider);
+  border-radius: 10px;
+  overflow: hidden;
+  font-size: 15px;
+}
+.screen .faded { display: block; }
+.screen-body { display: flex; min-height: 556px; }
+.menu { flex: none; width: 250px; padding: 12px 8px; border-right: 1px solid var(--divider); background: var(--card); }
+.menu div { padding: 9px 12px; border-radius: 8px; color: var(--muted); }
+.menu div.on { background: var(--selected); color: var(--text); font-weight: 600; }
+.main { flex: 1; min-width: 0; padding: 16px; display: flex; flex-direction: column; gap: 12px; }
+.screen .topbar .title { font-size: 20px; }
+.screen .topbar .aside { font-size: 13px; }
+.screen .tabs { justify-content: flex-start; gap: 4px; }
+.screen .tabs div { flex: none; padding: 8px 14px; }
+.screen .row { flex-wrap: wrap; }
+.screen .row > * { flex: none; }
+.screen .btn { align-self: flex-start; min-height: 32px; padding: 6px 16px; font-size: 15px; }
+.screen .field-box { min-height: 32px; font-size: 15px; }
+.screen .field-label { font-size: 13px; }
+.screen .name { font-size: 15px; }
+.screen .sub { font-size: 13px; }
+.screen .chip { font-size: 13px; }
+.screen .popup { left: 50%; right: auto; width: 560px; transform: translate(-50%, -50%); }
+.cols { display: grid; gap: 16px; align-items: start; }
+.col { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.card { display: flex; flex-direction: column; gap: 10px; padding: 12px; border: 1px solid var(--border); border-radius: 10px; background: var(--card); }
+.card.ok { border-color: var(--approve); }
+.card.warn { border-color: var(--attention); }
+.card.danger { border-color: var(--danger); }
+/* A card faded back so what needs a decision stands out */
+.card.muted { opacity: 0.45; }
+.card-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
+.card-title { font-size: 16px; font-weight: 600; }
+.card-head .aside { color: var(--muted); font-size: 13px; }
+/* Desktop screen with its own "width" (a fragment of a page): as tall as its content */
+.screen.sized, .screen.sized .screen-body { min-height: 0; }
+/* Page map: a labelled dashed area; "on" marks the area the flow is about. Not a field and not a card: no fill, dashed line */
+.region { display: flex; flex-direction: column; gap: 8px; padding: 8px; border: 1px dashed var(--divider); border-radius: 10px; background: transparent; }
+.region-title { color: var(--muted); font-size: 13px; text-align: center; }
+.region > .bar { align-self: center; opacity: 0.5; }
+.region.on { border: 2px solid var(--source); background: rgba(150, 206, 250, 0.12); }
+.region.on > .region-title { color: var(--source); font-size: 14px; }

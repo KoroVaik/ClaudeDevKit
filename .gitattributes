@@ -1,0 +1,4 @@
+.githooks/* text eol=lf
+*.py text eol=lf
+plugins/dev-kit/bin/* text eol=lf
+plugins/web-kit/bin/* text eol=lf

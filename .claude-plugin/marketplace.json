@@ -1,0 +1,24 @@
+{
+  "name": "korov-dev",
+  "description": "Development team plugins for any project: a core and stack extensions",
+  "owner": {
+    "name": "KoroVaik"
+  },
+  "plugins": [
+    {
+      "name": "dev-kit",
+      "source": "./plugins/dev-kit",
+      "description": "Core: development process, generic agents, product work and the documentation standard"
+    },
+    {
+      "name": "web-kit",
+      "source": "./plugins/web-kit",
+      "description": "Web extension: browser scenarios, layout checks and mockups"
+    },
+    {
+      "name": "unity-kit",
+      "source": "./plugins/unity-kit",
+      "description": "Unity extension: working with the open editor through a bridge, a Unity operator agent and scene sketches"
+    }
+  ]
+}
