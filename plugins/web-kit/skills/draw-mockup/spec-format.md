@@ -69,7 +69,7 @@ Block names such as `dish` and the day-header `tone` values (`choice`, `chosen`,
 | `buttons` | `items`: strings or `{ text, kind, caption }` (`caption` is a small grey line under the button), kind `plain`, `save` or `approve`; 2+ items form one row |
 | `chips` | `items`: strings or `{ text, on, size, tone }`; `size` is `s`, `m` or `l` (default is between `s` and `m`); `tone` is `warn` or `danger` |
 | `tabs` | `items`, `active` (index) |
-| `list` | `rows`: `[left]` or `[left, right]`, or `{ "cells": [left, right], "muted": true }` for a faded row (done or not in focus) in place; `thumbs: true` draws a small photo before each row, `thumbs: "l"` a larger one |
+| `list` | `rows`: `[left]` or `[left, right]`, or `{ "cells": [left, right], "muted": true, "action": { "text", "kind" } }`: `muted` fades the row in place (done or not in focus), `action` (a string or `{ text, kind }` as in `buttons`) draws a small button at the row's right end; `thumbs: true` draws a small photo before each row, `thumbs: "l"` a larger one |
 | `tabbar` | `items`, `active` (index); put a `spacer` before it to pin it to the bottom |
 | `columns` | desktop areas side by side: `cols`, 2+ entries `{ width, blocks }`; `width` is px (a number) or `"1fr"`, `"2fr"` (default `1fr`) |
 | `card` | a titled panel: `title`, `aside` (grey text at the right of the title), `tone` (`ok`, `warn`, `danger`: the border color), `muted: true` (faded back), `blocks` |

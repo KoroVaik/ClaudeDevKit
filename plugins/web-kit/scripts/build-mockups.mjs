@@ -235,7 +235,14 @@ const blocks = {
       const r = Array.isArray(row) ? row : row?.cells;
       need(file, Array.isArray(r) && r.length >= 1 && r.length <= 2,
         'every list row is [left], [left, right] or { "cells": [left, right], "muted": true }');
-      const right = r[1] !== undefined ? `<span class="qty">${esc(r[1])}</span>` : '';
+      let right = r[1] !== undefined ? `<span class="qty">${esc(r[1])}</span>` : '';
+      if (!Array.isArray(row) && row.action !== undefined) {
+        const act = typeof row.action === 'string' ? { text: row.action } : row.action;
+        need(file, isText(act?.text), 'a list row "action" needs "text"');
+        const kind = act.kind ?? 'plain';
+        need(file, BUTTON_KINDS.includes(kind), `button kind must be one of ${BUTTON_KINDS.join(', ')}`);
+        right = `<span class="row-end">${right}<span class="btn row-btn${kind === 'plain' ? '' : ' ' + kind}">${esc(act.text)}</span></span>`;
+      }
       const thumb = b.thumbs ? `<i class="thumb${b.thumbs === 'l' ? ' l' : ''}"></i>` : '';
       return `<div class="list-row${muted ? ' muted' : ''}"><span>${thumb}${esc(r[0])}</span>${right}</div>`;
     });
