@@ -271,7 +271,8 @@ const blocks = {
       need(file, tone === undefined || ['warn', 'danger'].includes(tone), 'a list row "tone" is warn or danger');
       return `<div class="list-row${muted ? ' muted' : ''}${tone ? ' ' + tone : ''}"><span>${thumb}${esc(r[0])}</span>${right}</div>`;
     });
-    return `<div>${rows.join('')}</div>`;
+    need(file, b.lines === undefined || typeof b.lines === 'boolean', 'list "lines" must be true or false');
+    return `<div${b.lines === false ? ' class="no-lines"' : ''}>${rows.join('')}</div>`;
   },
   // Side-by-side areas of a desktop screen: each column is { width, blocks }; width is px (number) or "1fr", "2fr"
   columns(b, file) {

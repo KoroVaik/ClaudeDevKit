@@ -236,6 +236,7 @@ a:hover { color: #d8e4ee; }
 .list-row { display: flex; justify-content: space-between; padding: 7px 0; border-bottom: 1px solid var(--border); }
 .list-row .qty { color: var(--muted); }
 .list-row.muted { opacity: 0.45; }
+.no-lines > .list-row { border-bottom: none; }
 .list-row .row-end { display: flex; align-items: center; gap: 8px; }
 .btn.row-btn { min-height: 24px; padding: 2px 8px; font-size: 12px; }
 .list-row:is(.warn, .danger) { padding: 6px 8px; border: 1px solid var(--attention); border-radius: 8px; }
