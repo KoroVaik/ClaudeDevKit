@@ -232,7 +232,12 @@ const blocks = {
     need(file, Array.isArray(b.items) && b.items.length > 1, 'tabs needs an "items" array with 2+ entries');
     const active = b.active ?? 0;
     need(file, Number.isInteger(active) && active >= 0 && active < b.items.length, 'tabs "active" is out of range');
-    const items = b.items.map((t, i) => `<div${i === active ? ' class="on"' : ''}>${esc(t)}</div>`);
+    const items = b.items.map((t, i) => {
+      const tab = isText(t) ? { text: t } : t;
+      need(file, isText(tab?.text), 'every tab is a string or { "text", "count" }');
+      const count = tab.count !== undefined ? ` <span class="tab-count">(${esc(String(tab.count))})</span>` : '';
+      return `<div${i === active ? ' class="on"' : ''}>${esc(tab.text)}${count}</div>`;
+    });
     return `<div class="tabs">${items.join('')}</div>`;
   },
   tabbar(b, file) {

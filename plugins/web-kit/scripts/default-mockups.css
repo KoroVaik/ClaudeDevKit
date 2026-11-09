@@ -232,6 +232,7 @@ a:hover { color: #d8e4ee; }
 .tabs { display: flex; border-bottom: 1px solid var(--divider); }
 .tabs div { flex: 1; padding: 8px 0; text-align: center; color: var(--muted); }
 .tabs div.on { color: var(--text); border-bottom: 2px solid var(--save); font-weight: 600; }
+.tab-count { color: var(--muted); font-weight: 400; }
 
 .list-row { display: flex; justify-content: space-between; padding: 7px 0; border-bottom: 1px solid var(--border); }
 .list-row .qty { color: var(--muted); }

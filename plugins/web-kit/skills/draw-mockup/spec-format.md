@@ -68,7 +68,7 @@ Block names such as `dish` and the day-header `tone` values (`choice`, `chosen`,
 | `spacer` | pushes the next blocks to the bottom |
 | `buttons` | `items`: strings or `{ text, kind, caption, disabled }` (`caption` is a small grey line under the button, `disabled: true` draws it unavailable), kind `plain`, `save` or `approve`; 2+ items form one row |
 | `chips` | `items`: strings or `{ text, on, size, tone }`; `size` is `s`, `m` or `l` (default is between `s` and `m`); `tone` is `warn` or `danger` |
-| `tabs` | `items`, `active` (index) |
+| `tabs` | `items` (strings or `{ text, count }`: the count is drawn as a greyer «(5)» after the name), `active` (index) |
 | `list` | `rows`: `[left]` or `[left, right]`, or `{ "cells": [left, right], "muted": true, "tone": "warn", "action": { "text", "kind" } }`: `muted` fades the row in place (done or not in focus), `tone` (`warn` or `danger`) frames just that row, `action` (a string or `{ text, kind }` as in `buttons`) draws a small button at the row's right end; `thumbs: true` draws a small photo before each row, `thumbs: "l"` a larger one; `lines: false` drops the dividers (a single value line) |
 | `tabbar` | `items`, `active` (index); put a `spacer` before it to pin it to the bottom |
 | `columns` | desktop areas side by side: `cols`, 2+ entries `{ width, blocks }`; `width` is px (a number) or `"1fr"`, `"2fr"` (default `1fr`) |
