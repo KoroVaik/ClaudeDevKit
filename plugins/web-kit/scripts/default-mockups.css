@@ -229,6 +229,7 @@ a:hover { color: #d8e4ee; }
 
 .list-row { display: flex; justify-content: space-between; padding: 7px 0; border-bottom: 1px solid var(--border); }
 .list-row .qty { color: var(--muted); }
+.list-row.muted { opacity: 0.45; }
 .list-row > span:first-child { display: flex; align-items: center; gap: 8px; }
 .thumb { flex: none; width: 26px; height: 26px; border-radius: 6px; background: var(--card); border: 1px dashed var(--frame); }
 .thumb.l { width: 40px; height: 40px; }

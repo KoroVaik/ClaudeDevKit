@@ -230,11 +230,14 @@ const blocks = {
   },
   list(b, file) {
     need(file, Array.isArray(b.rows) && b.rows.length > 0, 'list needs a non-empty "rows" array');
-    const rows = b.rows.map((r) => {
-      need(file, Array.isArray(r) && r.length >= 1 && r.length <= 2, 'every list row is [left] or [left, right]');
+    const rows = b.rows.map((row) => {
+      const muted = !Array.isArray(row) && row !== null && typeof row === 'object' && row.muted === true;
+      const r = Array.isArray(row) ? row : row?.cells;
+      need(file, Array.isArray(r) && r.length >= 1 && r.length <= 2,
+        'every list row is [left], [left, right] or { "cells": [left, right], "muted": true }');
       const right = r[1] !== undefined ? `<span class="qty">${esc(r[1])}</span>` : '';
       const thumb = b.thumbs ? `<i class="thumb${b.thumbs === 'l' ? ' l' : ''}"></i>` : '';
-      return `<div class="list-row"><span>${thumb}${esc(r[0])}</span>${right}</div>`;
+      return `<div class="list-row${muted ? ' muted' : ''}"><span>${thumb}${esc(r[0])}</span>${right}</div>`;
     });
     return `<div>${rows.join('')}</div>`;
   },
