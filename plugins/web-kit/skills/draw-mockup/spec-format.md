@@ -66,7 +66,7 @@ Block names such as `dish` and the day-header `tone` values (`choice`, `chosen`,
 | `field` | `label`, `placeholder` (a text input), `suggestions` (`{ label, items }`: small chips between the label and the input that fill it on a click; `label` is an optional short lead such as "from the recipe:"; `inline: true` puts them in brackets on the label's line) |
 | `bar` | `width` (1–100, a placeholder text line) |
 | `spacer` | pushes the next blocks to the bottom |
-| `buttons` | `items`: strings or `{ text, kind, caption }` (`caption` is a small grey line under the button), kind `plain`, `save` or `approve`; 2+ items form one row |
+| `buttons` | `items`: strings or `{ text, kind, caption, disabled }` (`caption` is a small grey line under the button, `disabled: true` draws it unavailable), kind `plain`, `save` or `approve`; 2+ items form one row |
 | `chips` | `items`: strings or `{ text, on, size, tone }`; `size` is `s`, `m` or `l` (default is between `s` and `m`); `tone` is `warn` or `danger` |
 | `tabs` | `items`, `active` (index) |
 | `list` | `rows`: `[left]` or `[left, right]`, or `{ "cells": [left, right], "muted": true, "tone": "warn", "action": { "text", "kind" } }`: `muted` fades the row in place (done or not in focus), `tone` (`warn` or `danger`) frames just that row, `action` (a string or `{ text, kind }` as in `buttons`) draws a small button at the row's right end; `thumbs: true` draws a small photo before each row, `thumbs: "l"` a larger one |

@@ -172,6 +172,7 @@ a:hover { color: #d8e4ee; }
 }
 .btn.save { background: var(--save); border-color: var(--save); color: var(--bg); }
 .btn.approve { background: var(--approve); border-color: var(--approve); color: var(--bg); }
+.btn.disabled { opacity: 0.4; }
 .btn-cell { display: flex; flex-direction: column; gap: 4px; }
 .btn-caption { color: var(--muted); font-size: 10px; text-align: center; }
 .row { display: flex; gap: 8px; }

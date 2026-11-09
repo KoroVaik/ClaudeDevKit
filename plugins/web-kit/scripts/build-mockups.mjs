@@ -219,7 +219,8 @@ const blocks = {
       need(file, isText(btn.text), 'every button needs "text"');
       const kind = btn.kind ?? 'plain';
       need(file, BUTTON_KINDS.includes(kind), `button kind must be one of ${BUTTON_KINDS.join(', ')}`);
-      const html = `<div class="btn${kind === 'plain' ? '' : ' ' + kind}">${esc(btn.text)}</div>`;
+      need(file, btn.disabled === undefined || typeof btn.disabled === 'boolean', 'button "disabled" must be true or false');
+      const html = `<div class="btn${kind === 'plain' ? '' : ' ' + kind}${btn.disabled ? ' disabled' : ''}">${esc(btn.text)}</div>`;
       return btn.caption ? `<div class="btn-cell">${html}<div class="btn-caption">${esc(btn.caption)}</div></div>` : html;
     });
     return items.length > 1 ? `<div class="row">${items.join('')}</div>` : items[0];
