@@ -16,7 +16,9 @@ project's `CLAUDE.md` sets the language rules. Read the profile section `## disc
 
 Read `PROGRESS.md` for current state, open questions, and next steps; read the epic and feature files
 in `docs/epics/` and `docs/features/` and the `docs/standards/` files that the answers touch, for the
-accepted rules. Open `docs/product.md` or a plan in `plans/` only for the area the answers touch.
+accepted rules. Open `docs/product.md` or a plan in `plans/` only for the area the answers touch. Read the
+`BACKLOG.md` entries of that area; a part with an "Owner said:" line is already answered, so do not ask it
+again. Record it as accepted when the words are an explicit yes, and ask only what is left open.
 
 ## 2. Map the answers
 

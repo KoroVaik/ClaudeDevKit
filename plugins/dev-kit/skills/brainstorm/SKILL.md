@@ -75,7 +75,9 @@ them. Its format and rules are in the `dev-kit:documentation` skill (section "Wh
 "Idea").
 
 - One entry per surviving idea, 2-4 lines: what, why and the cheapest test. Rejected ideas are not
-  kept; an idea already in the backlog is edited, not duplicated.
+  kept; an idea already in the backlog is edited, not duplicated. Where the owner clearly wanted the idea or a
+  part of it, add a line "Owner said:" with their own words and the part they meant. It records what was said,
+  not a decision; leave it out when they only did not object.
 - Write them when the owner says the session is over or asks for it. Do not announce it every message.
 - A working file, if the session needs one, goes in the session scratchpad or a temporary folder and is
   deleted once the surviving ideas are in the backlog. No dated file is kept in the repo.
