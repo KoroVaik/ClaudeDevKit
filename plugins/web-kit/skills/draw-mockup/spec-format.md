@@ -63,7 +63,7 @@ Block names such as `dish` and the day-header `tone` values (`choice`, `chosen`,
 | `photo` | `label`, `badge`, `big` |
 | `name` | `text` (bold line) |
 | `text` | `text` (muted line) |
-| `field` | `label`, `placeholder` (a text input), `suggestions` (`{ label, items }`: small chips between the label and the input that fill it on a click; `label` is an optional short lead such as "from the recipe:") |
+| `field` | `label`, `placeholder` (a text input), `suggestions` (`{ label, items }`: small chips between the label and the input that fill it on a click; `label` is an optional short lead such as "from the recipe:"; `inline: true` puts them in brackets on the label's line) |
 | `bar` | `width` (1–100, a placeholder text line) |
 | `spacer` | pushes the next blocks to the bottom |
 | `buttons` | `items`: strings or `{ text, kind, caption }` (`caption` is a small grey line under the button), kind `plain`, `save` or `approve`; 2+ items form one row |

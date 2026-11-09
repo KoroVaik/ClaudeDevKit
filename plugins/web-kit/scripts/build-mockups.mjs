@@ -186,9 +186,13 @@ const blocks = {
       need(file, Array.isArray(sg?.items) && sg.items.length > 0 && sg.items.every(isText), 'field "suggestions" needs a non-empty "items" array of strings');
       need(file, sg.label === undefined || isText(sg.label), 'field "suggestions" label must be text');
       const lead = sg.label ? `<span class="field-hints-label">${esc(sg.label)}</span>` : '';
-      hints = `<div class="field-hints">${lead}${sg.items.map((t) => `<span class="chip s">${esc(t)}</span>`).join('')}</div>`;
+      need(file, sg.inline === undefined || typeof sg.inline === 'boolean', 'field "suggestions" inline must be true or false');
+      const chips = sg.items.map((t) => `<span class="chip s">${esc(t)}</span>`).join('');
+      hints = sg.inline ? `<span class="field-hints">(${lead}${chips})</span>` : `<div class="field-hints">${lead}${chips}</div>`;
     }
-    return `<div class="field"><span class="field-label">${esc(b.label)}</span>${hints}<div class="field-box">${esc(b.placeholder ?? '')}</div></div>`;
+    const label = `<span class="field-label">${esc(b.label)}</span>`;
+    const head = b.suggestions?.inline ? `<div class="field-head">${label}${hints}</div>` : `${label}${hints}`;
+    return `<div class="field">${head}<div class="field-box">${esc(b.placeholder ?? '')}</div></div>`;
   },
   bar(b, file) {
     const w = b.width ?? 100;
