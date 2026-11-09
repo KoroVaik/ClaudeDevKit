@@ -224,6 +224,7 @@ a:hover { color: #d8e4ee; }
 .field-hints-label { color: var(--muted); font-size: 11px; }
 .field-head { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
 .field-head .field-hints { color: var(--muted); font-size: 11px; }
+.sub.inline-chips .chip { margin: 0 3px; vertical-align: baseline; }
 .field-label { color: var(--muted); font-size: 12px; }
 .field-box { min-height: 30px; padding: 6px 8px; border: 1px solid var(--border); border-radius: 8px; color: var(--muted); font-size: 12px; }
 

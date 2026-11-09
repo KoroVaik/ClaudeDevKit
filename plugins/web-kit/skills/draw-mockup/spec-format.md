@@ -62,7 +62,7 @@ Block names such as `dish` and the day-header `tone` values (`choice`, `chosen`,
 | `dish` | `photo` (placeholder label), `badge`, `name`, `sub`, `tone` (`ok` or `warn`), `big`, `reject` (`{ taste, general }`: two chip lists drawn over the photo on a translucent red layer, split by a thin line), `peek` (the card is cut by the bottom edge to show the list scrolls) |
 | `photo` | `label`, `badge`, `big` |
 | `name` | `text` (bold line) |
-| `text` | `text` (muted line) |
+| `text` | `text` (muted line), or `parts` in its place: strings and `{ "chip": "..." }` items, for a sentence with clickable values inside it |
 | `field` | `label`, `placeholder` (a text input), `suggestions` (`{ label, items }`: small chips between the label and the input that fill it on a click; `label` is an optional short lead such as "from the recipe:"; `inline: true` puts them in brackets on the label's line) |
 | `bar` | `width` (1–100, a placeholder text line) |
 | `spacer` | pushes the next blocks to the bottom |

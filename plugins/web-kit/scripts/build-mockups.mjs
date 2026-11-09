@@ -174,6 +174,16 @@ const blocks = {
     return `<div class="name">${esc(b.text)}</div>`;
   },
   text(b, file) {
+    if (b.parts !== undefined) {
+      need(file, b.text === undefined, 'text takes "text" or "parts", not both');
+      need(file, Array.isArray(b.parts) && b.parts.length > 0, 'text "parts" needs a non-empty array');
+      const html = b.parts.map((p) => {
+        if (isText(p)) return esc(p);
+        need(file, isText(p?.chip), 'a text part is a string or { "chip": "..." }');
+        return `<span class="chip s">${esc(p.chip)}</span>`;
+      }).join('');
+      return `<div class="sub inline-chips">${html}</div>`;
+    }
     need(file, isText(b.text), 'text needs "text"');
     return `<div class="sub">${esc(b.text)}</div>`;
   },
