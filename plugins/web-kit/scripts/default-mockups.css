@@ -220,6 +220,8 @@ a:hover { color: #d8e4ee; }
 
 /* Text input: label above an empty box with a muted placeholder */
 .field { display: flex; flex-direction: column; gap: 4px; }
+.field-hints { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.field-hints-label { color: var(--muted); font-size: 11px; }
 .field-label { color: var(--muted); font-size: 12px; }
 .field-box { min-height: 30px; padding: 6px 8px; border: 1px solid var(--border); border-radius: 8px; color: var(--muted); font-size: 12px; }
 

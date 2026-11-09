@@ -180,7 +180,15 @@ const blocks = {
   field(b, file) {
     need(file, isText(b.label), 'field needs "label"');
     need(file, b.placeholder === undefined || typeof b.placeholder === 'string', 'field placeholder must be a string');
-    return `<div class="field"><span class="field-label">${esc(b.label)}</span><div class="field-box">${esc(b.placeholder ?? '')}</div></div>`;
+    let hints = '';
+    if (b.suggestions !== undefined) {
+      const sg = b.suggestions;
+      need(file, Array.isArray(sg?.items) && sg.items.length > 0 && sg.items.every(isText), 'field "suggestions" needs a non-empty "items" array of strings');
+      need(file, sg.label === undefined || isText(sg.label), 'field "suggestions" label must be text');
+      const lead = sg.label ? `<span class="field-hints-label">${esc(sg.label)}</span>` : '';
+      hints = `<div class="field-hints">${lead}${sg.items.map((t) => `<span class="chip s">${esc(t)}</span>`).join('')}</div>`;
+    }
+    return `<div class="field"><span class="field-label">${esc(b.label)}</span>${hints}<div class="field-box">${esc(b.placeholder ?? '')}</div></div>`;
   },
   bar(b, file) {
     const w = b.width ?? 100;
