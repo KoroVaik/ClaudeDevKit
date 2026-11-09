@@ -232,6 +232,8 @@ a:hover { color: #d8e4ee; }
 .list-row.muted { opacity: 0.45; }
 .list-row .row-end { display: flex; align-items: center; gap: 8px; }
 .btn.row-btn { min-height: 24px; padding: 2px 8px; font-size: 12px; }
+.list-row:is(.warn, .danger) { padding: 6px 8px; border: 1px solid var(--attention); border-radius: 8px; }
+.list-row.danger { border-color: var(--danger); }
 .list-row > span:first-child { display: flex; align-items: center; gap: 8px; }
 .thumb { flex: none; width: 26px; height: 26px; border-radius: 6px; background: var(--card); border: 1px dashed var(--frame); }
 .thumb.l { width: 40px; height: 40px; }

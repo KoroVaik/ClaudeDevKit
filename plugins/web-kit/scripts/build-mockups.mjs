@@ -244,7 +244,9 @@ const blocks = {
         right = `<span class="row-end">${right}<span class="btn row-btn${kind === 'plain' ? '' : ' ' + kind}">${esc(act.text)}</span></span>`;
       }
       const thumb = b.thumbs ? `<i class="thumb${b.thumbs === 'l' ? ' l' : ''}"></i>` : '';
-      return `<div class="list-row${muted ? ' muted' : ''}"><span>${thumb}${esc(r[0])}</span>${right}</div>`;
+      const tone = Array.isArray(row) ? undefined : row.tone;
+      need(file, tone === undefined || ['warn', 'danger'].includes(tone), 'a list row "tone" is warn or danger');
+      return `<div class="list-row${muted ? ' muted' : ''}${tone ? ' ' + tone : ''}"><span>${thumb}${esc(r[0])}</span>${right}</div>`;
     });
     return `<div>${rows.join('')}</div>`;
   },
