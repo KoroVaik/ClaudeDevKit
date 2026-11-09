@@ -188,7 +188,7 @@ const blocks = {
     return `<div class="sub">${esc(b.text)}</div>`;
   },
   field(b, file) {
-    need(file, isText(b.label), 'field needs "label"');
+    need(file, b.label === undefined || isText(b.label), 'field "label" must be text');
     need(file, b.placeholder === undefined || typeof b.placeholder === 'string', 'field placeholder must be a string');
     let hints = '';
     if (b.suggestions !== undefined) {
@@ -200,7 +200,7 @@ const blocks = {
       const chips = sg.items.map((t) => `<span class="chip s">${esc(t)}</span>`).join('');
       hints = sg.inline ? `<span class="field-hints">(${lead}${chips})</span>` : `<div class="field-hints">${lead}${chips}</div>`;
     }
-    const label = `<span class="field-label">${esc(b.label)}</span>`;
+    const label = b.label === undefined ? '' : `<span class="field-label">${esc(b.label)}</span>`;
     const head = b.suggestions?.inline ? `<div class="field-head">${label}${hints}</div>` : `${label}${hints}`;
     return `<div class="field">${head}<div class="field-box">${esc(b.placeholder ?? '')}</div></div>`;
   },
