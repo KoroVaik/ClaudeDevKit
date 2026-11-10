@@ -3,5 +3,6 @@
 | Slot | Skill |
 |---|---|
 | check-ui | `web-kit:e2e-check` |
-| check-layout | `web-kit:visual-check` |
+| check-usability | `web-kit:user-walk` |
+| check-look | `web-kit:visual-check` |
 | show-idea | `web-kit:draw-mockup` |

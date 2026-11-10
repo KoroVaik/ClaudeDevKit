@@ -20,8 +20,9 @@ A bug may also come from `dev-kit-check-docs --defects`; when it is fixed, delet
 | The report sounds like... | It is a... | UI check, if authorized |
 |---|---|---|
 | wrong data, a crash, a click that does nothing, a failed save | functional bug | `check-ui` slot |
-| overlap, clipping, sideways scroll, misalignment | layout bug | `check-layout` slot, layout |
-| a screen that differs from its mockup | visual bug | `check-layout` slot, mockup comparison |
+| overlap, clipping, sideways scroll, misalignment | layout bug | `check-look` slot, layout |
+| a screen that differs from its mockup | visual bug | `check-look` slot, mockup comparison |
+| users get lost, a step is unclear or awkward | usability bug | `check-usability` slot |
 | unclear | - | ask the owner |
 
 Extra rows come from the profile's `## fix-bug` section (for example a bug of the project's own

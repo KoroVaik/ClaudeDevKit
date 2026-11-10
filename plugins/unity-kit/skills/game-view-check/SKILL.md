@@ -1,6 +1,6 @@
 ---
 name: game-view-check
-description: Use when the `check-layout` slot comes up in a Unity project, or the owner asks to see how the game looks in the editor right now ("покажи, як виглядає", "зроби знімок гри", "що на екрані"). Not for judging the look, not for other screen sizes, and never for changing the Game view, a scene or an asset.
+description: Use when the `check-look` slot comes up in a Unity project, or the owner asks to see how the game looks in the editor right now ("покажи, як виглядає", "зроби знімок гри", "що на екрані"). Not for judging the look, not for other screen sizes, and never for changing the Game view, a scene or an asset.
 ---
 
 # Game view check

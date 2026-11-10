@@ -51,7 +51,7 @@ Comments only for non-obvious decisions (the project's comment policy).
 ## 5. Test the change
 
 Follow `dev-kit:test-change`: run the `run-tests` slot, check a changed interface (API) first, then
-UI checks (`check-ui`, `check-layout` slots) only after the consent the project's rules require;
+UI checks (`check-ui`, `check-usability`, `check-look` slots) only after the consent the project's rules require;
 restart the application with the `run-app` slot when fresh code is needed, and run the `stop-app` slot
 before the task ends. Report the real results and the skipped checks.
 

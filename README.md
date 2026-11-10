@@ -30,8 +30,8 @@ runs `plugins/dev-kit/scripts/check_docs.py --pre-commit`, finding this folder t
 
 ## Web extension
 
-`web-kit` fills `check-ui`, `check-layout` and `show-idea` (`plugins/web-kit/slots.md`). Its skills
-`e2e-check`, `visual-check` and `draw-mockup` name their agents (`web-kit:ui-tester`, `web-kit:app-user`,
+`web-kit` fills `check-ui`, `check-usability`, `check-look` and `show-idea` (`plugins/web-kit/slots.md`).
+Its skills `e2e-check`, `user-walk`, `visual-check` and `draw-mockup` name their agents (`web-kit:ui-tester`, `web-kit:app-user`,
 `web-kit:layout-checker`, `web-kit:mockup-checker`, `web-kit:mockup-user`) and model themselves; the
 manager reaches them through the slots. Who answers which question, and the shared browser rules:
 `plugins/web-kit/browser-checks.md`. The project's facts go in its profile: `## e2e-check` (URLs, login,
@@ -44,7 +44,7 @@ mockup pages from JSON specs; the format is `plugins/web-kit/skills/draw-mockup/
 ## Unity extension
 
 `unity-kit` fills `show-idea` (`plugins/unity-kit/slots.md`) with `unity-kit:scene-sketch`, a temporary
-storyboard of one moment of play, and `check-layout` with `unity-kit:game-view-check`, one screenshot of
+storyboard of one moment of play, and `check-look` with `unity-kit:game-view-check`, one screenshot of
 the Game view at its current size for the owner to judge. `unity-kit:unity-editor` holds the permissions and the order of every
 Unity action in the owner's open editor (no batchmode, no restart, one operator at a time); it fills no
 slot, so a project fills `run-app` and `run-tests` with its own commands or skills.

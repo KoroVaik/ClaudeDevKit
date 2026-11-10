@@ -55,8 +55,7 @@ as a numbered block.
    in plain words as the situation, then each screen's visible text from top to bottom (photos as
    "photo of the item") and the arrow label that leads on. Never pass captions, notes, decisions, file
    paths or reasons. Show the owner its points in short; change the mockup only for the points the
-   owner accepts. Once the flow is built, the live app is walked by `web-kit:app-user` (the user walk of
-   `web-kit:e2e-check`); its remarks outrank this one.
+   owner accepts. Once the flow is built, the live app is walked by `web-kit:app-user` (`web-kit:user-walk`); its remarks outrank this one.
 8. Hand the mockup to the owner as a file attachment in the chat (in Claude Code: `SendUserFile` with
    `display: render`); one click opens it in the built-in browser. The generated page carries its
    styles inside, so send the file from the mockups folder as it is. Do not open the browser pane

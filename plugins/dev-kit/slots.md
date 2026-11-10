@@ -10,7 +10,8 @@ tables, never skill descriptions, to find who does a step.
 | run-app | Start or restart the application so a change can be checked in it |
 | stop-app | Stop what the run-app step started, before the task ends |
 | check-ui | Check that a user scenario works in the running application |
-| check-layout | Check how screens look against a mockup or at the agreed screen sizes |
+| check-usability | Let an ordinary user go after a goal in the running application and report what got in the way |
+| check-look | Check how screens look against a mockup or at the agreed screen sizes |
 | check-docs | Check the project's docs against the documentation standard |
 | show-idea | Show an idea visually during brainstorming |
 

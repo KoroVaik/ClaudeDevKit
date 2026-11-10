@@ -12,14 +12,15 @@ the agents.
 | Question | Looks at | Skill (slot) | Agent | Answer |
 |---|---|---|---|---|
 | Does the scenario do what the feature says? | the running app, steps and expected results from the criteria | `web-kit:e2e-check`, scenario (`check-ui`) | `web-kit:ui-tester` | pass or fail per scenario |
-| Can an ordinary user reach the goal, and what gets in the way? | the running app, the goal only; the mockup only after the walk | `web-kit:e2e-check`, user walk (`check-ui`) | `web-kit:app-user` | goal reached or not, remarks sorted into implementation defect or design mistake |
-| Do the screens match the mockup? | the running app and one mockup board | `web-kit:visual-check`, mockup comparison (`check-layout`) | `web-kit:mockup-checker` | matches or differs per phone |
-| Does the layout hold up at the screen sizes? | the running app at the profile's widths | `web-kit:visual-check`, layout (`check-layout`) | `web-kit:layout-checker` | defects per width |
+| Can an ordinary user reach the goal, and what gets in the way? | the running app, the goal only; the mockup only after the walk | `web-kit:user-walk` (`check-usability`) | `web-kit:app-user` | goal reached or not, recommendations to improve the design, each marked fix in code or design change |
+| Do the screens match the mockup? | the running app and one mockup board | `web-kit:visual-check`, mockup comparison (`check-look`) | `web-kit:mockup-checker` | matches or differs per phone |
+| Does the layout hold up at the screen sizes? | the running app at the profile's widths | `web-kit:visual-check`, layout (`check-look`) | `web-kit:layout-checker` | defects per width |
 | Is a freshly drawn path clear to an ordinary user? | the drawn mockup's text only, no app | `web-kit:draw-mockup` (`show-idea`) | `web-kit:mockup-user` | remarks for the owner |
 
 `mockup-user` and `app-user` are the same ordinary user (persona in the profile section `## mockup-user`):
 one reads a drawn path, the other walks the live app. When they disagree, the live app wins.
-`mockup-checker` lists every difference from the board; `app-user` only sorts its own remarks by it.
+`mockup-checker` lists every difference from the board; `app-user` recommends design changes and uses the
+board only to say where each fix belongs.
 
 ## Shared browser rules
 

@@ -14,7 +14,7 @@ browser check (consent, the single environment, test data, cleanup, one browser)
 
 Two agents, model sonnet (the table in browser-checks.md): `web-kit:mockup-checker` for the mockup
 comparison, `web-kit:layout-checker` for the layout, with the layout profile the project names for the app
-(phone app or admin). Whether the screens are clear to a user is the user walk of `web-kit:e2e-check`.
+(phone app or admin). Whether the screens are clear to a user is `web-kit:user-walk`.
 
 They are separate calls: one mockup board or one layout profile per call, one call after another. When
 both are asked for, run the mockup comparison first.

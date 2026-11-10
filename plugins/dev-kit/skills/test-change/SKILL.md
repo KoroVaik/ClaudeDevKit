@@ -51,11 +51,12 @@ for changed frontend or other built parts.
 
 UI and frontend tests, and browser or scene checks, need the owner's consent under the project's
 rules; approval to implement or preview a change does not authorize them. After consent use the
-check slots: `check-ui` for a scenario, `check-layout` for mockups and layout. The skill filling a slot
-owns how its check runs.
+check slots: `check-ui` for a scenario, `check-usability` for an ordinary user's walk, `check-look` for
+mockups and layout. The skill filling a slot owns how its check runs.
 
 The consent rule forbids running the check unasked; it does not forbid asking. When a change has visible UI
 behaviour (a screen, a flow, a layout) and you accept it or report it done, ask the owner in the same message
-whether to run `check-ui` and, when a mockup exists, `check-layout`, with your recommendation and its reason.
-Without a yes, the report says "not checked: browser scenario and look"; tests, review and "open it and tell me"
+whether to run `check-ui`, when the change adds or reworks a flow `check-usability`, and when a mockup exists
+`check-look`, with your recommendation and its reason.
+Without a yes, the report says "not checked: browser scenario, user walk and look"; tests, review and "open it and tell me"
 are not a substitute.

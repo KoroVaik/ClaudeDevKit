@@ -56,7 +56,8 @@ A slot nobody fills is told to the owner; do not guess a command for it.
 | Start or restart the application for a check | `run-app` |
 | Stop what `run-app` started, before the task ends | `stop-app` |
 | Does a scenario work in the running application (needs the owner's consent) | `check-ui` |
-| Does it look like the mockup, do the screens hold at the agreed sizes (needs consent) | `check-layout` |
+| Can an ordinary user reach the goal, what gets in the way (needs consent) | `check-usability` |
+| Does it look like the mockup, do the screens hold at the agreed sizes (needs consent) | `check-look` |
 | Check the docs against the standard | `check-docs` |
 | Show an idea visually while brainstorming | `show-idea` |
 
