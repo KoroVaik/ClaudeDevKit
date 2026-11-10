@@ -33,6 +33,9 @@ the defaults here. Without that section, tell the owner which facts are missing;
 | Changing a scene, an asset or a setting (the Game view size included) | a separate yes, rules under "Scene" |
 
 - A screenshot goes to the owner as a file; the owner judges the look, the agent does not.
+- A user check (`unity-kit:user-check`) is a Play Mode run: the owner's yes for the task, run by
+  `unity-kit:unity-operator`. Input and fault commands (keys, the mouse, the project's click and fault
+  commands) run only inside a user check's runner, never directly from an agent.
 - Old run output is deleted only at the owner's request.
 
 ## Order of a run

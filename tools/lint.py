@@ -20,6 +20,7 @@ PROFILE_HEADER = ["Slot", "Skill or command"]
 PROFILE_TABLES = {
     "manager": [["Task", "Skill"], ["Type", "Model", "When", "Returns"]],
     "fix-bug": [["The report sounds like...", "It is a...", "UI check, if authorized"]],
+    "user-check": [["Setting", "Value"]],
 }
 
 

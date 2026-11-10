@@ -18,7 +18,7 @@
     {
       "name": "unity-kit",
       "source": "./plugins/unity-kit",
-      "description": "Unity extension: working with the open editor through a bridge, a Unity operator agent and scene sketches"
+      "description": "Unity extension: working with the open editor through a bridge, a Unity operator agent, user checks (recipes of play run in one command) and scene sketches"
     }
   ]
 }

@@ -21,6 +21,10 @@ section, whose rules override the defaults here. Do only what the brief asks.
   this check. If it does not, stop and ask the manager.
 - One command at a time, one blocking wait. On a compile, build or launch error, or an editor that does
   not answer: stop and report. Do not restart or stop Unity, do not look for a workaround.
+- A user check: run only `unity-kit-user-check <name>` as the brief names it, as one blocking wait with the
+  longest Bash timeout. Do not run its steps' commands yourself, do not retry it, and never edit a recipe or
+  block; a wrong recipe goes back to the manager. Return the exit code, `report.txt` as it is and the report
+  folder.
 - For a Console or editor-state question use read-only commands or `Editor.log`.
 - Change nothing: no source, scene, asset or setting edits, no cleaning, no commits. Save a reference
   result only when the brief says the owner accepted that run as the reference.

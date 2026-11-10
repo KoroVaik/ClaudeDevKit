@@ -45,10 +45,17 @@ mockup pages from JSON specs; the format is `plugins/web-kit/skills/draw-mockup/
 storyboard of one moment of play, and `check-layout` with `unity-kit:game-view-check`, one screenshot of
 the Game view at its current size for the owner to judge. `unity-kit:unity-editor` holds the permissions and the order of every
 Unity action in the owner's open editor (no batchmode, no restart, one operator at a time); it fills no
-slot, so a project fills `run-app`, `run-tests` and `check-ui` with its own commands or skills.
-`unity-kit:unity-operator` runs the Unity commands the manager chose and returns raw results. The
-project's facts go in its profile: `## unity-editor` (the bridge, its wrapper command, versions, scene,
-build targets, devices, Profiler), `## unity-operator`, `## game-view-check` (the screenshot
+slot, so a project fills `run-app` and `run-tests` with its own commands or skills.
+`unity-kit:unity-operator` runs the Unity commands the manager chose and returns raw results.
+`unity-kit:user-check` fills `check-ui`: any agent writes a recipe of play (keys, mouse, the project's own
+bridge commands, expectations on the console, state and files), the operator runs it with
+`unity-kit-user-check <name>` (in `plugins/unity-kit/bin`, on the Bash tool PATH while unity-kit is enabled;
+the runner is `plugins/unity-kit/scripts/user_check.py`) and returns the report, the manager concludes. The
+plugin ships no Unity code: the project copies the sample state and IMGUI mouse commands from
+`plugins/unity-kit/skills/user-check/samples/`. The project's facts go in its profile: `## unity-editor`
+(the bridge, its wrapper command, versions, scene, build targets, devices, Profiler), `## unity-operator`,
+`## user-check` (table `| Setting | Value |`: the bridge, recipe and report folders, scene, state command
+and "ready", click command, panel scale; the format is in the skill), `## game-view-check` (the screenshot
 command), `## scene-sketch` (subject, names, caption language).
 
 ## Slots

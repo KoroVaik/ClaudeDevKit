@@ -1,0 +1,3 @@
+#!/bin/sh
+# Run scripts/user_check.py of this plugin; the plugin bin folder is on the Bash tool PATH.
+exec python -I "$(dirname "$0")/../scripts/user_check.py" "$@"

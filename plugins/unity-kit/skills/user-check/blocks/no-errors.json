@@ -1,0 +1,6 @@
+{
+  "about": "the console has no error since the check started",
+  "steps": [
+    "expect-no-errors"
+  ]
+}

@@ -1,0 +1,6 @@
+{
+  "about": "the game is ready: the profile's ready condition holds within its ready-within",
+  "steps": [
+    "expect-state ready within {ready-within}"
+  ]
+}
