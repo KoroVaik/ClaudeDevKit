@@ -53,3 +53,9 @@ UI and frontend tests, and browser or scene checks, need the owner's consent und
 rules; approval to implement or preview a change does not authorize them. After consent use the
 check slots: `check-ui` for a scenario, `check-layout` for mockups and layout. The skill filling a slot
 owns how its check runs.
+
+The consent rule forbids running the check unasked; it does not forbid asking. When a change has visible UI
+behaviour (a screen, a flow, a layout) and you accept it or report it done, ask the owner in the same message
+whether to run `check-ui` and, when a mockup exists, `check-layout`, with your recommendation and its reason.
+Without a yes, the report says "not checked: browser scenario and look"; tests, review and "open it and tell me"
+are not a substitute.
