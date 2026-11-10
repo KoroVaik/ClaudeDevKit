@@ -5,9 +5,9 @@ description: Use when an ordinary user should go after a goal in the running app
 
 # User walk
 
-Answers one question: can an ordinary user reach the goal, what gets in the way, and how should the design
-change so it would not? The recommendations are the result; the mockup only shows where each fix belongs. It shows what a
-scenario check cannot: where a real user hesitates. The agent `web-kit:app-user` walks blind; the mockup
+Answers one question: can an ordinary user reach the goal, and what gets in the way? The problems the user
+met are the result; the user's hint of what would have helped comes with each, and the mockup only shows
+where each fix belongs. It shows what a scenario check cannot: where a real user hesitates. The agent `web-kit:app-user` walks blind; the mockup
 comes only after the walk, so it cannot bias what the user notices, and the live app outranks the mockup.
 Whether the scenario does what the feature says is `web-kit:e2e-check`; who answers which question is the
 table in browser-checks.md. Shared rules for every browser check (consent, the single environment, test
@@ -17,35 +17,39 @@ if they exist; they override the defaults here.
 
 ## Steps
 
-1. **Goal.** One goal per walk, taken from the feature's criteria: the situation and what the user wants,
-   in plain everyday words ("you want to add tomorrow's lunch"). Never steps, screen names, button labels or
-   expected results. Pick the persona the profile section `## mockup-user` gives for this app.
-2. **Data.** Prepare what the situation needs through the API (browser-checks.md, "Test data through the
-   API") and tell the agent only what a user would know ("you already have two dishes"). The walk reaches
+1. **Goal.** One goal per walk, taken from the feature's criteria: what the user wants, in plain everyday
+   words ("you want to add tomorrow's lunch"). Never steps, screen names, button labels or expected
+   results. Pick the persona the profile section `## mockup-user` gives for this app.
+2. **Start.** By default the app's entry, so that finding the page is part of the walk. Start deeper in only
+   when the way there is not what is checked, and then tell in the situation how the user got there.
+3. **Situation and data.** Prepare the data and settings the situation needs through the API
+   (browser-checks.md, "Test data through the API"). Tell the agent what the user remembers: what they did
+   a moment ago, how they reached the start page, and the state of things as a user knows it ("you already
+   have two dishes", "the app asks before saving"). Never IDs, setting keys, screen names or button labels. The walk reaches
    a goal that saves only on test-owned data; when the agent may not change the data it walks (the owner's
    real records), tell it the step to stop before and report the walk as partial.
-3. **Walk.** Call `web-kit:app-user` (model sonnet) with the persona, situation, goal, start URL and the
-   window size the profile names for this app. One goal per call, one call after another.
-4. **Sort.** If the flow has a mockup board (`<mockups folder>/src/<flow>.json`, the folder from
+4. **Walk.** Call `web-kit:app-user` (model sonnet) with the persona, start URL, situation, goal and the
+   window size the profile names for this app. Each goal is a fresh call, one after another, so what one walk
+   learned does not carry into the next; only the sorting goes back to the same agent.
+5. **Sort.** If the flow has a mockup board (`<mockups folder>/src/<flow>.json`, the folder from
    `## draw-mockup`, default `docs/mockups`), send the same agent a follow-up (`SendMessage`) with the spec
    path, the spec format reference (`${CLAUDE_PLUGIN_ROOT}/skills/draw-mockup/spec-format.md`) and the known
    deliberate differences, found as in `web-kit:visual-check`, "Mockup comparison" step 2. Without `SendMessage`, call
    a fresh `web-kit:app-user` with the walk report and the same three things, saying the walk is done. No
-   board: every remark goes to the owner as a design question.
-5. **Report** to the owner, one line per goal (reached or not), then the agent's recommendations, most
-   useful first, in two short lists with the screenshots:
+   board: every problem goes to the owner as a design question.
+6. **Report** to the owner, one line per goal (reached or not), then the problems with the user's hints,
+   most costly first, in two short lists with the screenshots:
    - **fix in code** (and broken steps): the app strays from the mockup; after the fix, rerun the walk for
      that goal only.
-   - **design changes** (and recommendations not on the board): the app follows the mockup and is still in
+   - **design changes** (and problems not on the board): the app follows the mockup and is still in
      the way; the owner decides whether to change the rules and the mockup (`web-kit:draw-mockup`). Nothing
      changes without the owner's yes.
 
-A remark the agent drew from the brief rather than the screen (it lists them) is weighed, not trusted.
+A problem the agent drew from the brief rather than the screen (it lists them) is weighed, not trusted.
+The hints are one user's guess at a fix: the owner and `web-kit:draw-mockup` decide the actual change.
 
-## Arguing with the user
+## A doubtful problem
 
-The agent is a user with its own opinion. When you think a recommendation is wrong, do not drop it yourself
-and do not overrule it: send the same agent a follow-up with your reason (why it would not stop a real user,
-or what the change would cost). "The mockup or the rule says so" is not a reason. The agent either changes
-its mind and says why, or keeps its view and says why the reason does not help. Report both to the owner:
-what the user conceded, with the reason, and what it held against your argument; the owner decides.
+Never drop or argue away a problem the user met. When you doubt one, walk the same goal again with a fresh
+`web-kit:app-user` with the same persona: a problem two users meet is strong,
+one met once is still reported, marked "one user". The owner decides.
