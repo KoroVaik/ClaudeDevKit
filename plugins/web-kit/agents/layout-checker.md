@@ -108,7 +108,7 @@ are for your own reading (`scale` about 0.5); the owner gets them from `web-kit-
 to the owner" in `browser-checks.md`), run by the caller, because you have no shell. So for every wide
 shot that is evidence, end the report with a **Shots** list, one line each: `name | URL | steps | CSS
 selector of one section | caption`. The URL and steps reach that state again from a fresh browser,
-read-only (open a page, click a tab; never save); the selector is one block that shows the result, never
+read-only (open a page, click a tab; never save); the selector is the smallest block that shows the result (a section, not a column or pane), never
 the whole page. Add the sign-in form's selectors if the profile does not give the sign-in steps. A state
 that no URL and steps reach (a toast, a half-filled form) is listed as "not capturable" with the in-app
 shot. At a phone width the in-app shot is already sharp: list it under **Screenshots** with its path.

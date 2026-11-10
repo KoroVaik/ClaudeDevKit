@@ -53,17 +53,20 @@ the board only to say where each fix belongs.
   - **Wide screens (tablet and up): headless capture.** Agent shots of a wide window are not sent. The
     agent ends its report with a **Shots** list, one line per shot: `name | URL | steps | CSS selector of
     the section | caption`. The URL and the steps are only what reaches that state again from a fresh
-    browser, read-only (open a page, click a tab; nothing that saves). The selector is one block that
-    shows the result (a list, a dialog, a form, a row), never the whole page. If the profile has no
-    sign-in steps, the agent lists the sign-in form's selectors too.
+    browser, read-only (open a page, click a tab; nothing that saves). The selector is the smallest block
+    that holds the result (a section, a dialog, a form, an open item, a row), never the whole page and
+    never a column, pane or card that wraps other sections. This holds for every spec, the caller's own
+    included. If the profile has no sign-in steps, the agent lists the sign-in form's selectors too.
   - **The caller captures.** The agents have no shell, so the caller writes the spec and runs
     `web-kit-shot --spec <spec.json> --out <screenshot folder>` (format at the top of
     `scripts/capture.mjs`). It renders the same URL in a throwaway headless Edge or Chrome at the
     profile's window size (4K for the Zhratva admin) with no profile of the owner's, and stops it
     afterwards. The password is typed from its file (`"@<path>"`), never put in a spec or a message.
-    The command prints each PNG's path and pixel size; check that the section is not cut off and that
-    its text is legible at 100%. If it fails, or a state cannot be reached from a URL, say so and send
-    the agent's in-app shot marked "low resolution", never as the proof.
+    The command prints each PNG's path and pixel size; open the PNG and check that the section is not
+    cut off, that its text is legible at 100%, and that the content fills most of the image: a shot that
+    is mostly empty background gets a smaller selector and is captured again before sending. If it
+    fails, or a state cannot be reached from a URL, say so and send the agent's in-app shot marked
+    "low resolution", never as the proof.
   - **Send** the PNGs and the in-app phone shots in one `SendUserFile` call (`display: render`, a caption
     naming the board or scenario). The chat reply stays one line per board or scenario; the screenshots
     carry the detail.
