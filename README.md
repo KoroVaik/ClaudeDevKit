@@ -31,12 +31,13 @@ runs `plugins/dev-kit/scripts/check_docs.py --pre-commit`, finding this folder t
 ## Web extension
 
 `web-kit` fills `check-ui`, `check-layout` and `show-idea` (`plugins/web-kit/slots.md`). Its skills
-`e2e-check`, `visual-check` and `draw-mockup` name their agents (`web-kit:ui-tester`,
+`e2e-check`, `visual-check` and `draw-mockup` name their agents (`web-kit:ui-tester`, `web-kit:app-user`,
 `web-kit:layout-checker`, `web-kit:mockup-checker`, `web-kit:mockup-user`) and model themselves; the
-manager reaches them through the slots. Shared browser rules: `plugins/web-kit/browser-checks.md`. The
-project's facts go in its profile: `## e2e-check` (URLs, login, screenshot folder, test-data marker; read by
-every browser skill and agent), `## ui-tester`, `## visual-check`, `## layout-checker` (sizes),
-`## mockup-checker`, `## draw-mockup` (mockups folder, palette, languages), `## mockup-user` (persona).
+manager reaches them through the slots. Who answers which question, and the shared browser rules:
+`plugins/web-kit/browser-checks.md`. The project's facts go in its profile: `## e2e-check` (URLs, login,
+screenshot folder, test-data marker; read by every browser skill and agent), `## ui-tester`, `## app-user`,
+`## visual-check`, `## layout-checker` (sizes), `## mockup-checker`, `## draw-mockup` (mockups folder,
+palette, languages), `## mockup-user` (persona of both user agents, `mockup-user` and `app-user`).
 `web-kit-mockups` (in `plugins/web-kit/bin`, on the Bash tool PATH while web-kit is enabled) builds the
 mockup pages from JSON specs; the format is `plugins/web-kit/skills/draw-mockup/spec-format.md`.
 

@@ -1,24 +1,38 @@
-# Browser checks - shared rules
+# UI checks - who answers what, and shared browser rules
 
 Read first by `web-kit:e2e-check` and `web-kit:visual-check`. The project's facts (URLs, ports, login,
 screenshot folder, test-data marker, screen sizes) are in the profile `.claude/dev-kit.md`, section
 `## e2e-check`; the skills and agents read it too.
 
-| Question | Skill (agent) |
-|---|---|
-| Does the scenario work end to end? | `web-kit:e2e-check` (`web-kit:ui-tester`) |
-| Do the screens match the mockup? Does the layout hold up? | `web-kit:visual-check` (`web-kit:mockup-checker`, `web-kit:layout-checker`) |
+## Who answers which question
+
+The one table of web-kit's UI roles. The manager reaches the skills through the slots; the skills call
+the agents.
+
+| Question | Looks at | Skill (slot) | Agent | Answer |
+|---|---|---|---|---|
+| Does the scenario do what the feature says? | the running app, steps and expected results from the criteria | `web-kit:e2e-check`, scenario (`check-ui`) | `web-kit:ui-tester` | pass or fail per scenario |
+| Can an ordinary user reach the goal, and what gets in the way? | the running app, the goal only; the mockup only after the walk | `web-kit:e2e-check`, user walk (`check-ui`) | `web-kit:app-user` | goal reached or not, remarks sorted into implementation defect or design mistake |
+| Do the screens match the mockup? | the running app and one mockup board | `web-kit:visual-check`, mockup comparison (`check-layout`) | `web-kit:mockup-checker` | matches or differs per phone |
+| Does the layout hold up at the screen sizes? | the running app at the profile's widths | `web-kit:visual-check`, layout (`check-layout`) | `web-kit:layout-checker` | defects per width |
+| Is a freshly drawn path clear to an ordinary user? | the drawn mockup's text only, no app | `web-kit:draw-mockup` (`show-idea`) | `web-kit:mockup-user` | remarks for the owner |
+
+`mockup-user` and `app-user` are the same ordinary user (persona in the profile section `## mockup-user`):
+one reads a drawn path, the other walks the live app. When they disagree, the live app wins.
+`mockup-checker` lists every difference from the board; `app-user` only sorts its own remarks by it.
+
+## Shared browser rules
 
 - **Consent, per kind.** A browser check needs the owner's separate, explicit consent for the current
   task, under the project's rules; approval to implement a change or to preview it is not consent.
-  Consent is per kind: a yes to the scenario check does not cover the visual check, and the reverse.
-- **Scenarios come from the feature.** The scenarios come from the "Acceptance criteria" of the feature
-  (found with `dev-kit-check-docs --who <path>`); a check that finds a rule the criteria miss reports it
-  for the feature.
+  Consent is per kind: the scenario check, the user walk and the visual check each need their own yes.
+- **Scenarios come from the feature.** The scenarios and the user walk's goals come from the "Acceptance
+  criteria" of the feature (found with `dev-kit-check-docs --who <path>`); a check that finds a rule the
+  criteria miss reports it for the feature.
 - **Always a subagent**, never the main session: it keeps screenshots out of the main context. The
-  agents are the ones in the table.
+  agents are the ones in the table above.
 - **One browser.** All agents share the one browser pane, so calls run one after another, never in
-  parallel. One scenario, board or profile per call.
+  parallel. One scenario, goal, board or profile per call.
 - **One environment.** The project's frontend and API addresses are in the profile. For fresh API or
   worker code restart through the `run-app` slot, after the project's rules about processes the owner
   started. If the restart fails, report its output and stop.
