@@ -46,7 +46,7 @@ not agreed go to `BACKLOG.md`. Use the existing headings, in the project's docum
 One line on what was recorded, then **at most 3 numbered questions** per round, numbering continuing
 from the last round. Each question is at most 30 words: the question, its example (one real example
 from the project of at most 15 words, as the project's rules ask, `CLAUDE.md` "Explanation level") and
-the **recommendation**. This is the only exception to the owner's global reply cap. No long
+the **recommendation** with its reason. This is the only exception to the owner's global reply cap. No long
 explanations unless asked.
 
 ## Boundaries
