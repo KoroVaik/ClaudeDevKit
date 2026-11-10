@@ -65,7 +65,9 @@ class BuildMockupsTests(unittest.TestCase):
         self.assertEqual(css, (SCRIPT.parent / "default-mockups.css").read_text(encoding="utf-8"))
         for name in ("topbar", "phone", "board", "chip", "btn", "tabbar", "toast", "branch"):
             self.assertIn(f".{name}", css)
-        self.assertIn('href="mockups.css"', self.page("pick-item.html"))
+        page = self.page("pick-item.html")
+        self.assertIn(f"<style>\n{css}</style>", page)
+        self.assertNotIn('href="mockups.css"', page)
 
     def test_check_reports_a_missing_css_before_the_first_build(self):
         result = self.run_build("--check")
