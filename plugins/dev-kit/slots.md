@@ -8,7 +8,15 @@ tables, never skill descriptions, to find who does a step.
 |---|---|
 | run-tests | Run the automated tests the change affects and report the real result |
 | run-app | Start or restart the application so a change can be checked in it |
+| stop-app | Stop what the run-app step started, before the task ends |
 | check-ui | Check that a user scenario works in the running application |
 | check-layout | Check how screens look against a mockup or at the agreed screen sizes |
 | check-docs | Check the project's docs against the documentation standard |
 | show-idea | Show an idea visually during brainstorming |
+
+`run-app` and `stop-app` may each hold several rows in the profile, one command in backticks per row, both written
+in start order. `dev-kit-app start` runs the run-app rows in order and stops at the first failure; `dev-kit-app stop`
+runs the stop-app rows in reverse and goes on after a failure; `dev-kit-app list` shows both. A project that fills
+run-app with a skill or prose follows it by hand, and its teardown too. What a command may stop - the owner's own
+processes, a service another launcher started - is decided by the project's helpers, never by the plugin. Every
+skill that ran run-app runs stop-app before the task ends, also after a failed check.

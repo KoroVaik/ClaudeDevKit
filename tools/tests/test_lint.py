@@ -15,6 +15,8 @@ CORE_SLOTS = """# Slots
 | Slot | What it must do |
 |---|---|
 | run-tests | Run tests |
+| run-app | Start the app |
+| stop-app | Stop the app |
 | check-ui | Check a scenario |
 """
 
@@ -371,6 +373,26 @@ class ProfileTests(LintTestCase):
         profile = PROFILE.replace("`dotnet test`", "`other:thing`")
         self.assertClean(self.run_lint(self.add_profile(profile)))
 
+    def with_rows(self, *rows):
+        return PROFILE.replace("| check-ui |", "\n".join(rows + ("| check-ui |",)))
+
+    def test_run_app_list_of_commands_is_accepted(self):
+        profile = self.with_rows("| run-app | `a start` |", "| run-app | `b restart` |", "| stop-app | `b stop` |")
+        self.assertClean(self.run_lint(self.add_profile(profile)))
+
+    def test_list_row_that_is_not_a_command_fails(self):
+        profile = self.with_rows("| run-app | `a start` |", "| run-app | the commands in CLAUDE.md |")
+        self.assertErrorContains(self.run_lint(self.add_profile(profile)), "a list row must be one command")
+
+    def test_other_slot_filled_twice_fails(self):
+        profile = self.with_rows("| run-tests | `pytest` |")
+        self.assertErrorContains(self.run_lint(self.add_profile(profile)), "slot 'run-tests' is filled twice")
+
+    def test_stop_app_without_run_app_warns(self):
+        findings = self.run_lint(self.add_profile(self.with_rows("| stop-app | `b stop` |")))
+        self.assertEqual(0, findings.count("error"))
+        self.assertTrue(any("stop-app is filled but run-app is not" in item[2] for item in findings.items))
+
     def test_slots_table_wrong_header_fails(self):
         profile = PROFILE.replace("Skill or command", "Skill")
         self.assertErrorContains(self.run_lint(self.add_profile(profile)), "Slots table with header")
@@ -631,6 +653,7 @@ class CommandLineTests(LintTestCase):
         scripts = self.root / "plugins" / "dev-kit" / "scripts"
         scripts.mkdir(parents=True, exist_ok=True)
         shutil.copy(Path(lint.check_docs.__file__), scripts / "check_docs.py")
+        shutil.copy(Path(lint.run_app.__file__), scripts / "run_app.py")
         self.add_profile(PROFILE + "\n## Страва\n")
         write(tools / "projects.json", json.dumps({"Demo": str(self.projects_dir / "Demo")}))
         env = {**os.environ, "PYTHONIOENCODING": "cp1252"}

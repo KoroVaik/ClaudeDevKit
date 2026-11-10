@@ -8,6 +8,7 @@ from pathlib import Path
 CORE_PLUGIN = "dev-kit"
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "plugins" / CORE_PLUGIN / "scripts"))
 import check_docs  # noqa: E402  the documentation settings are validated by the code that reads them
+import run_app  # noqa: E402  the run-app and stop-app lists are validated by the code that runs them
 KEBAB = re.compile(r"^[a-z0-9]+(-[a-z0-9]+)*$")
 REFERENCE = re.compile(r"^([\w-]+):([\w.-]+)$")
 SEPARATOR = re.compile(r"^\|?\s*:?-+:?\s*(\|\s*:?-+:?\s*)*\|?$")
@@ -16,6 +17,8 @@ PROFILE_SECTIONS_SKIPPED = {"All agents", "Slots"}
 CORE_HEADER = ["Slot", "What it must do"]
 EXTENSION_HEADER = ["Slot", "Skill"]
 PROFILE_HEADER = ["Slot", "Skill or command"]
+# Slots a profile may fill with several rows: commands that dev-kit-app runs in order (stop-app in reverse).
+LIST_SLOTS = (run_app.START, run_app.STOP)
 # Tables that a skill reads from a profile section: the section name -> the headers its tables may have.
 PROFILE_TABLES = {
     "manager": [["Task", "Skill"], ["Type", "Model", "When", "Returns"]],
@@ -366,6 +369,23 @@ def check_profile_tables(root, plugins, where, text, findings):
                         check_profile_value(root, plugins, where, value, findings)
 
 
+def check_slot_lists(where, text, findings):
+    """A slot has one row, except the list slots, whose rows must each be one command when there are several."""
+    rows = run_app.slot_rows(text)
+    for slot in dict.fromkeys(name for name, _ in rows):
+        values = [value for name, value in rows if name == slot]
+        if len(values) < 2:
+            continue
+        if slot not in LIST_SLOTS:
+            findings.error(where, f"slot '{slot}' is filled twice; only {' and '.join(LIST_SLOTS)} take a list")
+            continue
+        for value in values:
+            if run_app.command_of(value) is None:
+                findings.error(where, f"{slot}: a list row must be one command in backticks, not '{value}'")
+    if any(name == run_app.STOP for name, _ in rows) and not any(name == run_app.START for name, _ in rows):
+        findings.warning(where, f"{run_app.STOP} is filled but {run_app.START} is not")
+
+
 def check_profile(root, plugins, core_slots, profile, findings):
     where = rel(root, profile)
     text = read_text(root, profile, findings)
@@ -380,6 +400,7 @@ def check_profile(root, plugins, core_slots, profile, findings):
             if row[0] not in core_slots:
                 findings.error(where, f"slot '{row[0]}' is not in the core list")
             check_profile_value(root, plugins, where, row[1] if len(row) > 1 else "", findings)
+        check_slot_lists(where, text, findings)
     check_profile_tables(root, plugins, where, text, findings)
     for message in check_docs.profile_errors(text):
         findings.error(where, f"documentation section: {message}")

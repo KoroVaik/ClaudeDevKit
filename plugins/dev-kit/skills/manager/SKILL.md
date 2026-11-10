@@ -54,6 +54,7 @@ A slot nobody fills is told to the owner; do not guess a command for it.
 |---|---|
 | Run the tests a change affects | `run-tests` |
 | Start or restart the application for a check | `run-app` |
+| Stop what `run-app` started, before the task ends | `stop-app` |
 | Does a scenario work in the running application (needs the owner's consent) | `check-ui` |
 | Does it look like the mockup, do the screens hold at the agreed sizes (needs consent) | `check-layout` |
 | Check the docs against the standard | `check-docs` |
@@ -78,7 +79,8 @@ The project's own types come from its `## manager` section.
   starts cold and rereads the rules; on a small task that costs more than doing it.
 - After a `dev-kit:investigator`, read only the places it named before deciding; do not repeat its
   search. Restarts and checks of the running application (the `run-app` slot) the manager runs
-  itself.
+  itself, and before the task ends it runs the `stop-app` slot (`dev-kit-app stop` when the
+  profile lists commands), also after a failed check.
 - A subagent cannot start other subagents. What it needs from another role, the manager does
   between their turns.
 - Continue a subagent that has the context (`SendMessage`) instead of starting a new one.
@@ -127,5 +129,7 @@ it becomes an Open item, and the questions go on.
 
 Subagent and session notices are for the manager, not the owner. Never relay an intermediate status
 or that work is still running. When and how a result is given: the owner's global rule on background
-work. Do not ask first whether to show it. A separate session the owner can open and follow is not relayed at all:
-its results stay in that session; mention it only when a step of the owner's task here needs it.
+work. Do not ask first whether to show it. A separate session the owner can open and follow is not relayed while it works or
+waits on the owner (the app shows that). When it finishes its task, give one line with the session link and
+the outcome (the owner's global rule on background work sets the timing). Never answer with a bare
+"nothing waits on you here".

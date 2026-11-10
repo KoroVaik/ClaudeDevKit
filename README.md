@@ -14,7 +14,8 @@ each project brings its specifics in a profile.
 A project that enables the plugins keeps `.claude/dev-kit.md`:
 
 - `## All agents` - orientation files, processes agents never touch, shared rules.
-- `## Slots` - optional table `| Slot | Skill or command |` that overrides a slot for this project.
+- `## Slots` - optional table `| Slot | Skill or command |` that overrides a slot for this project;
+  only `run-app` and `stop-app` may have several rows (a list of commands).
 - `## <agent or skill name>` - rules for one role, e.g. `## reviewer`; they override the plugin
   defaults.
 - `## documentation` - table `| Setting | Value |` for the docs check (code folders, scanned
@@ -63,6 +64,15 @@ command), `## scene-sketch` (subject, names, caption language).
 The core lists the process steps in `plugins/dev-kit/slots.md`. An extension fills slots in its own
 `slots.md` (`| Slot | Skill |`, skill as `<plugin>:<skill>`). The manager reads these tables, not
 skill descriptions.
+
+## Starting and stopping the application
+
+The `run-app` and `stop-app` slots of a profile may list several commands, one row each, in start order.
+`dev-kit-app start` (in `plugins/dev-kit/bin`, on the Bash tool PATH while dev-kit is enabled; the runner is
+`plugins/dev-kit/scripts/run_app.py`) runs the run-app commands in order, `dev-kit-app stop` the stop-app
+commands in reverse, `dev-kit-app list` shows both. The plugin only sequences the project's commands: what may be
+stopped (the owner's processes) is decided by the project's own helpers. The skills that start the application
+run the teardown before the task ends. The rules: `plugins/dev-kit/slots.md`.
 
 ## Hooks
 
