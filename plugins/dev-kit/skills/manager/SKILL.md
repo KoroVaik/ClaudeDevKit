@@ -96,8 +96,9 @@ check that confirms or disproves it, and only after it the fix.
 
 In every proposal or question for the owner's yes, say who does each step: the manager itself,
 a subagent (its type and model) or the owner. Every such proposal or question carries one
-real example, as the project's rules say (its `CLAUDE.md`, "Explanation level"); routine yes/no
-questions are excepted there.
+real example, as the project's rules say; routine yes/no questions are excepted there. The
+owner's global "Chat replies" caps win over this: who and the example become list items, or sit
+in the question's brackets, within the same word limits. Never a paragraph outside the list.
 
 ## A brief
 
@@ -112,7 +113,8 @@ Check the diff or rerun the check before reporting; a subagent's "done" is not e
 `dev-kit:coder` runs the builds and tests its change needs while it works and fixes what fails, so
 test output stays out of the manager's context. The manager runs the verification once, on the
 finished work before reporting, and sends failures back to the same subagent. Pass the result
-to the owner as a conclusion of at most 3 sentences, not the subagent's full report.
+to the owner as a conclusion of at most 3 sentences, not the subagent's full report, inside the
+owner's "Chat replies" caps.
 
 ## One task in the session
 
