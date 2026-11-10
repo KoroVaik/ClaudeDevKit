@@ -50,14 +50,17 @@ the actual result. Fix failed checks before any UI check. Run the project's buil
 for changed frontend or other built parts.
 
 UI and frontend tests, and browser or scene checks, need the owner's consent under the project's
-rules; approval to implement or preview a change does not authorize them. After consent use the
+rules; approval to implement or preview a change does not authorize them. A check listed as its own
+line in a plan the owner approved has that consent (the owner's global rule "One yes per plan"). After
+consent use the
 check slots: `check-ui` for a scenario, `check-usability` for an ordinary user's walk, `check-look` for
 mockups and layout. The skill filling a slot owns how its check runs. Run them in this order (owner
 decision of 2026-11-10): `check-look` first, then `check-ui`, then `check-usability` last, on a page that
 already matches the mockup and works; fix what one finds before the next.
 
-The consent rule forbids running the check unasked; it does not forbid asking. When a change has visible UI
-behaviour (a screen, a flow, a layout) and you accept it or report it done, ask the owner in the same message
+The consent rule forbids running the check unasked; it does not forbid asking. Best put the checks in the
+plan before the work starts. When a change has visible UI behaviour (a screen, a flow, a layout), the approved
+plan did not list these checks, and you accept it or report it done, ask the owner in the same message
 whether to run `check-ui`, when the change adds or reworks a flow `check-usability`, and when a mockup exists
 `check-look`, with your recommendation and its reason.
 Without a yes, the report says "not checked: browser scenario, user walk and look"; tests, review and "open it and tell me"

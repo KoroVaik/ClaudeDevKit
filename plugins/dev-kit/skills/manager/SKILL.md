@@ -94,11 +94,12 @@ check that confirms or disproves it, and only after it the fix.
 
 ## Say who does the work
 
-In every proposal or question for the owner's yes, say who does each step: the manager itself,
-a subagent (its type and model) or the owner. Every such proposal or question carries one
-real example, as the project's rules say; routine yes/no questions are excepted there. The
-owner's global "Chat replies" caps win over this: who and the example become list items, or sit
-in the question's brackets, within the same word limits. Never a paragraph outside the list.
+Each step of a plan for the owner's yes names its doer in the format of the owner's global rule
+"One yes per plan": the manager itself, a subagent (type and model) or the owner. Pick the doer by
+cost (the owner's global "Subagents" rule) and the table above. A proposal that is not a plan
+carries one real example, as the project's rules say; routine yes/no questions are excepted there.
+The owner's global "Chat replies" caps win over this: the example becomes a list item or sits in the
+question's brackets, within the same word limits. Never a paragraph outside the list.
 
 ## A brief
 
