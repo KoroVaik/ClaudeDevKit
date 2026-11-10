@@ -1,6 +1,6 @@
 ---
 name: visual-check
-description: Use when the owner has given separate, explicit consent for a visual check in this task and the running app must be compared with a mockup board or its layout checked at a set of screen sizes - "перевір по мокапах", "чи схоже на мокап", "чи не їде верстка", "як на телефоні". Not for checking that a scenario works (that is e2e-check).
+description: Use when the owner has consented (a separate yes or its own line in an approved plan) to a visual check in this task and the running app must be compared with a mockup board or its layout checked at a set of screen sizes - "перевір по мокапах", "чи схоже на мокап", "чи не їде верстка", "як на телефоні". Not for checking that a scenario works (that is e2e-check).
 ---
 
 # Visual check

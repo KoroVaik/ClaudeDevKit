@@ -26,7 +26,8 @@ the board only to say where each fix belongs.
 
 - **Consent, per kind.** A browser check needs the owner's separate, explicit consent for the current
   task, under the project's rules; approval to implement a change or to preview it is not consent.
-  Consent is per kind: the scenario check, the user walk and the visual check each need their own yes.
+  Consent is per kind: the scenario check, the user walk and the visual check each need their own yes,
+  or their own line in a plan the owner approved (the owner's global rule "One yes per plan").
 - **Scenarios come from the feature.** The scenarios and the user walk's goals come from the "Acceptance
   criteria" of the feature (found with `dev-kit-check-docs --who <path>`); a check that finds a rule the
   criteria miss reports it for the feature.

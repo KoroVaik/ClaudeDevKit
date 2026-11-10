@@ -1,6 +1,6 @@
 ---
 name: user-walk
-description: Use when an ordinary user should go after a goal in the running app and say what got in the way (unclear, extra words, awkward steps, where they got lost), and the owner has given separate, explicit consent for a user walk in this task - "пройди як користувач", "чи зручно", "що заважає", "подивись очима користувача", or the `check-usability` slot. Not for checking that a scenario does what the feature says (that is e2e-check) or comparing screens with mockups (that is visual-check).
+description: Use when an ordinary user should go after a goal in the running app and say what got in the way (unclear, extra words, awkward steps, where they got lost), and the owner has consented (a separate yes or its own line in an approved plan) to a user walk in this task - "пройди як користувач", "чи зручно", "що заважає", "подивись очима користувача", or the `check-usability` slot. Not for checking that a scenario does what the feature says (that is e2e-check) or comparing screens with mockups (that is visual-check).
 ---
 
 # User walk

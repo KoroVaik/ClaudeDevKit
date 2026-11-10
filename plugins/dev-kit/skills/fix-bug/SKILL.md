@@ -32,7 +32,8 @@ pipeline).
 
 Find the root cause in code. Compare the broken path with similar code that works and list
 every difference. Chat: at most 3 sentences with one example; the full diagnosis goes in a
-scratchpad file, as in `dev-kit:new-feature` step 3. Hard stop: wait for a go-ahead.
+scratchpad file, as in `dev-kit:new-feature` step 3, with the plan of steps 4-6 so one yes covers the
+fix, the tests and each listed check. Hard stop: wait for a go-ahead.
 
 ## 4. Fix
 

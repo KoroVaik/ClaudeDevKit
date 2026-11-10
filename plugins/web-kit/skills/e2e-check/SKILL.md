@@ -1,6 +1,6 @@
 ---
 name: e2e-check
-description: Use when a user scenario must be verified end to end in the running app (taps, saved data, server answers, what the other user sees) and the owner has given separate, explicit consent for a scenario check in this task - "перевір, що працює", "e2e", "прожени сценарій". Not for an ordinary user's walk (that is user-walk), comparing screens with mockups or checking layout (that is visual-check).
+description: Use when a user scenario must be verified end to end in the running app (taps, saved data, server answers, what the other user sees) and the owner has consented (a separate yes or its own line in an approved plan) to a scenario check in this task - "перевір, що працює", "e2e", "прожени сценарій". Not for an ordinary user's walk (that is user-walk), comparing screens with mockups or checking layout (that is visual-check).
 ---
 
 # E2E check
