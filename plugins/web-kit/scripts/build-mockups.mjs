@@ -50,7 +50,7 @@ const SCREEN_COUNT = config.screenCount;
 
 const NAME_RE = /^[a-z0-9]+(-[a-z0-9]+)*$/;
 const TONES = ['ok', 'warn'];
-const BUTTON_KINDS = ['plain', 'save', 'approve'];
+const BUTTON_KINDS = ['plain', 'save', 'approve', 'check', 'checked'];
 const CHIP_SIZES = ['s', 'm', 'l'];
 const CHIP_TONES = ['warn', 'danger'];
 const USERS = USER_LETTERS;

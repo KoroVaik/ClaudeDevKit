@@ -172,6 +172,10 @@ a:hover { color: #d8e4ee; }
 }
 .btn.save { background: var(--save); border-color: var(--save); color: var(--bg); }
 .btn.approve { background: var(--approve); border-color: var(--approve); color: var(--bg); }
+/* A quiet confirm control: a grey check with its word that lights up on hover, and its green confirmed state. */
+.btn.check { background: none; border-color: transparent; color: var(--muted); }
+.btn.check:hover { color: var(--text); background: var(--hover); }
+.btn.checked { background: none; border-color: transparent; color: var(--approve); cursor: default; }
 .btn.disabled { opacity: 0.4; }
 .btn-cell { display: flex; flex-direction: column; gap: 4px; }
 .btn-caption { color: var(--muted); font-size: 10px; text-align: center; }
