@@ -83,7 +83,12 @@ the caller named the record. Reset with preset `desktop` before you finish.
 
 Take one screenshot per screen you reached and one of each place you got stuck or something went wrong.
 Use `scale` about 0.5; `zoom` on the spot of a remark. Wait about a second after a tap that changes the
-screen. The browser tool saves every image as a `.jpg`: right after each shot, find its absolute path
+screen.
+
+**Wide pages:** the tool shrinks every image to about 1,500 px, so a whole wide page (a desktop or 4K
+window) comes out too small to read, for you as well as for the owner. Look at such a page the way a user
+reads it: one overview shot to see where things are, then `zoom` on each block you read or use (a list, a
+form, a dialog), one image per block. Judge what you see in the zoomed shots, not in the overview. The browser tool saves every image as a `.jpg`: right after each shot, find its absolute path
 (Glob `*/tool-results/mcp-Claude_Browser-blob-*.jpg` in the screenshot folder the profile names; the newest
 file is your last shot).
 
