@@ -41,8 +41,13 @@ it the way the caller described, then check:
    of both when they differ. Placeholder text is not compared.
 4. **Actions:** the arrow's action exists on this screen and leads to the next phone.
 5. **Kind of control:** a primary button, a link, a chip, a popup or a sheet, as the spec says.
+6. **Standard:** read the project's design standard that the caller or the profile names, and check every
+   control and marker on the screen against its rules of meaning (which button style means what, value
+   source markers, delete buttons). Report a deviation even where the mockup draws the same thing: the
+   standard wins over both, and a mockup that breaks it needs redrawing.
 
-Do not compare pixel sizes, fonts, exact colors, photos or item names. Read the screen with
+Do not compare pixel sizes, fonts, exact shades, photos or item names; the color a standard gives to a
+meaning is checked in step 6. Read the screen with
 `read_page` and `get_page_text`; screenshots are the evidence (section "Evidence screenshots").
 
 A difference listed by the caller as deliberate is reported once in a separate list, not as a

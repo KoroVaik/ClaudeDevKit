@@ -31,10 +31,12 @@ both are asked for, run the mockup comparison first.
    reach it: the URL and the taps. A phone you cannot reach goes into the report as not checked,
    with the reason.
 4. Call `web-kit:mockup-checker` with the spec path, the spec format reference
-   (`${CLAUDE_PLUGIN_ROOT}/skills/draw-mockup/spec-format.md`), the phone list with the way to each, the
-   known differences and the viewport (the phone preset for the phone app).
+   (`${CLAUDE_PLUGIN_ROOT}/skills/draw-mockup/spec-format.md`), the path of the project's design standard,
+   the phone list with the way to each, the known differences and the viewport (the phone preset for the
+   phone app).
 5. Check every difference it reports against the feature rules and the standard before calling it a
-   defect: a newer rule wins over the mockup. Unclear whether the app or the mockup is right → ask the owner.
+   defect: a newer rule wins over the mockup. A deviation from the standard is a defect of the app, and
+   also of the mockup when the mockup draws it (redraw it with `web-kit:draw-mockup`). Unclear whether the app or the mockup is right → ask the owner.
 
 ## Layout
 
