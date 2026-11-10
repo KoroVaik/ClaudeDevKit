@@ -38,7 +38,8 @@ Write no product code until the owner agrees on the approach.
 
 The chat gets at most 3 sentences (what changes for the owner, on one real example) and
 one yes/no question. The detailed approach (who does each part, risks, open details, examples)
-goes into a file in the session scratchpad, linked from the chat. Explain there, at the level the
+goes into a file in the session scratchpad; attach it to the chat with SendUserFile only if the owner
+must read it, and never mention a diagnosis file that only agents use. Explain there, at the level the
 project's rules set (`CLAUDE.md` "Explanation level"), the parts the owner does not know. Hard stop:
 wait for an explicit go-ahead.
 
