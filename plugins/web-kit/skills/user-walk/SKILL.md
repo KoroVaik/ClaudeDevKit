@@ -41,3 +41,11 @@ if they exist; they override the defaults here.
      changes without the owner's yes.
 
 A remark the agent drew from the brief rather than the screen (it lists them) is weighed, not trusted.
+
+## Arguing with the user
+
+The agent is a user with its own opinion. When you think a recommendation is wrong, do not drop it yourself
+and do not overrule it: send the same agent a follow-up with your reason (why it would not stop a real user,
+or what the change would cost). "The mockup or the rule says so" is not a reason. The agent either changes
+its mind and says why, or keeps its view and says why the reason does not help. Report both to the owner:
+what the user conceded, with the reason, and what it held against your argument; the owner decides.
