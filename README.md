@@ -34,7 +34,9 @@ runs `plugins/dev-kit/scripts/check_docs.py --pre-commit`, finding this folder t
 Its skills `e2e-check`, `user-walk`, `visual-check` and `draw-mockup` name their agents (`web-kit:ui-tester`, `web-kit:app-user`,
 `web-kit:layout-checker`, `web-kit:mockup-checker`, `web-kit:mockup-user`) and model themselves; the
 manager reaches them through the slots. Who answers which question, and the shared browser rules:
-`plugins/web-kit/browser-checks.md`. The project's facts go in its profile: `## e2e-check` (URLs, login,
+`plugins/web-kit/browser-checks.md`. Readable evidence screenshots of wide screens come from
+`web-kit-shot` (headless full-resolution capture, `plugins/web-kit/scripts/capture.mjs`), because the in-app browser's
+screenshot tool returns at most about 800 px wide. The project's facts go in its profile: `## e2e-check` (URLs, login,
 screenshot folder, test-data marker; read by every browser skill and agent), `## ui-tester`, `## app-user`,
 `## visual-check`, `## layout-checker` (sizes), `## mockup-checker`, `## draw-mockup` (mockups folder,
 palette, languages), `## mockup-user` (persona of both user agents, `mockup-user` and `app-user`).

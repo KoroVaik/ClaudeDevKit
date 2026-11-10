@@ -44,9 +44,28 @@ the board only to say where each fix belongs.
   generated records without the marker to the exact id of the job or action that created them (the
   profile names the field). Delete only proven test-owned IDs, restore only settings the check changed,
   verify the API result. Data the owner asked to keep is not test data. Never expose credentials.
-- **Screenshots go to the owner.** Every browser agent ends its report with a list of screenshot paths
-  and captions. Check each file exists, then send them in one `SendUserFile` call (`display: render`, a
-  caption naming the board or scenario). The chat reply stays one line per board or scenario; the
-  screenshots carry the detail.
+- **Screenshots go to the owner, and they must be readable.** The in-app browser's screenshot tool
+  returns an image at most about 800 px wide whatever the viewport (measured 2026-11-10: a 3840x2160
+  window comes back 800x452, 1024 px wide 800 px, a phone 375 px wide 657 px, which is its real size),
+  and `zoom` only crops that already small image. So an in-app shot of a wide window is for the agent's
+  own reading (`scale` about 0.5 there), never for the owner. For a phone width the in-app shot is
+  readable and goes to the owner as it is.
+  - **Wide screens (tablet and up): headless capture.** Agent shots of a wide window are not sent. The
+    agent ends its report with a **Shots** list, one line per shot: `name | URL | steps | CSS selector of
+    the section | caption`. The URL and the steps are only what reaches that state again from a fresh
+    browser, read-only (open a page, click a tab; nothing that saves). The selector is one block that
+    shows the result (a list, a dialog, a form, a row), never the whole page. If the profile has no
+    sign-in steps, the agent lists the sign-in form's selectors too.
+  - **The caller captures.** The agents have no shell, so the caller writes the spec and runs
+    `web-kit-shot --spec <spec.json> --out <screenshot folder>` (format at the top of
+    `scripts/capture.mjs`). It renders the same URL in a throwaway headless Edge or Chrome at the
+    profile's window size (4K for the Zhratva admin) with no profile of the owner's, and stops it
+    afterwards. The password is typed from its file (`"@<path>"`), never put in a spec or a message.
+    The command prints each PNG's path and pixel size; check that the section is not cut off and that
+    its text is legible at 100%. If it fails, or a state cannot be reached from a URL, say so and send
+    the agent's in-app shot marked "low resolution", never as the proof.
+  - **Send** the PNGs and the in-app phone shots in one `SendUserFile` call (`display: render`, a caption
+    naming the board or scenario). The chat reply stays one line per board or scenario; the screenshots
+    carry the detail.
 - **After the report**, clean up as above and report any record or setting left behind. If a report is
   unclear, send the agent a follow-up rather than driving the browser yourself.
