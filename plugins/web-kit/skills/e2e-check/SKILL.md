@@ -57,9 +57,11 @@ mockup comes only after the walk, so it cannot bias what the user notices.
    in plain everyday words ("you want to add tomorrow's lunch"). Never steps, screen names, button labels or
    expected results. Pick the persona the profile section `## mockup-user` gives for this app.
 2. **Data.** Prepare what the situation needs through the API (browser-checks.md, "Test data through the
-   API") and tell the agent only what a user would know ("you already have two dishes").
-3. **Walk.** Call `web-kit:app-user` (model sonnet) with the persona, situation, goal, start URL and window
-   preset. One goal per call, one call after another.
+   API") and tell the agent only what a user would know ("you already have two dishes"). The walk reaches
+   a goal that saves only on test-owned data; when the agent may not change the data it walks (the owner's
+   real records), tell it the step to stop before and report the walk as partial.
+3. **Walk.** Call `web-kit:app-user` (model sonnet) with the persona, situation, goal, start URL and the
+   window size the profile names for this app. One goal per call, one call after another.
 4. **Sort.** If the flow has a mockup board (`<mockups folder>/src/<flow>.json`, the folder from
    `## draw-mockup`, default `docs/mockups`), send the same agent a follow-up (`SendMessage`) with the spec
    path, the spec format reference (`${CLAUDE_PLUGIN_ROOT}/skills/draw-mockup/spec-format.md`) and the known

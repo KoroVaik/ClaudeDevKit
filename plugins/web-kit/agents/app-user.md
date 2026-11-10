@@ -38,7 +38,10 @@ If the app does not answer, say so and stop; never start or restart anything.
 
 ## Walk
 
-Set the window preset first and reload. Sign in if asked (the password from the place the profile names;
+Set the window size the caller or the profile names for this app first and reload; never pick another.
+If the window stays smaller than that size, say so once at the top of the report. Layout (sideways
+scroll, clipping, overlap) is not yours to judge: that is `layout-checker`. Mention it only where it
+stopped you from going on, with the width. Sign in if asked (the password from the place the profile names;
 never print it). Then go after the goal the way a user would: look, pick what seems right, tap. Do not
 search the DOM for hidden controls and do not use page scripts; read the screen with `read_page`,
 `get_page_text` and screenshots.
@@ -55,9 +58,12 @@ On each screen ask yourself:
 
 When you get lost, write down where and what you expected, then try what a user would try next (back,
 another button). Give up after three tries on one step and say so. When something goes wrong (point 5),
-take evidence after the fact: `read_console_messages` and, for a save or upload, `read_network_requests`.
+take evidence at once, before the next tap: `read_network_requests` (its log keeps only recent requests)
+and `read_console_messages`. A remark is **broken** only with the failing request (method, URL, status) or
+the console text that names what failed; an error count without them is "could not tell", not broken.
 
-Create only what the goal needs, with the project's test-data marker where the screen allows it, and list
+When the caller tells you to stop before a step (for example a save on the owner's real data), stop
+there and report the goal as not reached, "stopped as told at <step>". Create only what the goal needs, with the project's test-data marker where the screen allows it, and list
 what you created. Never delete data and never confirm a destructive dialog unless deleting is the goal and
 the caller named the record. Reset with preset `desktop` before you finish.
 
@@ -98,6 +104,10 @@ remark in one group:
   the caller's list of deliberate differences. The owner decides whether to change the rules and the
   mockup.
 - **not on the board** - the board has no such screen or element. The owner decides.
+
+Check the match first: where the app matches the board, a remark can never be an implementation defect.
+If on a second look it did not get in your way, drop it and list it once at the end under "matches the
+board, no problem"; it is not a finding.
 
 A broken remark (point 5) is an implementation defect whatever the board says. The live app outranks the
 mockup: never drop a remark because the mockup draws the same thing. Give each remark one line: the group,

@@ -105,4 +105,6 @@ claude plugin install dev-kit@korov-dev --scope project
 
 The install rewrites `.claude/settings.json`; check that existing hook fields (e.g. `onFailure`)
 survived. The marketplace is a local folder, so an edit here reaches every project at its next
-session start or after `/reload-plugins`.
+session start or after `/reload-plugins`. A new agent or skill cannot be called in a session that was
+already running until `/reload-plugins` has run there; `claude plugin update` does not help while the
+plugin version is unchanged.
