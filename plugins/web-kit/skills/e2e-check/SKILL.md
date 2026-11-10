@@ -36,8 +36,9 @@ Call `web-kit:ui-tester` (model sonnet) once per scenario, one call after anothe
 
 ## After a scenario report
 
-- A fail: read the evidence (console text, request and status, screen text) before calling it
-  a defect. After the fix, rerun only that scenario.
+- A fail, or a pass with an observation that needs a code fix: read the evidence (console text,
+  request and status, screen text) before calling it a defect. After the fix, rerun only that scenario
+  through `web-kit:ui-tester`, never in the main session.
 - A pass: check that the report lists the steps it actually took and the values it saw. A
   bare "pass" is not evidence; send a follow-up.
 - Report to the owner one line per scenario: pass or fail, and what broke. Send the

@@ -31,7 +31,11 @@ the board only to say where each fix belongs.
   criteria" of the feature (found with `dev-kit-check-docs --who <path>`); a check that finds a rule the
   criteria miss reports it for the feature.
 - **Always a subagent**, never the main session: it keeps screenshots out of the main context. The
-  agents are the ones in the table above.
+  agents are the ones in the table above. This covers every in-app browser action: a first check, a
+  re-check after a fix (also when the report was a pass with an observation), and reaching a state for a
+  screenshot (selecting text, clicking, saving, `javascript_tool`). It wins over the host's "do small
+  checks inline"; a one-click check is still a subagent call. The caller only prepares data through the
+  API or scripts and runs headless `web-kit-shot`; it never opens or drives the in-app browser.
 - **One browser.** All agents share the one browser pane, so calls run one after another, never in
   parallel. One scenario, goal, board or profile per call.
 - **One environment.** The project's frontend and API addresses are in the profile. For fresh API or
@@ -57,9 +61,9 @@ the board only to say where each fix belongs.
     that holds the result (a section, a dialog, a form, an open item, a row), never the whole page and
     never a column, pane or card that wraps other sections. This holds for every spec, the caller's own
     included. If the profile has no sign-in steps, the agent lists the sign-in form's selectors too.
-  - **The caller captures.** The agents have no shell, so the caller writes the spec and runs
-    `web-kit-shot --spec <spec.json> --out <screenshot folder>` (format at the top of
-    `scripts/capture.mjs`). It renders the same URL in a throwaway headless Edge or Chrome at the
+  - **The caller captures** (headless only, never the in-app browser). The agents have no shell, so the
+    caller writes the spec and runs `web-kit-shot --spec <spec.json> --out <screenshot folder>` (format
+    at the top of `scripts/capture.mjs`). It renders the same URL in a throwaway headless Edge or Chrome at the
     profile's window size (4K for the Zhratva admin) with no profile of the owner's, and stops it
     afterwards. The password is typed from its file (`"@<path>"`), never put in a spec or a message.
     The command prints each PNG's path and pixel size; open the PNG and check that the section is not
@@ -71,4 +75,7 @@ the board only to say where each fix belongs.
     naming the board or scenario). The chat reply stays one line per board or scenario; the screenshots
     carry the detail.
 - **After the report**, clean up as above and report any record or setting left behind. If a report is
-  unclear, send the agent a follow-up rather than driving the browser yourself.
+  unclear, or you fixed code because of it (a fail or an observation), send the agent a follow-up or a
+  rerun of that scenario rather than driving the browser yourself. If a state for a shot cannot be
+  reached from a URL and read-only steps, prepare it through the API or ask a subagent to reach it, or
+  send the agent's in-app shot marked "low resolution"; never drive the page yourself.
