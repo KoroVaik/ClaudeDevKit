@@ -16,6 +16,7 @@ the agents.
 | Do the screens match the mockup? | the running app and one mockup board | `web-kit:visual-check`, mockup comparison (`check-look`) | `web-kit:mockup-checker` | matches or differs per phone |
 | Does the layout hold up at the screen sizes? | the running app at the profile's widths | `web-kit:visual-check`, layout (`check-look`) | `web-kit:layout-checker` | defects per width |
 | Is a freshly drawn path clear to an ordinary user? | the drawn mockup's text only, no app | `web-kit:draw-mockup` (`show-idea`) | `web-kit:mockup-user` | remarks for the owner |
+| May a look variant be shown to the owner (matches the accepted mockup, no visible defects)? | the caller's headless screenshots, a headless shot of the mockup board, the UI design standard; no browser | none: the project's design-sandbox rule calls it before variant shots are sent | `web-kit:design-critic` | pass or fail per variant, each defect with its reference |
 
 `mockup-user` and `app-user` are the same ordinary user (persona in the profile section `## mockup-user`):
 one reads a drawn path, the other walks the live app. When they disagree, the live app wins.
