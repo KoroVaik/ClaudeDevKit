@@ -1,6 +1,6 @@
 ---
 name: draw-mockup
-description: Use when the owner asks to draw, sketch or mock up a screen or flow - "намалюй мокап / флоу / екран" - or when discovery or brainstorming needs a visual of a flow (the `show-idea` slot). Not for building real UI in the project's frontend.
+description: Use when the owner asks to draw, sketch or mock up a screen or flow - "намалюй мокап / флоу / екран" - or when the owner proposes or asks about a visual change to a screen or piece, or when discovery or brainstorming needs a visual of a flow (the `show-idea` slot). Not for building real UI in the project's frontend.
 ---
 
 # Draw mockup
@@ -81,7 +81,9 @@ Screen text is the least that keeps the screen clear; explanations go in the boa
 
 - Show, do not describe: while a screen or a visual idea is being discussed, draw a temporary
   mockup and send it as a file attachment instead of explaining the change in text. The chat around
-  the attachment is a line or two: what changed and one question.
+  the attachment is a line or two: what changed and one question. A temporary mockup is not a code or doc edit,
+  so the global "yes before edit" does not apply to drawing it: when the owner proposes a visual change, draw it at
+  once, never ask "redraw?". Put the verdict's weak spots in that one or two line note, and keep the reply cap.
 - One board, one theme: a board covers a single flow or a single idea family. A new idea on
   another theme gets its own board; an idea that replaces an earlier one updates or removes the
   old screens. Temporary boards whose outcome is settled are deleted before the commit (step 9).
