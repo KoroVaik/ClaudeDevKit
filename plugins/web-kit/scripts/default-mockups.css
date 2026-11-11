@@ -15,6 +15,9 @@
   --attention: #c69e39;
   --source: #96cefa;
   --danger: #f87171;
+  --ok: #4ade80;
+  --accent: #f0a6c8;
+  --accent-2: #c4a4f5;
   --user-a: #96cefa;
   --user-b: #f0a6c8;
 }
@@ -197,6 +200,10 @@ a:hover { color: #d8e4ee; }
    selected = solid fill with dark text. Color carries meaning: light = for now, yellow = less often, red = never. */
 .chip.danger { color: var(--danger); border-color: var(--danger); }
 .chip.warn { color: var(--attention); border-color: var(--attention); }
+.chip.ok { color: var(--ok); border-color: var(--ok); }
+.chip.info { color: var(--source); border-color: var(--source); }
+.chip.accent { color: var(--accent); border-color: var(--accent); }
+.chip.accent-2 { color: var(--accent-2); border-color: var(--accent-2); }
 .chip.on { background: var(--save); border-color: var(--save); color: var(--bg); }
 .chip.on.warn { background: var(--attention); border-color: var(--attention); color: var(--bg); }
 .chip.on.danger { background: var(--danger); border-color: var(--danger); color: var(--bg); }
@@ -249,6 +256,7 @@ a:hover { color: #d8e4ee; }
 .list-row > span:first-child { display: flex; align-items: center; gap: 8px; }
 .list-row .cell-lines { display: flex; flex-direction: column; gap: 2px; }
 .list-row .cell-sub { color: var(--muted); font-size: 0.85em; }
+.list-row .cell-parts { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 6px; }
 .thumb { flex: none; width: 26px; height: 26px; border-radius: 6px; background: var(--card); border: 1px dashed var(--frame); }
 .thumb.l { width: 40px; height: 40px; }
 

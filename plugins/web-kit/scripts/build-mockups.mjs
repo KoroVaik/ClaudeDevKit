@@ -52,7 +52,7 @@ const NAME_RE = /^[a-z0-9]+(-[a-z0-9]+)*$/;
 const TONES = ['ok', 'warn'];
 const BUTTON_KINDS = ['plain', 'save', 'approve', 'check', 'checked'];
 const CHIP_SIZES = ['s', 'm', 'l'];
-const CHIP_TONES = ['warn', 'danger'];
+const CHIP_TONES = ['warn', 'danger', 'ok', 'info', 'accent', 'accent-2'];
 const USERS = USER_LETTERS;
 const DAY_TONES = ['choice', 'chosen', 'cooking', 'done'];
 const FRAMES = ['phone', 'desktop'];
@@ -265,9 +265,22 @@ const blocks = {
         'every list row is [left], [left, right] or { "cells": [left, right], "muted": true }');
       const cell = (c) => {
         if (typeof c === 'string') return esc(c);
-        need(file, c !== null && typeof c === 'object' && isText(c.text) && isText(c.sub),
-          'a list cell is a string or { "text", "sub" }');
-        return `<span class="cell-lines"><span>${esc(c.text)}</span><span class="cell-sub">${esc(c.sub)}</span></span>`;
+        need(file, c !== null && typeof c === 'object' && (isText(c.text) !== Array.isArray(c.parts)),
+          'a list cell is a string or { "text" or "parts", "sub" }');
+        need(file, c.sub === undefined || isText(c.sub), 'a list cell "sub" is a string');
+        let main = esc(c.text ?? '');
+        if (c.parts !== undefined) {
+          need(file, c.parts.length > 0, 'a list cell "parts" needs a non-empty array');
+          main = c.parts.map((p) => {
+            if (isText(p)) return esc(p);
+            need(file, isText(p?.chip), 'a list cell part is a string or { "chip", "tone" }');
+            need(file, p.tone === undefined || CHIP_TONES.includes(p.tone), `chip tone must be one of ${CHIP_TONES.join(', ')}`);
+            return `<span class="chip${p.tone ? ' ' + p.tone : ''}">${esc(p.chip)}</span>`;
+          }).join('');
+          main = `<span class="cell-parts">${main}</span>`;
+        }
+        if (c.sub === undefined) return main;
+        return `<span class="cell-lines"><span>${main}</span><span class="cell-sub">${esc(c.sub)}</span></span>`;
       };
       let right = r[1] !== undefined ? `<span class="qty">${cell(r[1])}</span>` : '';
       if (!Array.isArray(row) && row.action !== undefined) {

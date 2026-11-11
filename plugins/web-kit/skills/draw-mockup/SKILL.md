@@ -91,7 +91,9 @@ Screen text is the least that keeps the screen clear; explanations go in the boa
   action sits), not only in color or wording, and each stays within the project's design standard.
   Exact sizes, line breaks and spacing are not decided on a mockup. Once the owner picks, the chosen
   variant goes into the flow's board and the variants board is deleted.
-- Low fidelity: grey boxes, bars, placeholder photos. No final typography or pixel polish; where the
+- Low fidelity: grey boxes, bars, placeholder photos. A value may show which kind of mark it gets (plain text,
+  a chip, an icon, a tone by meaning); sizes, fonts, spacing and exact shades are left to the real components.
+  No final typography or pixel polish; where the
   project's typography for the app is not defined yet (the profile says), the mockup does not define it.
 - A desktop screen board (`"frame": "desktop"`) lives in its own mockups folder, set in the profile; never mix it
   with phone boards. Its arrows go down, one screen per row.
