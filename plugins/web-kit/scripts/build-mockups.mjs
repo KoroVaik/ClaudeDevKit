@@ -267,11 +267,9 @@ const blocks = {
         if (typeof c === 'string') return esc(c);
         need(file, c !== null && typeof c === 'object' && (isText(c.text) !== Array.isArray(c.parts)),
           'a list cell is a string or { "text" or "parts", "sub" }');
-        need(file, c.sub === undefined || isText(c.sub), 'a list cell "sub" is a string');
-        let main = esc(c.text ?? '');
-        if (c.parts !== undefined) {
-          need(file, c.parts.length > 0, 'a list cell "parts" needs a non-empty array');
-          main = c.parts.map((p) => {
+        need(file, c.sub === undefined || isText(c.sub) || (Array.isArray(c.sub) && c.sub.length > 0),
+          'a list cell "sub" is a string or a non-empty parts array');
+        const renderParts = (parts) => `<span class="cell-parts">${parts.map((p) => {
             if (isText(p)) return esc(p);
             need(file, isText(p?.chip), 'a list cell part is a string or { "chip", "tone" }');
             need(file, p.tone === undefined || CHIP_TONES.includes(p.tone), `chip tone must be one of ${CHIP_TONES.join(', ')}`);
@@ -290,11 +288,15 @@ const blocks = {
             const icon = act.icon ? `<span class="chip-icon">${esc(act.icon)}</span>` : '';
             return `<span class="chip split${tone}"><span class="chip-value">${badge}${esc(p.chip)}</span>`
               + `<span class="chip-action ${kind}">${icon}<span>${esc(act.text)}</span></span></span>`;
-          }).join('');
-          main = `<span class="cell-parts">${main}</span>`;
+          }).join('')}</span>`;
+        let main = esc(c.text ?? '');
+        if (c.parts !== undefined) {
+          need(file, c.parts.length > 0, 'a list cell "parts" needs a non-empty array');
+          main = renderParts(c.parts);
         }
         if (c.sub === undefined) return main;
-        return `<span class="cell-lines"><span>${main}</span><span class="cell-sub">${esc(c.sub)}</span></span>`;
+        const sub = Array.isArray(c.sub) ? renderParts(c.sub) : esc(c.sub);
+        return `<span class="cell-lines"><span>${main}</span><span class="cell-sub">${sub}</span></span>`;
       };
       let right = r[1] !== undefined ? `<span class="qty">${cell(r[1])}</span>` : '';
       if (!Array.isArray(row) && row.action !== undefined) {
