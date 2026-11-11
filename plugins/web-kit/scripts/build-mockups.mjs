@@ -312,7 +312,9 @@ const blocks = {
       return `<div class="list-row${muted ? ' muted' : ''}${tone ? ' ' + tone : ''}"><span>${thumb}${cell(r[0])}</span>${right}</div>`;
     });
     need(file, b.lines === undefined || typeof b.lines === 'boolean', 'list "lines" must be true or false');
-    return `<div${b.lines === false ? ' class="no-lines"' : ''}>${rows.join('')}</div>`;
+    need(file, b.columns === undefined || typeof b.columns === 'boolean', 'list "columns" must be true or false');
+    const listClass = [b.lines === false ? 'no-lines' : '', b.columns === true ? 'list-cols' : ''].filter(Boolean).join(' ');
+    return `<div${listClass ? ` class="${listClass}"` : ''}>${rows.join('')}</div>`;
   },
   // Side-by-side areas of a desktop screen: each column is { width, blocks }; width is px (number) or "1fr", "2fr"
   columns(b, file) {

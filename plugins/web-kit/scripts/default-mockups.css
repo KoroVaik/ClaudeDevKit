@@ -279,6 +279,9 @@ a:hover { color: #d8e4ee; }
 .list-row .cell-lines { display: flex; flex-direction: column; gap: 2px; }
 .list-row .cell-sub { color: var(--muted); font-size: 0.85em; }
 .list-row .cell-parts { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.list-cols { display: grid; grid-template-columns: minmax(0, 1fr) fit-content(64%); column-gap: 20px; }
+.list-cols > .list-row { display: grid; grid-column: 1 / -1; grid-template-columns: subgrid; }
+.list-cols > .list-row > :nth-child(2) { justify-self: start; text-align: left; }
 .thumb { flex: none; width: 26px; height: 26px; border-radius: 6px; background: var(--card); border: 1px dashed var(--frame); }
 .thumb.l { width: 40px; height: 40px; }
 

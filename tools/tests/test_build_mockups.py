@@ -139,6 +139,21 @@ class BuildMockupsTests(unittest.TestCase):
         self.assertIn('<span class="user-tag user-a">X1</span>', page)
         self.assertIn('title="Krok 1/2"', page)
 
+    def test_list_columns_option_adds_a_class_and_is_validated(self):
+        def spec(block):
+            return {**SPEC, "phones": {**SPEC["phones"], "done": {"caption": "Item picked", "blocks": [block]}}}
+
+        self.write_spec("pick-item", spec({"type": "list", "rows": [["a", "b"]], "columns": True, "lines": False}))
+        self.assertEqual(self.run_build().returncode, 0)
+        self.assertIn('<div class="no-lines list-cols"><div class="list-row">', self.page("pick-item.html"))
+        self.write_spec("pick-item", spec({"type": "list", "rows": [["a", "b"]]}))
+        self.run_build()
+        self.assertIn('<div><div class="list-row">', self.page("pick-item.html"))
+        self.write_spec("pick-item", spec({"type": "list", "rows": [["a", "b"]], "columns": "yes"}))
+        bad = self.run_build()
+        self.assertEqual(bad.returncode, 1)
+        self.assertIn('list "columns" must be true or false', bad.stderr)
+
     def test_unknown_block_is_a_spec_error_with_the_file_name(self):
         bad = json.loads(json.dumps(SPEC))
         bad["phones"]["done"]["blocks"] = [{"type": "carousel"}]
