@@ -16,7 +16,9 @@ the agents.
 | Do the screens match the mockup? | the running app and one mockup board | `web-kit:visual-check`, mockup comparison (`check-look`) | `web-kit:mockup-checker` | matches or differs per phone |
 | Does the layout hold up at the screen sizes? | the running app at the profile's widths | `web-kit:visual-check`, layout (`check-look`) | `web-kit:layout-checker` | defects per width |
 | Is a freshly drawn path clear to an ordinary user? | the drawn mockup's text only, no app | `web-kit:draw-mockup` (`show-idea`) | `web-kit:mockup-user` | remarks for the owner |
-| May a look variant be shown to the owner (matches the accepted mockup, no visible defects)? | the caller's headless screenshots, a headless shot of the mockup board, the UI design standard; no browser | none: the project's design-sandbox rule calls it before variant shots are sent | `web-kit:design-critic` | pass or fail per variant, each defect with its reference |
+| May a look variant be shown to the owner (matches the accepted mockup, no visible defects)? | the caller's headless screenshots, a headless shot of the mockup board, the UI design standard; no browser | `web-kit:design-sandbox` | `web-kit:design-critic` | pass or fail per variant, each defect with its reference |
+| Build look variants in the design sandbox, or move a picked one into the real component | the sandbox and the real components; no browser | `web-kit:design-sandbox` | `web-kit:sandbox-builder` | per variant a URL, a one-line description and the selectors to shoot |
+| Take readable headless shots of given states | the URLs and selectors the caller gives | `web-kit:design-sandbox` and the callers of the shot rules | `web-kit:shot-taker` | per shot a PNG path, its size and caption |
 
 `mockup-user` and `app-user` are the same ordinary user (persona in the profile section `## mockup-user`):
 one reads a drawn path, the other walks the live app. When they disagree, the live app wins.
@@ -74,7 +76,7 @@ the board only to say where each fix belongs.
     caller writes the spec and runs `web-kit-shot --spec <spec.json> --out <screenshot folder>` (format
     at the top of `scripts/capture.mjs`). It renders the same URL in a throwaway headless Edge or Chrome at the
     profile's window size and device scale (the screen's OS display scaling; the window size is in CSS pixels, not the monitor's physical pixels) with no profile of the owner's, and stops it
-    afterwards. The password is typed from its file (`"@<path>"`), never put in a spec or a message.
+    afterwards. The caller may hand the capture and the PNG check to `web-kit:shot-taker`. The password is typed from its file (`"@<path>"`), never put in a spec or a message.
     The command prints each PNG's path and pixel size; open the PNG and check that the section is not
     cut off, that its text is legible at 100%, and that the content fills most of the image: a shot that
     is mostly empty background gets a smaller selector and is captured again before sending. If it

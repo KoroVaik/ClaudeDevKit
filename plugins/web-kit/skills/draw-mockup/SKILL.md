@@ -1,6 +1,6 @@
 ---
 name: draw-mockup
-description: Use when the owner asks to draw, sketch or mock up a screen or flow - "намалюй мокап / флоу / екран" - or when the owner proposes or asks about a visual change to a screen or piece, or when discovery or brainstorming needs a visual of a flow (the `show-idea` slot). Not for building real UI in the project's frontend.
+description: Use when the owner asks to draw, sketch or mock up a screen or flow - "намалюй мокап / флоу / екран" - or when the owner proposes or asks about a visual change that adds a new block, order or flow (polishing the look of an existing real screen is `design-sandbox`), or when discovery or brainstorming needs a visual of a flow (the `show-idea` slot). Not for building real UI in the project's frontend.
 ---
 
 # Draw mockup
