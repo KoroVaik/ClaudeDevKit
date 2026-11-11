@@ -61,7 +61,10 @@ the board only to say where each fix belongs.
     the section | caption`. The URL and the steps are only what reaches that state again from a fresh
     browser, read-only (open a page, click a tab; nothing that saves). The selector is the smallest block
     that holds the result (a section, a dialog, a form, an open item, a row), never the whole page and
-    never a column, pane or card that wraps other sections. The one exception: when the difference shown is
+    never a column, pane or card that wraps other sections. A small piece (a chip, a badge, a button, one
+    cell) is never shot alone: shoot its parent block (its row, field or card), so its size against its
+    neighbours shows; when that parent is too big to read the piece, shoot the piece with a `margin` of the
+    page around it (about its own height, at least 16 px). The one exception: when the difference shown is
     the page layout itself (a variant changes column widths or the order of panes), the whole viewport is
     allowed and the Shots line says "whole page: layout differs". This holds for every spec, the caller's own
     included. If the profile has no sign-in steps, the agent lists the sign-in form's selectors too.

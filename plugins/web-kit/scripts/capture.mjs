@@ -18,6 +18,7 @@
 //       { "name": "dishes-list",            file name without extension
 //         "steps": [ ...steps ],            run before the capture; the first is usually {"goto": "<url>"}
 //         "selector": "main .dish-list",    capture only this element; omit for the whole viewport
+//         "margin": 24,                     with a selector: CSS px of the page around the element, all sides
 //         "fullPage": false }               true: the whole page height instead of the viewport
 //     ]
 //   }
@@ -198,7 +199,9 @@ async function main() {
       const r = await evalJs(`(() => { const e = document.querySelector(${JSON.stringify(shot.selector)});
         e.scrollIntoView({block:'start'}); const b = e.getBoundingClientRect();
         return {x: b.left + scrollX, y: b.top + scrollY, width: b.width, height: b.height}; })()`);
-      params.clip = { ...r, scale: 1 };
+      const m = Math.max(0, Number(shot.margin) || 0);
+      const x = Math.max(0, r.x - m), y = Math.max(0, r.y - m);
+      params.clip = { x, y, width: r.x + r.width + m - x, height: r.y + r.height + m - y, scale: 1 };
     } else if (shot.fullPage) {
       const r = await evalJs('({width: document.documentElement.scrollWidth, height: document.documentElement.scrollHeight})');
       params.clip = { x: 0, y: 0, width: r.width, height: r.height, scale: 1 };
