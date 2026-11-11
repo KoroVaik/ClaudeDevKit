@@ -44,8 +44,8 @@ project's own commands, test inventory and selection tables come from the `run-t
 After the final tests pass, verify a changed interface (an API, a command, a saved format) on the
 single local environment; skip live checks when the interface did not change. Restart the
 application with the `run-app` slot when fresh code is needed (`dev-kit-app start` when the profile lists
-commands). Use test data marked as the project's rules say, remove it after the check and run the
-`stop-app` slot before the task ends (`dev-kit-app stop`), also after a failed check. Show the command and
+commands). Use test data marked as the project's rules say, remove the check's own scratch records after the check; keep the app and standing test data (such as a test draft) running while the owner's work continues. Run the
+`stop-app` slot (`dev-kit-app stop`) and remove the standing test data when the owner says the work is done or at a handoff. Show the command and
 the actual result. Fix failed checks before any UI check. Run the project's build and lint commands
 for changed frontend or other built parts.
 

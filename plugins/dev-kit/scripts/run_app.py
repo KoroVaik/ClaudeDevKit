@@ -101,7 +101,7 @@ def start(text, root):
         code = run(command, root)
         if code != 0:
             print(f"{START}: '{command}' failed with exit code {code}; the later commands did not run. "
-                  f"Run 'dev-kit-app stop' before the task ends.", flush=True)
+                  f"Run 'dev-kit-app stop' when the work is done.", flush=True)
             return 1
     print(f"{START}: {len(steps)} command(s) done.", flush=True)
     return 0

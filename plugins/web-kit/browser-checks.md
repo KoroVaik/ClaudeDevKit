@@ -75,7 +75,7 @@ the board only to say where each fix belongs.
   - **Send** the PNGs and the in-app phone shots in one `SendUserFile` call (`display: render`, a caption
     naming the board or scenario). The chat reply stays one line per board or scenario; the screenshots
     carry the detail.
-- **After the report**, clean up as above and report any record or setting left behind. If a report is
+- **After the report**, clean up what the check itself created, as above, and report any record or setting left behind. A standing fixture the owner's ongoing work still uses (the running app, the project's test draft) stays until the owner says the work is done. If a report is
   unclear, or you fixed code because of it (a fail or an observation), send the agent a follow-up or a
   rerun of that scenario rather than driving the browser yourself. If a state for a shot cannot be
   reached from a URL and read-only steps, prepare it through the API or ask a subagent to reach it, or

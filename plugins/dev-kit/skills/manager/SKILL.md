@@ -54,7 +54,7 @@ A slot nobody fills is told to the owner; do not guess a command for it.
 |---|---|
 | Run the tests a change affects | `run-tests` |
 | Start or restart the application for a check | `run-app` |
-| Stop what `run-app` started, before the task ends | `stop-app` |
+| Stop what `run-app` started, when the owner says the work is done | `stop-app` |
 | Does a scenario work in the running application (needs the owner's consent) | `check-ui` |
 | Can an ordinary user reach the goal, what gets in the way (needs consent) | `check-usability` |
 | Does it look like the mockup, do the screens hold at the agreed sizes (needs consent) | `check-look` |
@@ -80,8 +80,8 @@ The project's own types come from its `## manager` section.
   starts cold and rereads the rules; on a small task that costs more than doing it.
 - After a `dev-kit:investigator`, read only the places it named before deciding; do not repeat its
   search. Restarts and checks of the running application (the `run-app` slot) the manager runs
-  itself, and before the task ends it runs the `stop-app` slot (`dev-kit-app stop` when the
-  profile lists commands), also after a failed check.
+  itself, and when the owner says the work is done (or at a handoff) it runs the `stop-app` slot (`dev-kit-app stop` when the
+  profile lists commands); a failed check does not end the work.
 - A subagent cannot start other subagents. What it needs from another role, the manager does
   between their turns.
 - Continue a subagent that has the context (`SendMessage`) instead of starting a new one.

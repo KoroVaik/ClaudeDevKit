@@ -48,7 +48,7 @@ trying a fourth.
 
 Follow `dev-kit:test-change`: run the `run-tests` slot, check a changed interface (API) first, then
 UI checks only after the consent the project's rules require; restart the application with the
-`run-app` slot when fresh code is needed, and run the `stop-app` slot before the task ends. For an
+`run-app` slot when fresh code is needed, and run the `stop-app` slot when the owner says the work is done (see `slots.md`). For an
 authorized UI check, use the check selected in step 2. If the bug still reproduces, report it and
 continue fixing within the agreed scope.
 
