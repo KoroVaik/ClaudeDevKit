@@ -65,7 +65,7 @@ the board only to say where each fix belongs.
   - **The caller captures** (headless only, never the in-app browser). The agents have no shell, so the
     caller writes the spec and runs `web-kit-shot --spec <spec.json> --out <screenshot folder>` (format
     at the top of `scripts/capture.mjs`). It renders the same URL in a throwaway headless Edge or Chrome at the
-    profile's window size (4K for the Zhratva admin) with no profile of the owner's, and stops it
+    profile's window size and device scale (the screen's OS display scaling; the window size is in CSS pixels, not the monitor's physical pixels) with no profile of the owner's, and stops it
     afterwards. The password is typed from its file (`"@<path>"`), never put in a spec or a message.
     The command prints each PNG's path and pixel size; open the PNG and check that the section is not
     cut off, that its text is legible at 100%, and that the content fills most of the image: a shot that

@@ -12,7 +12,7 @@
 // Spec (JSON):
 //   {
 //     "size": "3840x2160",                  viewport; default 1920x1080
-//     "scale": 1,                           device scale factor; default 1
+//     "scale": 1,                           device scale factor: the screen's OS display scaling (1.75 for 175%); default 1
 //     "setup": [ ...steps ],                run once, before the shots (sign in here)
 //     "shots": [
 //       { "name": "dishes-list",            file name without extension
