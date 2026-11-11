@@ -212,6 +212,20 @@ a:hover { color: #d8e4ee; }
 .chip.split .chip-action.check .chip-icon { color: var(--muted); font-weight: 700; }
 .chip.split .chip-action.checked, .chip.split .chip-action.checked .chip-icon { color: var(--ok); }
 .chip.split .chip-action.approve { background: var(--approve); color: var(--bg); }
+.chip.tint { border-color: transparent; color: var(--text); }
+.chip-badge { display: inline-block; padding: 0 4px; margin-right: 6px; border-radius: 4px; }
+.chip.tint.ok { background: color-mix(in srgb, var(--ok) 16%, transparent); }
+.chip-badge.ok { background: color-mix(in srgb, var(--ok) 28%, transparent); }
+.chip.tint.warn { background: color-mix(in srgb, var(--attention) 16%, transparent); }
+.chip-badge.warn { background: color-mix(in srgb, var(--attention) 28%, transparent); }
+.chip.tint.danger { background: color-mix(in srgb, var(--danger) 16%, transparent); }
+.chip-badge.danger { background: color-mix(in srgb, var(--danger) 28%, transparent); }
+.chip.tint.info { background: color-mix(in srgb, var(--source) 16%, transparent); }
+.chip-badge.info { background: color-mix(in srgb, var(--source) 28%, transparent); }
+.chip.tint.accent { background: color-mix(in srgb, var(--accent) 16%, transparent); }
+.chip-badge.accent { background: color-mix(in srgb, var(--accent) 28%, transparent); }
+.chip.tint.accent-2 { background: color-mix(in srgb, var(--accent-2) 16%, transparent); }
+.chip-badge.accent-2 { background: color-mix(in srgb, var(--accent-2) 28%, transparent); }
 .chip.on { background: var(--save); border-color: var(--save); color: var(--bg); }
 .chip.on.warn { background: var(--attention); border-color: var(--attention); color: var(--bg); }
 .chip.on.danger { background: var(--danger); border-color: var(--danger); color: var(--bg); }
