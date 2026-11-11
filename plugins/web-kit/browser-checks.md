@@ -60,7 +60,9 @@ the board only to say where each fix belongs.
     the section | caption`. The URL and the steps are only what reaches that state again from a fresh
     browser, read-only (open a page, click a tab; nothing that saves). The selector is the smallest block
     that holds the result (a section, a dialog, a form, an open item, a row), never the whole page and
-    never a column, pane or card that wraps other sections. This holds for every spec, the caller's own
+    never a column, pane or card that wraps other sections. The one exception: when the difference shown is
+    the page layout itself (a variant changes column widths or the order of panes), the whole viewport is
+    allowed and the Shots line says "whole page: layout differs". This holds for every spec, the caller's own
     included. If the profile has no sign-in steps, the agent lists the sign-in form's selectors too.
   - **The caller captures** (headless only, never the in-app browser). The agents have no shell, so the
     caller writes the spec and runs `web-kit-shot --spec <spec.json> --out <screenshot folder>` (format
@@ -72,8 +74,12 @@ the board only to say where each fix belongs.
     is mostly empty background gets a smaller selector and is captured again before sending. If it
     fails, or a state cannot be reached from a URL, say so and send the agent's in-app shot marked
     "low resolution", never as the proof.
-  - **Send** the PNGs and the in-app phone shots in one `SendUserFile` call (`display: render`, a caption
-    naming the board or scenario). The chat reply stays one line per board or scenario; the screenshots
+  - **Send** every image so it can be told apart on its own (`display: render`). Images that are
+    alternatives of each other (variants A/B/C, today against a candidate, states of one screen) go one
+    `SendUserFile` call per image, each caption naming its variant or state ("Variant A: component on a
+    second line under the ingredient"), never one shared caption over several of them; a close-up also
+    names what it zooms on and its variant. Steps of one scenario may share one call, the caption naming
+    the scenario and the order. The chat reply stays one line per board or scenario; the screenshots
     carry the detail.
 - **After the report**, clean up what the check itself created, as above, and report any record or setting left behind. A standing fixture the owner's ongoing work still uses (the running app, the project's test draft) stays until the owner says the work is done. If a report is
   unclear, or you fixed code because of it (a fail or an observation), send the agent a follow-up or a
