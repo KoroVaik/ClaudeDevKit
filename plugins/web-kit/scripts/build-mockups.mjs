@@ -263,7 +263,13 @@ const blocks = {
       const r = Array.isArray(row) ? row : row?.cells;
       need(file, Array.isArray(r) && r.length >= 1 && r.length <= 2,
         'every list row is [left], [left, right] or { "cells": [left, right], "muted": true }');
-      let right = r[1] !== undefined ? `<span class="qty">${esc(r[1])}</span>` : '';
+      const cell = (c) => {
+        if (typeof c === 'string') return esc(c);
+        need(file, c !== null && typeof c === 'object' && isText(c.text) && isText(c.sub),
+          'a list cell is a string or { "text", "sub" }');
+        return `<span class="cell-lines"><span>${esc(c.text)}</span><span class="cell-sub">${esc(c.sub)}</span></span>`;
+      };
+      let right = r[1] !== undefined ? `<span class="qty">${cell(r[1])}</span>` : '';
       if (!Array.isArray(row) && row.action !== undefined) {
         const act = typeof row.action === 'string' ? { text: row.action } : row.action;
         need(file, isText(act?.text), 'a list row "action" needs "text"');
@@ -274,7 +280,7 @@ const blocks = {
       const thumb = b.thumbs ? `<i class="thumb${b.thumbs === 'l' ? ' l' : ''}"></i>` : '';
       const tone = Array.isArray(row) ? undefined : row.tone;
       need(file, tone === undefined || ['warn', 'danger'].includes(tone), 'a list row "tone" is warn or danger');
-      return `<div class="list-row${muted ? ' muted' : ''}${tone ? ' ' + tone : ''}"><span>${thumb}${esc(r[0])}</span>${right}</div>`;
+      return `<div class="list-row${muted ? ' muted' : ''}${tone ? ' ' + tone : ''}"><span>${thumb}${cell(r[0])}</span>${right}</div>`;
     });
     need(file, b.lines === undefined || typeof b.lines === 'boolean', 'list "lines" must be true or false');
     return `<div${b.lines === false ? ' class="no-lines"' : ''}>${rows.join('')}</div>`;
