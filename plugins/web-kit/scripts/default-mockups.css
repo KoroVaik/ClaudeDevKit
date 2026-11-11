@@ -204,6 +204,14 @@ a:hover { color: #d8e4ee; }
 .chip.info { color: var(--source); border-color: var(--source); }
 .chip.accent { color: var(--accent); border-color: var(--accent); }
 .chip.accent-2 { color: var(--accent-2); border-color: var(--accent-2); }
+.chip.split { display: inline-flex; align-items: stretch; padding: 0; overflow: hidden; }
+.chip.split .chip-value { padding: 3px 10px; }
+.chip.split .chip-action { display: inline-flex; align-items: center; gap: 5px; padding: 3px 10px;
+  border-left: 1px solid currentColor; color: var(--text); background: var(--hover); }
+.chip.split .chip-action.check { color: var(--muted); }
+.chip.split .chip-action.check .chip-icon { color: var(--muted); font-weight: 700; }
+.chip.split .chip-action.checked, .chip.split .chip-action.checked .chip-icon { color: var(--ok); }
+.chip.split .chip-action.approve { background: var(--approve); color: var(--bg); }
 .chip.on { background: var(--save); border-color: var(--save); color: var(--bg); }
 .chip.on.warn { background: var(--attention); border-color: var(--attention); color: var(--bg); }
 .chip.on.danger { background: var(--danger); border-color: var(--danger); color: var(--bg); }

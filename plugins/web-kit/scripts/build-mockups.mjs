@@ -275,7 +275,16 @@ const blocks = {
             if (isText(p)) return esc(p);
             need(file, isText(p?.chip), 'a list cell part is a string or { "chip", "tone" }');
             need(file, p.tone === undefined || CHIP_TONES.includes(p.tone), `chip tone must be one of ${CHIP_TONES.join(', ')}`);
-            return `<span class="chip${p.tone ? ' ' + p.tone : ''}">${esc(p.chip)}</span>`;
+            const tone = p.tone ? ' ' + p.tone : '';
+            if (p.action === undefined) return `<span class="chip${tone}">${esc(p.chip)}</span>`;
+            const act = typeof p.action === 'string' ? { text: p.action } : p.action;
+            need(file, isText(act?.text), 'a chip "action" needs "text"');
+            need(file, act.icon === undefined || isText(act.icon), 'a chip action "icon" is a string');
+            const kind = act.kind ?? 'plain';
+            need(file, BUTTON_KINDS.includes(kind), `button kind must be one of ${BUTTON_KINDS.join(', ')}`);
+            const icon = act.icon ? `<span class="chip-icon">${esc(act.icon)}</span>` : '';
+            return `<span class="chip split${tone}"><span class="chip-value">${esc(p.chip)}</span>`
+              + `<span class="chip-action ${kind}">${icon}<span>${esc(act.text)}</span></span></span>`;
           }).join('');
           main = `<span class="cell-parts">${main}</span>`;
         }
