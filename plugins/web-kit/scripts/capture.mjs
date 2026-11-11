@@ -19,6 +19,8 @@
 //         "steps": [ ...steps ],            run before the capture; the first is usually {"goto": "<url>"}
 //         "selector": "main .dish-list",    capture only this element; omit for the whole viewport
 //         "margin": 24,                     with a selector: CSS px of the page around the element, all sides
+//         "fitHeight": false,               with a selector: true shrinks the window height so the page ends where its
+//                                           content ends (panes sized to the window stop stretching); never grows it
 //         "fullPage": false }               true: the whole page height instead of the viewport
 //     ]
 //   }
@@ -160,6 +162,45 @@ async function main() {
   };
   const valueOf = (v) => (typeof v === 'string' && v.startsWith('@') ? readFileSync(v.slice(1), 'utf8').split(/\r?\n/)[0] : v);
 
+  // Panes sized to the window (100dvh) stretch past short content. Shrink the window to the content's
+  // bottom, then grow it until no scroll container inside the frame clips its content.
+  async function fitWindowToContent(selector) {
+    const bottomOfContent = () => evalJs(`(() => {
+      const frame = document.querySelector(${JSON.stringify(selector)});
+      const media = new Set(['IMG', 'SVG', 'INPUT', 'TEXTAREA', 'SELECT', 'CANVAS', 'VIDEO']);
+      let bottom = 0;
+      for (const e of frame.querySelectorAll('*')) {
+        const tag = e.tagName.toUpperCase();
+        if (e.closest('svg') && tag !== 'SVG') continue;
+        const leaf = e.children.length === 0 ? e.textContent.trim() !== '' || media.has(tag) : media.has(tag);
+        const b = e.getBoundingClientRect();
+        if (!leaf || b.height === 0 || getComputedStyle(e).position === 'fixed') continue;
+        bottom = Math.max(bottom, b.bottom + scrollY);
+      }
+      return Math.ceil(bottom);
+    })()`);
+    const clipped = () => evalJs(`(() => {
+      const frame = document.querySelector(${JSON.stringify(selector)});
+      let most = 0;
+      for (const e of [frame, ...frame.querySelectorAll('*')]) {
+        const o = getComputedStyle(e).overflowY;
+        if (o !== 'auto' && o !== 'scroll') continue;
+        most = Math.max(most, e.scrollHeight - e.clientHeight);
+      }
+      return most;
+    })()`);
+    const content = await bottomOfContent();
+    let height = content + 16;
+    if (height >= vh) return;
+    for (let i = 0; i < 8; i++) {
+      await send('Emulation.setDeviceMetricsOverride', { width: vw, height, deviceScaleFactor: dsf, mobile: false });
+      await sleep(300);
+      const over = await clipped();
+      if (over <= 1 || height + over >= vh) break;
+      height += over;
+    }
+  }
+
   async function run(step) {
     if (step.goto) {
       const loaded = once('Page.loadEventFired');
@@ -194,8 +235,10 @@ async function main() {
     for (const step of shot.steps || []) await run(step);
     await sleep(300);
     const params = { format: 'png', captureBeyondViewport: true };
+    await send('Emulation.setDeviceMetricsOverride', { width: vw, height: vh, deviceScaleFactor: dsf, mobile: false });
     if (shot.selector) {
       await waitFor(shot.selector);
+      if (shot.fitHeight) await fitWindowToContent(shot.selector);
       const r = await evalJs(`(() => { const e = document.querySelector(${JSON.stringify(shot.selector)});
         e.scrollIntoView({block:'start'}); const b = e.getBoundingClientRect();
         return {x: b.left + scrollX, y: b.top + scrollY, width: b.width, height: b.height}; })()`);

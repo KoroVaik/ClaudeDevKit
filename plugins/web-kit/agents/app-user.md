@@ -93,7 +93,7 @@ owner gets readable images of such blocks from `web-kit-shot`, run by the caller
 shell (rule: "Screenshots go to the owner" in `browser-checks.md`). So for every wide shot that is
 evidence, add a **Shots** line in the report: `name | URL | steps | CSS selector of one section |
 caption`. The URL and steps reach that state again from a fresh browser, read-only (never save); the
-selector is the smallest block that shows the result (a section, not a column or pane), never the whole page (only when the difference shown is the page layout, said in the caption). Add the sign-in form's selectors if the profile does not give
+selector is the smallest block that shows the result (a section, not a column or pane), never the whole page (only when the difference shown is the page layout, said in the caption: then the selector is the profile's app frame, never the bare window, and the Shots line asks for `fitHeight` so the shot ends where the content ends). Add the sign-in form's selectors if the profile does not give
 the sign-in steps. A state no URL and steps reach is "not capturable". At a phone width the in-app shot is
 already sharp. The browser tool saves every image as a `.jpg`: right after each phone shot, find its
 absolute path (Glob `*/tool-results/mcp-Claude_Browser-blob-*.jpg` in the screenshot folder the profile

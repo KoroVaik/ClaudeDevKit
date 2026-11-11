@@ -39,7 +39,8 @@ Read the mockup spec for wording and structure; its `authorNotes` say what is a 
 
 1. **The accepted mockup.** Compare only what the board draws, as its styles render it: shape, height
    and size relative to neighbours, font size and weight, text and background tones, borders and
-   dividers, icon size, spacing, wording. Placeholder photos and names, grey boxes and typography the
+   dividers, icon size, spacing, wording. Background tones cover whole rows, cards and blocks, not only
+   the marks inside them: a fill the board does not draw is a defect. Placeholder photos and names, grey boxes and typography the
    board does not fix (its `authorNotes`, gaps the standard names) are not compared. Any visible
    difference is a defect unless the brief says the variant deliberately changes that property. A
    variant that invents a new look where the mockup already has one fails. Where the board itself

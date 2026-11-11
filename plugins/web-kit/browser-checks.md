@@ -65,9 +65,11 @@ the board only to say where each fix belongs.
     cell) is never shot alone: shoot its parent block (its row, field or card), so its size against its
     neighbours shows; when that parent is too big to read the piece, shoot the piece with a `margin` of the
     page around it (about its own height, at least 16 px). The one exception: when the difference shown is
-    the page layout itself (a variant changes column widths or the order of panes), the whole viewport is
-    allowed and the Shots line says "whole page: layout differs". This holds for every spec, the caller's own
-    included. If the profile has no sign-in steps, the agent lists the sign-in form's selectors too.
+    the page layout itself (a variant changes column widths or the order of panes), the shot is the app's own
+    frame (the selector the profile names), never the bare browser window with its empty side margins, and the
+    spec sets `"fitHeight": true`, so a page shorter than the window ends where its content ends instead of
+    showing tall empty panes. The Shots line says "whole page: layout differs". This holds for every spec,
+    the caller's own included. If the profile has no sign-in steps, the agent lists the sign-in form's selectors too.
   - **The caller captures** (headless only, never the in-app browser). The agents have no shell, so the
     caller writes the spec and runs `web-kit-shot --spec <spec.json> --out <screenshot folder>` (format
     at the top of `scripts/capture.mjs`). It renders the same URL in a throwaway headless Edge or Chrome at the
