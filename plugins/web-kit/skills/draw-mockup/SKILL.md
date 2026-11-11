@@ -84,8 +84,13 @@ Screen text is the least that keeps the screen clear; explanations go in the boa
   the attachment is a line or two: what changed and one question.
 - One board, one theme: a board covers a single flow or a single idea family. A new idea on
   another theme gets its own board; an idea that replaces an earlier one updates or removes the
-  old screens instead of piling variants onto the same board. Temporary boards whose outcome is
-  settled are deleted before the commit (step 9).
+  old screens. Temporary boards whose outcome is settled are deleted before the commit (step 9).
+- Variants board: to choose between designs of one screen or piece, draw 2-3 variants on one
+  temporary board, each a `branch` row titled with the variant («Варіант А: ...») and the same
+  `given`, its screens below it. Variants differ in structure (which blocks, their order, where an
+  action sits), not only in color or wording, and each stays within the project's design standard.
+  Exact sizes, line breaks and spacing are not decided on a mockup. Once the owner picks, the chosen
+  variant goes into the flow's board and the variants board is deleted.
 - Low fidelity: grey boxes, bars, placeholder photos. No final typography or pixel polish; where the
   project's typography for the app is not defined yet (the profile says), the mockup does not define it.
 - A desktop screen board (`"frame": "desktop"`) lives in its own mockups folder, set in the profile; never mix it
