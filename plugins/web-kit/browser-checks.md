@@ -87,6 +87,10 @@ the board only to say where each fix belongs.
     names what it zooms on and its variant. Steps of one scenario may share one call, the caption naming
     the scenario and the order. The chat reply stays one line per board or scenario; the screenshots
     carry the detail.
+  - **One set per answer.** Every image has a caption. All images of one answer go together in that
+    answer's turn, after every one of them is ready (and screened, where a critic applies), never one now
+    and another later. Captions are numbered in the order the reply names them ("1. Table close-up"). The
+    reply never points to an image from an earlier message: it sends that image again in the new set.
 - **After the report**, clean up what the check itself created, as above, and report any record or setting left behind. A standing fixture the owner's ongoing work still uses (the running app, the project's test draft) stays until the owner says the work is done. If a report is
   unclear, or you fixed code because of it (a fail or an observation), send the agent a follow-up or a
   rerun of that scenario rather than driving the browser yourself. If a state for a shot cannot be
