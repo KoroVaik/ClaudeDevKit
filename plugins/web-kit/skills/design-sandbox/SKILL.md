@@ -34,8 +34,12 @@ one after another, with the full brief each time (they remember nothing).
 ## The loop
 
 1. **Read** the remark, the owner's screenshot if any, and the accepted mockup board for the mark it is
-   about. Decide the variants: 2-3 distinct ones, or 1 when the owner named the exact change. The
-   accepted mockup's look is the starting point; a variant differs only in what the remark is about.
+   about. Decide the variants: variant 1 is always the accepted look with only the named defect fixed, at its
+   cause where one is visible (a wrap, a width), never by restyling the mark. Other variants differ from
+   it only in how that defect is fixed. A change to an accepted mark (shape, fill, colour, divider,
+   separator) appears only when the owner asks for that mark to change in their own words, and then as a
+   separate variant next to variant 1. A remark that contradicts the standard is checked against it;
+   variant 1 keeps the standard.
 2. **Build:** `sandbox-builder`, mode `try`. The brief: the remark, the board and its mark, each variant in
    a line, the profile facts. It returns per variant the URL, a one-line visual description in the owner's
    words, the selectors of the piece and of its parent block, and the board region selector for the mark.
@@ -47,15 +51,20 @@ one after another, with the full brief each time (they remember nothing).
    browser-checks.md: a small piece through its parent block or with a margin of the page around it; the
    page layout itself as the app frame with `fitHeight`.
 4. **Screen:** `design-critic` gets every variant shot and the board shot, the board spec, the
-   standard, the deliberate differences (what the remark changes) and what is out of scope. Today's shot
+   standard, the deliberate differences (what the remark changes; fail any variant that differs from the
+   board in a mark the remark does not name) and what is out of scope. Today's shot
    goes only as a reference labelled "today, not a variant, do not judge"; the critic judges variants only.
    The shots of one variant are one block.
 5. **Fix:** a failed variant goes back to the builder, mode `fix`, with the critic's defect lines as they
    are; then shoot and screen again. At most two rounds; then drop the variant with one line. A line marked
    `board breaks it` is not a variant defect: tell the owner and send the board to `draw-mockup`.
-6. **Show:** one message with one set: today's look and every passed variant, each image with a numbered
-   caption naming what differs on screen. The reply text is one line per variant, one recommendation line with
-   its reason and the question which to take. No process words (built, sent, committed). An image of an earlier
+6. **Show:** one turn with one set: today's look and every passed variant. Send **one `SendUserFile` call per
+   image**, each with its own numbered caption naming what differs on screen; never one call or one shared
+   caption over several images (close-ups and whole-page shots too). The reply text is exactly one line per
+   variant, one recommendation line (at most 15 words) with its reason, and the question which to take. This
+   limit is stricter than the global report list and wins over it; it has no other list items, notes or
+   arguments. A note that the pick changes a feature rule goes into the question's brackets, not into extra
+   lines. No process words (built, sent, committed). An image of an earlier
    message is never pointed to: send it again in the new set. When no variant passed, say so in one line and
    what you try next. When the pick would go into the real page, the set also holds one whole-page shot of
    the recommended variant (app frame, `fitHeight`), screened by the critic (owner's standing instruction: a
