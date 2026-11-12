@@ -1,6 +1,6 @@
 {
   "name": "web-kit",
-  "version": "0.1.6",
+  "version": "0.1.7",
   "description": "Web extension: browser scenarios, layout checks and mockups",
   "author": { "name": "KoroVaik" }
 }

@@ -154,6 +154,22 @@ class BuildMockupsTests(unittest.TestCase):
         self.assertEqual(bad.returncode, 1)
         self.assertIn('list "columns" must be true or false', bad.stderr)
 
+    def test_steps_block_draws_marks_inline_and_is_validated(self):
+        def spec(block):
+            return {**SPEC, "phones": {**SPEC["phones"], "done": {"caption": "Item picked", "blocks": [block]}}}
+
+        item = {"lead": "1", "dot": True, "on": True, "hint": "After 0",
+                "parts": ["Add ", {"mark": "salt", "hint": "Salt", "hintSide": "right"}, ", ", {"mark": "5 min", "kind": "dotted"}, "."]}
+        self.write_spec("pick-item", spec({"type": "steps", "items": [item]}))
+        self.assertEqual(self.run_build().returncode, 0)
+        page = self.page("pick-item.html")
+        self.assertIn('<div class="steps-item"><span class="step-lead has-dot on">1<span class="hint">After 0</span></span>', page)
+        self.assertIn('Add <span class="mark soft">salt<span class="hint right">Salt</span></span>, <span class="mark dotted">5 min</span>.', page)
+        self.write_spec("pick-item", spec({"type": "steps", "items": [{"lead": "1", "parts": [{"mark": "x", "kind": "pill"}]}]}))
+        bad = self.run_build()
+        self.assertEqual(bad.returncode, 1)
+        self.assertIn('a steps mark "kind" is soft or dotted', bad.stderr)
+
     def test_unknown_block_is_a_spec_error_with_the_file_name(self):
         bad = json.loads(json.dumps(SPEC))
         bad["phones"]["done"]["blocks"] = [{"type": "carousel"}]

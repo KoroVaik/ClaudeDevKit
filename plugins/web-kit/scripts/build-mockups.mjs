@@ -316,6 +316,31 @@ const blocks = {
     const listClass = [b.lines === false ? 'no-lines' : '', b.columns === true ? 'list-cols' : ''].filter(Boolean).join(' ');
     return `<div${listClass ? ` class="${listClass}"` : ''}>${rows.join('')}</div>`;
   },
+  // Recipe steps read as running text: the number hangs in its own column, marks are inline highlights
+  steps(b, file) {
+    need(file, Array.isArray(b.items) && b.items.length > 0, 'steps needs a non-empty "items" array');
+    const hint = (h, side, at) => {
+      need(file, isText(h), `a ${at} "hint" is a string`);
+      need(file, side === undefined || ['below', 'above', 'right'].includes(side), `a ${at} "hintSide" is below, above or right`);
+      return `<span class="hint${side && side !== 'below' ? ' ' + side : ''}">${esc(h)}</span>`;
+    };
+    const items = b.items.map((it) => {
+      need(file, it && typeof it === 'object' && isText(it.lead) && Array.isArray(it.parts) && it.parts.length > 0,
+        'every steps item is { "lead", "parts" }');
+      need(file, it.dot === undefined || it.dot === true, 'a steps item "dot" is true');
+      const leadCls = ['step-lead', it.dot ? 'has-dot' : '', it.on ? 'on' : ''].filter(Boolean).join(' ');
+      const lead = `<span class="${leadCls}">${esc(it.lead)}${it.hint !== undefined ? hint(it.hint, it.hintSide, 'steps item') : ''}</span>`;
+      const text = it.parts.map((p) => {
+        if (isText(p)) return esc(p);
+        need(file, isText(p?.mark), 'a steps part is a string or { "mark", "kind", "hint", "on" }');
+        const kind = p.kind ?? 'soft';
+        need(file, ['soft', 'dotted'].includes(kind), 'a steps mark "kind" is soft or dotted');
+        return `<span class="mark ${kind}${p.on ? ' on' : ''}">${esc(p.mark)}${p.hint !== undefined ? hint(p.hint, p.hintSide, 'steps mark') : ''}</span>`;
+      }).join('');
+      return `<div class="steps-item">${lead}<span class="step-text">${text}</span></div>`;
+    });
+    return `<div class="steps">${items.join('')}</div>`;
+  },
   // Side-by-side areas of a desktop screen: each column is { width, blocks }; width is px (number) or "1fr", "2fr"
   columns(b, file) {
     need(file, Array.isArray(b.cols) && b.cols.length > 1, 'columns needs a "cols" array with 2+ entries');

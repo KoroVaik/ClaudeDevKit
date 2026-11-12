@@ -450,3 +450,19 @@ a:hover { color: #d8e4ee; }
 .map-open { position: absolute; top: calc(100% + 6px); left: 0; z-index: 30; width: max-content; padding: 6px; cursor: pointer;
   background: var(--bg); border: 1px solid var(--divider); border-radius: 12px; box-shadow: 0 12px 32px #000a; }
 .map-open:hover { outline: 2px solid var(--frame); }
+
+/* Recipe steps as running text: the number hangs in its own column; marks are inline highlights, not chips */
+.steps { display: flex; flex-direction: column; gap: 14px; margin: 8px 0 18px; font-size: 15px; line-height: 1.65; color: var(--text); }
+.steps-item { display: grid; grid-template-columns: 20px minmax(0, 1fr); column-gap: 14px; }
+.step-lead { position: relative; justify-self: start; height: fit-content; color: color-mix(in srgb, var(--text) 75%, transparent); font-variant-numeric: tabular-nums; }
+.step-lead.has-dot::after { content: ""; position: absolute; top: 4px; right: -9px; width: 7px; height: 7px; border-radius: 50%; background: var(--source); }
+.step-lead.on { color: var(--source); text-decoration: underline; text-underline-offset: 3px; }
+.mark { position: relative; border-radius: 3px; }
+.mark.soft { background: color-mix(in srgb, var(--text) 17%, transparent); box-shadow: 0 0 0 2px color-mix(in srgb, var(--text) 17%, transparent); }
+.mark.dotted { border-bottom: 2px dotted var(--text); border-radius: 0; }
+.mark.on { background: color-mix(in srgb, var(--source) 30%, transparent); box-shadow: 0 0 0 2px color-mix(in srgb, var(--source) 30%, transparent); }
+.steps .hint { position: absolute; top: calc(100% + 10px); left: -4px; z-index: 3; width: max-content; max-width: 280px; padding: 8px 14px; border-radius: 8px; border: 1px solid var(--divider); background: var(--hover); color: var(--text); font-size: 15px; font-weight: 500; line-height: 1.35; text-decoration: none; box-shadow: 0 6px 18px #0009; }
+.steps .hint.above { top: auto; bottom: calc(100% + 10px); }
+.steps .hint.right { top: -6px; left: calc(100% + 26px); }
+/* Drawing aid: room under the last step when its hint hangs below, so the bubble stays inside the card */
+.steps:has(> .steps-item:last-child .hint:not(.above, .right)) { margin-bottom: 64px; }
