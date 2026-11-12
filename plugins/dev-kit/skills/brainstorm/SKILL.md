@@ -17,7 +17,7 @@ overrides them.
 - A ping-pong, not an interview and not a report: ideas flow both ways.
 - Every message is short: at most 3 sentences, ONE new idea (or one twist of the owner's
   idea) and at most one short question at the end. No lists of ideas or tables unless asked. The idea is
-  the concrete example the project's rules ask for (`CLAUDE.md`, "Explanation level"); a bare yes/no
+  the concrete example the project's rules ask for (the owner's global rules); a bare yes/no
   guess needs none.
 - A visual idea (a screen, a header, a layout, a scene) is shown, not described: use the `show-idea`
   slot (the manager's slot tables name the skill) and send the result, following that skill's rules for

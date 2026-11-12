@@ -22,7 +22,7 @@ details). Otherwise settle the design with the owner before proposing an impleme
 - Ask at most 3 numbered questions at the end of the reply about what the plan and docs leave open
   (who does what, edge cases, scope limits). Do not re-ask settled decisions.
 - Offer 2-3 approaches in the scratchpad file of step 3, one line each, with a recommendation; show
-  each on the same real example (as the project's rules say, `CLAUDE.md` "Explanation level").
+  each on the same real example (as the owner's global rules say).
 - For a UI change, add to that file the user flow (numbered steps, including empty, error and
   loading states) and an ASCII wireframe of the main screen.
 - Mark your own guesses as guesses, and say every default you pick aloud so the owner can
@@ -42,7 +42,7 @@ after the parts. The plan covers steps 4-6: the edits, each test or UI
 check that needs consent on its own line, the docs. One question covers it all. The detailed approach (who does each part, risks, open details, examples)
 goes into a file in the session scratchpad; attach it to the chat with SendUserFile only if the owner
 must read it, and never mention a diagnosis file that only agents use. Explain there, at the level the
-project's rules set (`CLAUDE.md` "Explanation level"), the parts the owner does not know. Hard stop:
+owner's global rules set, the parts the owner does not know. Hard stop:
 wait for an explicit go-ahead; it covers every step the plan lists, and nothing else.
 
 ## 4. Implement
