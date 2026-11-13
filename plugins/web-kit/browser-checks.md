@@ -89,7 +89,13 @@ the board only to say where each fix belongs.
     names what it zooms on and its variant. Steps of one scenario may share one call, the caption naming
     the scenario and the order. The chat reply stays one line per board or scenario; the screenshots
     carry the detail.
-  - **One set per answer.** Every image has a caption. All images of one answer go together in that
+  - **More than two items: one message per item.** When a result has more than two separate items with
+    screenshots (branches of a board, variants, defects, scenarios), each item is its own message: a
+    short heading and its own lines, then its own `SendUserFile` call, then the next item. No text or
+    image of one item sits in another item's message; a closing question comes after the last item.
+    Why: with all images at once the owner cannot tell which text belongs to which picture (owner,
+    2026-11-13).
+  - **One set per answer.** Every image has a caption. All images of one answer are sent in that
     answer's turn, after every one of them is ready (and screened, where a critic applies), never one now
     and another later. Captions are numbered in the order the reply names them ("1. Table close-up"). The
     reply never points to an image from an earlier message: it sends that image again in the new set.
