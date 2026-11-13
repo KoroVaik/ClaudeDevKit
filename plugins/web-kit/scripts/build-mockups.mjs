@@ -351,8 +351,13 @@ const blocks = {
         'column width must be a positive integer (px) or a "<n>fr" string');
       return typeof w === 'number' ? `${w}px` : `minmax(0, ${w})`;
     });
-    const cols = b.cols.map((c) => `<div class="col">${renderBlocks(c.blocks, file, 'columns')}</div>`);
-    return `<div class="cols" style="grid-template-columns:${widths.join(' ')}">${cols.join('')}</div>`;
+    need(file, b.align === undefined || ['start', 'center', 'end'].includes(b.align), 'columns align must be start, center or end');
+    const cols = b.cols.map((c) => {
+      need(file, c.right === undefined || typeof c.right === 'boolean', 'column right must be true or false');
+      return `<div class="col${c.right ? ' right' : ''}">${renderBlocks(c.blocks, file, 'columns')}</div>`;
+    });
+    const align = b.align && b.align !== 'start' ? ` align-${b.align}` : '';
+    return `<div class="cols${align}" style="grid-template-columns:${widths.join(' ')}">${cols.join('')}</div>`;
   },
   // A titled panel; tone marks the state (ok, warn, danger) or the selected item (selected), muted fades it back
   card(b, file) {

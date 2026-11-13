@@ -394,6 +394,10 @@ a:hover { color: #d8e4ee; }
 .screen .popup { left: 50%; right: auto; width: 560px; transform: translate(-50%, -50%); }
 .cols { display: grid; gap: 16px; align-items: start; }
 .col { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.cols.align-center { align-items: center; }
+.cols.align-end { align-items: end; }
+.col.right { align-items: flex-end; }
+.screen .col.right .btn { align-self: flex-end; }
 .card { display: flex; flex-direction: column; gap: 10px; padding: 12px; border: 1px solid var(--border); border-radius: 10px; background: var(--card); }
 .card.ok { border-color: var(--approve); }
 .card.warn { border-color: var(--attention); }
