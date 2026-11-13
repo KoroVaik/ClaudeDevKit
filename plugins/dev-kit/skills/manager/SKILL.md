@@ -136,4 +136,5 @@ or that work is still running. When and how a result is given: the owner's globa
 work. Do not ask first whether to show it. A separate session the owner can open and follow is not relayed while it works or
 waits on the owner (the app shows that). When it finishes its task, give one line with the session link and
 the outcome (the owner's global rule on background work sets the timing). Never answer with a bare
-"nothing waits on you here".
+"nothing waits on you here". Not relaying means no status chatter: the one-line start message of a wait
+that blocks the owner's tool (the editor busy, a build) still says what runs and the estimate.
