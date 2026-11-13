@@ -228,6 +228,27 @@ const blocks = {
   chips(b, file) {
     return chipsHtml(b.items, file);
   },
+  // A choice inside a form saved by its own Save: one quiet row per option (circle, word, grey consequence)
+  radio(b, file) {
+    need(file, Array.isArray(b.items) && b.items.length > 1, 'radio needs an "items" array with 2+ entries');
+    need(file, b.items.filter((it) => it?.on === true).length <= 1, 'radio can have only one "on" item');
+    const items = b.items.map((it) => {
+      const opt = typeof it === 'string' ? { text: it } : it;
+      need(file, isText(opt?.text), 'every radio item is a string or { "text", "sub", "on" }');
+      need(file, opt.sub === undefined || isText(opt.sub), 'radio "sub" must be text');
+      need(file, opt.on === undefined || typeof opt.on === 'boolean', 'radio "on" must be true or false');
+      const sub = opt.sub ? `<span class="radio-sub">${esc(opt.sub)}</span>` : '';
+      return `<div class="radio-row${opt.on ? ' on' : ''}"><i class="radio-dot"></i><span class="radio-word">${esc(opt.text)}</span>${sub}</div>`;
+    });
+    return `<div class="radio-list">${items.join('')}</div>`;
+  },
+  // One joined neutral control in one row; "on" is the index of the chosen segment
+  segmented(b, file) {
+    need(file, Array.isArray(b.items) && b.items.length > 1 && b.items.every(isText), 'segmented needs an "items" array of 2+ texts');
+    need(file, b.on === undefined || (Number.isInteger(b.on) && b.on >= 0 && b.on < b.items.length), 'segmented "on" is out of range');
+    const items = b.items.map((t, i) => `<span${i === b.on ? ' class="on"' : ''}>${esc(t)}</span>`);
+    return `<div class="segmented">${items.join('')}</div>`;
+  },
   tabs(b, file) {
     need(file, Array.isArray(b.items) && b.items.length > 1, 'tabs needs an "items" array with 2+ entries');
     const active = b.active ?? 0;
@@ -314,7 +335,10 @@ const blocks = {
     need(file, b.lines === undefined || typeof b.lines === 'boolean', 'list "lines" must be true or false');
     need(file, b.columns === undefined || typeof b.columns === 'boolean', 'list "columns" must be true or false');
     const listClass = [b.lines === false ? 'no-lines' : '', b.columns === true ? 'list-cols' : ''].filter(Boolean).join(' ');
-    return `<div${listClass ? ` class="${listClass}"` : ''}>${rows.join('')}</div>`;
+    need(file, b.toggle === undefined || isText(b.toggle), 'list "toggle" must be text');
+    need(file, b.open === undefined || (typeof b.open === 'boolean' && b.toggle !== undefined), 'list "open" is true or false and needs "toggle"');
+    const toggle = b.toggle === undefined ? '' : `<div class="list-toggle${b.open ? ' open' : ''}">${esc(b.toggle)}</div>`;
+    return `<div${listClass ? ` class="${listClass}"` : ''}>${rows.join('')}${toggle}</div>`;
   },
   // Recipe steps read as running text: the number hangs in its own column, marks are inline highlights
   steps(b, file) {

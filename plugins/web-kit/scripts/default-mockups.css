@@ -183,6 +183,17 @@ a:hover { color: #d8e4ee; }
 .btn.checked { background: none; border-color: transparent; color: var(--approve); cursor: default; }
 .btn.disabled { opacity: 0.4; }
 .btn-cell { display: flex; flex-direction: column; gap: 4px; }
+/* Choice rows (radio) and a joined control (segmented): quiet neutral controls, the chosen one never green */
+.radio-list { display: flex; flex-direction: column; }
+.radio-row { display: flex; align-items: center; gap: 10px; padding: 6px 0; }
+.radio-dot { flex: none; width: 16px; height: 16px; border: 2px solid var(--frame); border-radius: 50%; }
+.radio-row.on .radio-dot { border-color: var(--save); background: radial-gradient(circle, var(--save) 0 4px, transparent 5px); }
+.radio-word { font-weight: 600; }
+.radio-sub { color: var(--muted); font-size: 13px; }
+.segmented { display: inline-flex; align-self: flex-start; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+.segmented > span { padding: 6px 18px; font-size: 15px; border-left: 1px solid var(--border); }
+.segmented > span:first-child { border-left: 0; }
+.segmented > span.on { background: var(--selected); color: var(--text); box-shadow: inset 0 0 0 1px var(--save); }
 .btn-caption { color: var(--muted); font-size: 10px; text-align: center; }
 .screen .btn-caption { text-align: left; }
 .row { display: flex; gap: 8px; }
@@ -274,6 +285,10 @@ a:hover { color: #d8e4ee; }
 
 .list-row { display: flex; justify-content: space-between; padding: 7px 0; border-bottom: 1px solid var(--border); }
 .list-row .qty { color: var(--muted); }
+/* A quiet fold toggle drawn under its list row (4px below it): grey text with a drawn chevron, so it lines up with the row text */
+.list-toggle { display: flex; align-items: center; gap: 7px; margin-top: -3px; padding-bottom: 2px; color: var(--muted); font-size: 13px; }
+.list-toggle::before { content: ""; flex: none; width: 5px; height: 5px; margin-right: 1px; border-right: 1.5px solid currentColor; border-bottom: 1.5px solid currentColor; transform: rotate(-45deg); }
+.list-toggle.open::before { margin-top: -3px; transform: rotate(45deg); }
 .list-row.muted { opacity: 0.45; }
 .no-lines > .list-row { border-bottom: none; }
 .list-row .row-end { display: flex; align-items: center; gap: 8px; }
