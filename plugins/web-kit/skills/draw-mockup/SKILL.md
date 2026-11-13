@@ -55,7 +55,19 @@ as a numbered block.
    in plain words as the situation, then each screen's visible text from top to bottom (photos as
    "photo of the item") and the arrow label that leads on. Never pass captions, notes, decisions, file
    paths or reasons. Show the owner its points in short; change the mockup only for the points the
-   owner accepts. Once the flow is built, the live app is walked by `web-kit:app-user` (`web-kit:user-walk`); its remarks outrank this one.
+   owner accepts. A point that comes back from a second fresh run is never closed with "the docs
+   require it": before the next round find in the code or data what the thing does and who uses it
+   (for a field: where its value goes), and give the owner that result with the point. If no reason
+   is found, the point goes to the owner as an open question, not as a decision to keep. Once the flow is built, the live app is walked by `web-kit:app-user` (`web-kit:user-walk`); its remarks outrank this one.
+   7a. Screen the look, before the owner sees the board: shoot the board headless with `web-kit-shot`
+   (kind `board`; the profile gives the selector and window size) and call `web-kit:design-critic`
+   (sonnet) with that PNG, the board spec JSON, the design standard from the profile and the reference
+   "no mockup" (checks 2 and 3 only). Say in the brief: "a mockup board, not a variant; report every
+   tone, button kind and marker that contradicts its meaning in the standard (selection, confirmed,
+   warning, error, button colours), including ones copied from an older board". mockup-user reads only
+   text and never sees colour, so this is the only colour check of the loop. Fix every defect line in the
+   spec, rebuild and screen again; repeat after any later change of a tone, a kind or a block. A tool
+   without subagents or headless shots skips the step and says so in the hand-over.
 8. Hand the mockup to the owner as a file attachment in the chat (in Claude Code: `SendUserFile` with
    `display: render`); one click opens it in the built-in browser. The generated page carries its
    styles inside, so send the file from the mockups folder as it is. Do not open the browser pane
@@ -119,3 +131,6 @@ Screen text is the least that keeps the screen clear; explanations go in the boa
   "A1"/"B4" tag (letters set in `mockups.config.json`) show whose phone it is, so the caption does not repeat the name.
 - A mockup never changes rules. A new product rule goes to its feature or standard
   only after the owner accepts it (see the `dev-kit:documentation` skill, section "Where things go").
+- A copy is not a source: a block, tone or button kind taken from another board is checked against the
+  design standard like a new one. An older board only shows how a piece is built, never which colour
+  means what.

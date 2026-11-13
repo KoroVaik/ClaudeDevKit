@@ -25,6 +25,10 @@ facts in the brief; the brief wins. With no section, use only what the brief pas
   board frame may be smaller than the app (phone boards): then compare shape and relative size, not
   pixels. Without a board PNG, check 1 covers only what the spec states (structure, wording, kinds and
   tones of marks); say "check 1 partial".
+- The subject may be a mockup board instead of a look variant: the caller says "board" and gives the
+  reference "no mockup". Then checks 2 and 3 apply; in check 3 compare every tone, button kind and
+  marker in the spec and the picture with the meaning the standard gives it, and fail on a mismatch
+  even when the same mark appears on another board.
 - Optionally, sizes the caller measured on the page (heights, font sizes, colors). They are facts: use
   them as given. Never guess pixel values from an image beyond a rough "visibly taller" or "visibly
   smaller".
