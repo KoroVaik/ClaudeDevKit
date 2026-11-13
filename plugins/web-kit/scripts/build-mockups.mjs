@@ -52,11 +52,11 @@ const NAME_RE = /^[a-z0-9]+(-[a-z0-9]+)*$/;
 const TONES = ['ok', 'warn'];
 const BUTTON_KINDS = ['plain', 'save', 'approve', 'check', 'checked'];
 const CHIP_SIZES = ['s', 'm', 'l'];
-const CHIP_TONES = ['warn', 'danger', 'ok', 'info', 'accent', 'accent-2'];
+const CHIP_TONES = ['warn', 'danger', 'ok', 'info', 'accent', 'accent-2', 'selected'];
 const USERS = USER_LETTERS;
 const DAY_TONES = ['choice', 'chosen', 'cooking', 'done'];
 const FRAMES = ['phone', 'desktop'];
-const CARD_TONES = ['ok', 'warn', 'danger'];
+const CARD_TONES = ['ok', 'warn', 'danger', 'selected'];
 const SCREEN_W_MIN = 240;
 const SCREEN_W_MAX = 1440;
 const NOTE_MAX = 160;
@@ -354,7 +354,7 @@ const blocks = {
     const cols = b.cols.map((c) => `<div class="col">${renderBlocks(c.blocks, file, 'columns')}</div>`);
     return `<div class="cols" style="grid-template-columns:${widths.join(' ')}">${cols.join('')}</div>`;
   },
-  // A titled panel; tone marks the state (ok, warn, danger), muted fades it back
+  // A titled panel; tone marks the state (ok, warn, danger) or the selected item (selected), muted fades it back
   card(b, file) {
     need(file, b.title === undefined || isText(b.title), 'card title must be text');
     need(file, b.aside === undefined || isText(b.aside), 'card aside must be text');
