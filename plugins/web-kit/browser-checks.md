@@ -99,7 +99,9 @@ the board only to say where each fix belongs.
     re-send needs the owner's explicit ask.
   - **One set per answer.** Every image has a caption. All images of one answer are sent in that
     answer's turn, after every one of them is ready (and screened, where a critic applies), never one now
-    and another later. Captions are numbered in the order the reply names them ("1. Table close-up"). Within
+    and another later. Captions are numbered in the order the reply names them ("1. Table close-up"), except
+    when items go one message per item: then the number sits only in the item's heading and its captions
+    carry none, so one item never reads as two (owner, 2026-11-13). Within
     one answer the reply never points to an image from an earlier message: it sends that image again in
     the new set. This is about one answer, not about a later turn: images the owner already has are not
     sent again unless the owner asks.
