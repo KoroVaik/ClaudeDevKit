@@ -94,11 +94,15 @@ the board only to say where each fix belongs.
     short heading and its own lines, then its own `SendUserFile` call, then the next item. No text or
     image of one item sits in another item's message; a closing question comes after the last item.
     Why: with all images at once the owner cannot tell which text belongs to which picture (owner,
-    2026-11-13).
+    2026-11-13). The rule holds from the next delivery. When the owner gives it (or a "fix yourself" /
+    "виправся" after it) about a delivery already sent, write the rule down and send nothing again; a
+    re-send needs the owner's explicit ask.
   - **One set per answer.** Every image has a caption. All images of one answer are sent in that
     answer's turn, after every one of them is ready (and screened, where a critic applies), never one now
-    and another later. Captions are numbered in the order the reply names them ("1. Table close-up"). The
-    reply never points to an image from an earlier message: it sends that image again in the new set.
+    and another later. Captions are numbered in the order the reply names them ("1. Table close-up"). Within
+    one answer the reply never points to an image from an earlier message: it sends that image again in
+    the new set. This is about one answer, not about a later turn: images the owner already has are not
+    sent again unless the owner asks.
 - **After the report**, clean up what the check itself created, as above, and report any record or setting left behind. A standing fixture the owner's ongoing work still uses (the running app, the project's test draft) stays until the owner says the work is done. If a report is
   unclear, or you fixed code because of it (a fail or an observation), send the agent a follow-up or a
   rerun of that scenario rather than driving the browser yourself. If a state for a shot cannot be
