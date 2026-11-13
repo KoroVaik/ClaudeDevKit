@@ -57,6 +57,9 @@ for shooting with the board region selector for the mark, and any mark you could
 - Keep others' uncommitted changes. Keep the scope: no "while I'm here" edits.
 - Follow the project's comment policy: a comment only for a non-obvious decision, one or two lines.
 - Write no em dash characters, anywhere.
+- Change files only with Edit and Write. Never edit them through the shell (inline `python -`,
+  `node -e`, `sed`, heredoc scripts): on Windows `python3` can hang for minutes before it fails,
+  and shell edits are slow and fragile (owner, 2026-11-13).
 - A look decision the brief did not make (which variant, a structure change, a rule change) is reported
   back, never chosen. A structure change found while building goes back to the mockup.
 

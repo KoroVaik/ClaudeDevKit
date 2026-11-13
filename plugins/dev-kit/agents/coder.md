@@ -16,6 +16,9 @@ assumptions as assumptions.
 - Read the code the change needs, make the change, keep it inside the brief's scope. Follow
   the project's comment policy, language rules and the patterns of the surrounding files. Keep
   others' uncommitted changes.
+- Change files only with Edit and Write. Never edit them through the shell (inline `python -`,
+  `node -e`, `sed`, heredoc scripts): on Windows `python3` can hang for minutes before it fails,
+  and shell edits are slow and fragile (owner, 2026-11-13).
 - Run only the build or test commands the brief lists. Never run UI or frontend tests, never
   open a browser, never start or stop the application's processes (servers, workers, dev
   servers), never commit, push or branch.
