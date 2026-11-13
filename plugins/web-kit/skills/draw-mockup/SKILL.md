@@ -60,7 +60,14 @@ as a numbered block.
    require it": before the next round find in the code or data what the thing does and who uses it
    (for a field: where its value goes), and give the owner that result with the point. If no reason
    is found, the point goes to the owner as an open question, not as a decision to keep. Once the flow is built, the live app is walked by `web-kit:app-user` (`web-kit:user-walk`); its remarks outrank this one.
-   The checks run in this order: words (the text run above), usability (step 7b), colours (step 7a).
+   The checks run in this order: nothing lost (step 7c), words (the text run above), usability (step
+   7b), colours (step 7a).
+   7c. Nothing lost, when the board redesigns a screen that exists (in the app or on a `-current`
+   board): a read-only `dev-kit:reviewer` (sonnet) gets the current screen's board spec (or the page's
+   component and its feature doc) and the new spec, lists every piece of information and every action
+   the current screen gives, and says for each whether the new board keeps it in view, keeps it behind
+   one click, or drops it. A dropped piece goes to the owner as a question with the board; it is never
+   dropped silently. Fresh readers cannot catch this: they never saw the old screen.
    7b. Usability, once the words hold: a fresh `web-kit:mockup-user` per branch gets the same situation
    and, for each screen, a headless shot of the screen frame alone (no board title, caption, note or
    arrow) as a PNG path, plus the action that leads on. It judges what the eye finds first, what is far
