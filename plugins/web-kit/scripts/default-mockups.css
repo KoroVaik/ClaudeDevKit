@@ -175,6 +175,8 @@ a:hover { color: #d8e4ee; }
 }
 .btn.save { background: var(--save); border-color: var(--save); color: var(--bg); }
 .btn.approve { background: var(--approve); border-color: var(--approve); color: var(--bg); }
+/* The chosen answer before it is saved: neutral border, light text, slightly raised; never green */
+.btn.selected { background: var(--selected); border-color: var(--save); color: var(--text); }
 /* A quiet confirm control: a grey check with its word that lights up on hover, and its green confirmed state. */
 .btn.check { background: none; border-color: transparent; color: var(--muted); }
 .btn.check:hover { color: var(--text); background: var(--hover); }

@@ -1,6 +1,6 @@
 ---
 name: draw-mockup
-description: Use when the owner asks to draw, sketch or mock up a screen or flow - "намалюй мокап / флоу / екран" - or when the owner proposes or asks about a visual change that adds a new block, order or flow (polishing the look of an existing real screen is `design-sandbox`), or when discovery or brainstorming needs a visual of a flow (the `show-idea` slot). Not for building real UI in the project's frontend.
+description: Use when the owner asks to draw, sketch or mock up a screen or flow - "намалюй мокап / флоу / екран" - or when the owner proposes or asks about a visual change that adds a new block, order or flow (polishing the look of an existing real screen is `design-sandbox`), or when discovery or brainstorming needs a visual of a flow (the `show-idea` slot), or when the agent itself is about to put a visual proposal, a restored piece or a choice between looks to the owner during mockup work. Not for building real UI in the project's frontend.
 ---
 
 # Draw mockup
@@ -56,7 +56,9 @@ as a numbered block.
    in plain words as the situation, then each screen's visible text from top to bottom (photos as
    "photo of the item") and the arrow label that leads on. Never pass captions, notes, decisions, file
    paths or reasons. Show the owner its points in short; change the mockup only for the points the
-   owner accepts. A point that comes back from a second fresh run is never closed with "the docs
+   owner accepts. A point that changes how a screen looks is shown as the board with that change drawn
+  (Rules: "This holds for every visual proposal"); only a point with no visual side is a text line.
+  A point that comes back from a second fresh run is never closed with "the docs
    require it": before the next round find in the code or data what the thing does and who uses it
    (for a field: where its value goes), and give the owner that result with the point. If no reason
    is found, the point goes to the owner as an open question, not as a decision to keep. Once the flow is built, the live app is walked by `web-kit:app-user` (`web-kit:user-walk`); its remarks outrank this one.
@@ -66,8 +68,10 @@ as a numbered block.
    board): a read-only `dev-kit:reviewer` (sonnet) gets the current screen's board spec (or the page's
    component and its feature doc) and the new spec, lists every piece of information and every action
    the current screen gives, and says for each whether the new board keeps it in view, keeps it behind
-   one click, or drops it. A dropped piece goes to the owner as a question with the board; it is never
-   dropped silently. Fresh readers cannot catch this: they never saw the old screen.
+   one click, or drops it. Each dropped piece is drawn back on the temporary board (or on a variants board:
+   kept against dropped) and goes to the owner as the screenshots plus one line: "these pieces were lost, keep
+   them?". It is never listed in text and never dropped silently. Fresh readers cannot catch this: they never
+   saw the old screen.
    7b. Usability, once the words hold: a fresh `web-kit:mockup-user` per branch gets the same situation
    and, for each screen, a headless shot of the screen frame alone (no board title, caption, note or
    arrow) as a PNG path, plus the action that leads on. It judges what the eye finds first, what is far
@@ -110,6 +114,15 @@ Screen text is the least that keeps the screen clear; explanations go in the boa
   the attachment is a line or two: what changed and one question. A temporary mockup is not a code or doc edit,
   so the global "yes before edit" does not apply to drawing it: when the owner proposes a visual change, draw it at
   once, never ask "redraw?". Put the verdict's weak spots in that one or two line note, and keep the reply cap.
+- This holds for every visual proposal or choice in mockup work, whoever raises it: the agent's own idea, a
+  finding of a check (nothing lost, mockup-user, design-critic), a piece to restore, a choice between options
+  (save flow, button tone, marker colour, a yes/no on how something looks). Draw the change on the board, or the
+  options on a variants board (a yes/no becomes "as now" against "changed"), and send the screenshots with a
+  one-line question. Never put such a proposal or question as text, a bullet list or a words-only option list
+  ("Варіант 1 / Варіант 2", "зробити X жовтим?", "повернути ці п'ять речей?"). For this case this rule wins over
+  the global question format (no bracket example, no batch of text questions, no "Рекомендую" list): the
+  recommendation is one clause in the one-line note. Only a question with no visual side (a rule, a scope, a
+  name) is asked in text.
 - One board, one theme: a board covers a single flow or a single idea family. A new idea on
   another theme gets its own board; an idea that replaces an earlier one updates or removes the
   old screens. Temporary boards whose outcome is settled are deleted before the commit (step 9).
