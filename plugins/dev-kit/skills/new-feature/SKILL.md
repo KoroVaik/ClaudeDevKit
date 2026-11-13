@@ -21,10 +21,15 @@ details). Otherwise settle the design with the owner before proposing an impleme
 
 - Ask at most 3 numbered questions at the end of the reply about what the plan and docs leave open
   (who does what, edge cases, scope limits). Do not re-ask settled decisions.
+- An open question about how something looks or is laid out (a block, its order, where an action
+  sits, what a value shows) is never asked in text: run the `show-idea` slot, draw 2-3 variants on
+  one temporary board and ask only "which one?". Do it at once, with no yes first; it does not
+  count toward the 3 questions.
 - Offer 2-3 approaches in the scratchpad file of step 3, one line each, with a recommendation; show
   each on the same real example (as the owner's global rules say).
 - For a UI change, add to that file the user flow (numbered steps, including empty, error and
-  loading states) and an ASCII wireframe of the main screen.
+  loading states). The main screen is drawn with the `show-idea` slot; an ASCII wireframe only
+  when the project has no such slot.
 - Mark your own guesses as guesses, and say every default you pick aloud so the owner can
   reject it.
 - When talking would cost more than trying, offer a quick throwaway spike. It stays labeled
