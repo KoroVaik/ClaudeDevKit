@@ -51,7 +51,8 @@ as a numbered block.
 7. Cut text: walk every screen and remove each word the screen stays clear without (section
    "Less text"). Then call the `web-kit:mockup-user` subagent (model sonnet) once per branch, each a fresh
    run (a tool without subagents skips this and says so). Hand it only what the user sees: the
-   persona and the report language from the profile section `## mockup-user` (the agent reads no files), the branch's `given`
+   persona and the report language from the profile section `## mockup-user` (the agent reads no files
+   at this stage), the branch's `given`
    in plain words as the situation, then each screen's visible text from top to bottom (photos as
    "photo of the item") and the arrow label that leads on. Never pass captions, notes, decisions, file
    paths or reasons. Show the owner its points in short; change the mockup only for the points the
@@ -59,13 +60,19 @@ as a numbered block.
    require it": before the next round find in the code or data what the thing does and who uses it
    (for a field: where its value goes), and give the owner that result with the point. If no reason
    is found, the point goes to the owner as an open question, not as a decision to keep. Once the flow is built, the live app is walked by `web-kit:app-user` (`web-kit:user-walk`); its remarks outrank this one.
+   The checks run in this order: words (the text run above), usability (step 7b), colours (step 7a).
+   7b. Usability, once the words hold: a fresh `web-kit:mockup-user` per branch gets the same situation
+   and, for each screen, a headless shot of the screen frame alone (no board title, caption, note or
+   arrow) as a PNG path, plus the action that leads on. It judges what the eye finds first, what is far
+   or hidden, what looks clickable and whether the order of blocks fits the task. The shots are the
+   ones step 7a takes (kind `board`, one per frame). Fix as in step 7, then the colour check.
    7a. Screen the look, before the owner sees the board: shoot the board headless with `web-kit-shot`
    (kind `board`; the profile gives the selector and window size) and call `web-kit:design-critic`
    (sonnet) with that PNG, the board spec JSON, the design standard from the profile and the reference
    "no mockup" (checks 2 and 3 only). Say in the brief: "a mockup board, not a variant; report every
    tone, button kind and marker that contradicts its meaning in the standard (selection, confirmed,
-   warning, error, button colours), including ones copied from an older board". mockup-user reads only
-   text and never sees colour, so this is the only colour check of the loop. Fix every defect line in the
+   warning, error, button colours), including ones copied from an older board". mockup-user judges words
+   and layout, not colour, so this is the only colour check of the loop. Fix every defect line in the
    spec, rebuild and screen again; repeat after any later change of a tone, a kind or a block. A tool
    without subagents or headless shots skips the step and says so in the hand-over.
 8. Hand the mockup to the owner as a file attachment in the chat (in Claude Code: `SendUserFile` with
