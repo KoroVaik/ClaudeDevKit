@@ -1,13 +1,71 @@
 # ClaudeDevKit
 
-Local Claude Code marketplace `korov-dev`: a development team for any project.
+[![CI](https://github.com/KoroVaik/ClaudeDevKit/actions/workflows/ci.yml/badge.svg)](https://github.com/KoroVaik/ClaudeDevKit/actions/workflows/ci.yml)
 
-- `dev-kit` - the core: development process, generic agents, product work, documentation standard.
-- `web-kit` - web extension: browser scenarios, layout checks, mockups.
-- `unity-kit` - Unity extension: work with the open editor through a bridge, a Unity operator, scene sketches.
+Three plugins for [Claude Code](https://claude.com/claude-code) that give AI coding agents a fixed
+development process: plan, code, review, test, update the docs. It is a personal tool for solo
+developers who let agents write most of the code and want to stay in charge of the decisions.
 
-The owner is the product owner: sets tasks and makes decisions. The plugins hold no project facts;
-each project brings its specifics in a profile.
+## The problem
+
+An agent left alone on a project skips steps. It changes code without a test, forgets the docs, or
+reviews its own work. These plugins write the process down as skills and agents, and a small amount of
+Python code enforces the parts that can be checked by a program.
+
+- `dev-kit` - the core: the process, generic agents (coder, reviewer, investigator), the documentation
+  standard and its checker.
+- `web-kit` - browser checks: end-to-end scenarios, layout checks, mockups, wide screenshots.
+- `unity-kit` - Unity: a bridge to the open editor, a scripted "user check" of play, scene sketches, GIFs.
+
+The plugins hold no project facts. Each project describes itself in one file, `.claude/dev-kit.md`.
+
+## Example
+
+A project enables the plugins and you tell Claude: "the Save button does nothing". The `fix-bug` skill then:
+
+1. classifies the report (a functional bug, not a layout bug), so it knows which check to run later;
+2. finds the root cause in code and writes a plan, then waits for your yes;
+3. writes a failing test, fixes the cause, and runs the project's test command;
+4. runs a browser check of the screen, if you allowed it;
+5. updates the feature description in `docs/`, runs `dev-kit-check-docs`, and asks a separate
+   `reviewer` agent to read the change.
+
+Enable it in a project:
+
+```bash
+claude plugin marketplace add <path to this folder>
+claude plugin install dev-kit@korov-dev --scope project
+```
+
+## What is code here
+
+Most of the repo is Markdown prompts. The code that runs as a program:
+
+| File | Lines | What it does |
+|---|---|---|
+| `plugins/dev-kit/scripts/check_docs.py` | 1355 | Checks a project's docs: every epic and feature has its sections, links, anchors and "Built in" paths resolve; finds the feature that owns a code file; lists open tasks and defects. |
+| `tools/lint.py` | 461 | Checks this repo: plugin manifests, skill and agent front matter, slot tables, hook config, project profiles. |
+| `plugins/dev-kit/hooks/narrow-agents.py` | 118 | A hook that lets a project launch only its own agents and those of its enabled plugins. |
+| `plugins/dev-kit/scripts/run_app.py` | 330 | Starts and stops a project's app from the commands in its profile, with a queue lock between worktrees. |
+| `plugins/unity-kit/scripts/user_check.py` | 544 | Plays a recipe (keys, mouse, console and state expectations) in the Unity editor and writes a report. |
+| `plugins/unity-kit/scripts/frames_to_gif.py` | 240 | Cuts and crops recorded frames into a GIF. |
+| `plugins/web-kit/scripts/build-mockups.mjs`, `capture.mjs` | 829, 351 | Builds mockup pages from JSON specs; takes full-resolution headless screenshots. |
+
+The tests are in `tools/tests/`: 344 tests in 8 files (about 3000 lines), one skipped. Run them with:
+
+```bash
+python -m unittest discover tools/tests
+python tools/lint.py
+```
+
+CI (`.github/workflows/ci.yml`) runs both on every push to `main` and on pull requests, with Python 3.13
+and Node 22.
+
+## Notes
+
+- Some skill descriptions contain Ukrainian phrases. They are trigger phrases the author types to start
+  a skill, so they are meant to stay.
+- The marketplace is a local folder, so it is a working setup, not a packaged release.
 
 ## Project profile
 
@@ -99,15 +157,9 @@ and user agent types are denied. A project that had its own copy of this hook re
 `python tools/lint.py` checks manifests, skills, agents, slot tables and the profiles of the projects
 in `tools/projects.json` (local, not in git: `{"name": "folder"}`). It runs before every commit
 (`.githooks/pre-commit`, enabled with `git config core.hooksPath .githooks`) together with
-`claude plugin validate .`.
-Tests: `python -m unittest discover tools/tests`.
+`claude plugin validate .` (the validate step needs the Claude Code CLI, so CI runs only the lint).
 
-## Enable in a project
-
-```bash
-claude plugin marketplace add <path to the ClaudeDevKit folder>
-claude plugin install dev-kit@korov-dev --scope project
-```
+## After enabling a plugin
 
 The install rewrites `.claude/settings.json`; check that existing hook fields (e.g. `onFailure`)
 survived. The marketplace is a local folder, so an edit here reaches every project at its next
