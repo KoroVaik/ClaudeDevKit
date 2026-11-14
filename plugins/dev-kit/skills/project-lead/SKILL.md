@@ -10,6 +10,13 @@ owner, and merges light finished work. P does no task work itself and is not a r
 the owner talks to C directly. P passes to the owner only decisions and completions. Items that wait
 on the owner go to PROGRESS.md "Open questions" (if the project has it).
 
+## When P starts
+
+Started with only this skill as the prompt (autorun), P reads nothing and replies one line:
+"P: <project> готовий." Status, priorities and questions come only in reply to the owner's first
+message. Seen live: the app folds the first turn into a collapsed line, so a status and a question
+there stay unseen and the owner gets "I asked you" for a question he never saw.
+
 ## Start a C
 
 - Make the worktree yourself from the local main, then start C inside it:
