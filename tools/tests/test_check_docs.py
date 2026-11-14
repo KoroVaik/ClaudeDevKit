@@ -912,8 +912,20 @@ class ShimTests(DocsTestCase):
 
     def test_shim_file_has_lf_endings_and_a_shebang(self):
         data = SHIM.read_bytes()
-        self.assertTrue(data.startswith(b"#!/usr/bin/env python\n"))
+        self.assertTrue(data.startswith(b"#!/bin/sh\n"))
         self.assertNotIn(b"\r", data)
+
+    @unittest.skipUnless(shutil.which("sh"), "needs sh")
+    def test_shim_runs_from_sh_with_path_conversion_off(self):
+        # Background sessions run Git Bash with path conversion off; the shim must still find its script.
+        self.append("docs/README.md", "[x](nope.md)\n")
+        env = dict(os.environ, MSYS_NO_PATHCONV="1")
+        shim = SHIM.as_posix()
+        if shutil.which("cygpath"):  # Git Bash: launch by the /c/... form PATH gives, which python cannot open
+            shim = subprocess.run(["cygpath", "-u", str(SHIM)], capture_output=True, text=True, check=True).stdout.strip()
+        result = subprocess.run([shutil.which("sh"), shim, "--root", str(self.root)], capture_output=True, check=False, env=env)
+        self.assertEqual(1, result.returncode, result.stderr)
+        self.assertIn("docs check: 1 errors (link=1), 0 warnings", result.stdout.decode("utf-8"))
 
 
 BAD_PROFILES = {

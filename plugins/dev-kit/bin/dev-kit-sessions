@@ -1,7 +1,13 @@
 #!/bin/sh
-# Run scripts/sessions.py of this plugin; the plugin bin folder is on the Bash tool PATH.
-# cygpath hands Windows python a path it can open even when Git Bash path conversion is off
-# (as seen in background sessions).
-here=$(dirname "$0")
+"""": # Shell part (PATH launch). Git Bash may run it with path conversion off (as seen in
+# background sessions), so cygpath hands Windows python a path it can open.
+here=$(dirname "$(readlink -f "$0" 2>/dev/null || echo "$0")")
 command -v cygpath >/dev/null 2>&1 && here=$(cygpath -m "$here")
 exec python "$here/../scripts/sessions.py" "$@"
+"""
+# Python part: `python dev-kit-sessions` runs the script directly.
+import os
+import runpy
+
+script = os.path.join(os.path.dirname(os.path.realpath(__file__)), "..", "scripts", "sessions.py")
+runpy.run_path(os.path.normpath(script), run_name="__main__")
