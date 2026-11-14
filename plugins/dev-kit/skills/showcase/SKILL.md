@@ -24,6 +24,9 @@ the owner asks). The project's rules are in its `CLAUDE.md`. Read the profile se
 
 - Content that ages slowly: what the project is, architecture, decisions and why, the testing APPROACH.
 - No test counts and no other numbers that change weekly; they mislead.
+- A test coverage claim only from `dev-kit-check-tests --report`: "every API endpoint has an
+  integration test" only when the report lists no uncovered endpoint; otherwise name what is
+  covered (e.g. "business rules of X have unit tests"), never a count or a percentage.
 - Screenshots are refreshed only at milestones or when the owner asks.
 - A section "How it was built" links ClaudeDevKit and says in a few lines how the process works.
 - Plain English, short sentences, concrete facts. No buzzwords. Never an em dash or an en dash.

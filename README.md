@@ -86,6 +86,13 @@ a project's docs against the `dev-kit:documentation` skill. A git pre-commit hoo
 runs `plugins/dev-kit/scripts/check_docs.py --pre-commit`, finding this folder through
 `~/.claude/plugins/known_marketplaces.json`.
 
+## Tests check
+
+`dev-kit-check-tests` checks that every test added since `HEAD` (or `--base REF`) carries a valid
+"protects" mark (`Flow`, `Rule`, `Bug`, `Edge`) in xUnit, Vitest or Python unittest syntax, as the
+`dev-kit:test-change` skill requires. `--report` prints marks per domain and the API endpoints that no
+integration test mentions (a path-mention measure); `--json` gives the same for showcases.
+
 ## Web extension
 
 `web-kit` fills `check-ui`, `check-usability`, `check-look` and `show-idea` (`plugins/web-kit/slots.md`).

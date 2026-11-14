@@ -37,6 +37,9 @@ project's own commands, test inventory and selection tables come from the `run-t
 - Every new test carries a "protects" mark with one of these values, written as the project's
   test rules say; a `Bug` test also carries one line on what broke. The level (unit /
   integration / E2E) is tagged as before.
+- Before finishing, run `dev-kit-check-tests`: it must report 0 errors (every new test has a
+  valid mark, a `Bug` test has its `Broke:` line). `dev-kit-check-tests --report` shows marks per
+  domain and the API endpoints with no integration test.
 
 ## Run and report
 
