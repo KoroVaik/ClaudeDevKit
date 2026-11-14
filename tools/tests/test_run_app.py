@@ -30,6 +30,10 @@ class RunAppTestCase(unittest.TestCase):
         self.addCleanup(shutil.rmtree, tmp)
         self.root = Path(tmp)
         (self.root / ".claude").mkdir()
+        # The queue lock lives in a state folder; keep it inside the temp dir, never in ~/.claude/dev-kit.
+        patcher = mock.patch.dict(os.environ, {"DEV_KIT_STATE_DIR": str(self.root / "state")})
+        patcher.start()
+        self.addCleanup(patcher.stop)
 
     def profile(self, rows):
         lines = ["## Slots", "", "| Slot | Skill or command |", "|---|---|"]
