@@ -28,7 +28,7 @@ Traps (checked 2026-11-14):
 
 Reply grouped by project. For each session show name, state and context fill when available (mark OVER as a problem). Under each project list what waits on the owner. Unreadable source: say "not checked: <what>", never guess.
 
-A project's open question is only shown, never asked here: Pult cannot pass the answer on. The next-step question in Pult is a fix for a server or session, or, when there is none, which project session to open to answer what waits there.
+Pult only informs. A project's open question is only shown, never asked here: Pult cannot pass the answer on. A Pult reply ends with no question, except when a server or session is broken and a fix needs the owner's yes. This wins over the global "end every reply with the next-step question".
 
 ## Servers
 
