@@ -26,6 +26,14 @@ Traps (checked 2026-11-14):
 
 Reply grouped by project. For each session show name, state and context fill when available (mark OVER as a problem). Under each project list what waits on the owner. Unreadable source: say "not checked: <what>", never guess.
 
+## Servers
+
+Pult owns the start of the Remote Control servers and project leads: `scripts/start-servers.ps1`
+(run at Windows logon by the Startup folder shortcut "Pult - project servers") and
+`scripts/stop-servers.ps1` (graceful stop; never kill these processes). The list of servers is
+in `start-servers.ps1`. Windows runs them; a Pult session runs them only after the owner's
+explicit yes.
+
 ## Limits
 
 - Exception held by this project: read other projects' status files (PROGRESS.md and similar) and session state.
