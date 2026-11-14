@@ -52,6 +52,9 @@ the Game view at its current size for the owner to judge. `unity-kit:unity-edito
 Unity action in the owner's open editor (no batchmode, no restart, one operator at a time); it fills no
 slot, so a project fills `run-app` and `run-tests` with its own commands or skills.
 `unity-kit:unity-operator` runs the Unity commands the manager chose and returns raw results.
+`unity-kit:game-clip` (no slot) shows the owner a short GIF of a moment of play: the operator records frames with the
+project's own capture, the manager makes the GIF with `unity-kit-gif` (in `plugins/unity-kit/bin`; the script is
+`plugins/unity-kit/scripts/frames_to_gif.py`, Python and Pillow) and sends it (a time window and, preferably, a crop around what moves), the owner judges the motion.
 `unity-kit:user-check` fills `check-ui`: any agent writes a recipe of play (keys, mouse, the project's own
 bridge commands, expectations on the console, state and files), the operator runs it with
 `unity-kit-user-check <name>` (in `plugins/unity-kit/bin`, on the Bash tool PATH while unity-kit is enabled;
@@ -61,7 +64,7 @@ plugin ships no Unity code: the project copies the sample state and IMGUI mouse 
 (the bridge, its wrapper command, versions, scene, build targets, devices, Profiler), `## unity-operator`,
 `## user-check` (table `| Setting | Value |`: the bridge, recipe and report folders, scene, state command
 and "ready", click command, panel scale; the format is in the skill), `## game-view-check` (the screenshot
-command), `## scene-sketch` (subject, names, caption language).
+command), `## game-clip` (the frame-recording command, where the frames and their time index land), `## scene-sketch` (subject, names, caption language).
 
 ## Slots
 

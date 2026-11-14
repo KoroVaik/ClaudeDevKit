@@ -1,0 +1,3 @@
+#!/bin/sh
+# Run scripts/frames_to_gif.py of this plugin; the plugin bin folder is on the Bash tool PATH.
+exec python -I "$(dirname "$0")/../scripts/frames_to_gif.py" "$@"
