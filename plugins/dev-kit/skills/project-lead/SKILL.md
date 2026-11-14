@@ -12,7 +12,10 @@ on the owner go to PROGRESS.md "Open questions" (if the project has it).
 
 ## Start a C
 
-- `claude --bg --remote-control --permission-mode auto`, session name `C: <feature>`, its own worktree.
+- `claude --bg --remote-control "C: <feature>" --name "C: <feature>" --permission-mode auto -w <slug> -- "<first prompt>"`.
+  It prints only the 8-hex short id. Start it from PowerShell, or in Git Bash prefix
+  `MSYS_NO_PATHCONV=1`: Git Bash rewrites a prompt that starts with `/` and any `C:/...` path in it.
+  "Workspace not trusted" means the owner must run `claude` once in that folder and accept the prompt.
 - Dependent tasks go to one C; separate C sessions only for independent tasks.
 - First prompt: the owner's words verbatim; links to the feature and plan files; "run the dev-kit
   manager skill"; the report rule (C messages P only on done, decision needed, stuck - 3 lines: state,
@@ -36,13 +39,14 @@ script assumes 200000 when the transcript does not mark 1M. For each line marked
 
 1. Message C: reach the nearest checkpoint between steps (never mid-step), run
    `continue-work-in-another-context save`, reply with the handoff file name.
-2. Start a fresh C in the SAME worktree, same name; first prompt:
-   `continue-work-in-another-context load <file>`.
+2. Start a fresh C from inside the SAME worktree folder (no `-w`), same name; first prompt:
+   `/continue-work-in-another-context load <file>`.
 3. Register it with `dev-kit-sessions add ... --predecessor <old id>`.
 4. Only after the new C confirms it picked up the work, run `claude stop <old id>`.
 
-Not yet checked in practice: whether a bg session can work in an existing worktree, and whether it
-accepts the skill command as its first prompt. If either fails, tell the owner and keep the old C running.
+Checked live 2026-11-14: a fresh bg C started in an existing worktree loads the handoff from its first
+prompt and can write there. If a step fails, tell the owner and keep the old C running.
+Two C sessions share one name during a refresh; message the new one by its `[ref]` from ListAgents.
 
 ## Shared app
 

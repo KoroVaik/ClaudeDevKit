@@ -162,7 +162,8 @@ in `tools/projects.json` (local, not in git: `{"name": "folder"}`). It runs befo
 ## After enabling a plugin
 
 The install rewrites `.claude/settings.json`; check that existing hook fields (e.g. `onFailure`)
-survived. The marketplace is a local folder, so an edit here reaches every project at its next
-session start or after `/reload-plugins`. A new agent or skill cannot be called in a session that was
-already running until `/reload-plugins` has run there; `claude plugin update` does not help while the
-plugin version is unchanged.
+survived. Projects run a cached copy per plugin version
+(`~/.claude/plugins/cache/korov-dev/<plugin>/<version>`), so a change ships only with a version bump in
+the plugin's `plugin.json`, then `claude plugin marketplace update korov-dev` and, in each project,
+`claude plugin update <plugin>@korov-dev --scope project`. A session that was already running sees a
+new agent or skill only after `/reload-plugins`.
