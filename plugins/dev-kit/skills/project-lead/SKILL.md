@@ -48,8 +48,9 @@ subscribe again each time), so P wakes when that C ends its turn. An idle notice
 C ended a turn while it waits (e.g. on a background command): subscribe again and wait.
 
 On every wake-up (owner message, C report, idle notice) run `dev-kit-sessions fill`. The default limit
-is 0.5 (half the context window); pass `--window 1000000` for a C on a 1M-context model, because the
-script assumes 200000 when the transcript does not mark 1M. For each line marked OVER, refresh that C.
+is 0.5 (half the context window). The script takes the window from C's model as Claude Code runs it
+(1M for Fable, Sonnet 5+, Haiku 5.5, Opus 4.7+; 200K for older ones); `--window` overrides it. For each
+line marked OVER, refresh that C.
 
 ## Refresh an overfull C
 

@@ -10,13 +10,14 @@ The registry is `sessions.json` in the project state folder (see dev_kit_state.p
 of one repository). `add --predecessor` marks the replaced session `replaced`. `fill` finds the transcript of every
 active record (`<projects>/*/<id>.jsonl`, projects folder = env DEV_KIT_PROJECTS_DIR, else ~/.claude/projects) and
 prints its context size: input + cache creation + cache read tokens of the last assistant message that has usage.
-The window is 200000 unless `--window` is given or the model name carries `[1m]`. A line ends with OVER when the
+The window comes from the transcript's model (see `window_for`) unless `--window` is given. A line ends with OVER when the
 percent reaches the limit. Exit code: 0 done (fill too, whatever the transcripts), 1 unknown or duplicate id,
 2 registry unreadable.
 """
 import argparse
 import json
 import os
+import re
 import sys
 import time
 from datetime import datetime
@@ -28,6 +29,7 @@ import dev_kit_state  # noqa: E402
 REGISTRY = "sessions.json"
 PROJECTS_ENV = "DEV_KIT_PROJECTS_DIR"
 DEFAULT_WINDOW = 200000
+NATIVE_1M_WINDOW = 1000000
 USAGE_FIELDS = ("input_tokens", "cache_creation_input_tokens", "cache_read_input_tokens")
 CHUNK = 256 * 1024
 
@@ -153,6 +155,29 @@ def cmd_list(args, path, records):
     return 0
 
 
+def window_for(model):
+    """Context window of a model id as Claude Code runs it by default.
+
+    Claude Code docs (model-config, "Extended context"): Fable models, Sonnet 5 and later, Haiku 5.5 and
+    Opus 4.7 and later run with the 1M window by default, with no `[1m]` suffix; env
+    CLAUDE_CODE_DISABLE_1M_CONTEXT=1 makes them 200K. Older models get 200K unless the id carries `[1m]`.
+    """
+    name = (model or "").lower()
+    if "[1m]" in name:
+        return NATIVE_1M_WINDOW
+    if os.environ.get("CLAUDE_CODE_DISABLE_1M_CONTEXT") == "1":
+        return DEFAULT_WINDOW
+    if "fable" in name or name in ("opus", "sonnet", "haiku"):
+        return NATIVE_1M_WINDOW
+    match = re.search(r"(opus|sonnet|haiku)-(\d+)-(\d+)", name)
+    if match:
+        family, version = match.group(1), (int(match.group(2)), int(match.group(3)))
+        if (family == "sonnet" and version >= (5, 0)) or (family == "haiku" and version >= (5, 5)) \
+                or (family == "opus" and version >= (4, 7)):
+            return NATIVE_1M_WINDOW
+    return DEFAULT_WINDOW
+
+
 def cmd_fill(args, path, records):
     rows = active(records)
     for record in rows:
@@ -162,7 +187,7 @@ def cmd_fill(args, path, records):
             print(f"{record['name']} | {record['id']} | no transcript")
             continue
         tokens, model = usage
-        window = args.window or (1000000 if "[1m]" in model.lower() else DEFAULT_WINDOW)
+        window = args.window or window_for(model)
         percent = tokens / window
         flag = " OVER" if percent >= args.limit else ""
         print(f"{record['name']} | {record['id']} | {tokens} tokens | window {window} | {percent:.0%}{flag}")

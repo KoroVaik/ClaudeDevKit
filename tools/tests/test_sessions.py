@@ -53,7 +53,7 @@ class SessionsTestCase(unittest.TestCase):
         (self.projects / "p1" / f"{session_id}.jsonl").write_text("\n".join(lines) + "\n", encoding="utf-8")
 
     @staticmethod
-    def assistant(i, c, r, model="claude-opus-5-5"):
+    def assistant(i, c, r, model="claude-haiku-4-5-20251001"):  # a 200K model unless a test says otherwise
         usage = {"input_tokens": i, "cache_creation_input_tokens": c, "cache_read_input_tokens": r, "output_tokens": 5}
         return {"type": "assistant", "message": {"role": "assistant", "model": model, "usage": usage}}
 
@@ -98,8 +98,26 @@ class SessionsTestCase(unittest.TestCase):
 
     def test_fill_one_million_model(self):
         self.add("a1")
-        self.transcript("a1", [self.assistant(0, 0, 300000, model="claude-opus-5-5[1m]")])
+        self.transcript("a1", [self.assistant(0, 0, 300000, model="claude-opus-4-6[1m]")])
         self.assertIn("window 1000000 | 30%", self.run_main("fill")[1])
+
+    def test_fill_native_one_million_model_without_suffix(self):
+        # Seen live: a fresh Sonnet 5.5 C at 80k tokens showed 40% against an assumed 200K window.
+        self.add("a1")
+        self.transcript("a1", [self.assistant(0, 0, 80000, model="claude-sonnet-5-5")])
+        self.assertIn("window 1000000 | 8%", self.run_main("fill")[1])
+
+    def test_window_for_models(self):
+        one_m, two_k = sessions.NATIVE_1M_WINDOW, sessions.DEFAULT_WINDOW
+        cases = {"claude-opus-5-5": one_m, "claude-sonnet-5-5": one_m, "claude-haiku-5-5": one_m,
+                 "claude-fable-5-2": one_m, "claude-opus-4-7": one_m, "sonnet": one_m,
+                 "claude-haiku-4-5-20251001": two_k, "claude-sonnet-4-6": two_k, "claude-opus-4-6": two_k,
+                 "claude-sonnet-4-6[1m]": one_m, "": two_k}
+        with mock.patch.dict(os.environ, {"CLAUDE_CODE_DISABLE_1M_CONTEXT": ""}):
+            for model, window in cases.items():
+                self.assertEqual(window, sessions.window_for(model), model)
+        with mock.patch.dict(os.environ, {"CLAUDE_CODE_DISABLE_1M_CONTEXT": "1"}):
+            self.assertEqual(two_k, sessions.window_for("claude-opus-5-5"))
 
     def test_fill_large_transcript_reads_from_end(self):
         self.add("a1")
@@ -119,7 +137,7 @@ class SessionsTestCase(unittest.TestCase):
         path = self.projects / "p1" / "a1.jsonl"
         for chunk in (7, 64, 1000, 4097):
             with mock.patch.object(sessions, "CHUNK", chunk):
-                self.assertEqual((5, "claude-opus-5-5"), sessions.last_usage(path), chunk)
+                self.assertEqual((5, "claude-haiku-4-5-20251001"), sessions.last_usage(path), chunk)
         # a usage line cut in the middle by the first read must still be found whole
         self.transcript("a1", [self.assistant(9, 0, 0, model="модель")] + [{"type": "user", "text": "й" * 50}] * 3)
         lines = path.read_bytes().split(b"\n")

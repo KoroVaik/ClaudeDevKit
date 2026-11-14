@@ -1,6 +1,6 @@
 {
   "name": "dev-kit",
-  "version": "0.1.7",
+  "version": "0.1.8",
   "description": "Core: development process, generic agents, product work and the documentation standard",
   "author": { "name": "KoroVaik" }
 }
