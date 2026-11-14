@@ -6,7 +6,8 @@ agent decides and builds them after the owner's yes. An idea leaves the backlog 
 it and it is built, or when the owner drops it.
 
 Entry: a `##` title, then `What:`, `Why:` (the concrete case that showed the need: project, date) and
-`Cheapest test:`, 2-4 lines in all.
+`Cheapest test:`, 2-4 lines in all. A reviewed entry gets a `Verdict:` line (the project lead's
+recommendation) and waits for the owner's yes or no.
 
 ## Long-term quality over speed, in every project
 

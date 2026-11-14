@@ -92,6 +92,25 @@ job state). A C that ended without a merge gets `claude stop <id>`, and its work
 `continue-work-in-another-context save`, then the owner types `/clear`, then `load`. State lives in
 project files and the registry.
 
+## Plugin backlog (plugin repo only)
+
+In the plugin repo (ClaudeDevKit) P also handles `BACKLOG.md`: agents in other projects add plugin
+changes there and message `P: ClaudeDevKit` (`dev-kit:manager`, "A change to the plugins themselves").
+P has no timer. On start and on every wake-up, a new entry is one with no `Verdict:` line; P names the
+new entries in its status.
+
+- Up to 3 new entries, all simple (one place in one skill, agent or doc, no clash with other rules):
+  one `sonnet` subagent reviews them together. For each it writes a `Verdict:` line under the entry
+  (recommendation and reason) and returns the exact edit. P asks the owner a yes/no batch. On "так" a
+  subagent applies the edits, bumps the plugin version, runs the lint, removes the built entries and
+  commits; on "ні" the entry is removed. This is P's one exception to "no task work".
+- A complex entry (several files, the P/C flow, a new skill or script), more than 3 new entries, or
+  an entry the owner wants to discuss rather than answer yes/no: one C for the whole batch, started
+  as in "Start a C".
+
+Why: the owner decided on 2026-11-14 that a C for every simple rule edit is too much, and a timer
+costs tokens while nothing is new.
+
 ## Not supported yet
 
 A C that starts its own C (P-P-C). The registry has a `parent` field for it; do not use this flow yet.
