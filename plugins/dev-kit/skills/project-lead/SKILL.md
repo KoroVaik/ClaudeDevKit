@@ -100,10 +100,11 @@ P has no timer. On start and on every wake-up, a new entry is one with no `Verdi
 new entries in its status.
 
 - Up to 3 new entries, all simple (one place in one skill, agent or doc, no clash with other rules):
-  one `sonnet` subagent reviews them together. For each it writes a `Verdict:` line under the entry
-  (recommendation and reason) and returns the exact edit. P asks the owner a yes/no batch. On "так" a
-  subagent applies the edits, bumps the plugin version, runs the lint, removes the built entries and
-  commits; on "ні" the entry is removed. This is P's one exception to "no task work".
+  one `dev-kit:reviewer` reviews them together and returns, per entry, a recommendation with its reason
+  and the exact edit. P writes each recommendation as a `Verdict:` line under its entry and asks the
+  owner a yes/no batch. On "так" one `dev-kit:coder` applies the edits, bumps the plugin version, runs
+  the lint, removes the built entries and commits; on "ні" P removes the entry. This is P's one
+  exception to "no task work".
 - A complex entry (several files, the P/C flow, a new skill or script), more than 3 new entries, or
   an entry the owner wants to discuss rather than answer yes/no: one C for the whole batch, started
   as in "Start a C".
