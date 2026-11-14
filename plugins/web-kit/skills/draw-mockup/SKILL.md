@@ -62,8 +62,13 @@ as a numbered block.
    require it": before the next round find in the code or data what the thing does and who uses it
    (for a field: where its value goes), and give the owner that result with the point. If no reason
    is found, the point goes to the owner as an open question, not as a decision to keep. Once the flow is built, the live app is walked by `web-kit:app-user` (`web-kit:user-walk`); its remarks outrank this one.
-   The checks run in this order: nothing lost (step 7c), words (the text run above), usability (step
-   7b), colours (step 7a).
+   The checks run in this order: facts (step 7d), nothing lost (step 7c), words (the text run above),
+   usability (step 7b), colours (step 7a).
+   7d. Facts, before the first show: a read-only `dev-kit:investigator` (haiku or sonnet) gets the spec
+   and lists every claim the screens make about how the app works (where a value comes from, which
+   step or link leads where, what a button does, which data is shown), and checks each in the code or
+   data, with file:line. A claim it cannot confirm is fixed or marked as a placeholder in `authorNotes`
+   before the owner sees the board. Run it again only when a later change adds a new claim.
    7c. Nothing lost, when the board redesigns a screen that exists (in the app or on a `-current`
    board): a read-only `dev-kit:reviewer` (sonnet) gets the current screen's board spec (or the page's
    component and its feature doc) and the new spec, lists every piece of information and every action
