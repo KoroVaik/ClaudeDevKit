@@ -1,3 +1,7 @@
 #!/bin/sh
 # Run scripts/build-mockups.mjs of this plugin; the plugin bin folder is on the Bash tool PATH.
-exec node "$(dirname "$0")/../scripts/build-mockups.mjs" "$@"
+# cygpath hands Windows node a path it can open even when Git Bash path conversion is off
+# (as seen in background sessions).
+here=$(dirname "$0")
+command -v cygpath >/dev/null 2>&1 && here=$(cygpath -m "$here")
+exec node "$here/../scripts/build-mockups.mjs" "$@"

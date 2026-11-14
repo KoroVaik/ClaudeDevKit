@@ -1,3 +1,7 @@
 #!/bin/sh
 # Run scripts/user_check.py of this plugin; the plugin bin folder is on the Bash tool PATH.
-exec python -I "$(dirname "$0")/../scripts/user_check.py" "$@"
+# cygpath hands Windows python a path it can open even when Git Bash path conversion is off
+# (as seen in background sessions).
+here=$(dirname "$0")
+command -v cygpath >/dev/null 2>&1 && here=$(cygpath -m "$here")
+exec python -I "$here/../scripts/user_check.py" "$@"

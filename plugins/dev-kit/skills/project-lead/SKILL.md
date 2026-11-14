@@ -17,9 +17,8 @@ on the owner go to PROGRESS.md "Open questions" (if the project has it).
   mechanical work; `opus` only when the task needs it, and a Fable model only after the owner's yes.
   Without it C inherits the default model, which may be the most expensive one. The launch line names
   the same model.
-- Start it with the PowerShell tool. Git Bash rewrites a prompt that starts with `/` and any `C:/...`
-  path in it, and `MSYS_NO_PATHCONV=1` would pass into C and break its dev-kit commands. The command
-  prints only the 8-hex short id. "Workspace not trusted" means the owner must run `claude` once in
+- Start it with the PowerShell tool: Git Bash rewrites a prompt that starts with `/` and any `C:/...`
+  path in it. The command prints only the 8-hex short id. "Workspace not trusted" means the owner must run `claude` once in
   that folder and accept the prompt.
 - Run `dev-kit-sessions` and `dev-kit-app` in the Bash tool, where the plugin bin folder is on the
   PATH; PowerShell cannot run these files.
