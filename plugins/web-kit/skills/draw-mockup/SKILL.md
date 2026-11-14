@@ -120,9 +120,13 @@ Screen text is the least that keeps the screen clear; explanations go in the boa
   options on a variants board (a yes/no becomes "as now" against "changed"), and send the screenshots with a
   one-line question. Never put such a proposal or question as text, a bullet list or a words-only option list
   ("Варіант 1 / Варіант 2", "зробити X жовтим?", "повернути ці п'ять речей?"). For this case this rule wins over
-  the global question format (no bracket example, no batch of text questions, no "Рекомендую" list): the
-  recommendation is one clause in the one-line note. Only a question with no visual side (a rule, a scope, a
-  name) is asked in text.
+  the global question format (no bracket example, no batch of text questions, no "Рекомендую" list) and over
+  every no-resend rule (the global "never re-send", "One set per answer" in browser-checks.md): the
+  recommendation is one clause in the one-line note. The question always carries its own picture in the same
+  message, even when the owner saw that picture earlier; no-resend covers only re-delivering a finished
+  result, never a new question. Never write "you saw", "як ти бачив" or "on the earlier shots" about anything
+  not on screen in this message: show it or do not mention it. Only a question with no visual side (a rule, a
+  scope, a name) is asked in text.
 - One board, one theme: a board covers a single flow or a single idea family. A new idea on
   another theme gets its own board; an idea that replaces an earlier one updates or removes the
   old screens. Temporary boards whose outcome is settled are deleted before the commit (step 9).

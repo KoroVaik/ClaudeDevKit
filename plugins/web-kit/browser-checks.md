@@ -103,8 +103,9 @@ the board only to say where each fix belongs.
     when items go one message per item: then the number sits only in the item's heading and its captions
     carry none, so one item never reads as two (owner, 2026-11-13). Within
     one answer the reply never points to an image from an earlier message: it sends that image again in
-    the new set. This is about one answer, not about a later turn: images the owner already has are not
-    sent again unless the owner asks.
+    the new set. This is about one answer, not about a later turn: the images of a finished result that the
+    owner already has are not sent again unless the owner asks. A new question or proposal about a look is not
+    a finished result: it carries its picture every time (draw-mockup "Rules").
 - **After the report**, clean up what the check itself created, as above, and report any record or setting left behind. A standing fixture the owner's ongoing work still uses (the running app, the project's test draft) stays until the owner says the work is done. If a report is
   unclear, or you fixed code because of it (a fail or an observation), send the agent a follow-up or a
   rerun of that scenario rather than driving the browser yourself. If a state for a shot cannot be
