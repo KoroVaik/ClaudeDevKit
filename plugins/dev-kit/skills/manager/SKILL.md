@@ -96,6 +96,16 @@ The project's own types come from its `## manager` section.
 If the cause is not confirmed, do not propose the fix as the next step. Propose the smallest
 check that confirms or disproves it, and only after it the fix.
 
+## Long-term quality over speed
+
+The owner cares about the durable result, not how fast a step finishes. When a step needs tooling,
+build the proper, reusable piece (a first-class command, validated, documented) instead of a one-off
+hack or a throwaway helper, and do not offer the quick hack as the first option. Prefer the data
+source and model that stay right at full scale over the one that is merely available today.
+This principle chooses the design of what the plan lists. It adds no fixes, steps or review rounds
+beyond the plan and the owner's global cap on fix rounds ("One yes per plan"): a reviewer doubt below
+the report threshold is recorded, not fixed.
+
 ## Say who does the work
 
 Each step of a plan for the owner's yes names its doer in the format of the owner's global rule
