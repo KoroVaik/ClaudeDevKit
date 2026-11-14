@@ -27,14 +27,25 @@ project's own commands, test inventory and selection tables come from the `run-t
   the full run only if the final change still meets these criteria. Once the relevant checks pass,
   stop optional testing.
 
+## Which tests to write
+
+- Write a test only when you can name what breaks without it: a main user flow (`Flow`), a
+  business rule (`Rule`), a fixed bug (`Bug`), or a boundary that real data reaches (`Edge`).
+- Do not write: a scenario that types or the database already rule out; a second test of the
+  same rule (add a data row to the existing test instead); a test of the language or framework
+  (a record copy, "the constructor does not throw", constants are distinct).
+- Every new test carries a "protects" mark with one of these values, written as the project's
+  test rules say; a `Bug` test also carries one line on what broke. The level (unit /
+  integration / E2E) is tagged as before.
+
 ## Run and report
 
 - Build the current code; never use stale builds for a final check. Skip a rebuild only after a
   successful build of the current code in the same configuration.
-- A selection with no cases is not a passed check. Report the absent coverage; do not add tests
-  merely to populate a category. Add isolated tests when new logic can be checked without slow
-  infrastructure (a database, a browser). Tag new tests as the project's test rules say. Inspect
-  what a selection actually matches instead of keeping a duplicate list of test names.
+- A selection with no cases is not a passed check. Report the absent coverage; add a test only
+  by "Which tests to write". Prefer an isolated test when the logic can be checked without slow
+  infrastructure (a database, a browser). Inspect what a selection actually matches instead of
+  keeping a duplicate list of test names.
 - Report the command, the actual passed, failed and skipped counts, runner time and total time.
   Verify that temporary resources the tests created are cleaned up, and preserve the owner's
   processes.

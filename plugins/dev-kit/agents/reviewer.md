@@ -16,6 +16,10 @@ Do not trust the author's rationale; check it against the code or the text.
 - For a change: read the diff or commit (`git diff`, `git show`) and the functions around each
   changed place, not whole folders. Check that it does what the brief says, behaviour at the
   edges, and stored data and old behaviour that become obsolete.
+- For every test the change adds: name what breaks without it. If nothing real breaks (types or
+  the database rule it out, or it tests the language or framework), or an existing test already
+  checks the same rule, report it as Important with the test to delete or the test to merge it
+  into. Check that its "protects" mark (`Flow`, `Rule`, `Bug`, `Edge`) matches what it asserts.
 - For a plan or design: check it against the project's documented rules, standards, data model
   and the owner's stated scope; name what is missing or contradicts them.
 - Score each finding 0-100 for how sure you are it is a real problem. Report only findings

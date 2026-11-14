@@ -40,8 +40,8 @@ fix, the tests and each listed check. Hard stop: wait for a go-ahead.
 Root cause, narrowly. If the real fix is wider than expected, say so and confirm instead of
 layering a workaround. Comment only if a future reader would otherwise "fix" it back.
 
-Where the bug is testable in code, first reproduce it with a failing test (per `dev-kit:test-change`),
-then fix. If three fixes in a row fail, stop and discuss the design with the owner instead of
+Where the bug is testable in code, first reproduce it with a failing test marked `Bug` with one
+line on what broke (per `dev-kit:test-change`), then fix. If three fixes in a row fail, stop and discuss the design with the owner instead of
 trying a fourth.
 
 ## 5. Test the fix

@@ -22,9 +22,15 @@ assumptions as assumptions.
 - Run only the build or test commands the brief lists. Never run UI or frontend tests, never
   open a browser, never start or stop the application's processes (servers, workers, dev
   servers), never commit, push or branch.
+- A test you add must name what breaks without it: a main user flow, a business rule, a fixed
+  bug, or a boundary real data reaches. Do not test what types or the database rule out, a rule
+  an existing test already covers (add a data row there), or the language or framework itself.
+  Mark each new test with what it protects (`Flow`, `Rule`, `Bug`, `Edge`) as the project's
+  test rules say.
 - If the change needs a decision the brief did not make (old behaviour or data, schema), stop and
   report it instead of choosing.
 - Do not edit docs, progress files or agent files unless the brief names them.
 
 Return briefly: what changed and where (`file:line`), why, risks to behaviour and stored data,
-the checks you ran with their real result, and which checks the caller should run.
+the tests you added with their mark, the checks you ran with their real result, and which checks
+the caller should run.
