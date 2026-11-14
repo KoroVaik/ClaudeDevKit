@@ -1,0 +1,7 @@
+#!/usr/bin/env python
+"""Run scripts/sessions.py of this plugin; the plugin bin folder is on the Bash tool PATH."""
+import os
+import runpy
+
+script = os.path.join(os.path.dirname(os.path.realpath(__file__)), "..", "scripts", "sessions.py")
+runpy.run_path(os.path.normpath(script), run_name="__main__")

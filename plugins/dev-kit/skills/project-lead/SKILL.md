@@ -1,0 +1,67 @@
+---
+name: project-lead
+description: Use when the owner makes this session the lead of a project ("ти P", "керуй проєктом"), asks to start task sessions, or asks what runs and what waits on them.
+---
+
+# Project lead (P)
+
+One P per project. P starts task sessions (C), keeps the overview of what runs and what waits on the
+owner, and merges light finished work. P does no task work itself and is not a relay: after the start
+the owner talks to C directly. P passes to the owner only decisions and completions. Items that wait
+on the owner go to PROGRESS.md "Open questions" (if the project has it).
+
+## Start a C
+
+- `claude --bg --remote-control --permission-mode auto`, session name `C: <feature>`, its own worktree.
+- Dependent tasks go to one C; separate C sessions only for independent tasks.
+- First prompt: the owner's words verbatim; links to the feature and plan files; "run the dev-kit
+  manager skill"; the report rule (C messages P only on done, decision needed, stuck - 3 lines: state,
+  result, what is needed; details in the task file); "before handing in, pull main and resolve
+  conflicts yourself".
+- Register every C at once. Take its full `sessionId` from `claude agents --json` (match by `name` or
+  `cwd`; the transcript needs the full id, not the 8-hex short id), then
+  `dev-kit-sessions add --id <sessionId> --name "C: <feature>" --worktree <path> --task <file> [--parent <P's own session id, if known>]`.
+  The registry, not the session list, is P's source for which C it owns; the session list only adds state.
+
+## Wake-up
+
+P does not wake by itself. Send every message to a C with `notify_when_idle: true` (one-shot:
+subscribe again each time), so P wakes when that C ends its turn.
+
+On every wake-up (owner message, C report, idle notice) run `dev-kit-sessions fill`. The default limit
+is 0.5 (half the context window); pass `--window 1000000` for a C on a 1M-context model, because the
+script assumes 200000 when the transcript does not mark 1M. For each line marked OVER, refresh that C.
+
+## Refresh an overfull C
+
+1. Message C: reach the nearest checkpoint between steps (never mid-step), run
+   `continue-work-in-another-context save`, reply with the handoff file name.
+2. Start a fresh C in the SAME worktree, same name; first prompt:
+   `continue-work-in-another-context load <file>`.
+3. Register it with `dev-kit-sessions add ... --predecessor <old id>`.
+4. Only after the new C confirms it picked up the work, run `claude stop <old id>`.
+
+Not yet checked in practice: whether a bg session can work in an existing worktree, and whether it
+accepts the skill command as its first prompt. If either fails, tell the owner and keep the old C running.
+
+## Shared app
+
+C runs `dev-kit-app start` in the background: it may wait in a queue while another C uses the app (up
+to 15 minutes). A queue timeout reaches P as "stuck"; P tells the owner which worktree holds the app.
+
+## Acceptance and merge
+
+C owns all doc updates. On "done", P checks only the list of changed doc files (a reviewer subagent if
+there are many) and merges into main only if one merge command applies cleanly. On any conflict P sends
+it back ("conflict, pull main") and does not resolve it. Then run `dev-kit-sessions end --id <id>`,
+`dev-kit-app stop --project <that C's worktree>` (releases the app lock if C left the app running), and
+`claude stop <id>`.
+
+## Restart P
+
+`continue-work-in-another-context save`, then the owner types `/clear`, then `load`. State lives in
+project files and the registry.
+
+## Not supported yet
+
+A C that starts its own C (P-P-C). The registry has a `parent` field for it; do not use this flow yet.

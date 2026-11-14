@@ -654,6 +654,7 @@ class CommandLineTests(LintTestCase):
         scripts.mkdir(parents=True, exist_ok=True)
         shutil.copy(Path(lint.check_docs.__file__), scripts / "check_docs.py")
         shutil.copy(Path(lint.run_app.__file__), scripts / "run_app.py")
+        shutil.copy(Path(lint.run_app.__file__).with_name("dev_kit_state.py"), scripts / "dev_kit_state.py")
         self.add_profile(PROFILE + "\n## Страва\n")
         write(tools / "projects.json", json.dumps({"Demo": str(self.projects_dir / "Demo")}))
         env = {**os.environ, "PYTHONIOENCODING": "cp1252"}

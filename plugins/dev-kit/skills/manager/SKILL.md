@@ -81,7 +81,9 @@ The project's own types come from its `## manager` section.
 - After a `dev-kit:investigator`, read only the places it named before deciding; do not repeat its
   search. Restarts and checks of the running application (the `run-app` slot) the manager runs
   itself, and when the owner says the work is done (or at a handoff) it runs the `stop-app` slot (`dev-kit-app stop` when the
-  profile lists commands); a failed check does not end the work.
+  profile lists commands); a failed check does not end the work. Run `dev-kit-app start` in the background:
+  it may wait up to 15 minutes while another session uses the app. On a queue timeout (exit 3) report
+  yourself stuck, naming the holder. Always run `stop`, so the next session can start.
 - A subagent cannot start other subagents. What it needs from another role, the manager does
   between their turns.
 - Continue a subagent that has the context (`SendMessage`) instead of starting a new one.
