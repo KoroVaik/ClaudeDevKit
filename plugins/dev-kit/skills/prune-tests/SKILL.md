@@ -26,8 +26,8 @@ one area of code (clustering, validation, transport); the steps below apply to e
 1. **Judge.** A `dev-kit:reviewer` (sonnet) reads the domain's tests and the code they call and
    returns one line per test: `file:line name - verdict - reason`. Verdicts:
    - `keep <Mark>`: it names what breaks without it; the mark is `Flow`, `Rule`, `Bug` or `Edge`.
-     `Bug` only when a comment, the test name or `git log -S` on the test shows the bug; the reason
-     then says what broke.
+     `Bug` only when a comment or the test name shows the bug, or `git log -S` on the test where
+     the project's rules allow reading old history; the reason then says what broke.
    - `merge into <test>`: the same rule as another test, through the same code path; the reason
      names the target test by `file:line` and the data row it becomes. Without both, it is `doubt`.
    - `delete`: it tests what types or the database rule out, or the language or framework itself
@@ -39,7 +39,8 @@ one area of code (clustering, validation, transport); the steps below apply to e
    nothing else. A `Bug` mark gets its `Broke:` line, a `doubt` test its `Suspect:` line, both from
    the reviewer's reason.
 3. **Check.** Build, then run the domain's tests: all pass, and none that passed at the baseline
-   now fails. Run `dev-kit-check-tests --base <commit before this domain>`: 0 errors. A failure
+   now fails. Run `dev-kit-check-tests` (0 errors) and `dev-kit-check-tests --report`: the
+   domain's row shows 0 unmarked and 0 invalid (`--base` sees only brand-new tests). A failure
    after a delete means the test protected something: restore it with its best mark.
 4. **Commit** the domain on its own, per the project's git rules. The commit message lists every
    deleted or merged test with its reason; the `Suspect:` lines in the code are the record of the
