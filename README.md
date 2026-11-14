@@ -139,6 +139,25 @@ commands in reverse, `dev-kit-app list` shows both. The plugin only sequences th
 stopped (the owner's processes) is decided by the project's own helpers. The skills that start the application
 run the teardown before the task ends. The rules: `plugins/dev-kit/slots.md`.
 
+## Working with the project lead (P)
+
+P is one session per project. It starts task sessions (C), each in its own worktree, merges their
+finished work into main and tells you the result. It does no task work itself.
+
+1. Open P. On the phone: in the Claude app, open the project's server ("P: Zhratva"), start a new
+   session there and type `/dev-kit:project-lead`. On the PC you can open it in a terminal instead
+   (`claude attach <id>`, the id from `claude agents`).
+2. Give P work in your own words: "add X", "fix Y". P may show you what it understood and ask "так".
+3. P starts a C named "C: <task>". Talk to that C directly for details (mockups, questions); it
+   reports to P when it is done, stuck or needs your decision.
+4. P checks the finished work, merges it into main, removes the C and tells you the result. Only
+   decisions and results reach you.
+5. Ask P "що зараз іде?" to see what runs and what waits on you.
+
+P moves an overfull C to a fresh session by itself, and C sessions take turns with the running app.
+After a dev-kit update, open a new P session: a running one keeps the old skill. The rules for P:
+`plugins/dev-kit/skills/project-lead/SKILL.md`.
+
 ## Hooks
 
 `dev-kit` ships a PreToolUse hook on the `Agent` tool (`plugins/dev-kit/hooks/`): a project may launch
