@@ -52,11 +52,12 @@ const NAME_RE = /^[a-z0-9]+(-[a-z0-9]+)*$/;
 const TONES = ['ok', 'warn'];
 const BUTTON_KINDS = ['plain', 'save', 'approve', 'check', 'checked', 'selected'];
 const CHIP_SIZES = ['s', 'm', 'l'];
-const CHIP_TONES = ['warn', 'danger', 'ok', 'info', 'accent', 'accent-2', 'selected'];
+const CHIP_TONES = ['warn', 'danger', 'ok', 'info', 'accent', 'accent-2', 'selected', 'neutral', 'dark'];
+const CARD_STATES = ['open', 'done', 'blocked'];
 const USERS = USER_LETTERS;
 const DAY_TONES = ['choice', 'chosen', 'cooking', 'done'];
 const FRAMES = ['phone', 'desktop'];
-const CARD_TONES = ['ok', 'warn', 'danger', 'selected'];
+const CARD_TONES = ['ok', 'warn', 'danger', 'selected', 'neutral'];
 const SCREEN_W_MIN = 240;
 const SCREEN_W_MAX = 1440;
 const NOTE_MAX = 160;
@@ -107,9 +108,11 @@ function chipsHtml(items, file) {
     need(file, isText(chip.text), 'every chip needs "text"');
     need(file, chip.size === undefined || CHIP_SIZES.includes(chip.size), `chip size must be one of ${CHIP_SIZES.join(', ')}`);
     need(file, chip.tone === undefined || CHIP_TONES.includes(chip.tone), `chip tone must be one of ${CHIP_TONES.join(', ')}`);
+    need(file, chip.dot === undefined || typeof chip.dot === 'boolean', 'chip dot must be true or false');
+    need(file, chip.off === undefined || typeof chip.off === 'boolean', 'chip off must be true or false');
     const size = chip.size ? ' ' + chip.size : '';
     const tone = chip.tone ? ' ' + chip.tone : '';
-    return `<span class="chip${size}${tone}${chip.on ? ' on' : ''}">${esc(chip.text)}</span>`;
+    return `<span class="chip${size}${tone}${chip.dot ? ' dot' : ''}${chip.off ? ' off' : ''}${chip.on ? ' on' : ''}">${esc(chip.text)}</span>`;
   });
   return `<div class="chips">${html.join('')}</div>`;
 }
@@ -393,7 +396,10 @@ const blocks = {
     need(file, b.muted === undefined || typeof b.muted === 'boolean', 'card muted must be true or false');
     const head = b.title === undefined && b.aside === undefined ? ''
       : `<div class="card-head"><span class="card-title">${esc(b.title ?? '')}</span>${b.aside ? `<span class="aside">${esc(b.aside)}</span>` : ''}</div>`;
-    return `<div class="card${b.tone ? ' ' + b.tone : ''}${b.muted ? ' muted' : ''}">${head}${renderBlocks(b.blocks, file, 'card')}</div>`;
+    need(file, b.selected === undefined || typeof b.selected === 'boolean', 'card selected must be true or false');
+    need(file, b.state === undefined || CARD_STATES.includes(b.state), `card state must be one of ${CARD_STATES.join(', ')}`);
+    const state = b.state ? `<span class="card-state ${b.state}"></span>` : '';
+    return `<div class="card${b.tone ? ' ' + b.tone : ''}${b.selected ? ' is-selected' : ''}${b.state ? ' has-state' : ''}${b.muted ? ' muted' : ''}">${state}${head}${renderBlocks(b.blocks, file, 'card')}</div>`;
   },
   // A labelled area of a page map (dashed outline); "on" highlights the area a flow is about.
   // Without "blocks" two faint bars under the title say the area has content.
