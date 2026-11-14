@@ -37,7 +37,8 @@ explicit yes.
 ## Limits
 
 - Exception held by this project: read other projects' status files (PROGRESS.md and similar) and session state.
-- Never change them. Never edit other repos. Never start, stop or message sessions without the owner's explicit yes.
+- Never change them during "статус". An edit in another repo, after the owner's yes, goes
+  through the `other-repo-editor` subagent (global rule "Stay in the session's project"). Never start, stop or message sessions without the owner's explicit yes.
 - On a problem (dead server, session over its limit, stuck session) only propose a fix. Act after the owner's explicit yes, and only on that fix.
 - Use only read-only commands for "статус".
 
