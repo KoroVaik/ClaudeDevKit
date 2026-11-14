@@ -171,7 +171,9 @@ const blocks = {
   photo: photoHtml,
   name(b, file) {
     need(file, isText(b.text), 'name needs "text"');
-    return `<div class="name">${esc(b.text)}</div>`;
+    need(file, b.sub === undefined || isText(b.sub), 'name "sub" must be text');
+    if (b.sub === undefined) return `<div class="name">${esc(b.text)}</div>`;
+    return `<div class="name-group"><div class="name">${esc(b.text)}</div><div class="name-sub">${esc(b.sub)}</div></div>`;
   },
   text(b, file) {
     if (b.parts !== undefined) {

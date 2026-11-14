@@ -61,7 +61,7 @@ Block names such as `dish` and the day-header `tone` values (`choice`, `chosen`,
 | `topbar` | `title`, `aside`, `progress` (`{ "current": 0, "total": 4 }`: compact step dots in the title row). With `tone` (`choice`, `chosen`, `cooking`, `done`) it becomes a day header instead, a band in a muted color of that step: `back` (where it returns) draws a round «‹» before the title, `titleHint` adds a faint «?» after the title and `titleHintOpen: true` draws that hint, `partner` (`{ user, status, initial, hint }`) shows the partner's letter and status at the right (`…` is drawn as animated dots, `hint` is the bubble after a tap), and `bar` (`{ "current": 1, "total": 4 }`) draws the thin step line in the tone color |
 | `dish` | `photo` (placeholder label), `badge`, `name`, `sub`, `tone` (`ok` or `warn`), `big`, `reject` (`{ taste, general }`: two chip lists drawn over the photo on a translucent red layer, split by a thin line), `peek` (the card is cut by the bottom edge to show the list scrolls) |
 | `photo` | `label`, `badge`, `big` |
-| `name` | `text` (bold line) |
+| `name` | `text` (bold line), `sub` (optional small muted subtitle 2px under it, an explanation of the title such as the item type) |
 | `text` | `text` (muted line), or `parts` in its place: strings and `{ "chip": "..." }` items, for a sentence with clickable values inside it |
 | `field` | `label` (optional: leave it out when the value says what it is, e.g. a unit dropdown), `placeholder` (a text input), `suggestions` (`{ label, items }`: small chips between the label and the input that fill it on a click; `label` is an optional short lead such as "from the recipe:"; `inline: true` puts them in brackets on the label's line) |
 | `bar` | `width` (1–100, a placeholder text line) |

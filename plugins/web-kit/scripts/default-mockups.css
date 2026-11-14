@@ -152,6 +152,9 @@ a:hover { color: #d8e4ee; }
   font-size: 12px;
 }
 .name { font-size: 14px; font-weight: 600; }
+/* A title with its explanation right under it: small muted label, 2px below the title */
+.name-group { display: flex; flex-direction: column; gap: 2px; }
+.name-sub { color: var(--muted); font-size: 13px; line-height: 1.3; letter-spacing: 0.02em; }
 .sub { color: var(--muted); font-size: 12px; }
 .sub.ok { color: var(--approve); }
 .sub.warn { color: var(--attention); }
