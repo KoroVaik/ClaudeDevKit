@@ -49,6 +49,7 @@ A slot nobody fills is told to the owner; do not guess a command for it.
 | Generating ideas without deciding (ends in `BACKLOG.md` entries) | `dev-kit:brainstorm` |
 | Periodic audit of the docs against the `dev-kit:documentation` skill, only on the owner's request | `dev-kit:maintain-project-docs` |
 | Moving an existing project's docs onto the `dev-kit:documentation` standard (a dry run first) | `dev-kit:migrate-docs` |
+| A public showcase repo for a private project: create it or bring it up to date | `dev-kit:showcase` |
 
 | Step | Slot |
 |---|---|
