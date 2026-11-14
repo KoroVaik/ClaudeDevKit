@@ -28,6 +28,8 @@ Traps (checked 2026-11-14):
 
 Reply grouped by project. For each session show name, state and context fill when available (mark OVER as a problem). Under each project list what waits on the owner. Unreadable source: say "not checked: <what>", never guess.
 
+A project's open question is only shown, never asked here: Pult cannot pass the answer on. The next-step question in Pult is a fix for a server or session, or, when there is none, which project session to open to answer what waits there.
+
 ## Servers
 
 Pult owns the start of the Remote Control servers and project leads: `scripts/start-servers.ps1`
