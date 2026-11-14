@@ -170,3 +170,8 @@ Screen text is the least that keeps the screen clear; explanations go in the boa
 - A copy is not a source: a block, tone or button kind taken from another board is checked against the
   design standard like a new one. An older board only shows how a piece is built, never which colour
   means what.
+- Who edits the spec: a small change (a word, a tone, a spacing, one block moved, in a few known
+  places) is made by the caller with Edit. A bigger change (new screens or branches, a redesign, a new
+  generator block) goes to a fresh `dev-kit:coder` (sonnet) with a short brief: the spec path, the
+  change and the success check. Never keep one coder through a whole session: its context grows and
+  it slows down.
