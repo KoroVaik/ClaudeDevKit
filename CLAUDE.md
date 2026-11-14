@@ -20,6 +20,10 @@ Read only. Sources, per project:
 - Task sessions registered by the lead and their context fill: `dev-kit-sessions --project <project path> list` and `dev-kit-sessions --project <project path> fill`. If the command is not on PATH, run `python C:/Users/korov/MyRepositories/ClaudeDevKit/plugins/dev-kit/bin/dev-kit-sessions ...`.
 - What waits on the owner: the "Open questions" section of `<project path>/PROGRESS.md` (written by the lead P and task sessions C). "None." means nothing waits.
 
+Traps (checked 2026-11-14):
+- In `claude agents --json`, state "blocked" with status "idle" only means the turn ended. It is not a block or a denial; show it as idle.
+- Server alive: a running `claude.exe` process whose command line has `remote-control` and the project's session name (PowerShell `Get-CimInstance Win32_Process -Filter "Name='claude.exe'"`). A running server with no "P: ..." session only means nobody opened P yet: say that, never "server not running".
+
 Reply grouped by project. For each session show name, state and context fill when available (mark OVER as a problem). Under each project list what waits on the owner. Unreadable source: say "not checked: <what>", never guess.
 
 ## Limits
