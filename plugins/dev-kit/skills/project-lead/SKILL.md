@@ -30,7 +30,12 @@ on the owner go to PROGRESS.md "Open questions" (if the project has it).
 - First prompt: the owner's words verbatim; links to the feature and plan files; "run the dev-kit
   manager skill"; the report rule (C messages P only on done, decision needed, stuck - 3 lines: state,
   result, what is needed; details in the task file); "before handing in, pull main and resolve
-  conflicts yourself".
+  conflicts yourself". The report rule names the channel: "send each report with the SendMessage tool
+  to `<P's own session name>`; text in your own chat never reaches P". Seen live: without it both C
+  wrote their reports only in their own chat and P waited forever.
+- Right after starting a C, subscribe to it: SendMessage to `C: <feature>` with an empty message and
+  `notify_when_idle: true`. The first prompt goes through the command line, so nothing subscribes
+  otherwise.
 - Register every C at once. Take its full `sessionId` from `claude agents --json` (match by `name` or
   `cwd`; the transcript needs the full id, not the 8-hex short id), then
   `dev-kit-sessions add --id <sessionId> --name "C: <feature>" --worktree <path> --task <file> [--parent <P's own session id, if known>]`.
@@ -39,7 +44,8 @@ on the owner go to PROGRESS.md "Open questions" (if the project has it).
 ## Wake-up
 
 P does not wake by itself. Send every message to a C with `notify_when_idle: true` (one-shot:
-subscribe again each time), so P wakes when that C ends its turn.
+subscribe again each time), so P wakes when that C ends its turn. An idle notice with no report means
+C ended a turn while it waits (e.g. on a background command): subscribe again and wait.
 
 On every wake-up (owner message, C report, idle notice) run `dev-kit-sessions fill`. The default limit
 is 0.5 (half the context window); pass `--window 1000000` for a C on a 1M-context model, because the
