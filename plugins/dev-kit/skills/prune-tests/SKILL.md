@@ -41,7 +41,13 @@ one area of code (clustering, validation, transport); the steps below apply to e
    now fails. Run `dev-kit-check-tests --base <commit before this domain>`: 0 errors. A failure
    after a delete means the test protected something: restore it with its best mark and count it
    as doubtful.
-4. **Commit** the domain on its own, per the project's git rules. The commit message lists every
+4. **Break-check the doubtful tests only.** For each `doubt` test, the `dev-kit:coder` makes the
+   smallest break in the code the test claims to protect (invert a condition, return a default),
+   runs that one test, then restores the code exactly (`git diff` on the code shows nothing). The
+   test still passes: it protects nothing, delete it with the reason "passes without the code". It
+   fails: keep it with its mark. Never for all tests: a project-wide mutation run is a separate
+   decision of the owner.
+5. **Commit** the domain on its own, per the project's git rules. The commit message lists every
    deleted or merged test with its reason and the doubtful tests by name; that is the record, no
    separate file.
 
