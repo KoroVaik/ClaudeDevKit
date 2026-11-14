@@ -12,7 +12,11 @@ on the owner go to PROGRESS.md "Open questions" (if the project has it).
 
 ## Start a C
 
-- `claude --bg --remote-control "C: <feature>" --name "C: <feature>" --permission-mode auto --model <model> -w <slug> -- "<first prompt>"`.
+- Make the worktree yourself from the local main, then start C inside it:
+  `git worktree add .claude/worktrees/<slug> -b c/<slug> main`, then in that folder
+  `claude --bg --remote-control "C: <feature>" --name "C: <feature>" --permission-mode auto --model <model> -- "<first prompt>"`.
+  Never `claude -w`: it cuts the worktree from the remote's default branch, which can be far behind
+  the local main (seen live: 6 weeks old, without `.claude/dev-kit.md`).
   `--model` is always given, picked by the task's size: `sonnet` for ordinary work, `haiku` for
   mechanical work; `opus` only when the task needs it, and a Fable model only after the owner's yes.
   Without it C inherits the default model, which may be the most expensive one. The launch line names

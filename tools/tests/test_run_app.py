@@ -40,10 +40,10 @@ class RunAppTestCase(unittest.TestCase):
         lines += [f"| {slot} | {value} |" for slot, value in rows]
         (self.root / ".claude" / "dev-kit.md").write_text("\n".join(lines + ["", "## coder", "", "Rules."]) + "\n", encoding="utf-8")
 
-    def run_main(self, action):
+    def run_main(self, action, root=None):
         out, err = io.StringIO(), io.StringIO()
         with redirect_stdout(out), redirect_stderr(err):
-            code = run_app.main([action, "--project", str(self.root)])
+            code = run_app.main([action, "--project", str(root or self.root)])
         return code, out.getvalue() + err.getvalue()
 
     def log(self):
@@ -102,6 +102,21 @@ class RunAppTestCase(unittest.TestCase):
         self.profile([("run-app", step("a"))])
         (self.root / "sub").mkdir()
         self.assertEqual(self.root.resolve(), Path(run_app.find_root(str(self.root / "sub"))).resolve())
+
+    def test_nested_worktree_without_profile_never_uses_the_main_profile(self):
+        # A worktree under .claude/worktrees/ has a `.git` file; without its own profile the search
+        # must stop there, not reach the main checkout's profile and run the owner's app.
+        self.profile([("run-app", step("main"))])
+        (self.root / ".git").mkdir()
+        tree = self.root / ".claude" / "worktrees" / "t"
+        (tree / "src").mkdir(parents=True)
+        (tree / ".git").write_text("gitdir: elsewhere\n", encoding="utf-8")
+        with self.assertRaises(run_app.NotRun) as caught:
+            run_app.find_root(str(tree / "src"))
+        self.assertIn("nothing was run", str(caught.exception))
+        code, _ = self.run_main("start", root=tree)
+        self.assertEqual(2, code)
+        self.assertEqual([], self.log())
 
     def test_no_profile_is_not_run(self):
         (self.root / ".claude").rmdir()

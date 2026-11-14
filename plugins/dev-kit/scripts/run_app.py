@@ -45,10 +45,17 @@ class Queued(Exception):
 
 
 def find_root(start):
+    # The search stops at the checkout's own top (the folder holding `.git`, a folder in the main
+    # checkout and a file in a linked worktree). A worktree nested inside the main checkout
+    # (.claude/worktrees/...) must never fall through to the main checkout's profile: its commands
+    # would then run the owner's app on the owner's data.
     folder = os.path.abspath(start)
     while True:
         if os.path.isfile(os.path.join(folder, PROFILE)):
             return folder
+        if os.path.exists(os.path.join(folder, ".git")):
+            raise NotRun(f"no {PROFILE} in this checkout ({folder}); nothing was run. In a worktree, "
+                         "update it from main or commit the profile; never run from the main checkout")
         parent = os.path.dirname(folder)
         if parent == folder:
             raise NotRun(f"no {PROFILE} in {os.path.abspath(start)} or above")
