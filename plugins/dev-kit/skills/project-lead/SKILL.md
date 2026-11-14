@@ -12,10 +12,17 @@ on the owner go to PROGRESS.md "Open questions" (if the project has it).
 
 ## Start a C
 
-- `claude --bg --remote-control "C: <feature>" --name "C: <feature>" --permission-mode auto -w <slug> -- "<first prompt>"`.
-  It prints only the 8-hex short id. Start it from PowerShell, or in Git Bash prefix
-  `MSYS_NO_PATHCONV=1`: Git Bash rewrites a prompt that starts with `/` and any `C:/...` path in it.
-  "Workspace not trusted" means the owner must run `claude` once in that folder and accept the prompt.
+- `claude --bg --remote-control "C: <feature>" --name "C: <feature>" --permission-mode auto --model <model> -w <slug> -- "<first prompt>"`.
+  `--model` is always given, picked by the task's size: `sonnet` for ordinary work, `haiku` for
+  mechanical work; `opus` only when the task needs it, and a Fable model only after the owner's yes.
+  Without it C inherits the default model, which may be the most expensive one. The launch line names
+  the same model.
+- Start it with the PowerShell tool. Git Bash rewrites a prompt that starts with `/` and any `C:/...`
+  path in it, and `MSYS_NO_PATHCONV=1` would pass into C and break its dev-kit commands. The command
+  prints only the 8-hex short id. "Workspace not trusted" means the owner must run `claude` once in
+  that folder and accept the prompt.
+- Run `dev-kit-sessions` and `dev-kit-app` in the Bash tool, where the plugin bin folder is on the
+  PATH; PowerShell cannot run these files.
 - Dependent tasks go to one C; separate C sessions only for independent tasks.
 - First prompt: the owner's words verbatim; links to the feature and plan files; "run the dev-kit
   manager skill"; the report rule (C messages P only on done, decision needed, stuck - 3 lines: state,
@@ -39,7 +46,7 @@ script assumes 200000 when the transcript does not mark 1M. For each line marked
 
 1. Message C: reach the nearest checkpoint between steps (never mid-step), run
    `continue-work-in-another-context save`, reply with the handoff file name.
-2. Start a fresh C from inside the SAME worktree folder (no `-w`), same name; first prompt:
+2. Start a fresh C from inside the SAME worktree folder (no `-w`), same name and model; first prompt:
    `/continue-work-in-another-context load <file>`.
 3. Register it with `dev-kit-sessions add ... --predecessor <old id>`.
 4. Only after the new C confirms it picked up the work, run `claude stop <old id>`.
@@ -57,9 +64,10 @@ to 15 minutes). A queue timeout reaches P as "stuck"; P tells the owner which wo
 
 C owns all doc updates. On "done", P checks only the list of changed doc files (a reviewer subagent if
 there are many) and merges into main only if one merge command applies cleanly. On any conflict P sends
-it back ("conflict, pull main") and does not resolve it. Then run `dev-kit-sessions end --id <id>`,
-`dev-kit-app stop --project <that C's worktree>` (releases the app lock if C left the app running), and
-`claude stop <id>`.
+it back ("conflict, pull main") and does not resolve it. After a merge, without asking the owner, run
+`dev-kit-sessions end --id <id>`, `dev-kit-app stop --project <that C's worktree>` (releases the app
+lock if C left the app running), and `claude rm <id>` (removes the merged worktree and the session's
+job state). A C that ended without a merge gets `claude stop <id>`, and its worktree stays.
 
 ## Restart P
 
