@@ -24,6 +24,8 @@ Traps (checked 2026-11-14):
 - In `claude agents --json`, state "blocked" with status "idle" only means the turn ended. It is not a block or a denial; show it as idle.
 - Server alive: a running `claude.exe` process whose command line has `remote-control` and the project's session name (PowerShell `Get-CimInstance Win32_Process -Filter "Name='claude.exe'"`). A running server with no "P: ..." session only means nobody opened P yet: say that, never "server not running".
 
+- Server history: the last lines of `logs/servers.log` (written by the watcher, see "Servers"). A DOWN or EXIT line since the last start is a problem: show when it happened and the cause the log gives.
+
 Reply grouped by project. For each session show name, state and context fill when available (mark OVER as a problem). Under each project list what waits on the owner. Unreadable source: say "not checked: <what>", never guess.
 
 ## Servers
@@ -31,8 +33,13 @@ Reply grouped by project. For each session show name, state and context fill whe
 Pult owns the start of the Remote Control servers and project leads: `scripts/start-servers.ps1`
 (run at Windows logon by the Startup folder shortcut "Pult - project servers") and
 `scripts/stop-servers.ps1` (graceful stop; never kill these processes). The list of servers is
-in `start-servers.ps1`. Windows runs them; a Pult session runs them only after the owner's
+`scripts/servers.psd1`. Windows runs them; a Pult session runs them only after the owner's
 explicit yes.
+
+`scripts/watch-servers.ps1` (started by `start-servers.ps1`, hidden) checks every minute and
+writes to `logs/servers.log` (not in git): STATE, DOWN with the session's last state and any
+crash event, UP. Each Remote Control server's window adds an EXIT line with its exit code. The
+watcher only logs; it never restarts anything.
 
 ## Limits
 
