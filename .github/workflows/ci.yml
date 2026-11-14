@@ -1,0 +1,24 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      # Pillow is needed by the GIF tool tests; node by the mockup builder tests.
+      - run: python -m pip install Pillow
+      # Manifests, skills, agents and slot tables (the same check as the pre-commit hook).
+      - run: python -I tools/lint.py
+      - run: python -I -m unittest discover tools/tests -v
