@@ -114,6 +114,8 @@ is recorded where its code lives.
 - **Idea:** an idea the owner has not agreed goes to `BACKLOG.md`. It leaves when the owner agrees it
   (it becomes a feature, an Open item or a plan) or drops it. A brainstorming session ends with new
   entries there; its working file, if any, is deleted once the surviving ideas are in the backlog.
+- **Plugin change or plugin defect:** not recorded in the project's docs; it goes to the plugin repo's
+  `BACKLOG.md` as the `dev-kit:manager` skill, section "A change to the plugins themselves", says.
 - **Finding:** durable conclusions of research (model behaviour, executor comparisons, cost and
   performance measurements) go to `docs/findings/`, one file per topic, never to `PROGRESS.md`. A
   finding states the claim, its evidence (date, numbers, run folder) and its consequence; a new result

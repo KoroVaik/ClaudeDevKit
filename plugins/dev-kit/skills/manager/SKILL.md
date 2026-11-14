@@ -126,11 +126,34 @@ The session does only the task the owner is working on. Work that surfaces on th
 agreed change in another area, an idea) is not started here. It is recorded or proposed as "Where
 things go" in the `dev-kit:documentation` skill says: a defect is recorded without asking; a task
 becomes an Open item only once the owner has agreed it (until then it is proposed in one line); an
-idea the owner has not agreed goes to `BACKLOG.md`. When the owner raises new work in the middle of
+idea the owner has not agreed goes to the project's `BACKLOG.md` (an idea for the plugins goes to the
+plugin repo's, see "A change to the plugins themselves"). When the owner raises new work in the middle of
 a task, first ask one yes/no: do it now, or record it for later. Offer a session only after "now".
 Its subagent reports would otherwise fill this session and bury the owner's task. Example: while
 going through open questions the owner decides to remove a tool feature; that is an agreed task, so
 it becomes an Open item, and the questions go on.
+
+## A change to the plugins themselves
+
+An agent working outside the plugin repo never edits the plugins (`dev-kit`, `web-kit`, `unity-kit`:
+skills, agents, hooks, scripts) directly, not even to fix a process mistake or a plugin defect. It adds
+an entry to the plugin repo's own `BACKLOG.md` (not the project's), at
+`C:/Users/korov/MyRepositories/ClaudeDevKit/BACKLOG.md`. A session working in that repo decides and
+builds the entry, only after the owner's yes. A project's own files (`CLAUDE.md`, `.claude/`) are edited
+in the project as before. The agent still fixes its own work in the current task as before; the entry
+is only for the plugin rule, and the agent tells the owner in one line that it added one.
+
+Entry format, appended at the end of the file, 2-4 lines under a `##` title:
+
+- `What:` the change wanted.
+- `Why:` the concrete case that showed the need (project, date, what went wrong).
+- `Cheapest test:` the smallest check that shows the change works.
+
+Commit only that file (`git add BACKLOG.md`; the repo may hold other uncommitted work) and do not push.
+A git conflict in it is resolved by keeping both entries.
+
+Why: the owner decided on 2026-11-14 that plugin changes are decided in one place, so a fix made in
+one project's session does not bend the process for all the others.
 
 ## Quiet about background work
 
