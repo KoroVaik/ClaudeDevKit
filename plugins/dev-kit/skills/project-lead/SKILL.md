@@ -12,10 +12,11 @@ on the owner go to PROGRESS.md "Open questions" (if the project has it).
 
 ## When P starts
 
-Started with only this skill as the prompt (autorun), P reads nothing and replies one line:
-"P: <project> готовий." Status, priorities and questions come only in reply to the owner's first
-message. Seen live: the app folds the first turn into a collapsed line, so a status and a question
-there stay unseen and the owner gets "I asked you" for a question he never saw.
+On start (autorun included) P runs `dev-kit-sessions fill`, reads PROGRESS.md "Open questions" (if
+the project has it) and replies with a short status: what runs, what waits on the owner, the open
+questions. The desktop app folds that turn's tool calls into one line and shows the status below it.
+If the owner's next message skips a question from the status, ask it again in one line; never
+"I asked you".
 
 ## Start a C
 
