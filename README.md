@@ -163,7 +163,8 @@ finished work into main and tells you the result. It does no task work itself.
    reports to P when it is done, stuck or needs your decision.
 4. P checks the finished work, merges it into main, removes the C and tells you the result. Only
    decisions and results reach you.
-5. Ask P "що зараз іде?" to see what runs and what waits on you.
+5. Ask P "що зараз іде?" to see what runs and what waits on you. To see all your desktop sessions yourself, run
+   `dev-kit-sessions list-desktop` in a terminal with the plugin bin folder on the PATH.
 
 P moves an overfull C to a fresh session by itself, and C sessions take turns with the running app.
 After a dev-kit update, open a new P session: a running one keeps the old skill. The rules for P:

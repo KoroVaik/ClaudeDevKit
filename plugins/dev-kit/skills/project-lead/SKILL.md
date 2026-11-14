@@ -34,6 +34,8 @@ If the owner's next message skips a question from the status, ask it again in on
   that folder and accept the prompt.
 - Run `dev-kit-sessions` and `dev-kit-app` in the Bash tool, where the plugin bin folder is on the
   PATH; PowerShell cannot run these files.
+- `dev-kit-sessions list-desktop` lists every live desktop Code-tab session (name, project, busy/idle/closed
+  + the app's status, last activity), not only the ones P registered. Use it for "що зараз іде?".
 - Dependent tasks go to one C; separate C sessions only for independent tasks.
 - First prompt: the owner's words verbatim; links to the feature and plan files; "run the dev-kit
   manager skill"; the report rule (C messages P only on done, decision needed, stuck - 3 lines: state,
