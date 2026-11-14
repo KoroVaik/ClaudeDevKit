@@ -8,6 +8,15 @@
 // unreadable. This script renders the same page at its real size and saves a PNG of one section.
 //
 // Usage: web-kit-shot --spec <spec.json> --out <folder>
+//        web-kit-shot --board <board.html> [--screens d1,u3] --out <folder> [--profile <.claude/dev-kit.md>] [--size WxH] [--scale N]
+//
+// Board mode: opens a generated mockup board (web-kit-mockups output) once, finds every [data-screen="<id>"] frame
+// (or only the ids after --screens) and writes <id>.png, the frame alone with no caption, arrow or note. Rebuilding the
+// board never breaks it: the ids come from the spec. Window size and device scale come from --size / --scale, else from
+// the profile (a line "window WxH ... device scale N" in its `## design-sandbox` section, else a `"size": "WxH",
+// "scale": N` line anywhere in it), else 1920x1080 at scale 2. A map screen (folded details) is opened for its shot.
+// Each line printed: "<absolute path> <width>x<height> | <id> | <branch title> | <step> | <caption>". A named id the board
+// does not have, or a board without data-screen (built by an older generator: rebuild it), exits 1 with a message.
 //
 // Spec (JSON):
 //   {
@@ -39,15 +48,46 @@ import { spawn, execFileSync } from 'node:child_process';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
+import { pathToFileURL } from 'node:url';
 
 const args = Object.fromEntries(
   process.argv.slice(2).reduce((acc, a, i, all) => (a.startsWith('--') ? [...acc, [a.slice(2), all[i + 1]]] : acc), []),
 );
-if (!args.spec || !args.out) {
-  console.error('Usage: web-kit-shot --spec <spec.json> --out <folder>');
+const boardMode = args.board !== undefined;
+if (!args.out || boardMode === (args.spec !== undefined) || (args.screens !== undefined && !boardMode)) {
+  console.error('Usage: web-kit-shot --spec <spec.json> --out <folder>\n   or: web-kit-shot --board <board.html> [--screens d1,u3] --out <folder> [--profile <.claude/dev-kit.md>] [--size WxH] [--scale N]');
   process.exit(2);
 }
-const spec = JSON.parse(readFileSync(args.spec, 'utf8').replace(/^﻿/, ''));
+
+// The window of a board shot: flags first, then the profile, then a size that makes a 250 px phone frame legible.
+function boardWindow() {
+  let size, scale;
+  if (args.profile) {
+    if (!existsSync(args.profile)) throw new Error(`Profile not found: ${args.profile}`);
+    const text = readFileSync(args.profile, 'utf8');
+    const sandbox = text.match(/^## design-sandbox\s*$([\s\S]*?)(?=^## |(?![\s\S]))/m)?.[1] ?? '';
+    const fromSandbox = sandbox.match(/window\s+(\d+)\s*[x×]\s*(\d+)[^\n]*?device scale\s+([\d.]+)/i);
+    const fromJson = text.match(/"size":\s*"(\d+x\d+)"\s*,\s*"scale":\s*([\d.]+)/);
+    if (fromSandbox) [size, scale] = [`${fromSandbox[1]}x${fromSandbox[2]}`, Number(fromSandbox[3])];
+    else if (fromJson) [size, scale] = [fromJson[1], Number(fromJson[2])];
+    else throw new Error(`No window size and device scale found in ${args.profile}; pass --size WxH and --scale N.`);
+  }
+  size = args.size ?? size ?? '1920x1080';
+  scale = args.scale !== undefined ? Number(args.scale) : scale ?? 2;
+  if (!/^\d+x\d+$/.test(size) || !(scale > 0)) throw new Error(`Bad window: size "${size}", scale "${scale}".`);
+  return { size, scale };
+}
+
+let spec;
+try {
+  spec = boardMode
+    ? boardWindow()
+    : JSON.parse(readFileSync(args.spec, 'utf8').replace(/^﻿/, ''));
+  if (boardMode && !existsSync(args.board)) throw new Error(`Board not found: ${args.board}`);
+} catch (e) {
+  console.error(`web-kit-shot failed: ${e.message}`);
+  process.exit(1);
+}
 const outDir = resolve(args.out);
 mkdirSync(outDir, { recursive: true });
 const [vw, vh] = (spec.size || '1920x1080').split('x').map(Number);
@@ -227,6 +267,56 @@ async function main() {
     } else {
       throw new Error(`Unknown step: ${JSON.stringify(step).replace(/"@[^"]*"/g, '"@..."')}`);
     }
+  }
+
+  // One page load, one PNG per [data-screen] frame, cropped by the frame's own box.
+  async function shootBoard() {
+    await run({ goto: pathToFileURL(resolve(args.board)).href });
+    const found = await evalJs(`(() => {
+      const out = [];
+      let branch = '';
+      for (const cell of document.querySelectorAll('.board > .cell')) {
+        if (cell.classList.contains('cell-branch')) { branch = cell.querySelector('.branch-title')?.textContent.trim() ?? ''; continue; }
+        const frame = cell.querySelector('[data-screen]');
+        if (!frame) continue;
+        const cap = cell.querySelector('.map-caption') ?? cell.querySelector('.caption');
+        const tag = cap?.querySelector('.user-tag')?.textContent ?? '';
+        const caption = (cap?.textContent ?? '').replace(tag, '').trim();
+        out.push({ id: frame.dataset.screen, branch, step: tag, caption });
+      }
+      return out;
+    })()`);
+    if (found.length === 0) throw new Error(`No [data-screen] frame in ${args.board}: rebuild the board with the current web-kit-mockups.`);
+    const ids = args.screens === undefined ? found.map((f) => f.id) : args.screens.split(',').map((s) => s.trim()).filter(Boolean);
+    if (ids.length === 0) throw new Error('--screens names no screen.');
+    const missing = ids.filter((id) => !found.some((f) => f.id === id));
+    if (missing.length > 0) throw new Error(`Screen not on the board: ${missing.join(', ')}. The board has: ${found.map((f) => f.id).join(', ')}.`);
+    for (const id of ids) {
+      const info = found.find((f) => f.id === id);
+      // A map screen sits in a folded details; open it only for its own shot (it is a popover, the board does not move).
+      const r = await evalJs(`(() => {
+        const e = [...document.querySelectorAll('[data-screen]')].find((x) => x.dataset.screen === ${JSON.stringify(id)});
+        const d = e.closest('details');
+        if (d) d.open = true;
+        const b = e.getBoundingClientRect();
+        return { x: b.left + scrollX, y: b.top + scrollY, width: b.width, height: b.height };
+      })()`);
+      await sleep(150);
+      const x = Math.max(0, Math.floor(r.x)), y = Math.max(0, Math.floor(r.y));
+      const clip = { x, y, width: Math.ceil(r.x + r.width) - x, height: Math.ceil(r.y + r.height) - y, scale: 1 };
+      const { data } = await send('Page.captureScreenshot', { format: 'png', captureBeyondViewport: true, clip });
+      await evalJs(`(() => { const e = [...document.querySelectorAll('[data-screen]')].find((x) => x.dataset.screen === ${JSON.stringify(id)}); const d = e.closest('details'); if (d) d.open = false; })()`);
+      const buf = Buffer.from(data, 'base64');
+      const file = join(outDir, `${id}.png`);
+      writeFileSync(file, buf);
+      console.log(`${file} ${buf.readUInt32BE(16)}x${buf.readUInt32BE(20)} | ${id} | ${info.branch} | ${info.step} | ${info.caption}`);
+    }
+  }
+
+  if (boardMode) {
+    await shootBoard();
+    cdp.close();
+    return;
   }
 
   for (const step of spec.setup || []) await run(step);

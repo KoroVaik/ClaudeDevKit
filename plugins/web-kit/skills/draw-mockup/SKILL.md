@@ -76,10 +76,15 @@ as a numbered block.
    and, for each screen, a headless shot of the screen frame alone (no board title, caption, note or
    arrow) as a PNG path, plus the action that leads on. It judges what the eye finds first, what is far
    or hidden, what looks clickable and whether the order of blocks fits the task. The shots are the
-   ones step 7a takes (kind `board`, one per frame). Fix as in step 7, then the colour check.
-   7a. Screen the look, before the owner sees the board: shoot the board headless with `web-kit-shot`
-   (kind `board`; the profile gives the selector and window size) and call `web-kit:design-critic`
-   (sonnet) with that PNG, the board spec JSON, the design standard from the profile and the reference
+   ones step 7a takes: you run `web-kit-shot --board <board.html> --out <folder> --profile <profile path>`
+   yourself after every rebuild (one PNG per screen id, no selectors; `--screens d1,u3` for some), and call
+   `web-kit:shot-taker` only when the command fails or a shot comes out wrong. Fix as in step 7, then the colour check.
+   7a. Screen the look, before the owner sees the board: shoot the board headless with
+   `web-kit-shot --board <board.html> --out <folder> --profile <profile path>` (you run it yourself after every
+   rebuild; the profile gives the window size and scale, the generator's `data-screen` ids give the crops, so
+   no selector is written; `web-kit:shot-taker` is called only when the command fails or a shot comes out wrong,
+   and it fixes or reports) and call `web-kit:design-critic`
+   (sonnet) with those PNGs, the board spec JSON, the design standard from the profile and the reference
    "no mockup" (checks 2 and 3 only). Say in the brief: "a mockup board, not a variant; report every
    tone, button kind and marker that contradicts its meaning in the standard (selection, confirmed,
    warning, error, button colours), including ones copied from an older board". mockup-user judges words

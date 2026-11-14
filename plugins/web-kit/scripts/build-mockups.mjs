@@ -5,6 +5,7 @@
 // A spec with "frame": "desktop" draws wide admin-style screens instead of phones (one mockups folder per frame kind).
 // Optional <mockups folder>/mockups.config.json: { "title", "pageNote", "indexNote", "indexIntro", "filterPlaceholder", "screenCount", "userLetters", "stepTitle" }. Every page embeds the folder's mockups.css; a mockups.css missing from the folder is written from default-mockups.css
 // (next to this script); an existing one is the project's and is never touched.
+// Every screen frame (phone or desktop screen) carries data-screen="<spec id>"; `web-kit-shot --board` crops the shots by it.
 // Optional <mockups folder>/parts/<name>.json: a JSON array of blocks that specs reuse with { "type": "part", "name": "<name>" }. The spec format is in skills/draw-mockup/spec-format.md. No dependencies.
 import { spawnSync } from 'node:child_process';
 import { existsSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
@@ -519,7 +520,7 @@ function renderScreen(id, p, file) {
   }
   const tag = p.step ? `<span class="user-tag">${p.step}</span>` : '';
   const style = [p.width ? `width:${p.width}px` : '', scale ? `zoom:${scale};--scale:${scale}` : ''].filter(Boolean).join(';');
-  const screen = `<div class="screen${p.width ? ' sized' : ''}${scale ? ' scaled' : ''}"${style ? ` style="${style}"` : ''}>${body}</div>`;
+  const screen = `<div class="screen${p.width ? ' sized' : ''}${scale ? ' scaled' : ''}" data-screen="${esc(id)}"${style ? ` style="${style}"` : ''}>${body}</div>`;
   if (p.map) {
     // The chip is a compact strip, the same size folded and open: the caption, then a tiny thumbnail of the page (the
     // highlighted region filled, no names). Opening shows the readable map as a popover under the chip, so the board
@@ -561,7 +562,7 @@ function renderPhone(id, p, file, frame = 'phone') {
   const userClass = p.user ? ` user-${p.user.toLowerCase()}` : '';
   const label = `${p.user ? USERS[p.user] : ''}${p.step ?? ''}`;
   const tag = label ? `<span class="user-tag${userClass}">${label}</span>` : '';
-  return `<div class="caption">${tag}${esc(p.caption)}</div><div class="phone${userClass}">${body}</div>`;
+  return `<div class="caption">${tag}${esc(p.caption)}</div><div class="phone${userClass}" data-screen="${esc(id)}">${body}</div>`;
 }
 
 function cellKind(cell, file) {

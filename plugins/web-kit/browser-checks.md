@@ -18,7 +18,7 @@ the agents.
 | Is a freshly drawn path clear to an ordinary user? | the drawn mockup's text only, no app | `web-kit:draw-mockup` (`show-idea`) | `web-kit:mockup-user` | remarks for the owner |
 | May a look variant be shown to the owner (matches the accepted mockup, no visible defects)? | the caller's headless screenshots, a headless shot of the mockup board, the UI design standard; no browser | `web-kit:design-sandbox` | `web-kit:design-critic` | pass or fail per variant, each defect with its reference |
 | Build look variants in the design sandbox, or move a picked one into the real component | the sandbox and the real components; no browser | `web-kit:design-sandbox` | `web-kit:sandbox-builder` | per variant a URL, a one-line description and the selectors to shoot |
-| Take readable headless shots of given states | the URLs and selectors the caller gives | `web-kit:design-sandbox` and the callers of the shot rules | `web-kit:shot-taker` | per shot a PNG path, its size and caption |
+| Repair or report a failed or wrong headless shot (the caller runs `web-kit-shot` itself, `--board` for mockup boards) | the command's output, the URLs and selectors the caller gives | `web-kit:design-sandbox` and the callers of the shot rules | `web-kit:shot-taker` | per shot a PNG path, its size and caption, or why it fails |
 
 `mockup-user` and `app-user` are the same ordinary user (persona in the profile section `## mockup-user`):
 one reads a drawn path, the other walks the live app. When they disagree, the live app wins.
@@ -82,6 +82,13 @@ the board only to say where each fix belongs.
     is mostly empty background gets a smaller selector and is captured again before sending. If it
     fails, or a state cannot be reached from a URL, say so and send the agent's in-app shot marked
     "low resolution", never as the proof.
+  - **Mockup boards: `--board`, no spec.** The caller runs `web-kit-shot --board <board.html> [--screens d1,u3]
+    --out <folder> --profile <path to .claude/dev-kit.md>` itself after every rebuild of the board. One headless
+    page load, one `<id>.png` per screen frame (found by the `data-screen` attribute the generator writes,
+    cropped without caption, arrow or note), one printed line per file: path, pixel size, id, branch title, step,
+    caption. The caller never writes selectors for a board. It calls `web-kit:shot-taker` only when the command
+    fails or a shot comes out wrong (cut off, illegible, empty); the shot-taker repairs it or reports why. Format:
+    top of `scripts/capture.mjs`.
   - **Send** every image so it can be told apart on its own (`display: render`). Images that are
     alternatives of each other (variants A/B/C, today against a candidate, states of one screen) go one
     `SendUserFile` call per image, each caption naming its variant or state ("Variant A: component on a
