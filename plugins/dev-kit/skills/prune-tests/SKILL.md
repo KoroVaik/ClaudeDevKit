@@ -20,14 +20,16 @@ deleted in this pass unless that consent is given.
 
 ## 2. One domain at a time
 
-For each domain, smallest first:
+For each domain, smallest first. With no domains, a group is a folder, or a set of test files on
+one area of code (clustering, validation, transport); the steps below apply to each group.
 
 1. **Judge.** A `dev-kit:reviewer` (sonnet) reads the domain's tests and the code they call and
    returns one line per test: `file:line name - verdict - reason`. Verdicts:
    - `keep <Mark>`: it names what breaks without it; the mark is `Flow`, `Rule`, `Bug` or `Edge`.
      `Bug` only when a comment, the test name or `git log -S` on the test shows the bug; the reason
      then says what broke.
-   - `merge into <test>`: the same rule as another test; it becomes a data row of that test.
+   - `merge into <test>`: the same rule as another test, through the same code path; the reason
+     names the target test by `file:line` and the data row it becomes. Without both, it is `doubt`.
    - `delete`: it tests what types or the database rule out, or the language or framework itself
      (a record copy, "the constructor does not throw", constants are distinct), or it repeats
      another test with nothing new.
