@@ -7,6 +7,9 @@ The rule lives in the skill test-change, section "Which tests to write". The mar
   Python        a comment line `# protects: Rule` within the 3 lines above `def test_...` (above its decorators).
   Bug           the mark Bug also needs a `// Broke: <what>` (C#, Vitest) or `# Broke: <what>` (Python) comment line
                 within the 3 lines above the test (above its attributes or decorators).
+  Suspect       a test that may protect nothing gets a `// Suspect: <why>` (C#, Vitest) or `# Suspect: <why>`
+                (Python) comment line in the same place as Broke (a test may carry both). The reason is required.
+                A suspect line does not replace the protects mark.
 
 Test files are found by pattern: *.cs under a folder whose name ends with Tests, *.test.* and *.spec.* for
 ts/tsx/js/jsx, and test_*.py. Never entered: node_modules, bin, obj, dist, .git, __pycache__, venv, .venv, .idea,
@@ -16,12 +19,16 @@ ts/tsx/js/jsx, and test_*.py. Never entered: node_modules, bin, obj, dist, .git,
 
 Modes:
   no flag        check: prints `file:line name - problem` and exits 1 on any error, else 0. Errors: a NEW test with no
-                 mark; any test (new or old) with an invalid mark value; any Bug test without a Broke line. A test is
+                 mark; any test (new or old) with an invalid mark value; any Bug test without a Broke line; any
+                 Suspect line with an empty reason. A test is
                  new when its name is not in the version of its file at --base REF (a file missing there: all its tests
                  are new; a renamed file is compared with its old path). Old unmarked tests are not errors.
-  --report       coverage report, exit 0, no errors: per domain the counts by mark and by level, then for ASP.NET
-                 projects the API endpoints that no integration test mentions.
-  --report --json  the same as JSON.
+  --report       coverage report, exit 0, no errors: per domain the counts by mark, suspect and level (then the list
+                 of suspect tests), then for ASP.NET projects the API endpoints that no integration test mentions.
+  --report --json  the same as JSON (every domain cell and the total have "suspects", the top level has the
+                 "suspects" list).
+  --suspects     prints every suspect test as `file:line name - why`, sorted by file, then a total line; exit 0.
+  --suspects --json  the same as a JSON list of {file, line, name, suspect}.
   --base REF     the base of "new" (default HEAD): changed, staged and untracked files are compared with it.
   --root DIR     project root (default: git toplevel of the current folder).
 
@@ -165,7 +172,7 @@ def domain_from_path(rel):
 
 
 class Test:
-    def __init__(self, file, line, name, mark, level, domains, broke):
+    def __init__(self, file, line, name, mark, level, domains, broke, suspect=None):
         self.file = file
         self.line = line
         self.name = name
@@ -173,6 +180,7 @@ class Test:
         self.level = level
         self.domains = domains
         self.broke = broke  # a Broke comment sits within 3 lines above
+        self.suspect = suspect  # reason text of a Suspect comment within 3 lines above ('' when empty), else None
         self.owners = []  # C#: class names, innermost first (partial classes get their traits from other files)
         self.kind_found = True
         self.domain_found = True
@@ -191,19 +199,36 @@ def _line_of(newlines, pos):
 
 
 _BROKE_RX = re.compile(r"(?://|#)\s*Broke:\s*\S")
+_SUSPECT_RX = re.compile(r"(?://|#)\s*Suspect:[ \t]*(.*)")
+
+
+def _find_above(lines, head_line, name_line, rx):
+    """First match of rx in the lines of the test head or up to 3 comment lines above it, else None.
+
+    lines: raw lines of the file; 1-based head_line (first attribute or decorator) and name_line.
+    """
+    for i in range(head_line, min(name_line, len(lines) + 1)):
+        found = rx.search(lines[i - 1])
+        if found:
+            return found
+    for i in range(head_line - 1, max(0, head_line - 4), -1):  # up to 3 lines above, never past another test's code
+        line = lines[i - 1].strip()
+        found = rx.search(line)
+        if found:
+            return found
+        if line and not line.startswith(("//", "#", "/*", "*")):
+            break
+    return None
 
 
 def _has_broke(lines, head_line, name_line):
-    """lines: raw lines of the file; 1-based head_line (first attribute or decorator) and name_line."""
-    if any(_BROKE_RX.search(lines[i - 1]) for i in range(head_line, min(name_line, len(lines) + 1))):
-        return True
-    for i in range(head_line - 1, max(0, head_line - 4), -1):  # up to 3 lines above, never past another test's code
-        line = lines[i - 1].strip()
-        if _BROKE_RX.search(line):
-            return True
-        if line and not line.startswith(("//", "#", "/*", "*")):
-            break
-    return False
+    return _find_above(lines, head_line, name_line, _BROKE_RX) is not None
+
+
+def _suspect_of(lines, head_line, name_line):
+    """The reason text of a Suspect comment line ('' when the reason is empty), or None without such a line."""
+    found = _find_above(lines, head_line, name_line, _SUSPECT_RX)
+    return found.group(1).strip() if found else None
 
 
 # ---------------------------------------------------------------- C# scanner
@@ -552,7 +577,8 @@ def parse_cs(rel, text, registry=None):
         name_line = _line_of(newlines, name_pos)
         head_line = _line_of(newlines, block[0][0])
         test = Test(rel, name_line, owner + sig.group(1), mark, kinds[0] if kinds else "unknown",
-                    list(domains) or [domain_from_path(rel)], _has_broke(lines, head_line, name_line))
+                    list(domains) or [domain_from_path(rel)], _has_broke(lines, head_line, name_line),
+                    _suspect_of(lines, head_line, name_line))
         test.owners = [c.name for c in chain]
         test.kind_found = bool(kinds)
         test.domain_found = bool(domains)
@@ -599,7 +625,8 @@ def parse_vitest(rel, text):
         mark_match = _TITLE_MARK_RX.match(title)
         mark = mark_match.group(1).strip() if mark_match else None
         line = _line_of(newlines, m.start())
-        tests.append(Test(rel, line, title, mark, level, [domain], _has_broke(lines, line, line)))
+        tests.append(Test(rel, line, title, mark, level, [domain], _has_broke(lines, line, line),
+                          _suspect_of(lines, line, line)))
     return tests
 
 
@@ -635,7 +662,7 @@ def parse_python(rel, text):
         owner = classes[-1][1] + "." if classes else ""
         integration = "integration" in rel.lower() or (classes and "integration" in classes[-1][1].lower())
         tests.append(Test(rel, index + 1, owner + dm.group(2), mark, "Integration" if integration else "Unit",
-                          [domain], _has_broke(lines, head + 1, index + 1)))
+                          [domain], _has_broke(lines, head + 1, index + 1), _suspect_of(lines, head + 1, index + 1)))
     return tests
 
 
@@ -711,6 +738,26 @@ def mark_problem(test):
     return None
 
 
+def suspect_problem(test):
+    """Problem text for a Suspect comment line with no reason (new or old test), or None."""
+    if test.suspect == "":
+        return "Suspect line has no reason (write 'Suspect: <why>')"
+    return None
+
+
+def suspect_list(tests_by_file):
+    """The suspect tests as dicts {file, line, name, suspect}, sorted by file, then line."""
+    found = [t for tests in tests_by_file.values() for t in tests if t.suspect is not None]
+    found.sort(key=lambda t: (t.file, t.line))
+    return [{"file": t.file, "line": t.line, "name": t.name, "suspect": t.suspect} for t in found]
+
+
+def format_suspects(suspects):
+    out = [f"{s['file']}:{s['line']} {s['name']} - {s['suspect'] or '(no reason)'}" for s in suspects]
+    out.append(f"suspect tests: {len(suspects)}")
+    return out
+
+
 def new_tests(root, base, tests_by_file):
     """The set of ids of the tests that are new relative to base."""
     changed = changed_files(root, base)
@@ -751,6 +798,9 @@ def run_check(root, base, tests_by_file):
             problem = mark_problem(test)
             if problem is None and test.mark is None and id(test) in fresh:
                 problem = "new test has no protects mark (Flow, Rule, Bug or Edge)"
+            if problem:
+                lines.append(f"{test.file}:{test.line} {test.name} - {problem}")
+            problem = suspect_problem(test)
             if problem:
                 lines.append(f"{test.file}:{test.line} {test.name} - {problem}")
     return lines, len(fresh)
@@ -1027,10 +1077,11 @@ def build_report(tests_by_file):
     all_tests = [t for tests in tests_by_file.values() for t in tests]
 
     def cell():
-        return {"tests": 0, "marks": {m: 0 for m in MARKS} | {"none": 0, "invalid": 0}, "levels": {}}
+        return {"tests": 0, "marks": {m: 0 for m in MARKS} | {"none": 0, "invalid": 0}, "suspects": 0, "levels": {}}
 
     def add(entry, test):
         entry["tests"] += 1
+        entry["suspects"] += test.suspect is not None
         key = test.mark if test.mark in MARKS else ("none" if test.mark is None else "invalid")
         entry["marks"][key] += 1
         entry["levels"][test.level] = entry["levels"].get(test.level, 0) + 1
@@ -1045,6 +1096,7 @@ def build_report(tests_by_file):
         "files": sum(1 for tests in tests_by_file.values() if tests),
         "total": total,
         "domains": dict(sorted(domains.items(), key=lambda kv: kv[0].lower())),
+        "suspects": suspect_list(tests_by_file),
     }
 
 
@@ -1057,19 +1109,22 @@ def format_report(report, endpoints):
     total = report["total"]
     out = [
         f"tests: {total['tests']} in {report['files']} files; marked {sum(total['marks'][m] for m in MARKS)}, "
-        f"no mark {total['marks']['none']}, invalid mark {total['marks']['invalid']}",
+        f"no mark {total['marks']['none']}, invalid mark {total['marks']['invalid']}, suspect {total['suspects']}",
     ]
-    headers = ["domain", "tests", *MARKS, "none", "invalid", *levels]
+    headers = ["domain", "tests", *MARKS, "none", "invalid", "suspect", *levels]
     rows = [headers]
     for name, entry in [*report["domains"].items(), ("TOTAL", total)]:
         rows.append([name, str(entry["tests"]), *(str(entry["marks"][m]) for m in MARKS),
-                     str(entry["marks"]["none"]), str(entry["marks"]["invalid"]),
+                     str(entry["marks"]["none"]), str(entry["marks"]["invalid"]), str(entry["suspects"]),
                      *(str(entry["levels"].get(level, 0)) for level in levels)])
     widths = [max(len(r[i]) for r in rows) for i in range(len(headers))]
     for row in rows:
         out.append("  ".join(cell.ljust(widths[0]) if i == 0 else cell.rjust(widths[i])
                              for i, cell in enumerate(row)))
     out.append("(a test with several Domain traits is counted in each of its domain rows)")
+    if report["suspects"]:
+        out.append("suspect tests (a Suspect: line above the test; they may protect nothing):")
+        out.extend("  " + line for line in format_suspects(report["suspects"])[:-1])
     if endpoints is None:
         return out
     if not endpoints:
@@ -1102,7 +1157,9 @@ def build_parser():
         prog=PROG, description="Test marks check (new tests carry a protects mark) and the coverage report."
     )
     parser.add_argument("--report", action="store_true", help="print the coverage report (exit 0) instead of the check")
-    parser.add_argument("--json", action="store_true", help="with --report: print JSON")
+    parser.add_argument("--suspects", action="store_true",
+                        help="list the tests with a Suspect: comment line (exit 0) instead of the check")
+    parser.add_argument("--json", action="store_true", help="with --report or --suspects: print JSON")
     parser.add_argument("--base", metavar="REF", default="HEAD", help="what 'new' is measured against (default HEAD)")
     parser.add_argument("--root", metavar="DIR", help="project root (default: git toplevel of the current folder)")
     return parser
@@ -1111,8 +1168,10 @@ def build_parser():
 def main(argv=None, out=None):
     parser = build_parser()
     args = parser.parse_args(argv)
-    if args.json and not args.report:
-        parser.error("--json needs --report")
+    if args.json and not (args.report or args.suspects):
+        parser.error("--json needs --report or --suspects")
+    if args.report and args.suspects:
+        parser.error("--report and --suspects cannot be used together")
     out = out or sys.stdout
     root = args.root or git_toplevel()
     if not root:
@@ -1125,6 +1184,14 @@ def main(argv=None, out=None):
             print(f"{PROG}: {problem}", file=sys.stderr)
         return 2
     tests_by_file = load_tests(root, skip_dirs)
+    if args.suspects:
+        suspects = suspect_list(tests_by_file)
+        if args.json:
+            print(json.dumps(suspects, indent=2, ensure_ascii=False), file=out)
+        else:
+            for line in format_suspects(suspects):
+                print(line, file=out)
+        return 0
     if args.report:
         report = build_report(tests_by_file)
         has_cs = any(kind_of_file(rel) == "cs" for rel in tests_by_file)

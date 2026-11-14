@@ -1,6 +1,6 @@
 ---
 name: prune-tests
-description: Use when the owner asks to prune a project's existing tests or to mark old tests with what they protect - one pass, domain by domain.
+description: Use when the owner asks to prune a project's existing tests, to mark old tests with what they protect, or to verify the tests marked as suspect.
 ---
 
 # Prune and mark existing tests
@@ -34,26 +34,28 @@ one area of code (clustering, validation, transport); the steps below apply to e
      (a record copy, "the constructor does not throw", constants are distinct), or it repeats
      another test with nothing new.
    - `doubt <Mark>`: anything not clearly one of the above. A doubtful test is kept with its best
-     mark; it is never deleted.
+     mark and a `Suspect:` line (`dev-kit:test-change`); it is never deleted in this pass.
 2. **Apply.** A `dev-kit:coder` (sonnet) adds the marks, merges and deletes exactly as judged, and
-   nothing else. A `Bug` mark gets its `Broke:` line from the reviewer's reason.
+   nothing else. A `Bug` mark gets its `Broke:` line, a `doubt` test its `Suspect:` line, both from
+   the reviewer's reason.
 3. **Check.** Build, then run the domain's tests: all pass, and none that passed at the baseline
    now fails. Run `dev-kit-check-tests --base <commit before this domain>`: 0 errors. A failure
-   after a delete means the test protected something: restore it with its best mark and count it
-   as doubtful.
-4. **Break-check the doubtful tests only.** For each `doubt` test, the `dev-kit:coder` makes the
-   smallest break in the code the test claims to protect (invert a condition, return a default),
-   runs that one test, then restores the code exactly (`git diff` on the code shows nothing). The
-   test still passes: it protects nothing, delete it with the reason "passes without the code". It
-   fails: keep it with its mark. Never for all tests: a project-wide mutation run is a separate
-   decision of the owner.
-5. **Commit** the domain on its own, per the project's git rules. The commit message lists every
-   deleted or merged test with its reason and the doubtful tests by name; that is the record, no
-   separate file.
+   after a delete means the test protected something: restore it with its best mark.
+4. **Commit** the domain on its own, per the project's git rules. The commit message lists every
+   deleted or merged test with its reason; the `Suspect:` lines in the code are the record of the
+   doubtful ones, no separate file.
 
 ## 3. Report
 
 Run `dev-kit-check-tests --report` again and compare it with the baseline. Tell the owner the
-outcome in the project's report format: what changed (tests marked, merged, deleted), what failed
-or was skipped (tests left for the owner's consent), and what needs their action. Doubtful tests
-are not put to the owner one by one.
+outcome in the project's report format: what changed (tests marked, merged, deleted, suspect),
+what failed or was skipped (tests left for the owner's consent), and what needs their action.
+Suspect tests are not put to the owner one by one: agents verify them when they change that code.
+
+## 4. Verify suspects (only on the owner's request)
+
+Run `dev-kit-check-tests --suspects`. For each listed test, a `dev-kit:coder` (sonnet) does the
+break-check of `dev-kit:test-change` (break the code, run the test, restore the code exactly):
+still passing, delete it with the reason "passes without the code"; failing, remove its
+`Suspect:` line. Check and commit per domain as in section 2. A project-wide mutation run over all
+tests is a separate decision of the owner.

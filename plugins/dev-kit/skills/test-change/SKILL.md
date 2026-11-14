@@ -40,6 +40,12 @@ project's own commands, test inventory and selection tables come from the `run-t
 - Before finishing, run `dev-kit-check-tests`: it must report 0 errors (every new test has a
   valid mark, a `Bug` test has its `Broke:` line). `dev-kit-check-tests --report` shows marks per
   domain and the API endpoints with no integration test.
+- A test that may protect nothing carries one line directly above it, the same in every stack:
+  `// Suspect: <why>` (`# Suspect: <why>` in Python). When you change code, run
+  `dev-kit-check-tests --suspects`; for each suspect test of the code you changed, make the
+  smallest break in that code (invert a condition, return a default), run the test, then restore
+  the code exactly (`git diff` on the code shows nothing). The test still passes: delete it, it
+  protects nothing. It fails: remove its `Suspect:` line.
 
 ## Run and report
 

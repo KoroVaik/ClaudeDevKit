@@ -91,7 +91,9 @@ runs `plugins/dev-kit/scripts/check_docs.py --pre-commit`, finding this folder t
 `dev-kit-check-tests` checks that every test added since `HEAD` (or `--base REF`) carries a valid
 "protects" mark (`Flow`, `Rule`, `Bug`, `Edge`) in xUnit, Vitest or Python unittest syntax, as the
 `dev-kit:test-change` skill requires. `--report` prints marks per domain and the API endpoints that no
-integration test mentions (a path-mention measure); `--json` gives the same for showcases. Old
+integration test mentions (a path-mention measure); `--json` gives the same for showcases.
+`--suspects` lists the tests marked `Suspect: <why>` (they may protect nothing; an agent that
+changes their code verifies them). Old
 tests get their marks in one pass of the `dev-kit:prune-tests` skill, which also deletes clear
 low-value tests and duplicates, domain by domain.
 

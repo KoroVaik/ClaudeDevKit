@@ -269,6 +269,207 @@ class PythonParseTests(unittest.TestCase):
         self.assertEqual("Unit", self.tests["test_top_level"].level)
 
 
+class TempProject(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        self.root = Path(self.tmp.name) / "proj"
+        self.root.mkdir()
+
+    def write(self, rel, text):
+        path = self.root / rel
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(text.encode("utf-8"))
+
+    def run_main(self, *args):
+        out = io.StringIO()
+        err = io.StringIO()
+        with redirect_stderr(err):
+            code = ct.main(["--root", str(self.root), *args], out=out)
+        return code, out.getvalue().splitlines(), err.getvalue()
+
+    def git(self, *args):
+        subprocess.run(
+            ["git", "-c", "user.name=t", "-c", "user.email=t@t", "-c", "commit.gpgsign=false", *args],
+            cwd=self.root, check=True, capture_output=True,
+        )
+
+    def commit_all(self):
+        if not (self.root / ".git").exists():
+            self.git("init", "-q")
+        self.git("add", "-A")
+        self.git("commit", "-q", "-m", "c")
+
+
+SUSPECT_CS = """[Trait("Kind", "Unit")]
+public class S
+{
+    // Suspect: only asserts the mock was called
+    [Fact]
+    [Trait("Protects", "Rule")]
+    public void Suspected() { }
+
+    // Broke: totals were doubled
+    // Suspect: passes with the fix reverted
+    [Fact]
+    [Trait("Protects", "Bug")]
+    public void Both_Lines() { }
+
+    // Suspect:
+    [Fact]
+    public void Empty_Reason() { }
+
+    // Suspect: too far above
+
+
+
+    [Fact]
+    public void Fine() { }
+}
+"""
+
+SUSPECT_VITEST = """describe("x", () => {
+  // Suspect: checks only that it renders
+  it("[Flow] suspected", () => {});
+
+  // Broke: wrong total
+  // Suspect: same as the unit test
+  it("[Bug] both lines", () => {});
+
+  // Suspect:
+  it("[Rule] empty reason", () => {});
+
+  it("[Rule] fine", () => {});
+});
+"""
+
+SUSPECT_PY = """class T(unittest.TestCase):
+    # protects: Rule
+    # Suspect: only checks the return type
+    def test_suspected(self):
+        pass
+
+    # Broke: wrong total
+    # Suspect: passes without the code
+    # protects: Bug
+    @unittest.skip("x")
+    def test_both_lines(self):
+        pass
+
+    # protects: Rule
+    # Suspect:
+    def test_empty_reason(self):
+        pass
+
+    def test_fine(self):
+        pass
+"""
+
+
+class SuspectParseTests(unittest.TestCase):
+    def test_csharp_suspect_reason_with_broke_and_empty_reason(self):
+        tests = cs_tests(SUSPECT_CS)
+        self.assertEqual("only asserts the mock was called", tests["S.Suspected"].suspect)
+        self.assertEqual("passes with the fix reverted", tests["S.Both_Lines"].suspect)
+        self.assertTrue(tests["S.Both_Lines"].broke)
+        self.assertEqual("", tests["S.Empty_Reason"].suspect)
+        self.assertIsNone(tests["S.Fine"].suspect)
+
+    def test_vitest_suspect_reason_with_broke_and_empty_reason(self):
+        tests = {t.name: t for t in ct.parse_vitest("web/src/a.test.ts", SUSPECT_VITEST)}
+        self.assertEqual("checks only that it renders", tests["[Flow] suspected"].suspect)
+        self.assertEqual("same as the unit test", tests["[Bug] both lines"].suspect)
+        self.assertTrue(tests["[Bug] both lines"].broke)
+        self.assertEqual("", tests["[Rule] empty reason"].suspect)
+        self.assertIsNone(tests["[Rule] fine"].suspect)
+
+    def test_python_suspect_reason_with_broke_and_empty_reason(self):
+        tests = {t.name: t for t in ct.parse_python("py/test_a.py", SUSPECT_PY)}
+        self.assertEqual("only checks the return type", tests["T.test_suspected"].suspect)
+        self.assertEqual("Rule", tests["T.test_suspected"].mark)
+        self.assertEqual("passes without the code", tests["T.test_both_lines"].suspect)
+        self.assertTrue(tests["T.test_both_lines"].broke)
+        self.assertEqual("", tests["T.test_empty_reason"].suspect)
+        self.assertIsNone(tests["T.test_fine"].suspect)
+
+    def test_empty_reason_is_a_problem_and_a_reason_is_not(self):
+        tests = cs_tests(SUSPECT_CS)
+        self.assertIn("no reason", ct.suspect_problem(tests["S.Empty_Reason"]))
+        self.assertIsNone(ct.suspect_problem(tests["S.Suspected"]))
+        self.assertIsNone(ct.suspect_problem(tests["S.Fine"]))
+
+
+class SuspectCommandTests(TempProject):
+    def setUp(self):
+        super().setUp()
+        self.write("web/src/b.test.ts", 'describe("x", () => {\n  // Suspect: renders only\n  it("[Flow] v", () => {});\n});\n')
+        self.write("py/test_a.py", "# protects: Rule\n# Suspect: no assert\ndef test_p():\n    pass\n\ndef test_q():\n    pass\n")
+        self.write(
+            "api/App.Tests/FooTests.cs",
+            '[Trait("Kind", "Unit")]\npublic class FooTests\n{\n    // Suspect: mock only\n    [Fact]\n'
+            '    [Trait("Protects", "Edge")]\n    public void C() { }\n}\n',
+        )
+
+    def test_suspects_text_is_sorted_by_file_with_a_total_line(self):
+        code, lines, _ = self.run_main("--suspects")
+        self.assertEqual(0, code)
+        self.assertEqual(
+            [
+                "api/App.Tests/FooTests.cs:7 FooTests.C - mock only",
+                "py/test_a.py:3 test_p - no assert",
+                "web/src/b.test.ts:3 [Flow] v - renders only",
+                "suspect tests: 3",
+            ],
+            lines,
+        )
+
+    def test_suspects_json_is_a_list(self):
+        code, lines, _ = self.run_main("--suspects", "--json")
+        self.assertEqual(0, code)
+        data = json.loads("\n".join(lines))
+        self.assertEqual(3, len(data))
+        self.assertEqual(
+            {"file": "py/test_a.py", "line": 3, "name": "test_p", "suspect": "no assert"}, data[1]
+        )
+
+    def test_no_suspects_prints_zero(self):
+        (self.root / "py" / "test_a.py").write_text("def test_q():\n    pass\n")
+        for rel in ("web/src/b.test.ts", "api/App.Tests/FooTests.cs"):
+            (self.root / rel).unlink()
+        code, lines, _ = self.run_main("--suspects")
+        self.assertEqual((0, ["suspect tests: 0"]), (code, lines))
+
+    def test_report_counts_suspects_per_domain_and_in_json(self):
+        code, lines, _ = self.run_main("--report")
+        self.assertEqual(0, code)
+        text = "\n".join(lines)
+        self.assertIn("suspect 3", text)
+        self.assertIn("py/test_a.py:3 test_p - no assert", text)
+        code, lines, _ = self.run_main("--report", "--json")
+        data = json.loads("\n".join(lines))
+        self.assertEqual(3, data["total"]["suspects"])
+        self.assertEqual(3, data["domains"]["-"]["suspects"])
+        self.assertEqual(3, len(data["suspects"]))
+
+    @unittest.skipUnless(HAS_GIT, "git is not installed")
+    def test_empty_reason_is_a_check_error_and_suspect_does_not_replace_the_mark(self):
+        self.commit_all()
+        self.write(
+            "py/test_e.py",
+            "# Suspect:\ndef test_empty():\n    pass\n\n# Suspect: has a reason\ndef test_unmarked():\n    pass\n",
+        )
+        code, lines, _ = self.run_main()
+        self.assertEqual(1, code)
+        self.assertTrue(any("py/test_e.py:2 test_empty - Suspect line has no reason" in line for line in lines))
+        self.assertTrue(any("py/test_e.py:6 test_unmarked - new test has no protects mark" in line for line in lines))
+        self.assertFalse(any("test_p " in line for line in lines))
+
+    def test_suspects_and_report_cannot_be_combined(self):
+        with self.assertRaises(SystemExit):
+            with redirect_stderr(io.StringIO()):
+                ct.main(["--root", str(self.root), "--report", "--suspects"])
+
+
 class RouteTests(unittest.TestCase):
     def test_parameters_match_any_segment_with_or_without_constraint(self):
         self.assertTrue(ct.route_matches("/api/jobs/{id:guid}/ai-calls", "/api/jobs/123/ai-calls"))
@@ -370,38 +571,6 @@ class EndpointTests(unittest.TestCase):
         self.assertEqual("Api/WidgetsController.cs", endpoint.file)
         self.assertEqual(12, endpoint.line)
         self.assertEqual("WidgetsController", endpoint.controller)
-
-
-class TempProject(unittest.TestCase):
-    def setUp(self):
-        self.tmp = tempfile.TemporaryDirectory()
-        self.addCleanup(self.tmp.cleanup)
-        self.root = Path(self.tmp.name) / "proj"
-        self.root.mkdir()
-
-    def write(self, rel, text):
-        path = self.root / rel
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_bytes(text.encode("utf-8"))
-
-    def run_main(self, *args):
-        out = io.StringIO()
-        err = io.StringIO()
-        with redirect_stderr(err):
-            code = ct.main(["--root", str(self.root), *args], out=out)
-        return code, out.getvalue().splitlines(), err.getvalue()
-
-    def git(self, *args):
-        subprocess.run(
-            ["git", "-c", "user.name=t", "-c", "user.email=t@t", "-c", "commit.gpgsign=false", *args],
-            cwd=self.root, check=True, capture_output=True,
-        )
-
-    def commit_all(self):
-        if not (self.root / ".git").exists():
-            self.git("init", "-q")
-        self.git("add", "-A")
-        self.git("commit", "-q", "-m", "c")
 
 
 def cs_class(name, *methods, head='[Trait("Kind", "Unit")]'):
