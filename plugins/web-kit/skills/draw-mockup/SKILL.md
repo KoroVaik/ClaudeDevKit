@@ -89,7 +89,10 @@ as a numbered block.
    tone, button kind and marker that contradicts its meaning in the standard (selection, confirmed,
    warning, error, button colours), including ones copied from an older board". mockup-user judges words
    and layout, not colour, so this is the only colour check of the loop. Fix every defect line in the
-   spec, rebuild and screen again; repeat after any later change of a tone, a kind or a block. A tool
+   spec, rebuild and screen again. Later, run it again only when a new element appears (a block, a
+   tone or a button kind the board did not have). While the owner tunes a look round by round (a
+   shade, a size, a spacing), skip the critic and run it once when the series ends, before the
+   commit. A tool
    without subagents or headless shots skips the step and says so in the hand-over.
 8. Hand the mockup to the owner as a file attachment in the chat (in Claude Code: `SendUserFile` with
    `display: render`); one click opens it in the built-in browser. The generated page carries its
