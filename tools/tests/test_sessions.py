@@ -5,6 +5,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import time
 import unittest
 from contextlib import redirect_stderr, redirect_stdout
 from pathlib import Path
@@ -247,6 +248,135 @@ class SessionsTestCase(unittest.TestCase):
         self.transcript("c1", [{"type": "user", "message": {"content": "w " * 1000}}])
         rows = {row["sessionId"]: row for row in json.loads(self.run_main("others", "--json")[1])}
         self.assertEqual(sessions.TASK_CHARS + 3, len(rows["c1"]["task"]))
+
+
+    def listing(self, agents):
+        listing = self.tmp / "agents.json"
+        listing.write_text(json.dumps(agents), encoding="utf-8")
+        env = mock.patch.dict(os.environ, {sessions.AGENTS_ENV: str(listing)})
+        env.start()
+        self.addCleanup(env.stop)
+        return listing
+
+    def lock(self):
+        return dev_kit_state.project_state_dir(self.project) / sessions.WATCH_LOCK
+
+    def test_watch_exits_when_a_registered_session_is_gone(self):
+        self.add("c1-live-session", name="C: live")
+        self.add("c2-dead-session", name="C: dead")
+        self.listing([{"sessionId": "c1-live-session", "pid": 11, "state": "working"},
+                      {"sessionId": "c2-dead-session", "state": "stopped"}])
+        code, out = self.run_main("watch", "--interval", "0")
+        self.assertEqual(0, code)
+        self.assertEqual("gone: C: dead | c2-dead-session | stopped\n", out)
+        self.assertFalse(self.lock().exists())
+
+    def test_watch_missing_session_and_short_ids(self):
+        self.listing([{"sessionId": "aaaaaaaa-1111", "name": "C: a", "pid": 1, "state": "done"}])
+        code, out = self.run_main("watch", "--id", "aaaaaaaa", "--id", "bbbbbbbb", "--interval", "0")
+        self.assertEqual(0, code)
+        self.assertEqual("gone: (no name) | bbbbbbbb | not in the session list\n", out)
+
+    def test_watch_waits_then_wakes_on_a_session_that_ends(self):
+        self.add("c1-session", name="C: x")
+        listing = self.listing([{"sessionId": "c1-session", "pid": 5, "state": "working"}])
+        rounds = []
+
+        def sleep(_seconds):
+            rounds.append(1)
+            if len(rounds) == 2:
+                listing.write_text(json.dumps([{"sessionId": "c1-session", "state": "stopped"}]), encoding="utf-8")
+
+        with mock.patch.object(sessions.time, "sleep", sleep):
+            code, out = self.run_main("watch", "--interval", "1")
+        self.assertEqual((0, 2), (code, len(rounds)))
+        self.assertIn("gone: C: x | c1-session | stopped", out)
+
+    def test_watch_time_limit_and_nothing_to_watch(self):
+        code, out = self.run_main("watch", "--interval", "0")
+        self.assertEqual((5, "nothing to watch\n"), (code, out))
+        self.add("c1-session")
+        self.listing([{"sessionId": "c1-session", "pid": 5, "state": "working"}])
+        code, out = self.run_main("watch", "--interval", "60", "--max-minutes", "0.5")
+        self.assertEqual((4, "time limit: 0.5 min, all alive\n"), (code, out))
+
+    def test_watch_one_watcher_per_project(self):
+        self.add("c1-session")
+        self.listing([{"sessionId": "c1-session", "pid": 5, "state": "working"}])
+        lock = self.lock()
+        lock.write_text(json.dumps({"pid": 999999, "beat": time.time()}), encoding="utf-8")
+
+        def live_holder_beats(_seconds):
+            lock.write_text(json.dumps({"pid": 999999, "beat": time.time() + 1}), encoding="utf-8")
+
+        with mock.patch.object(sessions.time, "sleep", live_holder_beats):
+            code, out = self.run_main("watch", "--interval", "60", "--max-minutes", "0.5")
+        self.assertEqual((6, "already watching: pid 999999\n"), (code, out))
+        self.assertTrue(lock.exists())
+
+    def test_watch_takes_over_the_lock_of_a_killed_watcher(self):
+        self.add("c1-session")
+        self.listing([{"sessionId": "c1-session", "pid": 5, "state": "working"}])
+        self.lock().write_text(json.dumps({"pid": 999999, "beat": time.time() - 170}), encoding="utf-8")
+        clock = [time.time()]
+
+        def sleep(seconds):
+            clock[0] += seconds
+
+        with mock.patch.object(sessions.time, "sleep", sleep), \
+                mock.patch.object(sessions.time, "time", lambda: clock[0]):
+            code, out = self.run_main("watch", "--interval", "60", "--max-minutes", "0.5")
+        self.assertEqual((4, "time limit: 0.5 min, all alive\n"), (code, out))
+        self.assertFalse(self.lock().exists())
+
+    def test_watch_keeps_quiet_when_the_last_session_ends(self):
+        self.add("c1-session")
+        self.listing([{"sessionId": "c1-session", "pid": 5, "state": "working"}])
+        calls, clock = [], [0.0]
+
+        def sleep(seconds):
+            calls.append(1)
+            clock[0] += seconds
+            if len(calls) == 1:
+                self.run_main("end", "--id", "c1-session")
+
+        with mock.patch.object(sessions.time, "sleep", sleep), \
+                mock.patch.object(sessions.time, "monotonic", lambda: clock[0]):
+            code, out = self.run_main("watch", "--interval", "10", "--max-minutes", "0.5")
+        self.assertEqual((5, "nothing to watch\n"), (code, out))
+        self.assertEqual(3, len(calls))  # waited for the time limit, no early wake-up
+
+    def test_watch_survives_a_momentary_unreadable_registry(self):
+        self.add("c1-session")
+        self.listing([{"sessionId": "c1-session", "pid": 5, "state": "working"}])
+        real_load = sessions.load
+        calls = []
+
+        def flaky_load(path):
+            calls.append(1)
+            if len(calls) == 2:  # the first call is main's own read, the second the watcher's first round
+                raise sessions.Unreadable("busy")
+            return real_load(path)
+
+        clock = [0.0]
+
+        def sleep(seconds):
+            clock[0] += seconds
+
+        with mock.patch.object(sessions, "load", flaky_load), mock.patch.object(sessions.time, "sleep", sleep), \
+                mock.patch.object(sessions.time, "monotonic", lambda: clock[0]):
+            code, out = self.run_main("watch", "--interval", "10", "--max-minutes", "0.5")
+        self.assertEqual((4, "time limit: 0.5 min, all alive\n"), (code, out))
+        self.assertGreaterEqual(len(calls), 3)
+
+    def test_watch_unreadable_list_gives_up_after_several_rounds(self):
+        self.add("c1-session")
+        with mock.patch.dict(os.environ, {sessions.AGENTS_ENV: str(self.tmp / "missing.json")}), \
+                mock.patch.object(sessions.time, "sleep") as sleep:
+            code, out = self.run_main("watch", "--interval", "1")
+        self.assertEqual(3, code)
+        self.assertEqual(sessions.WATCH_FAILURES - 1, sleep.call_count)
+        self.assertIn("could not be read", out)
 
 
 if __name__ == "__main__":

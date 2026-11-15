@@ -6,6 +6,7 @@ full their context is.
     dev-kit-sessions list
     dev-kit-sessions fill [--limit 0.5] [--window N]
     dev-kit-sessions others [--self <id>] [--json]
+    dev-kit-sessions watch [--id <id> ...] [--interval 60] [--max-minutes 120]
 
 The registry is `sessions.json` in the project state folder (see dev_kit_state.py; the same folder for all worktrees
 of one repository). `add --predecessor` marks the replaced session `replaced`. `fill` finds the transcript of every
@@ -21,6 +22,18 @@ CLAUDE_CODE_SESSION_ID. Lead sessions (name starts with `P: `) are left out: the
 state, who started it (`lead` when the registry holds its id, else `owner`), branch, cwd, the first task messages
 (owner or peer messages of its transcript, cut to TASK_CHARS) and the files it changed (the branch against the base
 branch, plus uncommitted ones). Reads no code. Prints `no other sessions` when there are none.
+
+`watch` waits in silence while the watched sessions live and exits with one line when one is gone, so a caller that
+runs it in the background wakes only then. Watched: the `--id` sessions (full or 8+ char short ids), else the
+registry's active records, read again each round (a C added later is watched too; one ended with `end` is not).
+Every `--interval` seconds it reads `claude agents --json --all`: a session is live while an entry with its id has a
+`pid`; one with no `pid` (state stopped or done) or not in the list is gone. Lines and exit codes:
+`gone: <name> | <id> | <state or 'not in the session list'>` (one per gone session) exit 0; `time limit: <N> min,
+all alive` exit 4 (re-arm it); `nothing to watch` exit 5 (on the first round, or at the time limit when the registry
+has emptied meanwhile: a watcher whose last C ended keeps quiet); `already watching: pid <N>` exit 6 (in registry
+mode one watcher per project runs: a lock file in the state folder with a heartbeat; a new watcher waits until the
+heartbeat moves, then exits 6, or until it is stale after 3 intervals, then takes the lock of the killed watcher);
+the registry or the session list unreadable WATCH_FAILURES rounds in a row: exit 3.
 
 Exit code: 0 done (fill too, whatever the transcripts), 1 unknown or duplicate id, 2 registry unreadable, 3 the
 session list could not be read.
@@ -50,6 +63,8 @@ LEAD_PREFIX = "P: "
 TASK_MESSAGES = 2
 TASK_CHARS = 700
 FILES_SHOWN = 40
+WATCH_LOCK = "watch.lock"
+WATCH_FAILURES = 5
 
 class Unreadable(Exception):
     """The registry cannot be read: exit code 2."""
@@ -223,8 +238,8 @@ def cmd_fill(args, path, records):
     return 0
 
 
-def agents_list():
-    """The parsed `claude agents --json` array; RuntimeError when it cannot be read."""
+def agents_list(include_ended=False):
+    """The parsed `claude agents --json` array (`--all` adds ended sessions); RuntimeError when it cannot be read."""
     source = os.environ.get(AGENTS_ENV)
     try:
         if source:
@@ -233,7 +248,8 @@ def agents_list():
             claude = shutil.which("claude")  # on Windows an npm install is claude.CMD, which a bare name misses
             if not claude:
                 raise RuntimeError("the claude command is not on PATH")
-            result = subprocess.run([claude, "agents", "--json"], capture_output=True, text=True, encoding="utf-8",
+            command = [claude, "agents", "--json"] + (["--all"] if include_ended else [])
+            result = subprocess.run(command, capture_output=True, text=True, encoding="utf-8",
                                     timeout=60)
             if result.returncode != 0:
                 raise RuntimeError(result.stderr.strip() or f"exit code {result.returncode}")
@@ -375,6 +391,106 @@ def cmd_others(args, path, records):
     return 0
 
 
+def matches(agent_id, wanted):
+    """Whether a session id from the list is the wanted full id or starts with a short id of 8+ characters."""
+    return agent_id == wanted or (len(wanted) >= 8 and agent_id.startswith(wanted))
+
+
+def gone_sessions(watched, agents):
+    """(name, id, state) of each watched (name, id) with no live entry in the session list."""
+    gone = []
+    for name, wanted in watched:
+        entries = [agent for agent in agents if matches(str(agent.get("sessionId") or ""), wanted)]
+        if any(agent.get("pid") for agent in entries):
+            continue
+        state = next((agent.get("state") or agent.get("status") for agent in entries), None)
+        gone.append((name or str(entries[0].get("name") or "") if entries else name, wanted,
+                     state or "not in the session list"))
+    return gone
+
+
+def read_lock(lock):
+    """(pid, beat) of the watcher that holds the lock; None when there is no readable lock."""
+    try:
+        held = json.loads(lock.read_text(encoding="utf-8"))
+        return held.get("pid"), float(held.get("beat", 0))
+    except (OSError, ValueError, AttributeError, TypeError):
+        return None
+
+
+def take_lock(lock, interval):
+    """Write this watcher's heartbeat. If another watcher holds the lock, wait: its pid as soon as its heartbeat
+    moves (it lives), or take the lock once the heartbeat is stale (that watcher was killed)."""
+    stale = max(3 * interval, 10)
+    held = read_lock(lock)
+    if held is not None and held[0] != os.getpid():
+        first_beat = held[1]
+        while held is not None and time.time() - held[1] < stale:
+            time.sleep(min(max(interval, 1), stale))
+            held = read_lock(lock)
+            if held is not None and held[1] != first_beat:
+                return held[0]
+    lock.parent.mkdir(parents=True, exist_ok=True)
+    lock.write_text(json.dumps({"pid": os.getpid(), "beat": time.time()}), encoding="utf-8")
+    return None
+
+
+def cmd_watch(args, path, records):
+    lock = None if args.id else path.with_name(WATCH_LOCK)
+    deadline = time.monotonic() + args.max_minutes * 60
+    failures = 0
+    first = True
+    watched = [(None, wanted) for wanted in args.id]
+    try:
+        while True:
+            problem = None
+            if lock is not None:
+                holder = take_lock(lock, args.interval)
+                if holder is not None:
+                    lock = None  # not ours: leave it
+                    print(f"already watching: pid {holder}")
+                    return 6
+                try:
+                    watched = [(record.get("name"), str(record.get("id"))) for record in active(load(path))]
+                except Unreadable as exc:  # e.g. caught mid-replace on Windows; counted like a list failure
+                    problem = exc
+            if problem is None and not watched and first:
+                print("nothing to watch")
+                return 5
+            first = False
+            agents = None
+            if problem is None and watched:
+                try:
+                    agents = agents_list(include_ended=True)
+                except RuntimeError as exc:
+                    problem = exc
+            if problem is not None:
+                failures += 1
+                if failures >= WATCH_FAILURES:
+                    print(f"dev-kit-sessions: the session list could not be read: {problem}", file=sys.stderr)
+                    return 3
+            else:
+                failures = 0
+            gone = gone_sessions(watched, agents) if agents is not None else []
+            if gone:
+                for name, wanted, state in gone:
+                    print(f"gone: {name or '(no name)'} | {wanted} | {state}")
+                return 0
+            if time.monotonic() + args.interval > deadline:
+                if not watched:
+                    print("nothing to watch")
+                    return 5
+                print(f"time limit: {args.max_minutes:g} min, all alive")
+                return 4
+            time.sleep(args.interval)
+    finally:
+        if lock is not None:
+            try:
+                lock.unlink()
+            except OSError:
+                pass
+
+
 def main(argv=None):
     for stream in (sys.stdout, sys.stderr):
         if hasattr(stream, "reconfigure"):
@@ -397,12 +513,16 @@ def main(argv=None):
     others = sub.add_parser("others")
     others.add_argument("--self", default="", help="the caller's session id (default: env CLAUDE_CODE_SESSION_ID)")
     others.add_argument("--json", action="store_true")
+    watch = sub.add_parser("watch")
+    watch.add_argument("--id", action="append", default=[], help="a session to watch (repeatable; default: the registry)")
+    watch.add_argument("--interval", type=float, default=60, help="seconds between reads of the session list")
+    watch.add_argument("--max-minutes", type=float, default=120, help="exit with the time-limit line after this")
     args = parser.parse_args(argv)
     try:
         path = registry_path(args.project)
         records = load(path)
         return {"add": cmd_add, "end": cmd_end, "list": cmd_list, "fill": cmd_fill,
-                "others": cmd_others}[args.action](args, path, records)
+                "others": cmd_others, "watch": cmd_watch}[args.action](args, path, records)
     except Unreadable as exc:
         print(f"dev-kit-sessions: {exc}", file=sys.stderr)
         return 2

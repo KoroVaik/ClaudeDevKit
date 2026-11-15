@@ -31,17 +31,19 @@ Ukrainian forms the owner approved are in brackets.
 
 - Each label starts its own line. Each session goes on its own line as a list item. The next items
   are a numbered list, one per line.
-- Each session and each next item ends with what it needs from the owner, in brackets: a physical
-  action, a device, a sign-in, a hand check (for example "(потрібен телефон)", "(перевірити на
-  телефоні)"), or "(нічого)" once P has checked that nothing is needed. P judges it from the item's
-  linked doc; there is no separate "needed from you" line.
+- Each session and each next item ends with what it needs from the owner, in brackets that start
+  with "from you:" ("від тебе:"): a physical action, a device, a sign-in, a hand check (for example
+  "(від тебе: телефон)", "(від тебе: перевірити на телефоні)"), or "(від тебе: нічого)" once P has
+  checked that nothing is needed. A bare "(нічого)" is not understood (the owner, 2026-11-15). P
+  judges it from the item's linked doc; there is no separate "needed from you" line.
 - Among items of close importance, P proposes first the one that needs nothing from the owner. When
   an item needs the owner and an agent could take that part over (a test, an emulator or headless
   run, a script), P adds that replacement as its own item. Goal: the owner's involvement shrinks
   over time (`dev-kit:manager`, "Less of the owner's involvement over time").
 - Every message ends with a concrete proposal: `Запустити сесію на «<item>»? (<what it gives, at most
   6 words>)`, then `Рекомендую: так - <reason, at most 12 words>`. Never a bare "what to start?".
-- An idle notice with no report still gets no text.
+- One message per event (a report, a watcher exit, an owner message), never several small ones.
+  A wake-up that needs nothing from the owner (a watcher re-armed on its time limit) gets no text.
 
 Status (on start and on "what runs now?"):
 
@@ -62,23 +64,42 @@ Example:
 
 ```
 Сесії в роботі:
-- «Каталог продуктів» - пише код (нічого).
-- «Освітлення» - готово (перевірити на телефоні).
+- «Каталог продуктів» - пише код (від тебе: нічого).
+- «Освітлення» - готово (від тебе: перевірити на телефоні).
 
 Що робити далі (з планів проєкту):
-1. 60 FPS на гарячому телефоні (потрібен телефон).
-2. Меню налаштувань (нічого).
-3. Звук дощу (нічого).
+1. 60 FPS на гарячому телефоні (від тебе: телефон).
+2. Меню налаштувань (від тебе: нічого).
+3. Звук дощу (від тебе: нічого).
 
 Запустити сесію на «Меню налаштувань»? (з'явиться екран налаштувань)
 Рекомендую: так - перший пункт без телефону, бо зараз його не підключити.
 ```
 
-Task done (after a merge):
+Task done (after a merge): one message with three sections, headings in the reply's language.
 
-- «<task>» is done: <what the owner now sees or can do, in plain words>.
-- A line only if the owner must act: what to check and where.
-- Then the proposal for the next item.
+- `### Done` (`### Готово`): «<task>»: what the owner now sees or can do, in plain words.
+- `### Needed from you` (`### Потрібно від тебе`): numbered yes/no questions, each followed by its
+  `Рекомендую: так/ні - <reason>` line. C's open questions and any owner action (what to check and
+  where) go here; P adds the recommendation C did not give. With nothing needed, leave the section out.
+- `### Next` (`### Далі`): the proposal for the next item.
+
+Example:
+
+```
+### Готово
+«Каталог продуктів»: парсер читає всі сторінки товарів, КБЖУ і штрихкоди Fozzy.
+
+### Потрібно від тебе
+1. Зберегти або відкласти правку CLAUDE.md, бо без цього злиття не піде.
+   Рекомендую: так - її, мабуть, робить твоя сесія «Неоднозначні факти арбітра».
+2. Видалити скрипт пілотного збору, яким ніхто не користується?
+   Рекомендую: так - він лише заважає.
+
+### Далі
+Запустити сесію на «Пілотна схема імпорту»? (імпорт знову проходитиме перевірку)
+Рекомендую: так - від тебе нічого не треба.
+```
 
 A C asks a decision:
 
@@ -86,7 +107,7 @@ A C asks a decision:
 - Then "Рекомендую: так/ні - <reason>" or "немає рекомендації: <what is missing>".
 
 C asks the same question in its own chat too, so the owner may answer there or in P. An answer given
-in P goes to that C verbatim by SendMessage (with `notify_when_idle: true`). An answer the owner gave
+in P goes to that C verbatim by SendMessage. An answer the owner gave
 in C's chat needs nothing from P.
 
 A C is stuck:
@@ -145,9 +166,8 @@ it on `c/<slug>`, so the merge and the worktree removal see no stray file. C kee
   own chat; the answer may come there or from P. On done, C ends its own chat with
   «Готово, керівник зіллє роботу й закриє цю сесію» and no question (`dev-kit:manager`, "A task from
   the project lead"); the first prompt says so.
-- Right after starting a C, subscribe to it: SendMessage to `C: <feature>` with an empty message and
-  `notify_when_idle: true`. The first prompt goes through the command line, so nothing subscribes
-  otherwise.
+- Right after registering a C, arm the watcher (see "Wake-up"); if one already runs, the new C is
+  picked up by it and the second one exits at once with `already watching`.
 - Register every C at once. Take its full `sessionId` from `claude agents --json` (match by `name` or
   `cwd`; the transcript needs the full id, not the 8-hex short id), then
   `dev-kit-sessions add --id <sessionId> --name "C: <feature>" --worktree <path> --task <file> [--parent <P's own session id, if known>]`.
@@ -155,24 +175,35 @@ it on `c/<slug>`, so the merge and the worktree removal see no stray file. C kee
 
 ## Wake-up
 
-P does not wake by itself. A C report sent by SendMessage wakes P. Send every message to a C with
-`notify_when_idle: true` (one-shot), so P also wakes when that C ends the turn that answers it. An
-idle notice with no report means C ended a turn while it waits (e.g. on a background command) or has
-quit: subscribe again (the only signal of a C that dies silently), run only the session-list check
-below (no fill) and end the turn with no text, so each such wake-up stays cheap.
+P does not wake by itself, and it never uses `notify_when_idle` for a C: every idle notice woke P, and
+the host forced a visible reply each time, so the owner got many repeated small messages (seen in
+P: Zhratva, 2026-11-15). P wakes only on a C report (SendMessage), an owner message, or an exit of the
+session watcher.
 
-Skill update check, on every wake-up except a bare idle notice: read `version` from
+Watcher: `dev-kit-sessions watch` in the Bash tool with `run_in_background`, run in the project's
+main checkout. It reads the registry's active C sessions every minute, stays silent while they live,
+and exits when one is gone; its own limit is 2 hours. Arm it after registering a C and after every
+exit below, while the registry has an active C. On its exit:
+
+- `gone: <name> | <id> | <state>` (exit 0): that C ended. If it sent a "done" report, go on with the
+  merge and re-arm only after its clean-up (`end` first, or the watcher fires on it again). Otherwise it crashed or quit: run `dev-kit-sessions end --id <id> --status stopped` (so the
+  re-armed watcher does not fire on it again), send the "stuck" template (cause: the session ended
+  without a report) and re-arm. Recommend a fresh C in the same worktree, same name and flags, whose
+  first prompt adds: "a previous C left unfinished work here; read `git status`, `git log main..` and
+  the task file first". Register it with `--predecessor <old id>`.
+- `time limit` (exit 4): re-arm; no text, no other checks.
+- `nothing to watch` (exit 5: no active C, also at the time limit when the last C ended meanwhile) or
+  `already watching` (exit 6: another watcher runs): do not re-arm; no text.
+- Any other exit (3: the registry or session list unreadable for several minutes): the "stuck" template
+  for P itself, in one line, then re-arm.
+
+Skill update check, on every wake-up except a watcher time limit: read `version` from
 `.claude-plugin/plugin.json` two folders above this skill's base directory and compare it with the
 version P noted when it last read this skill (note it in the first status turn's tool output). If it
 changed, read this SKILL.md whole with the Read tool (the Skill tool only answers "already loaded")
 and follow the new text from then on. No message to the owner about it.
 
-On every wake-up run the session-list check: the registered C sessions against `claude agents --json
---cwd <repo>`. On an owner message or a C report also run `dev-kit-sessions fill`. A registered C that is gone,
-stopped or closed and sent no "done" report has crashed or quit: send the "stuck" template (cause: the
-session ended without a report). Recommend a fresh C in the same worktree, same name and flags, whose
-first prompt adds: "a previous C left unfinished work here; read `git status`, `git log main..` and the
-task file first". Register it with `--predecessor <old id>`.
+On an owner message or a C report run `dev-kit-sessions fill`.
 
 The fill limit is 0.5 (half the context window). The script takes the window from C's model as Claude Code runs it
 (1M for Fable, Sonnet 5+, Haiku 5.5, Opus 4.7+; 200K for older ones); `--window` overrides it. For each
@@ -210,7 +241,8 @@ After a merge, without asking the owner, run `dev-kit-sessions end --id <id>` (t
 `claude rm <id>` (the session's job state), then `git worktree remove <worktree>` and
 `git branch -d c/<slug>`: `claude rm` does not remove a worktree P made by hand. If `git worktree
 remove` refuses over untracked files, P looks at them: nothing from the task, `--force`; otherwise it
-asks the owner. A C that ended without a merge gets `claude stop <id>`, and its worktree and branch stay.
+asks the owner. A C that ended without a merge gets `dev-kit-sessions end --id <id> --status stopped`,
+then `claude stop <id>` (in this order, so the watcher does not report it), and its worktree and branch stay.
 
 After the clean-up P re-reads the next-work sections of PROGRESS.md and sends the Task done
 template, ending with the proposal for the next item.
@@ -219,8 +251,8 @@ template, ending with the proposal for the next item.
 
 `continue-work-in-another-context save`, then the owner types `/clear`, then `load`. State lives in
 project files and the registry. After `load`, P runs the wake-up checks (fill, registry against the
-session list) and sends the status. C reports reach P by name; idle subscriptions may not survive
-`/clear`, so P subscribes again to every live registered C.
+session list) and sends the status. C reports reach P by name; a background watcher may not survive
+`/clear`, so P arms it again.
 
 ## Plugin backlog (plugin repo only)
 

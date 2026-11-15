@@ -161,7 +161,9 @@ live in Pult (`C:/Users/korov/MyRepositories/Pult`). The rules for P:
 `plugins/dev-kit/skills/project-lead/SKILL.md`. Before a task starts, P (and any session through the
 manager skill) checks that no other live session of the repository, one you started yourself included,
 already does it: `dev-kit-sessions others` lists them without reading code and the `dev-kit:overlap-checker`
-agent compares. After a dev-kit update, open a new P session: a running
+agent compares. P wakes only on a task session's report, your message, or the exit of
+`dev-kit-sessions watch`, a background watcher that stays silent while its sessions live and exits when one
+ends; it is generic (any session ids), so other tools can use it too. After a dev-kit update, open a new P session: a running
 one keeps the old skill.
 
 ## Hooks

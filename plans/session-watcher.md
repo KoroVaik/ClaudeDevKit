@@ -42,3 +42,17 @@ Example (Task done):
 ## Success criterion
 A live run: P with a running C gets no idle wake-ups; killing the C (`claude stop`) wakes P within
 about 2 minutes via the watcher.
+
+Also in this task (P's message, owner's yes): the brackets after each session and next item start with
+«від тебе:» (e.g. «(від тебе: нічого)»).
+
+## Status (2026-11-15): built in dev-kit 0.1.29
+- `dev-kit-sessions watch` (registry or `--id`), one watcher per project (heartbeat lock; a killed
+  watcher's lock is taken over after 3 intervals), quiet when the last C ends, unit tests in
+  `tools/tests/test_sessions.py`.
+- Checked live: a haiku test P ran the watcher in the background and ended its turn; `claude stop` of a
+  test C woke it 11 s later with `gone: test: watcher C | 29cee214 | done`. An idle C keeps its `pid`,
+  so a C waiting on the owner is not reported as gone.
+- Not checked yet: the full success criterion with a real P on the new skill (needs a P restart after
+  the merge). Seen in that test: a session with a background shell shows `working busy` in
+  `claude agents`, so a P with a running watcher looks busy there (Pult reads that state).
