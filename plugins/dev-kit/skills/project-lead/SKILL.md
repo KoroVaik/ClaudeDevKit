@@ -142,7 +142,9 @@ it on `c/<slug>`, so the merge and the worktree removal see no stray file. C kee
   conflicts yourself". The report rule names the channel: "send each report with the SendMessage tool
   to `<P's own session name>`; text in your own chat never reaches P". Seen live: without it both C
   wrote their reports only in their own chat and P waited forever. A decision C asks also goes in C's
-  own chat; the answer may come there or from P.
+  own chat; the answer may come there or from P. On done, C ends its own chat with
+  «Готово, керівник зіллє роботу й закриє цю сесію» and no question (`dev-kit:manager`, "A task from
+  the project lead"); the first prompt says so.
 - Right after starting a C, subscribe to it: SendMessage to `C: <feature>` with an empty message and
   `notify_when_idle: true`. The first prompt goes through the command line, so nothing subscribes
   otherwise.

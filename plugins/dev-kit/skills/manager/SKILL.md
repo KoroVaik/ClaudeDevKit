@@ -14,6 +14,13 @@ changes, the final conclusion, the docs (kept as the `dev-kit:documentation` ski
 commits. Subagents gather, run or change a bounded piece and return; the manager checks the result
 before telling the owner.
 
+## A task from the project lead
+
+A session the project lead started (its first prompt names `P: <project>`) hands its finished work to
+P, which merges it and closes the session. Its last turn after the "done" report ends with the line
+«Готово, керівник зіллє роботу й закриє цю сесію» (in the reply's language) and asks the owner
+nothing: the merge is P's step, so the owner sees in this chat why the session closes.
+
 ## Overlap check at task start
 
 Before any work on a new task, small ones included, check that no other live session of this
