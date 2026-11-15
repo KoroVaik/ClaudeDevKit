@@ -46,6 +46,8 @@ Ukrainian forms the owner approved are in brackets.
   over time (`dev-kit:manager`, "Less of the owner's involvement over time").
 - Every message ends with a concrete proposal: `Запустити нову сесію «C: <name>»? (<what it gives, at
   most 8 words>)`, with the name the session will get, then `Рекомендую: так - <reason, at most 12 words>`. Never a bare "what to start?".
+  Exception: the message after P starts an «Обговорення:» session (see "Start an «Обговорення:»
+  session") has no status, no question and no proposal.
 - A message that corrects an earlier P message (a takeover, merge or delivery P reported too early)
   opens with «Раніше я сказав <X> - це було неточно: <Y>» (in the reply's language).
 - One message per event (a report, a watcher exit, an owner message), never several small ones.
@@ -273,6 +275,10 @@ setup, registration) with these differences:
   mockup in the feature file; then send P a done report by SendMessage".
 - It ends with the owner's yes on the criteria and the mockup. P merges its branch as in "Acceptance
   and merge", then starts a C from that feature file.
+- After the launch P writes exactly one line and nothing else: `Відкрий сесію «Обговорення:
+  <feature>» - там обговориш усе по задачі.`, with the exact name from the launch. No question, no
+  button, no status, no recommendation; the owner's global rules name this exception. When the owner
+  answers «так» or similar, P writes nothing more about opening it.
 
 Why: the owner decided on 2026-11-15 that what the owner approves must be written down before the
 build, so the C builds without him and what the lead accepts is what he accepted.
