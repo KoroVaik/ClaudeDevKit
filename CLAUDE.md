@@ -53,6 +53,9 @@ server first tries `claude remote-control --continue` (no `--spawn`: they cannot
 if that fails within 20 s, the log gets CONTINUE-FAILED and the server starts fresh. Not yet
 checked on a real restart.
 
+`scripts/restart-leads.ps1 [-Name ...] [-Force]` restarts leads so they load a new dev-kit
+version (stop, then `start-servers.ps1` resumes them); a busy lead is skipped unless `-Force`.
+
 `scripts/watch-servers.ps1` (started by `start-servers.ps1`, hidden) checks every minute and
 writes to `logs/servers.log` (not in git): STATE, DOWN with the session's last state and any
 crash event, UP. Each Remote Control server's window adds an EXIT line with its exit code. The
