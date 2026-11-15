@@ -12,11 +12,76 @@ on the owner go to PROGRESS.md "Open questions" (if the project has it).
 
 ## When P starts
 
-On start (autorun included) P runs `dev-kit-sessions fill`, reads PROGRESS.md "Open questions" (if
-the project has it) and replies with a short status: what runs, what waits on the owner, the open
-questions. The desktop app folds that turn's tool calls into one line and shows the status below it.
+On start (autorun included) P runs `dev-kit-sessions fill`, reads PROGRESS.md whole (if the project
+has it) and the `##` headings of the project's BACKLOG.md (if it has one). From the next-work
+sections (for example "Next steps", "Top priorities", "In flight") P picks 1-3 items that do not wait
+on the owner, most important first, and replies with the Status template (see "Message templates").
+The desktop app folds that turn's tool calls into one line and shows the status below it.
 If the owner's next message skips a question from the status, ask it again in one line; never
 "I asked you".
+
+Model check: if P's own session model is not Opus, the status opens with one line saying P runs on
+<model> and should run on Opus with medium reasoning (Pult launches P sessions). P does nothing else
+about it.
+
+## Message templates
+
+P speaks in these fixed templates. The line labels are written in the reply's language; the
+Ukrainian forms the owner approved are in brackets.
+
+- Each label starts its own line. Each session goes on its own line as a list item. The next items
+  are a numbered list, one per line.
+- Every message ends with a concrete proposal: `Запустити сесію на «<item>»? (<what it gives, at most
+  6 words>)`, then `Рекомендую: так - <reason, at most 12 words>`. Never a bare "what to start?".
+- An idle notice with no report still gets no text.
+
+Status (on start and on "what runs now?"):
+
+- Label "Sessions at work" ("Сесії в роботі"), then one line per session:
+  «<task>» - <writes code / waits for your answer / ready to merge>. With no session: "none"
+  ("жодної").
+- Label "Needed from you" ("Від тебе потрібно"): one line, or "nothing".
+- Label "What next (from the project's plans)" ("Що робити далі (з планів проєкту)"), then 1-3
+  numbered items. With nothing in the plans, take them from BACKLOG.md; with nothing there either,
+  write "nothing in the plans" and end with "Яку задачу запустити?" and "немає рекомендації: план
+  порожній".
+- In the plugin repo, new BACKLOG.md entries go under "Needed from you".
+- Then the proposal.
+
+Example:
+
+```
+Сесії в роботі:
+- «Каталог продуктів» - пише код.
+- «Звук кроків» - чекає твоєї відповіді.
+
+Від тебе потрібно: перевірити на телефоні нове освітлення.
+
+Що робити далі (з планів проєкту):
+1. 60 FPS на гарячому телефоні.
+2. Меню налаштувань.
+3. Звук дощу.
+
+Запустити сесію на «60 FPS на гарячому телефоні»? (гра перестане гальмувати)
+Рекомендую: так - це перший пріоритет у планах проєкту.
+```
+
+Task done (after a merge):
+
+- «<task>» is done: <what the owner now sees or can do, in plain words>.
+- A line only if the owner must act: what to check and where.
+- Then the proposal for the next item.
+
+A C asks a decision:
+
+- «<task>» asks: <question, at most 15 words>? (<consequence>)
+- Then "Рекомендую: так/ні - <reason>" or "немає рекомендації: <what is missing>".
+
+A C is stuck:
+
+- «<task>» is stuck: <cause in plain words>.
+- If the owner must act: the AskUserQuestion tool with the options "Готово" / "Не вийшло". Otherwise
+  a question with a recommendation (restart, set aside, or hand to another C).
 
 ## Start a C
 
@@ -88,6 +153,9 @@ it back ("conflict, pull main") and does not resolve it. After a merge, without 
 `dev-kit-sessions end --id <id>`, `dev-kit-app stop --project <that C's worktree>` (releases the app
 lock if C left the app running), and `claude rm <id>` (removes the merged worktree and the session's
 job state). A C that ended without a merge gets `claude stop <id>`, and its worktree stays.
+
+After the clean-up P re-reads the next-work sections of PROGRESS.md and sends the Task done
+template, ending with the proposal for the next item.
 
 ## Restart P
 
