@@ -44,8 +44,8 @@ Ukrainian forms the owner approved are in brackets.
   an item needs the owner and an agent could take that part over (a test, an emulator or headless
   run, a script), P adds that replacement as its own item. Goal: the owner's involvement shrinks
   over time (`dev-kit:manager`, "Less of the owner's involvement over time").
-- Every message ends with a concrete proposal: `Запустити сесію на «<item>»? (<what it gives, at most
-  6 words>)`, then `Рекомендую: так - <reason, at most 12 words>`. Never a bare "what to start?".
+- Every message ends with a concrete proposal: `Запустити нову сесію «C: <name>»? (<what it gives, at
+  most 8 words>)`, with the name the session will get, then `Рекомендую: так - <reason, at most 12 words>`. Never a bare "what to start?".
 - A message that corrects an earlier P message (a takeover, merge or delivery P reported too early)
   opens with «Раніше я сказав <X> - це було неточно: <Y>» (in the reply's language).
 - One message per event (a report, a watcher exit, an owner message), never several small ones.
@@ -82,39 +82,36 @@ Example:
 2. Меню налаштувань (від тебе: нічого).
 3. Звук дощу (від тебе: нічого).
 
-Запустити сесію на «Меню налаштувань»? (з'явиться екран налаштувань)
+Запустити нову сесію «C: Меню налаштувань»? (з'явиться екран налаштувань)
 Рекомендую: так - перший пункт без телефону, бо зараз його не підключити.
 ```
 
-Task done (after a merge): one message with three sections, headings in the reply's language. It is
-not critical: it waits its turn in the queue.
+Task done (after a merge): one message, not critical (it waits its turn in the queue). The owner must
+grasp each part from one sentence; details stay in the session's own report and come on request.
 
-- `### Done` (`### Готово`): «<task>»: what the owner now sees or can do, in plain words.
-- `### Needed from you` (`### Потрібно від тебе`): numbered yes/no questions, each followed by its
-  `Рекомендую: так/ні - <reason>` line. C's open questions and any owner action (what to check and
-  where) go here; P adds the recommendation C did not give. With nothing needed, leave the section out.
-- `### Next` (`### Далі`): the proposal for the next item.
+- Heading per finished session: `### <session name> (<state>)`, the name exactly as in the app and the
+  state in the reply's language («готово», «застрягла»). Under it one sentence: what the owner now
+  sees or can do, in plain words.
+- Under the same heading, only if needed: numbered yes/no questions or owner actions, each followed by
+  its `Рекомендую: так/ні - <reason>` line. P adds the recommendation C did not give.
+- Last, `### Next` (`### Далі`): the proposal for the next item.
 
 Example:
 
 ```
-### Готово
-«Каталог продуктів»: парсер читає всі сторінки товарів, КБЖУ і штрихкоди Fozzy.
-
-### Потрібно від тебе
-1. Зберегти або відкласти правку CLAUDE.md, бо без цього злиття не піде.
-   Рекомендую: так - її, мабуть, робить твоя сесія «Неоднозначні факти арбітра».
-2. Видалити скрипт пілотного збору, яким ніхто не користується?
+### C: Каталог продуктів (готово)
+Парсер тепер читає всі сторінки товарів, КБЖУ і штрихкоди Fozzy.
+1. Видалити скрипт пілотного збору, яким ніхто не користується?
    Рекомендую: так - він лише заважає.
 
 ### Далі
-Запустити сесію на «Пілотна схема імпорту»? (імпорт знову проходитиме перевірку)
+Запустити нову сесію «C: Пілотна схема імпорту»? (імпорт знову проходитиме перевірку)
 Рекомендую: так - від тебе нічого не треба.
 ```
 
 An owner item from a C (one at a time, under the session's name):
 
-- «<session name>» asks: <question, at most 15 words>? (<consequence>)
+- Heading `### <session name> (питає)`, then <question, at most 15 words>? (<consequence>)
 - Then "Рекомендую: так/ні - <reason>" or "немає рекомендації: <what is missing>".
 - Last line, when more wait: «У черзі ще N питань».
 
