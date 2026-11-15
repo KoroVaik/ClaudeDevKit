@@ -121,6 +121,10 @@ A C is stuck:
 - Start it with the PowerShell tool: Git Bash rewrites a prompt that starts with `/` and any `C:/...`
   path in it. The command prints only the 8-hex short id. "Workspace not trusted" means the owner must run `claude` once in
   that folder and accept the prompt.
+- The first prompt holds no double quote (`"`): Windows PowerShell 5.1 does not escape it for a
+  native command, so the prompt is cut at the first one (seen live 2026-11-15: C got only the first
+  word). Quote the owner's words with «» and use single quotes elsewhere. Put the prompt in a
+  single-quoted here-string (`@'...'@`), which keeps `$` and backticks as text.
 - Run `dev-kit-sessions` and `dev-kit-app` in the Bash tool, where the plugin bin folder is on the
   PATH; PowerShell cannot run these files.
 - "Sessions at work" lists only the C sessions in P's registry (`dev-kit-sessions list`); `claude
