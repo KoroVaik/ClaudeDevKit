@@ -31,6 +31,8 @@ Ukrainian forms the owner approved are in brackets.
 
 - Each label starts its own line. Each session goes on its own line as a list item. The next items
   are a numbered list, one per line.
+- A session is named exactly as the app shows it, prefix included («C: Каталог продуктів»), in every
+  message; never translated, shortened or retold.
 - Each session and each next item ends with what it needs from the owner, in brackets that start
   with "from you:" ("від тебе:"): a physical action, a device, a sign-in, a hand check (for example
   "(від тебе: телефон)", "(від тебе: перевірити на телефоні)"), or "(від тебе: нічого)" once P has
@@ -125,6 +127,10 @@ A C is stuck:
   owner «<item>» overlaps «<session>» (<same task / same files>) and ask whether to start anyway,
   with a recommendation. If P's session lacks that agent type (it started before the plugin update),
   follow `dev-kit:manager`, "Which subagent type", for the stand-in.
+- Name: in the owner's language, short, saying what the task is. Prefix by purpose, fixed at launch:
+  `C:` for a session that works alone and reports to P (the owner need not open it); `Обговорення:`
+  (or `Discussion:` in English) for a session made to talk with the owner. The launch, the
+  registry and every message use the same name.
 - Make the worktree yourself from the local main, then start C inside it:
   `git worktree add .claude/worktrees/<slug> -b c/<slug> main`, then in one PowerShell call
   `Push-Location <worktree>; claude --bg --remote-control "C: <feature>" --name "C: <feature>" --permission-mode auto --model <model> --effort <level> -- "<first prompt>"; Pop-Location`.
