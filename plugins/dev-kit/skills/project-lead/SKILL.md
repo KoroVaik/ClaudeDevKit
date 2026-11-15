@@ -126,8 +126,11 @@ A C is stuck:
   with a recommendation. If P's session lacks that agent type (it started before the plugin update),
   follow `dev-kit:manager`, "Which subagent type", for the stand-in.
 - Make the worktree yourself from the local main, then start C inside it:
-  `git worktree add .claude/worktrees/<slug> -b c/<slug> main`, then in that folder
-  `claude --bg --remote-control "C: <feature>" --name "C: <feature>" --permission-mode auto --model <model> --effort <level> -- "<first prompt>"`.
+  `git worktree add .claude/worktrees/<slug> -b c/<slug> main`, then in one PowerShell call
+  `Push-Location <worktree>; claude --bg --remote-control "C: <feature>" --name "C: <feature>" --permission-mode auto --model <model> --effort <level> -- "<first prompt>"; Pop-Location`.
+  The `Pop-Location` returns P's shell to the main checkout: the PowerShell tool keeps its folder
+  between calls, and a shell left inside the worktree locks the folder, so `git worktree remove`
+  later leaves it behind with "Permission denied" (seen live in Zhratva, 2026-11-15).
   Never `claude -w`: it cuts the worktree from the remote's default branch, which can be far behind
   the local main (seen live: 6 weeks old, without `.claude/dev-kit.md`).
   `--model` and `--effort` are always given. The owner talks to C directly, so C runs on
@@ -141,8 +144,9 @@ A C is stuck:
   or folder; `link` makes a junction to the main checkout's folder
   (`New-Item -ItemType Junction -Path <worktree>/<path> -Target <main>/<path>`, PowerShell tool;
   folders only). A junction's real path is outside C's worktree, so for each `link` row P adds
-  `--add-dir <main>/<path>` to C's `claude` command: C must never need the owner's permission for a
-  path P set up (seen live in Zhratva, 2026-11-15). Prefer `copy` where C writes and the result need
+  `--add-dir=<main>/<path>` to C's `claude` command, always with `=`: the flag takes several values,
+  so `--add-dir <path> -- "<prompt>"` swallows the prompt as a path and C starts idle (seen live in
+  Zhratva, 2026-11-15). C must never need the owner's permission for a path P set up. Prefer `copy` where C writes and the result need
   not reach the main checkout. Without that table, copy what the project needs (for example `.env*`, `.agent-env/`,
   `.claude/settings.local.json`, `local.properties`), never build output or dependencies (C installs
   those); `git status --ignored --short` in the main checkout lists the candidates. The first prompt
@@ -190,7 +194,10 @@ session watcher.
 
 Watcher: `dev-kit-sessions watch` in the Bash tool with `run_in_background`, run in the project's
 main checkout. It reads the registry's active C sessions every minute, stays silent while they live,
-and exits when one is gone; its own limit is 2 hours. Arm it after registering a C and after every
+and exits when one is gone; its own limit is 2 hours. Never run it in the foreground: the Bash tool kills
+a foreground command at its 10-minute timeout with no exit line, while a background one is not bound
+by the timeout (checked 2026-11-15: background runs of 150 seconds with a 60-second timeout and of
+12 minutes both finished). Arm it after registering a C and after every
 exit below, while the registry has an active C. On its exit:
 
 - `gone: <name> | <id> | <state>` (exit 0): that C ended. If it sent a "done" report, go on with the
@@ -248,8 +255,9 @@ After a merge, without asking the owner, run `dev-kit-sessions end --id <id>` (t
 `dev-kit-app stop --project <that C's worktree>` (releases the app lock if C left the app running),
 `claude rm <id>` (the session's job state), then removes each `link` row's junction without following
 it (`cmd /c rmdir "<worktree>\<path>"`, PowerShell tool, no `/s`; never `Remove-Item`, `rm -r` or
-`--force` while a junction is there: they may delete the main checkout's data), then
-`git worktree remove <worktree>` and
+`--force` while a junction is there: they may delete the main checkout's data), then, from the main
+checkout (`Set-Location <main>` first if the PowerShell tool's folder is anywhere inside the worktree,
+or the folder stays behind locked), `git worktree remove <worktree>` and
 `git branch -d c/<slug>`: `claude rm` does not remove a worktree P made by hand. If `git worktree
 remove` refuses over untracked files, P looks at them: nothing from the task, `--force`; otherwise it
 asks the owner. A C that ended without a merge gets `dev-kit-sessions end --id <id> --status stopped`,

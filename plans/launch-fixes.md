@@ -18,3 +18,16 @@ Owner's yes, P: ClaudeDevKit chat. Source: P: Zhratva's report on dev-kit 0.1.30
 
 Out of scope (goes to the «Керівник як CEO» discussion): taking over a session the owner started on main;
 whether the owner's yes relayed by P counts for a C's auto-mode classifier.
+
+## Status (2026-11-15): built in dev-kit 0.1.31
+
+- Launch: `--add-dir=<main>/<path>` for each `link` row, with the reason (the flag takes several values
+  and swallows the prompt). The launch runs as `Push-Location <worktree>; claude ...; Pop-Location` in
+  one PowerShell call; the clean-up does `Set-Location <main>` before `git worktree remove`.
+- Watcher: checked that the Bash tool does not kill a `run_in_background` command at its timeout (a
+  150-second run with a 60-second timeout and a 12-minute run with no timeout both finished, timestamps
+  every 10 and 30 seconds). So the 2-hour limit stays; the reported death fits a foreground run, which
+  the tool kills at 10 minutes. The Wake-up section now says never to run it in the foreground, with
+  this check. Not checked: whether a background run survives a host restart or `/clear` (the Restart
+  section already re-arms it).
+- No script changed, so no new tests; lint green.
