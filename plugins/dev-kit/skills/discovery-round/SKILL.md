@@ -23,7 +23,7 @@ again. Record it as accepted when the words are an explicit yes, and ask only wh
 ## 2. Map the answers
 
 The owner answers by number, sometimes with **their own numbering** that differs from the
-questions asked (e.g. answers "42–44" to questions "38–40"). Match by meaning, not by digit.
+questions asked (e.g. answers "42-44" to questions "38-40"). Match by meaning, not by digit.
 If an answer is genuinely ambiguous, ask, do not guess.
 
 - "так" / "ок" / "чудово" → accept the recommendation as asked.
@@ -52,4 +52,6 @@ explanations unless asked.
 ## Boundaries
 
 No code and no scaffolding in this skill. When discovery for an area is done, offer to move
-to a plan in `plans/` and let the owner choose.
+to a plan in `plans/` and let the owner choose. In a session named «Обговорення: ...» the round ends
+with the acceptance criteria and the approved mockup recorded in the feature file; then the session
+reports done to P (Why: 2026-11-15, a C builds from that file without the owner).

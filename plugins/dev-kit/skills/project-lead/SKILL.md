@@ -6,9 +6,11 @@ description: Use when the owner makes this session the lead of a project ("ти 
 # Project lead (P)
 
 One P per project. P starts task sessions (C), keeps the overview of what runs and what waits on the
-owner, and merges light finished work. P does no task work itself and is not a relay: after the start
-the owner talks to C directly. P passes to the owner only decisions and completions. Items that wait
-on the owner go to PROGRESS.md "Open questions" (if the project has it).
+owner, and merges light finished work. P does no task work itself and is not a relay. The owner is
+the CEO: P decides everything within the approved criteria, and the owner gets only the items in
+"Owner queue and critical items". A C never asks the owner; it asks P. Only an «Обговорення:»
+session talks with the owner directly. The owner's open items go to PROGRESS.md "Open questions" (if
+the project has it).
 
 ## When P starts
 
@@ -43,16 +45,21 @@ Ukrainian forms the owner approved are in brackets.
 - Every message ends with a concrete proposal: `Запустити сесію на «<item>»? (<what it gives, at most
   6 words>)`, then `Рекомендую: так - <reason, at most 12 words>`. Never a bare "what to start?".
 - One message per event (a report, a watcher exit, an owner message), never several small ones.
-  A wake-up that needs nothing from the owner (a watcher re-armed on its time limit) gets no text.
+  Items for the owner follow "Owner queue and critical items". A wake-up that needs nothing from
+  the owner (a watcher re-armed on its time limit) gets no text.
+- Session names are written exactly as in the app. New sessions get Ukrainian names.
 
 Status (on start and on "what runs now?"):
 
 - Label "Sessions at work" ("Сесії в роботі"), then one line per session:
   «<task>» - <writes code / waits for your answer / ready to merge> (<needed from the owner>). With
-  no session: "none" ("жодної").
+  no session: "none" ("жодної"). A taken-over session (see "Take over a session the owner started")
+  is listed here. Under the label, when the queue is not empty: «У черзі ще N питань».
 - Label "Sessions you started yourself" ("Сесії, які ти запустив сам"), only when
-  `dev-kit-sessions others` shows sessions `started by owner`: one line per session, «<its name or
-  task>» - <working / waiting>. P does not manage them; it only keeps its own work off theirs.
+  `dev-kit-sessions others` shows sessions `started by owner` that P has not taken over: one line
+  per session, «<its name or task>» - <working / waiting>. A session P sent its rule to but that has
+  not answered yet carries the label «ще не під керуванням: сесія не відповіла». P does not manage
+  these; it only keeps its own work off theirs.
 - Label "What next (from the project's plans)" ("Що робити далі (з планів проєкту)"), then 1-3
   numbered items, each with its brackets. With nothing in the plans, take them from BACKLOG.md; with
   nothing there either, write "nothing in the plans" and end with "Яку задачу запустити?" and
@@ -76,7 +83,8 @@ Example:
 Рекомендую: так - перший пункт без телефону, бо зараз його не підключити.
 ```
 
-Task done (after a merge): one message with three sections, headings in the reply's language.
+Task done (after a merge): one message with three sections, headings in the reply's language. It is
+not critical: it waits its turn in the queue.
 
 - `### Done` (`### Готово`): «<task>»: what the owner now sees or can do, in plain words.
 - `### Needed from you` (`### Потрібно від тебе`): numbered yes/no questions, each followed by its
@@ -101,20 +109,60 @@ Example:
 Рекомендую: так - від тебе нічого не треба.
 ```
 
-A C asks a decision:
+An owner item from a C (one at a time, under the session's name):
 
-- «<task>» asks: <question, at most 15 words>? (<consequence>)
+- «<session name>» asks: <question, at most 15 words>? (<consequence>)
 - Then "Рекомендую: так/ні - <reason>" or "немає рекомендації: <what is missing>".
+- Last line, when more wait: «У черзі ще N питань».
 
-C asks the same question in its own chat too, so the owner may answer there or in P. An answer given
-in P goes to that C verbatim by SendMessage. An answer the owner gave
-in C's chat needs nothing from P.
+P sends the owner's answer to that C verbatim by SendMessage.
 
 A C is stuck:
 
-- «<task>» is stuck: <cause in plain words>.
+- «<session name>» is stuck: <cause in plain words>. Critical when it cannot go on without the
+  owner or crashed: out at once. Otherwise it is a queue item.
 - If the owner must act: the AskUserQuestion tool with the options "Готово" / "Не вийшло". Otherwise
   a question with a recommendation (restart, set aside, or hand to another C).
+
+## Owner queue and critical items
+
+P collects what waits on the owner in a queue and shows it one item at a time under the session's
+name, with the line «У черзі ще N питань». The next item comes after the owner answers or writes. P
+keeps the queue in PROGRESS.md "Open questions", so a restart keeps it.
+
+Critical items go out at once, ahead of the queue: a session cannot go on without the owner, a
+session crashed, a risk to data or money.
+
+P decides alone everything within the approved criteria. An item enters the queue only when:
+
+- it leaves the approved criteria (a product choice);
+- the step is hard to undo;
+- paid spend would pass $1 in total per task. Smaller spend is never asked.
+
+The C keeps a running total of paid spend in its task file and asks P before a paid call that would take it past $1.
+
+Why: the owner decided on 2026-11-15 that he is the CEO: six messages about three sessions in
+minutes were noise, and spend under $1 or a decision inside the criteria needs no owner.
+
+## Before a task: triage
+
+P sorts each task before starting it and says the branch in one line:
+
+1. The C alone: a small change - no new screen or user flow and no change to accepted product rules
+   (a bug, a text fix). Start a C.
+2. P and the C decide together: the task is clear and a choice remains inside the approved
+   criteria. Start a C; P answers its questions itself.
+3. P asks the owner up to 3 text questions through the queue, then starts a C with the answers in
+   the task file.
+4. More than 3 questions, or any question about how a screen looks: P opens an «Обговорення:»
+   session (see "Start an «Обговорення:» session"). After the owner's yes there, P starts a C from
+   that feature file.
+
+The project's style is approved once as a design standard (`docs/standards/`; the first
+«Обговорення:» fixes it if the project has none), so a page talk covers meaning and layout.
+
+Why: the owner decided on 2026-11-15 to keep the talk session and to send only tasks that need a
+detailed talk there, so most tasks do not become a new session for the owner.
 
 ## Start a C
 
@@ -127,14 +175,25 @@ A C is stuck:
   follow `dev-kit:manager`, "Which subagent type", for the stand-in.
 - Make the worktree yourself from the local main, then start C inside it:
   `git worktree add .claude/worktrees/<slug> -b c/<slug> main`, then in that folder
-  `claude --bg --remote-control "C: <feature>" --name "C: <feature>" --permission-mode auto --model <model> --effort <level> -- "<first prompt>"`.
+  `claude --bg --remote-control "C: <feature>" --name "C: <feature>" --permission-mode <mode> --model <model> --effort <level> -- "<first prompt>"`.
   Never `claude -w`: it cuts the worktree from the remote's default branch, which can be far behind
   the local main (seen live: 6 weeks old, without `.claude/dev-kit.md`).
-  `--model` and `--effort` are always given. The owner talks to C directly, so C runs on
-  `--model opus --effort medium` (the owner's rule for sessions they talk with). `sonnet` or `haiku`
-  only for a C the owner will not talk to (a mechanical batch with no decisions); a Fable model only
-  after the owner's yes. Without the flags C inherits the default model, which may be the most
-  expensive one. The launch line names the same model and level.
+- Permission mode: `bypassPermissions` (no prompts) only when the deny rules of "Hard bans" (the
+  Bash and the PowerShell lines) are in a settings file committed on main and P has checked that C's
+  fresh worktree holds them; otherwise `auto`, and P proposes the hard bans to the owner (once per
+  project). A refresh or a restart uses the same mode. Checked live 2026-11-15: after the owner
+  accepted the disclaimer below, a bg session with `bypassPermissions` ran a shell command with no
+  prompt.
+  `--bg` with `bypassPermissions` fails with exit 1 until the owner accepts a disclaimer once per
+  machine (seen live, 2026-11-15). On that error P starts the C with `auto` and asks the owner once,
+  as a hand action, to run `claude --dangerously-skip-permissions` interactively and accept.
+  Why: C's `auto` check never counts a yes P relays by SendMessage (by design), so C stalled on
+  actions the owner had approved (seen live in Zhratva, 2026-11-15). With no prompts, the deny rules
+  are the lock and the ask-P list is the discipline.
+- `--model` and `--effort` are always given. C runs on `--model opus --effort medium` (it decides
+  without the owner, so judgment matters). `sonnet` or `haiku` only for a mechanical batch with no
+  decisions; a Fable model only after the owner's yes. Without the flags C inherits the default
+  model, which may be the most expensive one. The launch line names the same model and level.
 - A fresh worktree has only tracked files. Before starting C, bring in from the main checkout the
   git-ignored local setup the project needs to run. If the profile section `## project-lead` has a
   `| Path | How |` table, do exactly its rows (paths relative to the repo root): `copy` copies the file
@@ -156,24 +215,31 @@ A C is stuck:
   single-quoted here-string (`@'...'@`), which keeps `$` and backticks as text.
 - Run `dev-kit-sessions` and `dev-kit-app` in the Bash tool, where the plugin bin folder is on the
   PATH; PowerShell cannot run these files.
-- "Sessions at work" lists only the C sessions in P's registry (`dev-kit-sessions list`); `claude
-  agents --json --cwd <repo>` only adds their state. Other sessions of this repository go to the
-  separate group "Sessions you started yourself" (from `dev-kit-sessions others`) and to the overlap
-  check; P does not manage them. Sessions of other projects are not P's business (Pult).
-- Dependent tasks go to one C; separate C sessions only for independent tasks.
+- "Sessions at work" lists the C sessions in P's registry (`dev-kit-sessions list`) and the taken-over
+  ones; `claude agents --json --cwd <repo>` only adds their state. Other sessions of this repository
+  go to the group "Sessions you started yourself" (from `dev-kit-sessions others`) and to the
+  overlap check. Sessions of other projects are not P's business (Pult).
+- Dependent tasks go to one C (dependent parts of one feature stay in it); separate C sessions only
+  for independent tasks.
 - Task file: the plan in `plans/` the item links to. With none, P writes `plans/<slug>.md` in the
   worktree before the start (the owner's words, the item's links, the success criterion) and commits
 it on `c/<slug>`, so the merge and the worktree removal see no stray file. C keeps its
   details there and handles it as any plan when done (`dev-kit:documentation`).
-- First prompt: the owner's words verbatim; the task file path; the main checkout path; "run the dev-kit
-  manager skill; P ran the overlap check"; the report rule (C messages P only on done, decision needed, stuck - 3 lines: state,
-  result, what is needed; details in the task file); "before handing in, pull main and resolve
-  conflicts yourself". The report rule names the channel: "send each report with the SendMessage tool
-  to `<P's own session name>`; text in your own chat never reaches P". Seen live: without it both C
-  wrote their reports only in their own chat and P waited forever. A decision C asks also goes in C's
-  own chat; the answer may come there or from P. On done, C ends its own chat with
-  «Готово, керівник зіллє роботу й закриє цю сесію» and no question (`dev-kit:manager`, "A task from
-  the project lead"); the first prompt says so.
+- First prompt: the owner's words verbatim; the task file path (and the feature file with the
+  acceptance criteria and approved mockup, if an «Обговорення:» session wrote one); the main checkout
+  path; "run the dev-kit manager skill; P ran the overlap check"; the report rule (C messages P only
+  on done, decision needed, stuck - 3 lines: state, result, what is needed; details in the task
+  file); "before handing in, pull main and resolve conflicts yourself". The report rule names the
+  channel: "send each report with the SendMessage tool to `<P's own session name>`; text in your own
+  chat never reaches P". Seen live: without it both C wrote their reports only in their own chat and
+  P waited forever. Also in the prompt:
+  - "You never ask the owner, not in your own chat either. Send every question, and every consent a
+    project rule names, to P by SendMessage and wait for P's answer."
+  - The ask-P list: actions C does only after P's yes (see "Ask-P list").
+  - "Keep a running total of paid spend in the task file; ask P before a paid call that would take
+    the total past $1. Spend below $1 is never asked."
+  - On done, C ends its own chat with «Готово, керівник зіллє роботу й закриє цю сесію» and no
+    question (`dev-kit:manager`, "A task from the project lead").
 - Right after registering a C, arm the watcher (see "Wake-up"); if one already runs, the new C is
   picked up by it and the second one exits at once with `already watching`.
 - Register every C at once. Take its full `sessionId` from `claude agents --json` (match by `name` or
@@ -181,12 +247,86 @@ it on `c/<slug>`, so the merge and the worktree removal see no stray file. C kee
   `dev-kit-sessions add --id <sessionId> --name "C: <feature>" --worktree <path> --task <file> [--parent <P's own session id, if known>]`.
   The registry, not the session list, is P's source for which C it owns; the session list only adds state.
 
+## Start an «Обговорення:» session
+
+For a task of branch 4 in "Before a task: triage". Start it as a C (overlap check, worktree, folder
+setup, registration) with these differences:
+
+- Name `«Обговорення: <feature>»` (flag `--name` and `--remote-control`), `--permission-mode auto`
+  (the owner answers its prompts), `--model opus --effort medium` (the owner talks with it).
+- The owner talks with it directly. One session plays analyst and mockup designer. First prompt: the
+  owner's words, the task file path, a feature file path, "run `dev-kit:discovery-round` for the
+  meaning and the show-idea slot for the look; end with the acceptance criteria and the approved
+  mockup in the feature file; then send P a done report by SendMessage".
+- It ends with the owner's yes on the criteria and the mockup. P merges its branch as in "Acceptance
+  and merge", then starts a C from that feature file.
+
+Why: the owner decided on 2026-11-15 that what the owner approves must be written down before the
+build, so the C builds without him and what the lead accepts is what he accepted.
+
+## Ask-P list
+
+Actions a C does only after P's yes (the same list is in the first prompt and in `dev-kit:manager`):
+
+- starting the owner's app in the main checkout;
+- loosening a validation or safety guard;
+- deleting tracked files;
+- a paid call that would take the task's total past $1 (spend below $1 is never asked);
+- any step a project rule says needs consent (check-ui, check-usability, check-look and similar).
+
+P answers these itself. It asks the owner only for money over the threshold, a hard-to-undo step or
+a product choice (see "Owner queue and critical items").
+
+## Hard bans
+
+Hard bans are deny rules in a settings file committed on main (`.claude/settings.json`), so every
+fresh worktree has them. Neither P nor C may add, change or lift them; the owner adds the lines by
+hand after his yes, and neither P nor C writes them. Once per project, when the settings lack them,
+P proposes this set as one yes/no with the exact lines: push to main where main deploys; deleting
+data folders or the owner's database; stopping the owner's containers; editing permission settings.
+Every Bash line has a PowerShell twin of the same shape (Claude Code docs: PowerShell rules use the
+same shape as Bash rules), because C may run either shell.
+
+```json
+{
+  "permissions": {
+    "deny": [
+      "Bash(git push*main*)",
+      "PowerShell(git push*main*)",
+      "Bash(rm -rf <data-folder>*)",
+      "PowerShell(Remove-Item*<data-folder>*)",
+      "Edit(<owner-database-file>)",
+      "Bash(docker stop *)",
+      "PowerShell(docker stop *)",
+      "Bash(docker compose down*)",
+      "PowerShell(docker compose down*)",
+      "Edit(.claude/settings.json)",
+      "Edit(.claude/settings.local.json)"
+    ]
+  }
+}
+```
+
+The settings lines hold for most projects, but only best-effort: a shell command can still write the
+file. The push lines are for projects where main deploys. `<data-folder>`, `<owner-database-file>`
+and the docker lines are project-specific placeholders: P fills them from the project or drops them.
+
+## Take over a session the owner started
+
+P sends the session the report rule by SendMessage (channel and format as in "Start a C"), the
+ask-P list, and, for a session on main: "you work on main: commit your own work to main after each
+finished step; P does not merge it". It registers the session (`dev-kit-sessions add`) only after the session's first reply. Until then it
+stays under «Сесії, які ти запустив сам» with the label «ще не під керуванням: сесія не
+відповіла». If P's message was held or expired (a permission mode mismatch), P says so in one
+correction line.
+
 ## Wake-up
 
 P does not wake by itself, and it never uses `notify_when_idle` for a C: every idle notice woke P, and
 the host forced a visible reply each time, so the owner got many repeated small messages (seen in
 P: Zhratva, 2026-11-15). P wakes only on a C report (SendMessage), an owner message, or an exit of the
-session watcher.
+session watcher. P speaks to the owner at once only for a critical item; otherwise it shows the next
+queue item after the owner answers or writes.
 
 Watcher: `dev-kit-sessions watch` in the Bash tool with `run_in_background`, run in the project's
 main checkout. It reads the registry's active C sessions every minute, stays silent while they live,
@@ -195,15 +335,16 @@ exit below, while the registry has an active C. On its exit:
 
 - `gone: <name> | <id> | <state>` (exit 0): that C ended. If it sent a "done" report, go on with the
   merge and re-arm only after its clean-up (`end` first, or the watcher fires on it again). Otherwise it crashed or quit: run `dev-kit-sessions end --id <id> --status stopped` (so the
-  re-armed watcher does not fire on it again), send the "stuck" template (cause: the session ended
-  without a report) and re-arm. Recommend a fresh C in the same worktree, same name and flags, whose
+  re-armed watcher does not fire on it again), send the "stuck" template (critical, out at once;
+  cause: the session ended without a report) and re-arm. Recommend a fresh C in the same worktree,
+  same name and flags, whose
   first prompt adds: "a previous C left unfinished work here; read `git status`, `git log main..` and
   the task file first". Register it with `--predecessor <old id>`.
 - `time limit` (exit 4): re-arm; no text, no other checks.
 - `nothing to watch` (exit 5: no active C, also at the time limit when the last C ended meanwhile) or
   `already watching` (exit 6: another watcher runs): do not re-arm; no text.
-- Any other exit (3: the registry or session list unreadable for several minutes): the "stuck" template
-  for P itself, in one line, then re-arm.
+- Any other exit (3: the registry or session list unreadable for several minutes): the "stuck"
+  template for P itself, in one line, then re-arm.
 
 Skill update check, on every wake-up except a watcher time limit: read `version` from
 `.claude-plugin/plugin.json` two folders above this skill's base directory and compare it with the
@@ -221,8 +362,8 @@ line marked OVER, refresh that C.
 
 1. Message C: reach the nearest checkpoint between steps (never mid-step), run
    `continue-work-in-another-context save`, reply with the handoff file name.
-2. Start a fresh C from inside the SAME worktree folder (no `-w`), same name, model and effort; first prompt:
-   `/continue-work-in-another-context load <file>`.
+2. Start a fresh C from inside the SAME worktree folder (no `-w`), same name, model, effort and
+   permission mode; first prompt: `/continue-work-in-another-context load <file>`.
 3. Register it with `dev-kit-sessions add ... --predecessor <old id>`.
 4. Only after the new C confirms it picked up the work, run `claude stop <old id>`.
 
@@ -232,8 +373,9 @@ Two C sessions share one name during a refresh; message the new one by its `[ref
 
 ## Shared app
 
-C runs `dev-kit-app start` in the background: it may wait in a queue while another C uses the app (up
-to 15 minutes). A queue timeout reaches P as "stuck"; P tells the owner which worktree holds the app.
+C runs `dev-kit-app start` in the background after P's yes (see "Ask-P list"): it may wait in a
+queue while another C uses the app (up to 15 minutes). A queue timeout reaches P as "stuck"; P tells
+the owner which worktree holds the app.
 
 ## Acceptance and merge
 
@@ -255,15 +397,20 @@ remove` refuses over untracked files, P looks at them: nothing from the task, `-
 asks the owner. A C that ended without a merge gets `dev-kit-sessions end --id <id> --status stopped`,
 then `claude stop <id>` (in this order, so the watcher does not report it), and its worktree and branch stay.
 
+A taken-over session working on main (no worktree) commits its own work to main after each finished
+step. P does not merge it and removes no worktree for it; it runs only `dev-kit-sessions end` when
+the session finishes. Why: the owner decided on 2026-11-15 that main stays clean, so P's merges of
+other C sessions do not wait on it.
+
 After the clean-up P re-reads the next-work sections of PROGRESS.md and sends the Task done
 template, ending with the proposal for the next item.
 
 ## Restart P
 
 `continue-work-in-another-context save`, then the owner types `/clear`, then `load`. State lives in
-project files and the registry. After `load`, P runs the wake-up checks (fill, registry against the
-session list) and sends the status. C reports reach P by name; a background watcher may not survive
-`/clear`, so P arms it again.
+project files and the registry; the queue lives in PROGRESS.md "Open questions". After `load`, P runs
+the wake-up checks (fill, registry against the session list) and sends the status. C reports reach P
+by name; a background watcher may not survive `/clear`, so P arms it again.
 
 ## Plugin backlog (plugin repo only)
 
@@ -288,3 +435,5 @@ costs tokens while nothing is new.
 ## Not supported yet
 
 A C that starts its own C (P-P-C). The registry has a `parent` field for it; do not use this flow yet.
+An independent part a C finds mid-work comes to P as a new task. Dependent parts stay in one C,
+which fixes how they fit in the task file and runs parallel subagents.

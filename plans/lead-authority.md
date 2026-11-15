@@ -81,7 +81,11 @@ the owner's yes on a written proposal.
    finished step; P does not merge it, so main stays clean and P's merges of other C sessions do not
    wait.
 
-## Proposal (waiting for the owner's yes)
+## Status (2026-11-15): built in dev-kit 0.1.31
+
+Owner's yes to the proposal: «Так». Open points below that are not in the proposal stay open.
+
+## Proposal
 
 Also covered by the yes, proposed with decision 3 and not objected to: the style is approved once per
 project as a design standard; after the build the C checks the result against the feature's criteria
@@ -105,8 +109,11 @@ Changes:
 Risks:
 - No-prompt mode: bypassPermissions is documented for isolated environments; a worktree is not one.
   The deny rules are the lock; the ask-P list holds only by the model's discipline.
-- Not checked yet: that `claude` started by P accepts the permission mode flag for a bg session; the
-  build checks it on one live start before relying on it.
+- Checked live 2026-11-15: `claude --bg --permission-mode bypassPermissions` first failed until the
+  owner accepted the one-time disclaimer (`claude --dangerously-skip-permissions`); after that a bg
+  session ran a shell command with no prompt.
+- Below the reviewer's threshold, recorded: the settings-edit ban covers only the project's relative
+  settings paths, not the user-level file.
 
 ## Open points to settle with the owner
 
@@ -177,4 +184,9 @@ Risks:
 - From P (to discuss): taking over a session the owner started - register only after delivery is
   confirmed, say «ще не підтверджено» until then, one correction line if the message was held or
   expired, the session stays under «Сесії, які ти запустив сам» until its first reply.
+- From P (to discuss, not in the approved build): a session the owner started that finished its task
+  hangs idle; P can neither reach it (messages held, permission mode mismatch) nor close it. Seen in
+  Zhratva with «Неоднозначні факти арбітра». P: Zhratva's proposal: on an idle owner session that
+  finished its task, P offers the owner once to close it, or to take over its open question as a
+  new C. Visibility on the phone went to Pult.
 - How a manager (C) gets the same freedom inside its feature, and starts its own sub-sessions.

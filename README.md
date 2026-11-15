@@ -157,7 +157,18 @@ run the teardown before the task ends. The rules: `plugins/dev-kit/slots.md`.
 ## Working with the project lead (P)
 
 P is one session per project. It starts task sessions (C), each in its own worktree, merges their
-finished work into main and tells you the result. It does no task work itself. The plugin covers work
+finished work into main and tells you the result. It does no task work itself. You are the CEO: P
+collects what needs you in a queue and shows one item at a time, and only a critical item (a session
+cannot go on without you, a session crashed, a risk to data or money) comes at once. P decides alone
+within the approved acceptance criteria; you get a product choice, a hard-to-undo step, or paid spend
+over $1 in total per task. P sorts each task: the C alone; P and the C; up to 3 text questions to you
+through the queue; more than 3, or any question about how a screen looks, goes to an «Обговорення:»
+session, where you settle the meaning and the mockup with one agent and the feature file ends with
+acceptance criteria and the approved mockup. A C asks only P (never you in its own chat), and runs
+with no permission prompts when the project's committed settings hold the hard-ban deny rules (push to
+main where it deploys, deleting data, and the like; you accept the Claude Code disclaimer once per
+machine). A session you started yourself can be taken over: P registers it after its first reply and
+it keeps talking with you. The plugin covers work
 inside one repository. Starting P, the project list, the phone flow and the list of all your sessions
 live in Pult (`C:/Users/korov/MyRepositories/Pult`). The rules for P:
 `plugins/dev-kit/skills/project-lead/SKILL.md`. Before a task starts, P (and any session through the

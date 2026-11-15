@@ -19,7 +19,36 @@ before telling the owner.
 A session the project lead started (its first prompt names `P: <project>`) hands its finished work to
 P, which merges it and closes the session. Its last turn after the "done" report ends with the line
 «Готово, керівник зіллє роботу й закриє цю сесію» (in the reply's language) and asks the owner
-nothing: the merge is P's step, so the owner sees in this chat why the session closes.
+nothing: the merge is P's step, so the owner sees in this chat why the session closes. Such a session
+(a C) works under these rules:
+
+- It never asks the owner in its own chat and does not use `AskUserQuestion`. Every question,
+  decision and consent request goes to P by `SendMessage` (P's name is in the first prompt); then it
+  waits for P's answer. This covers every step a rule says needs the owner's consent or yes:
+  `check-ui`, `check-usability`, `check-look`, the do-it-now yes/no for new work, and the same steps in
+  `fix-bug`, `test-change` and the extension plugins (`web-kit`, `unity-kit`). P decides or asks the
+  owner.
+- It asks P first before: starting the owner's app in the main checkout, loosening a validation or
+  safety guard, deleting tracked files, a paid call that would take the task's total past $1 (P also
+  lists these in the first prompt). The C keeps a running total of paid spend in its task file; spend
+  below $1 is never asked.
+- Within the approved acceptance criteria it decides alone. Before handing in, it checks the result
+  against the feature's criteria (and the approved mockup, if any) and fixes the gaps.
+- An independent part found mid-work goes to P as a new task, in one line. Dependent parts stay in
+  this C: it fixes in the task file how the parts fit, then runs parallel subagents. A C never starts
+  sessions of its own.
+- A hard ban (a deny rule in the project's settings) is never edited or worked around.
+- A session named «Обговорення: ...» is the exception: it talks with the owner directly, settles the
+  meaning of the page and the mockups through `dev-kit:discovery-round` and the `show-idea` slot, ends
+  with acceptance criteria and the approved mockup in the feature file, reports done to P and builds
+  nothing.
+
+A session the owner started that P took over is not a C: it keeps talking with the owner, commits its
+own work to main after each finished step, and P does not merge it.
+
+Why: the owner decided on 2026-11-15 to be the CEO who takes only global and irreversible decisions;
+P is the single channel, so a C's questions do not scatter over its own chat, and a yes P relays is
+not lost to a permission check.
 
 ## Overlap check at task start
 
@@ -131,7 +160,7 @@ check that confirms or disproves it, and only after it the fix.
 ## Less of the owner's involvement over time
 
 The plugin's main goal is autonomous development: the owner's involvement shrinks step by step.
-Decisions on what the owner gets, money and hard-to-undo steps stay with the owner. Checks, hand
+Decisions on what the owner gets, money (over $1 per task) and hard-to-undo steps stay with the owner. Checks, hand
 actions and small questions move to the agents: before asking the owner to check or do something,
 look for a way an agent can do it (a test, a headless or emulator run, a script). Where none exists
 yet, do the step with the owner and name the missing tool as a follow-up item in the project's plans.
@@ -179,8 +208,9 @@ things go" in the `dev-kit:documentation` skill says: a defect is recorded witho
 becomes an Open item only once the owner has agreed it (until then it is proposed in one line); an
 idea the owner has not agreed goes to the project's `BACKLOG.md` (an idea for the plugins goes to the
 plugin repo's, see "A change to the plugins themselves"). When the owner raises new work in the middle of
-a task, first ask one yes/no: do it now, or record it for later. Offer a session only after "now".
-Its subagent reports would otherwise fill this session and bury the owner's task. Example: while
+a task, first ask one yes/no: do it now, or record it for later (in a session the project lead
+started, the question goes to P, which also takes an independent part as a new task). Offer a session
+only after "now". Its subagent reports would otherwise fill this session and bury the owner's task. Example: while
 going through open questions the owner decides to remove a tool feature; that is an agreed task, so
 it becomes an Open item, and the questions go on.
 
@@ -192,7 +222,7 @@ an entry to the plugin repo's own `BACKLOG.md` (not the project's), at
 `C:/Users/korov/MyRepositories/ClaudeDevKit/BACKLOG.md`. A session working in that repo decides and
 builds the entry, only after the owner's yes. A project's own files (`CLAUDE.md`, `.claude/`) are edited
 in the project as before. The agent still fixes its own work in the current task as before; the entry
-is only for the plugin rule, and the agent tells the owner in one line that it added one.
+is only for the plugin rule, and the agent tells the owner (in a P-started session, tells P) in one line that it added one.
 
 Entry format, appended at the end of the file, 2-4 lines under a `##` title:
 

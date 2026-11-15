@@ -84,4 +84,4 @@ plan did not list these checks, and you accept it or report it done, ask the own
 whether to run `check-ui`, when the change adds or reworks a flow `check-usability`, and when a mockup exists
 `check-look`, with your recommendation and its reason.
 Without a yes, the report says "not checked: browser scenario, user walk and look"; tests, review and "open it and tell me"
-are not a substitute.
+are not a substitute. In a session started by the project lead, ask P instead (`dev-kit:manager`, "A task from the project lead").

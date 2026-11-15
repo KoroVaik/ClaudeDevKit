@@ -17,7 +17,10 @@ or a `Why:` line without the owner.
 ## 2. Brainstorm (when the design is open)
 
 Skip for small or fully specified changes (a bug-sized tweak, a step the plan already
-details). Otherwise settle the design with the owner before proposing an implementation:
+details), and when the feature file already holds acceptance criteria and an approved mockup from an
+«Обговорення:» session (Why: 2026-11-15, the owner settled the meaning and the look there). Otherwise
+settle the design with the owner before proposing an implementation (in a session the project lead
+started, with P, see the manager skill):
 
 - Ask at most 3 numbered questions at the end of the reply about what the plan and docs leave open
   (who does what, edge cases, scope limits). Do not re-ask settled decisions.
@@ -37,7 +40,8 @@ details). Otherwise settle the design with the owner before proposing an impleme
 - Record each accepted product rule in its feature or standard (see the
   `dev-kit:documentation` skill, section "Where things go").
 
-Write no product code until the owner agrees on the approach.
+Write no product code until the owner agrees on the approach (in a session the project lead started,
+until P's go-ahead).
 
 ## 3. Explain, then wait
 
@@ -48,7 +52,8 @@ check that needs consent on its own line, the docs. One question covers it all. 
 goes into a file in the session scratchpad; attach it to the chat with SendUserFile only if the owner
 must read it, and never mention a diagnosis file that only agents use. Explain there, at the level the
 owner's global rules set, the parts the owner does not know. Hard stop:
-wait for an explicit go-ahead; it covers every step the plan lists, and nothing else.
+wait for an explicit go-ahead; it covers every step the plan lists, and nothing else. In a session the
+project lead started, the plan and the wait go to P, and P's go-ahead is the one that counts.
 
 ## 4. Implement
 
