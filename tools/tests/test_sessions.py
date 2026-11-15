@@ -73,6 +73,18 @@ class SessionsTestCase(unittest.TestCase):
         self.assertEqual(1, self.add("a1")[0])
         self.assertEqual(1, self.run_main("end", "--id", "zz")[0])
 
+    def test_end_by_short_id(self):
+        self.add("abcd1234-0000")
+        self.add("abcd9999-0000")
+        self.assertEqual(1, self.run_main("end", "--id", "abcd")[0])  # too short
+        self.assertEqual(1, self.run_main("end", "--id", "")[0])
+        self.assertEqual(0, self.run_main("end", "--id", "abcd1234")[0])
+        self.assertEqual("done", self.records()[0]["status"])
+        self.assertEqual("active", self.records()[1]["status"])
+        self.assertEqual(0, self.add("abcd5555-0000", predecessor="abcd9999")[0])
+        self.assertEqual("replaced", self.records()[1]["status"])
+        self.assertEqual("abcd9999-0000", self.records()[2]["predecessor"])
+
     def test_predecessor_marked_replaced(self):
         self.add("a1")
         self.assertEqual(0, self.add("a2", name="C: y", predecessor="a1", parent="p0")[0])

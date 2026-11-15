@@ -82,6 +82,10 @@ A C asks a decision:
 - «<task>» asks: <question, at most 15 words>? (<consequence>)
 - Then "Рекомендую: так/ні - <reason>" or "немає рекомендації: <what is missing>".
 
+C asks the same question in its own chat too, so the owner may answer there or in P. An answer given
+in P goes to that C verbatim by SendMessage (with `notify_when_idle: true`). An answer the owner gave
+in C's chat needs nothing from P.
+
 A C is stuck:
 
 - «<task>» is stuck: <cause in plain words>.
@@ -92,27 +96,39 @@ A C is stuck:
 
 - Make the worktree yourself from the local main, then start C inside it:
   `git worktree add .claude/worktrees/<slug> -b c/<slug> main`, then in that folder
-  `claude --bg --remote-control "C: <feature>" --name "C: <feature>" --permission-mode auto --model <model> -- "<first prompt>"`.
+  `claude --bg --remote-control "C: <feature>" --name "C: <feature>" --permission-mode auto --model <model> --effort <level> -- "<first prompt>"`.
   Never `claude -w`: it cuts the worktree from the remote's default branch, which can be far behind
   the local main (seen live: 6 weeks old, without `.claude/dev-kit.md`).
-  `--model` is always given, picked by the task's size: `sonnet` for ordinary work, `haiku` for
-  mechanical work; `opus` only when the task needs it, and a Fable model only after the owner's yes.
-  Without it C inherits the default model, which may be the most expensive one. The launch line names
-  the same model.
+  `--model` and `--effort` are always given. The owner talks to C directly, so C runs on
+  `--model opus --effort medium` (the owner's rule for sessions they talk with). `sonnet` or `haiku`
+  only for a C the owner will not talk to (a mechanical batch with no decisions); a Fable model only
+  after the owner's yes. Without the flags C inherits the default model, which may be the most
+  expensive one. The launch line names the same model and level.
+- A fresh worktree has only tracked files. Before starting C, copy from the main checkout the
+  git-ignored local setup the project needs to run (for example `.env*`, `.agent-env/`,
+  `.claude/settings.local.json`, `local.properties`), never build output or dependencies (C installs
+  those). `git status --ignored --short` in the main checkout lists the candidates. The first prompt
+  names the main checkout path, so C can copy what P missed.
 - Start it with the PowerShell tool: Git Bash rewrites a prompt that starts with `/` and any `C:/...`
   path in it. The command prints only the 8-hex short id. "Workspace not trusted" means the owner must run `claude` once in
   that folder and accept the prompt.
 - Run `dev-kit-sessions` and `dev-kit-app` in the Bash tool, where the plugin bin folder is on the
   PATH; PowerShell cannot run these files.
-- `claude agents --json --cwd <repo>` lists the live sessions of this repository with their state, not only
-  the ones P registered. Use it for "що зараз іде?". Sessions of other projects are not P's business (Pult).
+- The status lists only the C sessions in P's registry (`dev-kit-sessions list`); `claude agents --json
+  --cwd <repo>` only adds their state. Other sessions of this repository (the owner's own, a helper)
+  and sessions of other projects are not P's business (Pult).
 - Dependent tasks go to one C; separate C sessions only for independent tasks.
-- First prompt: the owner's words verbatim; links to the feature and plan files; "run the dev-kit
+- Task file: the plan in `plans/` the item links to. With none, P writes `plans/<slug>.md` in the
+  worktree before the start (the owner's words, the item's links, the success criterion) and commits
+it on `c/<slug>`, so the merge and the worktree removal see no stray file. C keeps its
+  details there and handles it as any plan when done (`dev-kit:documentation`).
+- First prompt: the owner's words verbatim; the task file path; the main checkout path; "run the dev-kit
   manager skill"; the report rule (C messages P only on done, decision needed, stuck - 3 lines: state,
   result, what is needed; details in the task file); "before handing in, pull main and resolve
   conflicts yourself". The report rule names the channel: "send each report with the SendMessage tool
   to `<P's own session name>`; text in your own chat never reaches P". Seen live: without it both C
-  wrote their reports only in their own chat and P waited forever.
+  wrote their reports only in their own chat and P waited forever. A decision C asks also goes in C's
+  own chat; the answer may come there or from P.
 - Right after starting a C, subscribe to it: SendMessage to `C: <feature>` with an empty message and
   `notify_when_idle: true`. The first prompt goes through the command line, so nothing subscribes
   otherwise.
@@ -123,12 +139,20 @@ A C is stuck:
 
 ## Wake-up
 
-P does not wake by itself. Send every message to a C with `notify_when_idle: true` (one-shot:
-subscribe again each time), so P wakes when that C ends its turn. An idle notice with no report means
-C ended a turn while it waits (e.g. on a background command): subscribe again and wait.
+P does not wake by itself. A C report sent by SendMessage wakes P. Send every message to a C with
+`notify_when_idle: true` (one-shot), so P also wakes when that C ends the turn that answers it. An
+idle notice with no report means C ended a turn while it waits (e.g. on a background command) or has
+quit: subscribe again (the only signal of a C that dies silently), run only the session-list check
+below (no fill) and end the turn with no text, so each such wake-up stays cheap.
 
-On every wake-up (owner message, C report, idle notice) run `dev-kit-sessions fill`. The default limit
-is 0.5 (half the context window). The script takes the window from C's model as Claude Code runs it
+On every wake-up run the session-list check: the registered C sessions against `claude agents --json
+--cwd <repo>`. On an owner message or a C report also run `dev-kit-sessions fill`. A registered C that is gone,
+stopped or closed and sent no "done" report has crashed or quit: send the "stuck" template (cause: the
+session ended without a report). Recommend a fresh C in the same worktree, same name and flags, whose
+first prompt adds: "a previous C left unfinished work here; read `git status`, `git log main..` and the
+task file first". Register it with `--predecessor <old id>`.
+
+The fill limit is 0.5 (half the context window). The script takes the window from C's model as Claude Code runs it
 (1M for Fable, Sonnet 5+, Haiku 5.5, Opus 4.7+; 200K for older ones); `--window` overrides it. For each
 line marked OVER, refresh that C.
 
@@ -136,7 +160,7 @@ line marked OVER, refresh that C.
 
 1. Message C: reach the nearest checkpoint between steps (never mid-step), run
    `continue-work-in-another-context save`, reply with the handoff file name.
-2. Start a fresh C from inside the SAME worktree folder (no `-w`), same name and model; first prompt:
+2. Start a fresh C from inside the SAME worktree folder (no `-w`), same name, model and effort; first prompt:
    `/continue-work-in-another-context load <file>`.
 3. Register it with `dev-kit-sessions add ... --predecessor <old id>`.
 4. Only after the new C confirms it picked up the work, run `claude stop <old id>`.
@@ -153,11 +177,18 @@ to 15 minutes). A queue timeout reaches P as "stuck"; P tells the owner which wo
 ## Acceptance and merge
 
 C owns all doc updates. On "done", P checks only the list of changed doc files (a reviewer subagent if
-there are many) and merges into main only if one merge command applies cleanly. On any conflict P sends
-it back ("conflict, pull main") and does not resolve it. After a merge, without asking the owner, run
-`dev-kit-sessions end --id <id>`, `dev-kit-app stop --project <that C's worktree>` (releases the app
-lock if C left the app running), and `claude rm <id>` (removes the merged worktree and the session's
-job state). A C that ended without a merge gets `claude stop <id>`, and its worktree stays.
+there are many). Then, in the main checkout: if it is not on `main` or `git status --porcelain` is not
+empty, P does not merge and tells the owner. P commits its own edits in the main checkout (PROGRESS.md,
+BACKLOG.md `Verdict:` lines) right after making them, so a dirty checkout is never P's own (that is the owner's work in progress, not C's conflict).
+Otherwise `git merge --ff-only c/<slug>`. If it refuses (main moved since C pulled it), P sends it back
+("main moved, pull main") and does not resolve anything itself.
+
+After a merge, without asking the owner, run `dev-kit-sessions end --id <id>` (the short id works),
+`dev-kit-app stop --project <that C's worktree>` (releases the app lock if C left the app running),
+`claude rm <id>` (the session's job state), then `git worktree remove <worktree>` and
+`git branch -d c/<slug>`: `claude rm` does not remove a worktree P made by hand. If `git worktree
+remove` refuses over untracked files, P looks at them: nothing from the task, `--force`; otherwise it
+asks the owner. A C that ended without a merge gets `claude stop <id>`, and its worktree and branch stay.
 
 After the clean-up P re-reads the next-work sections of PROGRESS.md and sends the Task done
 template, ending with the proposal for the next item.
@@ -165,7 +196,9 @@ template, ending with the proposal for the next item.
 ## Restart P
 
 `continue-work-in-another-context save`, then the owner types `/clear`, then `load`. State lives in
-project files and the registry.
+project files and the registry. After `load`, P runs the wake-up checks (fill, registry against the
+session list) and sends the status. C reports reach P by name; idle subscriptions may not survive
+`/clear`, so P subscribes again to every live registered C.
 
 ## Plugin backlog (plugin repo only)
 

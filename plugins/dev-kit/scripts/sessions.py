@@ -2,7 +2,7 @@
 full their context is.
 
     dev-kit-sessions add --id <id> --name <name> --worktree <path> --task <file or text> [--parent <id>] [--predecessor <id>]
-    dev-kit-sessions end --id <id> [--status done|replaced|stopped]
+    dev-kit-sessions end --id <id or 8+ char short id> [--status done|replaced|stopped]
     dev-kit-sessions list
     dev-kit-sessions fill [--limit 0.5] [--window N]
 
@@ -74,6 +74,16 @@ def find(records, session_id):
     return next((record for record in records if record.get("id") == session_id), None)
 
 
+def resolve(records, session_id):
+    """The record whose id is session_id, else the only one whose id starts with it (the 8-hex short id that
+    `claude --bg` prints, so at least 8 characters); None if there is none or several."""
+    exact = find(records, session_id)
+    if exact is not None or len(session_id) < 8:
+        return exact
+    matches = [record for record in records if str(record.get("id", "")).startswith(session_id)]
+    return matches[0] if len(matches) == 1 else None
+
+
 def projects_dir():
     return Path(os.environ[PROJECTS_ENV]) if os.environ.get(PROJECTS_ENV) else Path.home() / ".claude" / "projects"
 
@@ -117,13 +127,13 @@ def cmd_add(args, path, records):
         print(f"dev-kit-sessions: id {args.id} is already registered", file=sys.stderr)
         return 1
     if args.predecessor:
-        old = find(records, args.predecessor)
+        old = resolve(records, args.predecessor)
         if old is None:
             print(f"dev-kit-sessions: predecessor {args.predecessor} is not registered", file=sys.stderr)
             return 1
         old.update(status="replaced", ended=now())
     records.append({"id": args.id, "name": args.name, "worktree": args.worktree, "task": args.task,
-                    "parent": args.parent, "predecessor": args.predecessor, "status": "active",
+                    "parent": args.parent, "predecessor": old["id"] if args.predecessor else None, "status": "active",
                     "started": now(), "ended": None})
     save(path, records)
     print(f"added {args.name} ({args.id})")
@@ -131,13 +141,13 @@ def cmd_add(args, path, records):
 
 
 def cmd_end(args, path, records):
-    record = find(records, args.id)
+    record = resolve(records, args.id)
     if record is None:
-        print(f"dev-kit-sessions: id {args.id} is not registered", file=sys.stderr)
+        print(f"dev-kit-sessions: id {args.id} is not registered (or the short id fits several)", file=sys.stderr)
         return 1
     record.update(status=args.status, ended=now())
     save(path, records)
-    print(f"{args.status}: {record['name']} ({args.id})")
+    print(f"{args.status}: {record['name']} ({record['id']})")
     return 0
 
 
