@@ -158,7 +158,10 @@ P is one session per project. It starts task sessions (C), each in its own workt
 finished work into main and tells you the result. It does no task work itself. The plugin covers work
 inside one repository. Starting P, the project list, the phone flow and the list of all your sessions
 live in Pult (`C:/Users/korov/MyRepositories/Pult`). The rules for P:
-`plugins/dev-kit/skills/project-lead/SKILL.md`. After a dev-kit update, open a new P session: a running
+`plugins/dev-kit/skills/project-lead/SKILL.md`. Before a task starts, P (and any session through the
+manager skill) checks that no other live session of the repository, one you started yourself included,
+already does it: `dev-kit-sessions others` lists them without reading code and the `dev-kit:overlap-checker`
+agent compares. After a dev-kit update, open a new P session: a running
 one keeps the old skill.
 
 ## Hooks

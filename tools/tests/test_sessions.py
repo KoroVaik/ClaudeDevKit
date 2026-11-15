@@ -177,6 +177,77 @@ class SessionsTestCase(unittest.TestCase):
         self.assertTrue(first.name.startswith("repo-"))
         self.assertNotEqual(first, dev_kit_state.project_state_dir(self.project))
 
+    def others_setup(self):
+        """A repo on main with a worktree on branch `side` (one committed, one untracked file), and a session list."""
+        repo, wt = self.tmp / "repo", self.tmp / "repo" / ".claude" / "worktrees" / "side"
+        repo.mkdir()
+        git(repo, "init", "-q", "-b", "main")
+        git(repo, "-c", "user.name=t", "-c", "user.email=t@t", "commit", "-q", "--allow-empty", "-m", "i")
+        git(repo, "worktree", "add", "-q", str(wt), "-b", "side")
+        (wt / "a.md").write_text("a", encoding="utf-8")
+        git(wt, "add", "a.md")
+        git(wt, "-c", "user.name=t", "-c", "user.email=t@t", "commit", "-q", "-m", "a")
+        (wt / "b.py").write_text("b", encoding="utf-8")
+        self.project = repo
+        agents = [
+            {"sessionId": "me", "name": "C: me", "cwd": str(repo), "kind": "background", "status": "busy"},
+            {"sessionId": "lead", "name": "P: repo", "cwd": str(repo), "kind": "background", "status": "idle"},
+            {"sessionId": "c1", "name": "C: side", "cwd": str(wt), "kind": "background", "status": "busy",
+             "state": "working"},
+            {"sessionId": "o1", "name": "Own idea", "cwd": str(repo), "kind": "interactive", "status": "idle"},
+            {"sessionId": "x1", "name": "Elsewhere", "cwd": str(self.tmp), "kind": "interactive", "status": "idle"},
+        ]
+        listing = self.tmp / "agents.json"
+        listing.write_text(json.dumps(agents), encoding="utf-8")
+        env = mock.patch.dict(os.environ, {sessions.AGENTS_ENV: str(listing), "CLAUDE_CODE_SESSION_ID": "me"})
+        env.start()
+        self.addCleanup(env.stop)
+        self.add("c1", name="C: side")
+        return repo, wt
+
+    def test_others_lists_sessions_of_this_repo(self):
+        self.others_setup()
+        self.transcript("c1", [
+            {"type": "user", "isMeta": True, "message": {"content": "<local-command-caveat>x</local-command-caveat>"}},
+            {"type": "user", "origin": {"kind": "human"}, "message": {"content": "<command-name>/x</command-name>"
+                                                                               "<command-args>Fix login</command-args>"}},
+            {"type": "user", "message": {"content": [{"type": "tool_result", "content": "noise"}]}},
+            {"type": "user", "isMeta": True, "origin": {"kind": "peer", "body": "Full task:  login bug"},
+             "message": {"content": "wrapper"}},
+            {"type": "user", "origin": {"kind": "human"}, "message": {"content": "third, not shown"}},
+        ])
+        code, output = self.run_main("others", "--json")
+        self.assertEqual(0, code)
+        rows = {row["sessionId"]: row for row in json.loads(output)}
+        self.assertEqual({"c1", "o1"}, set(rows))  # not the caller, the lead or another repo's session
+        self.assertEqual("lead", rows["c1"]["startedBy"])
+        self.assertEqual("owner", rows["o1"]["startedBy"])
+        self.assertEqual("side", rows["c1"]["branch"])
+        self.assertEqual("working", rows["c1"]["status"])
+        self.assertEqual(["a.md", "b.py"], rows["c1"]["files"])
+        self.assertEqual("Fix login // Full task: login bug", rows["c1"]["task"])
+        self.assertEqual("main", rows["o1"]["branch"])
+        self.assertEqual([], rows["o1"]["files"])
+        text = self.run_main("others")[1]
+        self.assertIn("C: side | background working | started by lead | branch side |", text)
+        self.assertIn("  files: a.md, b.py", text)
+        self.assertIn("  task: (no transcript)", text)  # o1 has none
+
+    def test_others_none_self_flag_and_unreadable_list(self):
+        self.others_setup()
+        with mock.patch.dict(os.environ, {sessions.AGENTS_ENV: str(self.tmp / "agents.json")}):
+            (self.tmp / "agents.json").write_text(json.dumps([{"sessionId": "me", "cwd": str(self.project)}]))
+            self.assertIn("no other sessions", self.run_main("others")[1])
+            self.assertIn("(no name)", self.run_main("others", "--self", "other")[1])
+            (self.tmp / "agents.json").write_text("{not json")
+            self.assertEqual(3, self.run_main("others")[0])
+
+    def test_others_task_text_is_cut(self):
+        self.others_setup()
+        self.transcript("c1", [{"type": "user", "message": {"content": "w " * 1000}}])
+        rows = {row["sessionId"]: row for row in json.loads(self.run_main("others", "--json")[1])}
+        self.assertEqual(sessions.TASK_CHARS + 3, len(rows["c1"]["task"]))
+
 
 if __name__ == "__main__":
     unittest.main()

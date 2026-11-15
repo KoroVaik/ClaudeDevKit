@@ -12,7 +12,7 @@ on the owner go to PROGRESS.md "Open questions" (if the project has it).
 
 ## When P starts
 
-On start (autorun included) P runs `dev-kit-sessions fill`, reads PROGRESS.md whole (if the project
+On start (autorun included) P runs `dev-kit-sessions fill` and `dev-kit-sessions others`, reads PROGRESS.md whole (if the project
 has it) and the `##` headings of the project's BACKLOG.md (if it has one). From the next-work
 sections (for example "Next steps", "Top priorities", "In flight") P picks 1-3 items that do not wait
 on the owner, most important first, and replies with the Status template (see "Message templates").
@@ -48,6 +48,9 @@ Status (on start and on "what runs now?"):
 - Label "Sessions at work" ("Сесії в роботі"), then one line per session:
   «<task>» - <writes code / waits for your answer / ready to merge> (<needed from the owner>). With
   no session: "none" ("жодної").
+- Label "Sessions you started yourself" ("Сесії, які ти запустив сам"), only when
+  `dev-kit-sessions others` shows sessions `started by owner`: one line per session, «<its name or
+  task>» - <working / waiting>. P does not manage them; it only keeps its own work off theirs.
 - Label "What next (from the project's plans)" ("Що робити далі (з планів проєкту)"), then 1-3
   numbered items, each with its brackets. With nothing in the plans, take them from BACKLOG.md; with
   nothing there either, write "nothing in the plans" and end with "Яку задачу запустити?" and
@@ -94,6 +97,12 @@ A C is stuck:
 
 ## Start a C
 
+- Overlap check first, every time: the owner may have started a session on the same task without P.
+  Run `dev-kit-sessions others`. If it prints `no other sessions`, go on. Otherwise launch a
+  `dev-kit:overlap-checker` subagent (model haiku) with the item's words, the files or area it will
+  touch if known, and the project folder. On "no overlap" go on. On an overlap do not start: tell the
+  owner «<item>» overlaps «<session>» (<same task / same files>) and ask whether to start anyway,
+  with a recommendation.
 - Make the worktree yourself from the local main, then start C inside it:
   `git worktree add .claude/worktrees/<slug> -b c/<slug> main`, then in that folder
   `claude --bg --remote-control "C: <feature>" --name "C: <feature>" --permission-mode auto --model <model> --effort <level> -- "<first prompt>"`.
@@ -114,16 +123,17 @@ A C is stuck:
   that folder and accept the prompt.
 - Run `dev-kit-sessions` and `dev-kit-app` in the Bash tool, where the plugin bin folder is on the
   PATH; PowerShell cannot run these files.
-- The status lists only the C sessions in P's registry (`dev-kit-sessions list`); `claude agents --json
-  --cwd <repo>` only adds their state. Other sessions of this repository (the owner's own, a helper)
-  and sessions of other projects are not P's business (Pult).
+- "Sessions at work" lists only the C sessions in P's registry (`dev-kit-sessions list`); `claude
+  agents --json --cwd <repo>` only adds their state. Other sessions of this repository go to the
+  separate group "Sessions you started yourself" (from `dev-kit-sessions others`) and to the overlap
+  check; P does not manage them. Sessions of other projects are not P's business (Pult).
 - Dependent tasks go to one C; separate C sessions only for independent tasks.
 - Task file: the plan in `plans/` the item links to. With none, P writes `plans/<slug>.md` in the
   worktree before the start (the owner's words, the item's links, the success criterion) and commits
 it on `c/<slug>`, so the merge and the worktree removal see no stray file. C keeps its
   details there and handles it as any plan when done (`dev-kit:documentation`).
 - First prompt: the owner's words verbatim; the task file path; the main checkout path; "run the dev-kit
-  manager skill"; the report rule (C messages P only on done, decision needed, stuck - 3 lines: state,
+  manager skill; P ran the overlap check"; the report rule (C messages P only on done, decision needed, stuck - 3 lines: state,
   result, what is needed; details in the task file); "before handing in, pull main and resolve
   conflicts yourself". The report rule names the channel: "send each report with the SendMessage tool
   to `<P's own session name>`; text in your own chat never reaches P". Seen live: without it both C

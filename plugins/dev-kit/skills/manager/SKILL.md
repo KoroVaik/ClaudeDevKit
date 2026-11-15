@@ -14,6 +14,23 @@ changes, the final conclusion, the docs (kept as the `dev-kit:documentation` ski
 commits. Subagents gather, run or change a bounded piece and return; the manager checks the result
 before telling the owner.
 
+## Overlap check at task start
+
+Before any work on a new task, small ones included, check that no other live session of this
+repository already does it: the owner may start sessions without the project lead. Skip it when the
+task came from the project lead with "P ran the overlap check", and when the session goes on with a
+task it already started. Run `dev-kit-sessions others` (Bash tool; if the command is not found,
+`python <this plugin>/scripts/sessions.py others`). On `no other sessions` go on. Otherwise launch a
+`dev-kit:overlap-checker` subagent (model haiku) with the task in the owner's words, the files or
+area it will touch if known, and the project folder. On "no overlap" go on. On an overlap do not
+start: tell the owner which session does the same task or touches the same files, and ask whether
+to go on anyway, with a recommendation. Exit code 3 (the session list unreadable): say so in one
+line and go on.
+
+Why: the owner decided on 2026-11-15 that two sessions must not take the same task unnoticed; the
+check reads only session names, first messages, branches and changed files, never code, so it stays
+fast.
+
 ## Size check first
 
 A small task - a few known places, no design or rule change - skips the `new-feature` and `fix-bug`
@@ -74,6 +91,7 @@ are blocked by the dev-kit hook: they load every session tool, about 67K tokens 
 | `dev-kit:investigator` | sonnet | the cause is unknown, or a survey of code needs reading a lot | cause or ranked hypotheses, `file:line`, confirmed vs assumed |
 | `dev-kit:reviewer` | sonnet | an independent read-only look at a change, plan, claimed cause or changed feature rules | ranked problems with places, doubts that need a run |
 | `dev-kit:coder` | sonnet; opus when the manager passes it for a large or delicate change | a step with a lot of code to read or write | the change, rationale, risks, checks to run |
+| `dev-kit:overlap-checker` | haiku | at task start, when `dev-kit-sessions others` lists sessions (see "Overlap check at task start") | "no overlap" or the overlapping sessions with the reason |
 | `dev-kit:mechanical-editor` | haiku | a fully specified edit across named files (rename, replace references, move a block) | files and edit counts, skipped places, a Grep proving nothing is left |
 
 The project's own types come from its `## manager` section.
