@@ -28,12 +28,14 @@ def project_key(start):
     return os.path.normcase(os.path.realpath(path))
 
 
-def project_state_dir(start):
+def project_state_dir(start, create=True):
+    """The state folder of the project of `start`; `create=False` only computes the path (the folder may not exist)."""
     key = project_key(start)
     # The repository folder is the parent of the .git folder; a bare repo or a non-git folder uses its own name.
     base = Path(key)
     name = base.parent.name if base.name.lower() == ".git" else base.name
     root = Path(os.environ[STATE_ENV]) if os.environ.get(STATE_ENV) else Path.home() / ".claude" / "dev-kit"
     folder = root / f"{name}-{hashlib.sha1(key.encode('utf-8')).hexdigest()[:10]}"
-    folder.mkdir(parents=True, exist_ok=True)
+    if create:
+        folder.mkdir(parents=True, exist_ok=True)
     return folder

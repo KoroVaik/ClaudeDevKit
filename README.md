@@ -48,12 +48,13 @@ Most of the repo is Markdown prompts. The code that runs as a program:
 | `plugins/dev-kit/scripts/check_docs.py` | 1355 | Checks a project's docs: every epic and feature has its sections, links, anchors and "Built in" paths resolve; finds the feature that owns a code file; lists open tasks and defects. |
 | `tools/lint.py` | 461 | Checks this repo: plugin manifests, skill and agent front matter, slot tables, hook config, project profiles. |
 | `plugins/dev-kit/hooks/narrow-agents.py` | 118 | A hook that lets a project launch only its own agents and those of its enabled plugins. |
+| `plugins/dev-kit/hooks/owner-session-note.py` | 54 | A hook that tells a session the owner started and the project lead took over that the lead watches it and how to say it is done. |
 | `plugins/dev-kit/scripts/run_app.py` | 330 | Starts and stops a project's app from the commands in its profile, with a queue lock between worktrees. |
 | `plugins/unity-kit/scripts/user_check.py` | 544 | Plays a recipe (keys, mouse, console and state expectations) in the Unity editor and writes a report. |
 | `plugins/unity-kit/scripts/frames_to_gif.py` | 240 | Cuts and crops recorded frames into a GIF. |
 | `plugins/web-kit/scripts/build-mockups.mjs`, `capture.mjs` | 829, 351 | Builds mockup pages from JSON specs; takes full-resolution headless screenshots. |
 
-The tests are in `tools/tests/`: 344 tests in 8 files (about 3000 lines), one skipped. Run them with:
+The tests are in `tools/tests/`: 435 tests in 10 files (about 4300 lines), one skipped. Run them with:
 
 ```bash
 python -m unittest discover tools/tests
@@ -176,7 +177,9 @@ manager skill) checks that no other live session of the repository, one you star
 already does it: `dev-kit-sessions others` lists them without reading code and the `dev-kit:overlap-checker`
 agent compares. P wakes only on a task session's report, your message, or the exit of
 `dev-kit-sessions watch`, a background watcher that stays silent while its sessions live and exits when one
-ends; it is generic (any session ids), so other tools can use it too. After a dev-kit update, open a new P session: a running
+ends or writes the line "Роботу завершено"; it is generic (any session ids), so other tools can use it too.
+`dev-kit-sessions state` prints each registered session as working, waiting, finished or gone with the gist of
+its last reply, and `dev-kit-sessions add --owner` registers a session you started. After a dev-kit update, open a new P session: a running
 one keeps the old skill.
 
 ## Hooks
@@ -184,6 +187,10 @@ one keeps the old skill.
 `dev-kit` ships a PreToolUse hook on the `Agent` tool (`plugins/dev-kit/hooks/`): a project may launch
 only its own agents (`.claude/agents/*.md`) and agents of its enabled plugins (`<plugin>:<agent>`); built-in
 and user agent types are denied. A project that had its own copy of this hook removes it.
+
+A UserPromptSubmit hook (`owner-session-note.py`) adds a short note at each of your messages to a session you
+started and the lead took over (registered with `--owner`): the lead only reads it, and it ends its work with
+the line "Роботу завершено". Other sessions get nothing; any error in the hook is ignored.
 
 ## Authoring rules
 

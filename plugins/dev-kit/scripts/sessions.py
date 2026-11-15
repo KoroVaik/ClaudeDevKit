@@ -1,15 +1,18 @@
 """Keep the registry of the background task sessions (C) that a project lead session (P) started, and show how
 full their context is.
 
-    dev-kit-sessions add --id <id> --name <name> --worktree <path> --task <file or text> [--parent <id>] [--predecessor <id>]
+    dev-kit-sessions add --id <id> --name <name> --worktree <path> --task <file or text> [--parent <id>] [--predecessor <id>] [--owner]
     dev-kit-sessions end --id <id or 8+ char short id> [--status done|replaced|stopped]
     dev-kit-sessions list
     dev-kit-sessions fill [--limit 0.5] [--window N]
     dev-kit-sessions others [--self <id>] [--json]
+    dev-kit-sessions state [--id <id> ...]
     dev-kit-sessions watch [--id <id> ...] [--interval 60] [--max-minutes 120]
 
 The registry is `sessions.json` in the project state folder (see dev_kit_state.py; the same folder for all worktrees
-of one repository). `add --predecessor` marks the replaced session `replaced`. `fill` finds the transcript of every
+of one repository). `add --predecessor` marks the replaced session `replaced`. `add --owner` marks a session the
+owner started and the lead took over (the record gets `"owner": true`; the UserPromptSubmit hook
+hooks/owner-session-note.py reads it). `fill` finds the transcript of every
 active record (`<projects>/*/<id>.jsonl`, projects folder = env DEV_KIT_PROJECTS_DIR, else ~/.claude/projects) and
 prints its context size: input + cache creation + cache read tokens of the last assistant message that has usage.
 The window comes from the transcript's model (see `window_for`) unless `--window` is given. A line ends with OVER when the
@@ -23,12 +26,22 @@ state, who started it (`lead` when the registry holds its id, else `owner`), bra
 (owner or peer messages of its transcript, cut to TASK_CHARS) and the files it changed (the branch against the base
 branch, plus uncommitted ones). Reads no code. Prints `no other sessions` when there are none.
 
-`watch` waits in silence while the watched sessions live and exits with one line when one is gone, so a caller that
+`state` prints one line per active registry record (or per `--id`, full or 8+ char prefix): `name | id | working|
+waiting|finished|gone | gist`. The gist is the tail (at most GIST_CHARS) of the last assistant text message of the
+transcript, read from the end of the file. Status comes from `claude agents --json --all` (an entry matches a
+registry id by `id`, `sessionId` or a sessionId prefix): `finished` when that last reply has a line that, trimmed and
+without trailing punctuation, is one of FINISHED_MARKERS and no owner message came after it, and only for a record
+added with `--owner` (a C never reports finished); else `gone` when no
+matching entry has a `pid`; `working` when the status is busy; else `waiting`. Exit 3 when the list cannot be read.
+
+`watch` waits in silence while the watched sessions live and exits with one line when one is gone or finished (the
+last reply has the finished marker, see `state`), so a caller that
 runs it in the background wakes only then. Watched: the `--id` sessions (full or 8+ char short ids), else the
 registry's active records, read again each round (a C added later is watched too; one ended with `end` is not).
 Every `--interval` seconds it reads `claude agents --json --all`: a session is live while an entry with its id has a
 `pid`; one with no `pid` (state stopped or done) or not in the list is gone. Lines and exit codes:
-`gone: <name> | <id> | <state or 'not in the session list'>` (one per gone session) exit 0; `time limit: <N> min,
+`gone: <name> | <id> | <state or 'not in the session list'>` (one per gone session) and
+`finished: <name> | <id>` (one per finished session, also one that is gone) exit 0; `time limit: <N> min,
 all alive` exit 4 (re-arm it); `nothing to watch` exit 5 (on the first round, or at the time limit when the registry
 has emptied meanwhile: a watcher whose last C ended keeps quiet); `already watching: pid <N>` exit 6 (in registry
 mode one watcher per project runs: a lock file in the state folder with a heartbeat; a new watcher waits until the
@@ -65,6 +78,9 @@ TASK_CHARS = 700
 FILES_SHOWN = 40
 WATCH_LOCK = "watch.lock"
 WATCH_FAILURES = 5
+# A reply line (trimmed, emphasis marks and trailing punctuation removed, case ignored) that says the session is done.
+FINISHED_MARKERS = ("Роботу завершено", "Work finished")
+GIST_CHARS = 120
 
 class Unreadable(Exception):
     """The registry cannot be read: exit code 2."""
@@ -74,8 +90,8 @@ def now():
     return datetime.now().astimezone().isoformat(timespec="seconds")
 
 
-def registry_path(project):
-    return dev_kit_state.project_state_dir(project) / REGISTRY
+def registry_path(project, create=True):
+    return dev_kit_state.project_state_dir(project, create) / REGISTRY
 
 
 def load(path):
@@ -167,7 +183,7 @@ def cmd_add(args, path, records):
         old.update(status="replaced", ended=now())
     records.append({"id": args.id, "name": args.name, "worktree": args.worktree, "task": args.task,
                     "parent": args.parent, "predecessor": old["id"] if args.predecessor else None, "status": "active",
-                    "started": now(), "ended": None})
+                    "started": now(), "ended": None, **({"owner": True} if args.owner else {})})
     save(path, records)
     print(f"added {args.name} ({args.id})")
     return 0
@@ -396,11 +412,130 @@ def matches(agent_id, wanted):
     return agent_id == wanted or (len(wanted) >= 8 and agent_id.startswith(wanted))
 
 
+def agent_entries(agents, wanted):
+    """The entries of the session list for a registry id: its `id` or `sessionId` is the wanted id or starts with it."""
+    return [agent for agent in agents
+            if matches(str(agent.get("sessionId") or ""), wanted) or matches(str(agent.get("id") or ""), wanted)]
+
+
+def assistant_text(entry):
+    """The text parts of an assistant transcript entry joined, else ''."""
+    message = entry.get("message") or {}
+    if entry.get("isSidechain") or message.get("model") == "<synthetic>":
+        return ""
+    content = message.get("content")
+    if isinstance(content, list):
+        content = "\n".join(part.get("text", "") for part in content
+                            if isinstance(part, dict) and part.get("type") == "text")
+    return content.strip() if isinstance(content, str) else ""
+
+
+def last_reply(path):
+    """(text, pending): the last assistant text message of a transcript, read from the end of the file, and whether
+    an owner or peer message came after it (the session was asked again and has not answered yet). ('', pending)
+    when the transcript has no assistant text."""
+    size = path.stat().st_size
+    window = CHUNK
+    with open(path, "rb") as handle:
+        while True:
+            start = max(0, size - window)
+            handle.seek(start)
+            lines = handle.read(size - start).split(b"\n")
+            if start > 0:
+                lines = lines[1:]  # the first line may be cut; the next, larger read covers it whole
+            pending = False
+            for line in reversed(lines):
+                if b'"assistant"' not in line and b'"user"' not in line:
+                    continue
+                try:
+                    entry = json.loads(line.decode("utf-8"))
+                except ValueError:  # includes UnicodeDecodeError
+                    continue
+                if not isinstance(entry, dict):
+                    continue
+                if entry.get("type") == "assistant":
+                    text = assistant_text(entry)
+                    if text:
+                        return text, pending
+                elif entry.get("type") == "user" and message_text(entry):
+                    pending = True
+            if start == 0:
+                return "", pending
+            window *= 4
+
+
+def is_marker_line(line):
+    line = line.strip().strip("*_`#> «»\"'").rstrip(".,;:!?…»\"'*_` ")
+    return line.casefold() in {marker.casefold() for marker in FINISHED_MARKERS}
+
+
+def gist_of(text):
+    """The reply as one line without marker lines, cut from the front to GIST_CHARS."""
+    flat = " ".join(" ".join(line for line in text.splitlines() if not is_marker_line(line)).split())
+    if not flat:
+        return " ".join(text.split()) or "(no reply text)"
+    return flat if len(flat) <= GIST_CHARS else "..." + flat[-(GIST_CHARS - 3):]
+
+
+def is_owner(records, wanted):
+    """Whether the registry record of this id (full or 8+ char prefix) is an owner session."""
+    record = resolve(records, wanted)
+    return record is not None and record.get("owner") is True
+
+
+def session_state(agents, wanted, owner):
+    """(state, gist) of a registry id: finished, gone, working or waiting (see the module docstring). Only an owner
+    session can be finished: a C reports through its own channel, so its reply lines never count."""
+    entries = agent_entries(agents, wanted)
+    session_id = next((str(agent["sessionId"]) for agent in entries if agent.get("sessionId")), wanted)
+    transcript = find_transcript(session_id)
+    try:
+        text, pending = last_reply(transcript) if transcript else ("", False)
+    except OSError:
+        text, pending = "", False
+    gist = gist_of(text) if text else "(no reply text)"
+    if owner and text and not pending and any(is_marker_line(line) for line in text.splitlines()):
+        return "finished", gist
+    if not any(agent.get("pid") for agent in entries):
+        return "gone", gist
+    busy = any("busy" in (agent.get("status"), agent.get("state")) or agent.get("state") == "working"
+               for agent in entries)
+    return ("working" if busy else "waiting"), gist
+
+
+def finished_sessions(watched, agents, records):
+    """(name, id) of each watched (name, id) that is an owner session in the registry whose last reply says the work
+    is finished."""
+    return [(name or next((str(agent.get("name") or "") for agent in agent_entries(agents, wanted)), ""), wanted)
+            for name, wanted in watched
+            if is_owner(records, wanted) and session_state(agents, wanted, True)[0] == "finished"]
+
+
+def cmd_state(args, path, records):
+    try:
+        agents = agents_list(include_ended=True)
+    except RuntimeError as exc:
+        print(f"dev-kit-sessions: the session list could not be read: {exc}", file=sys.stderr)
+        return 3
+    if args.id:
+        wanted = [(record.get("name") if record else None, str(record["id"]) if record else given)
+                  for given in args.id for record in [resolve(records, given)]]
+    else:
+        wanted = [(record.get("name"), str(record.get("id"))) for record in active(records)]
+    for name, session_id in wanted:
+        name = name or next((str(agent.get("name") or "") for agent in agent_entries(agents, session_id)), "")
+        state, gist = session_state(agents, session_id, is_owner(records, session_id))
+        print(f"{name or '(no name)'} | {session_id} | {state} | {gist}")
+    if not wanted:
+        print("no active sessions")
+    return 0
+
+
 def gone_sessions(watched, agents):
     """(name, id, state) of each watched (name, id) with no live entry in the session list."""
     gone = []
     for name, wanted in watched:
-        entries = [agent for agent in agents if matches(str(agent.get("sessionId") or ""), wanted)]
+        entries = agent_entries(agents, wanted)
         if any(agent.get("pid") for agent in entries):
             continue
         state = next((agent.get("state") or agent.get("status") for agent in entries), None)
@@ -451,7 +586,8 @@ def cmd_watch(args, path, records):
                     print(f"already watching: pid {holder}")
                     return 6
                 try:
-                    watched = [(record.get("name"), str(record.get("id"))) for record in active(load(path))]
+                    records = load(path)
+                    watched = [(record.get("name"), str(record.get("id"))) for record in active(records)]
                 except Unreadable as exc:  # e.g. caught mid-replace on Windows; counted like a list failure
                     problem = exc
             if problem is None and not watched and first:
@@ -471,10 +607,14 @@ def cmd_watch(args, path, records):
                     return 3
             else:
                 failures = 0
-            gone = gone_sessions(watched, agents) if agents is not None else []
-            if gone:
+            finished = finished_sessions(watched, agents, records) if agents is not None else []
+            done = {wanted for _, wanted in finished}
+            gone = [item for item in gone_sessions(watched, agents) if item[1] not in done] if agents is not None else []
+            if gone or finished:
                 for name, wanted, state in gone:
                     print(f"gone: {name or '(no name)'} | {wanted} | {state}")
+                for name, wanted in finished:
+                    print(f"finished: {name or '(no name)'} | {wanted}")
                 return 0
             if time.monotonic() + args.interval > deadline:
                 if not watched:
@@ -503,6 +643,7 @@ def main(argv=None):
         add.add_argument(flag, required=True)
     add.add_argument("--parent")
     add.add_argument("--predecessor")
+    add.add_argument("--owner", action="store_true", help="a session the owner started and the lead took over")
     end = sub.add_parser("end")
     end.add_argument("--id", required=True)
     end.add_argument("--status", choices=["done", "replaced", "stopped"], default="done")
@@ -513,6 +654,8 @@ def main(argv=None):
     others = sub.add_parser("others")
     others.add_argument("--self", default="", help="the caller's session id (default: env CLAUDE_CODE_SESSION_ID)")
     others.add_argument("--json", action="store_true")
+    state = sub.add_parser("state")
+    state.add_argument("--id", action="append", default=[], help="a session to show (repeatable; default: the registry)")
     watch = sub.add_parser("watch")
     watch.add_argument("--id", action="append", default=[], help="a session to watch (repeatable; default: the registry)")
     watch.add_argument("--interval", type=float, default=60, help="seconds between reads of the session list")
@@ -522,7 +665,7 @@ def main(argv=None):
         path = registry_path(args.project)
         records = load(path)
         return {"add": cmd_add, "end": cmd_end, "list": cmd_list, "fill": cmd_fill,
-                "others": cmd_others, "watch": cmd_watch}[args.action](args, path, records)
+                "others": cmd_others, "state": cmd_state, "watch": cmd_watch}[args.action](args, path, records)
     except Unreadable as exc:
         print(f"dev-kit-sessions: {exc}", file=sys.stderr)
         return 2

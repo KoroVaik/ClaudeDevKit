@@ -14,7 +14,7 @@ the project has it).
 
 ## When P starts
 
-On start (autorun included) P notes the plugin version (see "Wake-up"), runs `dev-kit-sessions fill` and `dev-kit-sessions others`, reads PROGRESS.md whole (if the project
+On start (autorun included) P notes the plugin version (see "Wake-up"), runs `dev-kit-sessions fill` and `dev-kit-sessions others` (the same `others` check runs at every later status; see "Take over a session the owner started"), reads PROGRESS.md whole (if the project
 has it) and the `##` headings of the project's BACKLOG.md (if it has one). From the next-work
 sections (for example "Next steps", "Top priorities", "In flight") P picks 1-3 items that do not wait
 on the owner, most important first, and replies with the Status template (see "Message templates").
@@ -56,13 +56,14 @@ Status (on start and on "what runs now?"):
 
 - Label "Sessions at work" ("Сесії в роботі"), then one line per session:
   «<task>» - <writes code / waits for your answer / ready to merge> (<needed from the owner>). With
-  no session: "none" ("жодної"). A taken-over session (see "Take over a session the owner started")
-  is listed here. Under the label, when the queue is not empty: «У черзі ще N питань».
-- Label "Sessions you started yourself" ("Сесії, які ти запустив сам"), only when
-  `dev-kit-sessions others` shows sessions `started by owner` that P has not taken over: one line
-  per session, «<its name or task>» - <working / waiting>. A session P sent its rule to but that has
-  not answered yet carries the label «ще не під керуванням: сесія не відповіла». P does not manage
-  these; it only keeps its own work off theirs.
+  no session: "none" ("жодної"). A taken-over owner session (see "Take over a session the owner
+  started") is listed here at once, with its state and the gist of its last reply from
+  `dev-kit-sessions state` instead of the three states above (for example «чекає на тебе: питання про
+  арбітра», «працює», «завершила»). Under the label, when the queue is not empty: «У черзі ще N питань».
+- Label "Sessions you started yourself" ("Сесії, які ти запустив сам"), only for sessions
+  `dev-kit-sessions others` shows as `started by owner` that P has not taken over (not offered yet,
+  or the owner said no): one line per session, «<its name or task>» - <working / waiting>. P does not
+  manage these; it only keeps its own work off theirs.
 - Label "What next (from the project's plans)" ("Що робити далі (з планів проєкту)"), then 1-3
   numbered items, each with its brackets. With nothing in the plans, take them from BACKLOG.md; with
   nothing there either, write "nothing in the plans" and end with "Яку задачу запустити?" and
@@ -140,6 +141,10 @@ P decides alone everything within the approved criteria. An item enters the queu
 - paid spend would pass $1 in total per task. Smaller spend is never asked.
 
 The C keeps a running total of paid spend in its task file and asks P before a paid call that would take it past $1.
+
+One more item always enters the queue: «Взяти «<name>» під керування?» for each session the owner
+started that P has not offered yet (see "Take over a session the owner started"). It is a normal
+item, never critical.
 
 Why: the owner decided on 2026-11-15 that he is the CEO: six messages about three sessions in
 minutes were noise, and spend under $1 or a decision inside the criteria needs no owner.
@@ -321,12 +326,36 @@ and the docker lines are project-specific placeholders: P fills them from the pr
 
 ## Take over a session the owner started
 
-P sends the session the report rule by SendMessage (channel and format as in "Start a C"), the
-ask-P list, and, for a session on main: "you work on main: commit your own work to main after each
-finished step; P does not merge it". It registers the session (`dev-kit-sessions add`) only after the session's first reply. Until then it
-stays under «Сесії, які ти запустив сам» with the label «ще не під керуванням: сесія не
-відповіла». If P's message was held or expired (a permission mode mismatch), P says so in one
-correction line.
+Offer: at every status (on start, on "what runs now?", at every status after a wake-up), not only at
+start, P runs `dev-kit-sessions others`. Each session `started by owner` that P has not yet offered
+becomes one owner-queue item `Взяти «<name>» під керування?` with its `Рекомендую:` line. P offers each
+session once: the answer, a "no" included, is written into the item's record in the queue
+(PROGRESS.md "Open questions"), so a session the owner declined is never offered again. It stays
+under «Сесії, які ти запустив сам».
+
+On yes: `dev-kit-sessions add --id <sessionId> --name "<its name>" --worktree <path> --task <text> --owner`
+(full id from `claude agents --json`; `--worktree` is the session's `cwd` from that list, the main checkout
+for a session on main; `--task` holds the session's first owner message in short).
+P sends the session no message: a message to a session in another permission mode is held for the
+owner's approval and may expire. The session goes under «Сесії в роботі» at once. The plugin itself
+adds a note at each owner message to it: it is watched, it ends with the line «Роботу завершено» when
+fully done, and on main it commits its own work to main after each finished step, so P does not merge
+it. Right after `add --owner` P arms the watcher (see "Wake-up"). Known limit: the hook note reaches the
+session only at the owner's next message to it, so a session already idle at takeover may never write
+«Роботу завершено»; P then shows it as waiting.
+
+Watching: at every status P runs `dev-kit-sessions state` for these sessions (it reads the state and
+the last reply without messaging) and shows the state plus the gist in «Сесії в роботі». The owner
+keeps talking to the session directly; P never answers for it and never relays its questions. P keeps
+new tasks off its changed files (the overlap check in "Start a C" covers it).
+
+Finished: when `state` or the watcher (`finished: <name> | <id>`) says finished, P runs
+`dev-kit-sessions end --id <id>` and tries `claude stop <id>`. If the stop fails (the session is open
+in the app window), P just stops counting it as active and asks the owner nothing. No merge, no
+worktree removal.
+
+Why: owner decided 2026-11-15 that P watches sessions he started so they do not get in the way of
+others, closes them only so P stops counting them, and never messages them (mode mismatch).
 
 ## Wake-up
 
@@ -337,12 +366,12 @@ session watcher. P speaks to the owner at once only for a critical item; otherwi
 queue item after the owner answers or writes.
 
 Watcher: `dev-kit-sessions watch` in the Bash tool with `run_in_background`, run in the project's
-main checkout. It reads the registry's active C sessions every minute, stays silent while they live,
-and exits when one is gone; its own limit is 2 hours. Never run it in the foreground: the Bash tool kills
+main checkout. It reads the registry's active sessions (C and taken-over owner sessions) every minute, stays silent
+while they live, and exits when one is gone or, for an owner session, finished; its own limit is 2 hours. Never run it in the foreground: the Bash tool kills
 a foreground command at its 10-minute timeout with no exit line, while a background one is not bound
 by the timeout (checked 2026-11-15: background runs of 150 seconds with a 60-second timeout and of
-12 minutes both finished). Arm it after registering a C and after every
-exit below, while the registry has an active C. On its exit:
+12 minutes both finished). Arm it after `add` of a C, after `add --owner`, and after every
+exit below, while the registry has an active session. On its exit:
 
 - `gone: <name> | <id> | <state>` (exit 0): that C ended. If it sent a "done" report, go on with the
   merge and re-arm only after its clean-up (`end` first, or the watcher fires on it again). Otherwise it crashed or quit: run `dev-kit-sessions end --id <id> --status stopped` (so the
@@ -350,9 +379,14 @@ exit below, while the registry has an active C. On its exit:
   cause: the session ended without a report) and re-arm. Recommend a fresh C in the same worktree,
   same name and flags, whose
   first prompt adds: "a previous C left unfinished work here; read `git status`, `git log main..` and
-  the task file first". Register it with `--predecessor <old id>`.
+  the task file first". Register it with `--predecessor <old id>`. For a taken-over owner session
+  `gone` only means it ended: run `end --id <id>`, no "stuck" template, re-arm.
+- `finished: <name> | <id>` (exit 0): a taken-over owner session wrote «Роботу завершено» (a C never
+  reports `finished`; its end is `gone` plus its "done" report). Do the
+  "Finished" step of "Take over a session the owner started" (`end --id`, try `claude stop`, ask
+  nothing), re-arm, and show it in the next status; no separate message.
 - `time limit` (exit 4): re-arm; no text, no other checks.
-- `nothing to watch` (exit 5: no active C, also at the time limit when the last C ended meanwhile) or
+- `nothing to watch` (exit 5: no active session, also at the time limit when the last session ended meanwhile) or
   `already watching` (exit 6: another watcher runs): do not re-arm; no text.
 - "No text" for exits 4, 5 and 6 holds even when the host then demands visible output: end the turn
   empty again (seen in P: Zhratva, 2026-11-15: text on watcher exits confused the owner).
@@ -411,10 +445,11 @@ remove` refuses over untracked files, P looks at them: nothing from the task, `-
 asks the owner. A C that ended without a merge gets `dev-kit-sessions end --id <id> --status stopped`,
 then `claude stop <id>` (in this order, so the watcher does not report it), and its worktree and branch stay.
 
-A taken-over session working on main (no worktree) commits its own work to main after each finished
-step. P does not merge it and removes no worktree for it; it runs only `dev-kit-sessions end` when
-the session finishes. Why: the owner decided on 2026-11-15 that main stays clean, so P's merges of
-other C sessions do not wait on it.
+A taken-over owner session working on main (no worktree) commits its own work to main after each
+finished step. P does not merge it and removes no worktree for it. When it finishes P follows
+"Take over a session the owner started", step "Finished" (`dev-kit-sessions end --id`, try
+`claude stop <id>`; if the stop fails, no question to the owner). Why: the owner decided on
+2026-11-15 that main stays clean, so P's merges of other C sessions do not wait on it.
 
 After the clean-up P re-reads the next-work sections of PROGRESS.md and sends the Task done
 template, ending with the proposal for the next item.

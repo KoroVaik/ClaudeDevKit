@@ -43,7 +43,8 @@ class SessionsTestCase(unittest.TestCase):
     def add(self, session_id, name="C: x", **extra):
         argv = ["add", "--id", session_id, "--name", name, "--worktree", "wt", "--task", "t.md"]
         for key, value in extra.items():
-            argv += [f"--{key}", value]
+            if value:  # True is a flag without a value
+                argv += [f"--{key}"] + ([] if value is True else [value])
         return self.run_main(*argv)
 
     def records(self):
@@ -377,6 +378,120 @@ class SessionsTestCase(unittest.TestCase):
         self.assertEqual(3, code)
         self.assertEqual(sessions.WATCH_FAILURES - 1, sleep.call_count)
         self.assertIn("could not be read", out)
+
+    @staticmethod
+    def reply(text, **extra):
+        return {"type": "assistant", "message": {"role": "assistant", "content": [{"type": "text", "text": text}]},
+                **extra}
+
+    @staticmethod
+    def human(text):
+        return {"type": "user", "origin": {"kind": "human"}, "message": {"role": "user", "content": text}}
+
+    def state_lines(self, *argv):
+        code, out = self.run_main("state", *argv)
+        self.assertEqual(0, code, out)
+        return out.splitlines()
+
+    def test_add_owner_flag_is_stored_only_when_given(self):  # Rule
+        self.add("a1")
+        self.run_main("add", "--id", "a2", "--name", "Own", "--worktree", "wt", "--task", "t", "--owner")
+        records = self.records()
+        self.assertNotIn("owner", records[0])
+        self.assertIs(True, records[1]["owner"])
+
+    def test_state_has_four_outcomes(self):  # Flow
+        for name in ("busy", "idle", "dead", "done"):
+            self.add(f"{name}-session", name=f"S: {name}", owner=name == "done")
+        self.listing([
+            {"sessionId": "busy-session", "pid": 1, "status": "busy"},
+            {"sessionId": "idle-session", "pid": 2, "status": "waiting", "waitingFor": "approval"},
+            {"sessionId": "dead-session", "status": "stopped"},
+            {"sessionId": "done-session", "pid": 4, "status": "idle"},
+        ])
+        self.transcript("busy-session", [self.human("go"), self.reply("Reading the files.")])
+        self.transcript("idle-session", [self.reply("Which arbiter do you mean?")])
+        self.transcript("done-session", [self.reply("Fixed it.\n\nРоботу завершено.")])
+        lines = self.state_lines()
+        self.assertEqual(["S: busy | busy-session | working | Reading the files.",
+                          "S: idle | idle-session | waiting | Which arbiter do you mean?",
+                          "S: dead | dead-session | gone | (no reply text)",
+                          "S: done | done-session | finished | Fixed it."], lines)
+
+    def test_state_matches_interactive_session_by_session_id_and_prefix(self):  # Flow
+        self.add("12345678-aaaa-bbbb", name="Own idea")
+        self.listing([{"sessionId": "12345678-aaaa-bbbb", "name": "Own idea", "kind": "interactive", "pid": 9,
+                       "status": "idle"}, {"id": "abcd1234", "sessionId": "abcd1234-0000", "pid": 3, "status": "busy"}])
+        self.transcript("12345678-aaaa-bbbb", [self.reply("Done?")])
+        self.assertEqual(["Own idea | 12345678-aaaa-bbbb | waiting | Done?"], self.state_lines())
+        self.assertEqual(["Own idea | 12345678-aaaa-bbbb | waiting | Done?"], self.state_lines("--id", "12345678"))
+        self.assertEqual("(no name) | abcd1234 | working | (no reply text)",
+                         self.state_lines("--id", "abcd1234")[0])  # the short `id` of a background entry
+
+    def test_state_finished_marker_forms(self):  # Edge
+        self.add("s1", name="Own", owner=True)
+        self.listing([{"sessionId": "s1", "pid": 1, "status": "idle"}])
+        cases = {"Роботу завершено": True, "  **Роботу завершено**!  ": True, "«Роботу завершено»": True,
+                 "Work finished.": True, "роботу завершено": True,
+                 "Я напишу «Роботу завершено», коли закінчу": False, "Роботу завершено частково": False}
+        for text, finished in cases.items():
+            self.transcript("s1", [self.reply(f"Result line\n{text}\n")])
+            state = self.state_lines("--id", "s1")[0].split(" | ")[2]
+            self.assertEqual("finished" if finished else "waiting", state, text)
+
+    def test_state_is_not_finished_when_the_owner_asked_again(self):  # Bug
+        # Without this a follow-up to a finished session would be closed at once by the lead.
+        self.add("s1", name="Own", owner=True)
+        self.listing([{"sessionId": "s1", "pid": 1, "status": "busy"}])
+        self.transcript("s1", [self.reply("Роботу завершено"), self.human("one more thing"),
+                               {"type": "user", "message": {"content": [{"type": "tool_result", "content": "x"}]}}])
+        self.assertEqual("working", self.state_lines("--id", "s1")[0].split(" | ")[2])
+
+    def test_state_uses_last_text_reply_and_cuts_the_gist(self):  # Edge
+        self.listing([{"sessionId": "s1", "pid": 1, "status": "idle"}])
+        tool_only = {"type": "assistant", "message": {"content": [{"type": "tool_use", "name": "Bash"}]}}
+        long_text = "start " + "x" * 300 + " the question?"
+        filler = [self.human("y" * 1000)] * 600  # pushes the reply out of the first chunk
+        self.transcript("s1", [self.reply("old"), self.reply(long_text), tool_only, self.reply("ignored", isSidechain=True)])
+        gist = self.state_lines("--id", "s1")[0].split(" | ", 3)[3]
+        self.assertEqual(sessions.GIST_CHARS, len(gist))
+        self.assertTrue(gist.startswith("...") and gist.endswith("the question?"))
+        self.transcript("s1", [self.reply("far back")] + filler)
+        self.assertIn("far back", self.state_lines("--id", "s1")[0])
+
+    def test_state_unreadable_list_and_no_sessions(self):  # Edge
+        self.listing([])
+        self.assertEqual(["no active sessions"], self.state_lines())
+        with mock.patch.dict(os.environ, {sessions.AGENTS_ENV: str(self.tmp / "missing.json")}):
+            self.assertEqual(3, self.run_main("state")[0])
+
+    def test_watch_exits_on_a_finished_session(self):  # Flow
+        self.add("c1-session", name="Own idea", owner=True)
+        self.add("c2-session", name="C: busy")
+        self.listing([{"sessionId": "c1-session", "pid": 5, "status": "idle"},
+                      {"sessionId": "c2-session", "pid": 6, "status": "busy"}])
+        self.transcript("c1-session", [self.reply("All done.\nРоботу завершено")])
+        code, out = self.run_main("watch", "--interval", "0")
+        self.assertEqual((0, "finished: Own idea | c1-session\n"), (code, out))
+
+    def test_a_c_session_never_reports_finished(self):  # Bug
+        # A C whose last line is the marker would otherwise make every re-armed watcher exit at once.
+        self.add("c1-session", name="C: task")
+        self.listing([{"sessionId": "c1-session", "pid": 5, "status": "idle"}])
+        self.transcript("c1-session", [self.reply("Work finished")])
+        self.assertEqual(["C: task | c1-session | waiting | Work finished"], self.state_lines())
+        code, out = self.run_main("watch", "--interval", "60", "--max-minutes", "0.5")
+        self.assertEqual((4, "time limit: 0.5 min, all alive\n"), (code, out))
+        code, out = self.run_main("watch", "--id", "c1-session", "--interval", "60", "--max-minutes", "0.5")
+        self.assertEqual(4, code)
+
+    def test_watch_finished_and_gone_are_both_reported_once(self):  # Edge
+        self.add("c1-session", name="A", owner=True)
+        self.add("c2-session", name="B")
+        self.listing([{"sessionId": "c1-session", "status": "stopped"}, {"sessionId": "c2-session", "state": "done"}])
+        self.transcript("c1-session", [self.reply("Роботу завершено")])
+        code, out = self.run_main("watch", "--interval", "0")
+        self.assertEqual((0, "gone: B | c2-session | done\nfinished: A | c1-session\n"), (code, out))
 
 
 if __name__ == "__main__":

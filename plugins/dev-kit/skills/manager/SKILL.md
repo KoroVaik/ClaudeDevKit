@@ -43,8 +43,11 @@ nothing: the merge is P's step, so the owner sees in this chat why the session c
   with acceptance criteria and the approved mockup in the feature file, reports done to P and builds
   nothing.
 
-A session the owner started that P took over is not a C: it keeps talking with the owner, commits its
-own work to main after each finished step, and P does not merge it.
+A session the owner started that P took over (after the owner's yes) is not a C: it keeps talking with
+the owner, P sends it nothing, and P watches it by reading its state. A plugin hook tells it at each
+owner message that it is watched and ends with the separate line «Роботу завершено» when fully done. A
+session on main (not in a worktree) commits its own work to main after each finished step. P does not
+merge it.
 
 Why: the owner decided on 2026-11-15 to be the CEO who takes only global and irreversible decisions;
 P is the single channel, so a C's questions do not scatter over its own chat, and a yes P relays is
