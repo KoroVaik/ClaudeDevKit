@@ -25,7 +25,7 @@ Read only. Sources, per project:
 Traps (checked 2026-11-14):
 - In `claude agents --json`, state "blocked" with status "idle" only means the turn ended. It is not a block or a denial; show it as idle.
 - P alive: `claude agents --json --cwd <project path>` lists a live background session named "P: <project>" (the same check `start-servers.ps1` uses). None means P is down.
-- Pult server alive: a running `claude.exe` process whose command line has ` remote-control ` and "Пульт" (PowerShell `Get-CimInstance Win32_Process -Filter "Name='claude.exe'"`).
+- Pult server alive: a running `claude.exe` process whose command line has ` remote-control ` and "Pult" (PowerShell `Get-CimInstance Win32_Process -Filter "Name='claude.exe'"`).
 
 - Server history: the last lines of `logs/servers.log` (written by the watcher, see "Servers"). A DOWN or EXIT line since the last start is a problem: show when it happened and the cause the log gives.
 
@@ -55,4 +55,4 @@ watcher only logs; it never restarts anything.
 
 ## Session title
 
-Every Pult session title starts with "Пульт". The server also sets this as a name prefix; if the session can rename itself, it does.
+Every Pult session title starts with "Pult". The server also sets this as a name prefix; if the session can rename itself, it does.

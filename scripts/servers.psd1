@@ -7,6 +7,6 @@
         @{ Session = 'P: Zhratva'; Lead = $true; Path = 'C:\Users\korov\MyRepositories\Zhratva' }
         @{ Session = 'P: Prishch'; Lead = $true; Path = 'C:\Users\korov\MyRepositories\Prishch' }
         @{ Session = 'P: ClaudeDevKit'; Lead = $true; Path = 'C:\Users\korov\MyRepositories\ClaudeDevKit' }
-        @{ Session = 'Пульт'; Prefix = 'Пульт'; Path = 'C:\Users\korov\MyRepositories\Pult' }
+        @{ Session = 'Pult'; Prefix = 'Pult'; Path = 'C:\Users\korov\MyRepositories\Pult' }
     )
 }
