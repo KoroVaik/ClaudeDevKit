@@ -33,6 +33,8 @@ Ukrainian forms the owner approved are in brackets.
 
 - Each label starts its own line. Each session goes on its own line as a list item. The next items
   are a numbered list, one per line.
+- A session is named exactly as the app shows it, prefix included («C: Каталог продуктів»), in every
+  message; never translated, shortened or retold.
 - Each session and each next item ends with what it needs from the owner, in brackets that start
   with "from you:" ("від тебе:"): a physical action, a device, a sign-in, a hand check (for example
   "(від тебе: телефон)", "(від тебе: перевірити на телефоні)"), or "(від тебе: нічого)" once P has
@@ -44,10 +46,11 @@ Ukrainian forms the owner approved are in brackets.
   over time (`dev-kit:manager`, "Less of the owner's involvement over time").
 - Every message ends with a concrete proposal: `Запустити сесію на «<item>»? (<what it gives, at most
   6 words>)`, then `Рекомендую: так - <reason, at most 12 words>`. Never a bare "what to start?".
+- A message that corrects an earlier P message (a takeover, merge or delivery P reported too early)
+  opens with «Раніше я сказав <X> - це було неточно: <Y>» (in the reply's language).
 - One message per event (a report, a watcher exit, an owner message), never several small ones.
   Items for the owner follow "Owner queue and critical items". A wake-up that needs nothing from
   the owner (a watcher re-armed on its time limit) gets no text.
-- Session names are written exactly as in the app. New sessions get Ukrainian names.
 
 Status (on start and on "what runs now?"):
 
@@ -173,9 +176,16 @@ detailed talk there, so most tasks do not become a new session for the owner.
   owner «<item>» overlaps «<session>» (<same task / same files>) and ask whether to start anyway,
   with a recommendation. If P's session lacks that agent type (it started before the plugin update),
   follow `dev-kit:manager`, "Which subagent type", for the stand-in.
+- Name: in the owner's language, short, saying what the task is. Prefix by purpose, fixed at launch:
+  `C:` for a session that works alone and reports to P (the owner need not open it); `Обговорення:`
+  (or `Discussion:` in English) for a session made to talk with the owner. The launch, the
+  registry and every message use the same name.
 - Make the worktree yourself from the local main, then start C inside it:
-  `git worktree add .claude/worktrees/<slug> -b c/<slug> main`, then in that folder
-  `claude --bg --remote-control "C: <feature>" --name "C: <feature>" --permission-mode <mode> --model <model> --effort <level> -- "<first prompt>"`.
+  `git worktree add .claude/worktrees/<slug> -b c/<slug> main`, then in one PowerShell call
+  `Push-Location <worktree>; claude --bg --remote-control "C: <feature>" --name "C: <feature>" --permission-mode <mode> --model <model> --effort <level> -- "<first prompt>"; Pop-Location`.
+  The `Pop-Location` returns P's shell to the main checkout: the PowerShell tool keeps its folder
+  between calls, and a shell left inside the worktree locks the folder, so `git worktree remove`
+  later leaves it behind with "Permission denied" (seen live in Zhratva, 2026-11-15).
   Never `claude -w`: it cuts the worktree from the remote's default branch, which can be far behind
   the local main (seen live: 6 weeks old, without `.claude/dev-kit.md`).
 - Permission mode: `bypassPermissions` (no prompts) only when the deny rules of "Hard bans" (the
@@ -200,8 +210,9 @@ detailed talk there, so most tasks do not become a new session for the owner.
   or folder; `link` makes a junction to the main checkout's folder
   (`New-Item -ItemType Junction -Path <worktree>/<path> -Target <main>/<path>`, PowerShell tool;
   folders only). A junction's real path is outside C's worktree, so for each `link` row P adds
-  `--add-dir <main>/<path>` to C's `claude` command: C must never need the owner's permission for a
-  path P set up (seen live in Zhratva, 2026-11-15). Prefer `copy` where C writes and the result need
+  `--add-dir=<main>/<path>` to C's `claude` command, always with `=`: the flag takes several values,
+  so `--add-dir <path> -- "<prompt>"` swallows the prompt as a path and C starts idle (seen live in
+  Zhratva, 2026-11-15). C must never need the owner's permission for a path P set up. Prefer `copy` where C writes and the result need
   not reach the main checkout. Without that table, copy what the project needs (for example `.env*`, `.agent-env/`,
   `.claude/settings.local.json`, `local.properties`), never build output or dependencies (C installs
   those); `git status --ignored --short` in the main checkout lists the candidates. The first prompt
@@ -252,7 +263,7 @@ it on `c/<slug>`, so the merge and the worktree removal see no stray file. C kee
 For a task of branch 4 in "Before a task: triage". Start it as a C (overlap check, worktree, folder
 setup, registration) with these differences:
 
-- Name `«Обговорення: <feature>»` (flag `--name` and `--remote-control`), `--permission-mode auto`
+- Name `Обговорення: <feature>` (no guillemets in the name) (flag `--name` and `--remote-control`), `--permission-mode auto`
   (the owner answers its prompts), `--model opus --effort medium` (the owner talks with it).
 - The owner talks with it directly. One session plays analyst and mockup designer. First prompt: the
   owner's words, the task file path, a feature file path, "run `dev-kit:discovery-round` for the
@@ -330,7 +341,10 @@ queue item after the owner answers or writes.
 
 Watcher: `dev-kit-sessions watch` in the Bash tool with `run_in_background`, run in the project's
 main checkout. It reads the registry's active C sessions every minute, stays silent while they live,
-and exits when one is gone; its own limit is 2 hours. Arm it after registering a C and after every
+and exits when one is gone; its own limit is 2 hours. Never run it in the foreground: the Bash tool kills
+a foreground command at its 10-minute timeout with no exit line, while a background one is not bound
+by the timeout (checked 2026-11-15: background runs of 150 seconds with a 60-second timeout and of
+12 minutes both finished). Arm it after registering a C and after every
 exit below, while the registry has an active C. On its exit:
 
 - `gone: <name> | <id> | <state>` (exit 0): that C ended. If it sent a "done" report, go on with the
@@ -343,8 +357,10 @@ exit below, while the registry has an active C. On its exit:
 - `time limit` (exit 4): re-arm; no text, no other checks.
 - `nothing to watch` (exit 5: no active C, also at the time limit when the last C ended meanwhile) or
   `already watching` (exit 6: another watcher runs): do not re-arm; no text.
-- Any other exit (3: the registry or session list unreadable for several minutes): the "stuck"
-  template for P itself, in one line, then re-arm.
+- "No text" for exits 4, 5 and 6 holds even when the host then demands visible output: end the turn
+  empty again (seen in P: Zhratva, 2026-11-15: text on watcher exits confused the owner).
+- Any other exit (3: the registry or session list unreadable for several minutes): the "stuck" template
+  for P itself, in one line, then re-arm.
 
 Skill update check, on every wake-up except a watcher time limit: read `version` from
 `.claude-plugin/plugin.json` two folders above this skill's base directory and compare it with the
@@ -390,8 +406,9 @@ After a merge, without asking the owner, run `dev-kit-sessions end --id <id>` (t
 `dev-kit-app stop --project <that C's worktree>` (releases the app lock if C left the app running),
 `claude rm <id>` (the session's job state), then removes each `link` row's junction without following
 it (`cmd /c rmdir "<worktree>\<path>"`, PowerShell tool, no `/s`; never `Remove-Item`, `rm -r` or
-`--force` while a junction is there: they may delete the main checkout's data), then
-`git worktree remove <worktree>` and
+`--force` while a junction is there: they may delete the main checkout's data), then, from the main
+checkout (`Set-Location <main>` first if the PowerShell tool's folder is anywhere inside the worktree,
+or the folder stays behind locked), `git worktree remove <worktree>` and
 `git branch -d c/<slug>`: `claude rm` does not remove a worktree P made by hand. If `git worktree
 remove` refuses over untracked files, P looks at them: nothing from the task, `--force`; otherwise it
 asks the owner. A C that ended without a merge gets `dev-kit-sessions end --id <id> --status stopped`,

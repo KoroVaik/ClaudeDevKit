@@ -81,7 +81,7 @@ the owner's yes on a written proposal.
    finished step; P does not merge it, so main stays clean and P's merges of other C sessions do not
    wait.
 
-## Status (2026-11-15): built in dev-kit 0.1.31
+## Status (2026-11-15): built in dev-kit 0.1.34
 
 Owner's yes to the proposal: «Так». Open points below that are not in the proposal stay open.
 
