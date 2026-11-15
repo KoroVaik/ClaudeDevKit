@@ -93,6 +93,13 @@ Always pass the type and `model` explicitly. Built-in types (`general-purpose`, 
 are blocked by the dev-kit hook: they load every session tool, about 67K tokens of cold start against
 15-25K for the types below. When no row fits, tell the owner which role is missing.
 
+A session gets agent types only at its start, so one older than a plugin update may lack a newer type.
+If the type is not available, launch the cheapest available dev-kit type whose tools cover the
+missing one's (the `tools:` line of `agents/<name>.md` in this plugin's folder; `dev-kit:investigator` covers
+the read-only ones), on the model the table gives, with the body of that file as its instructions
+before the brief. Tell the owner only if no agent can be launched at all.
+Why: the Zhratva lead could not launch `dev-kit:overlap-checker` on 2026-11-15 after a plugin update.
+
 | Type | Model | When | Returns |
 |---|---|---|---|
 | `dev-kit:investigator` | sonnet | the cause is unknown, or a survey of code needs reading a lot | cause or ranked hypotheses, `file:line`, confirmed vs assumed |

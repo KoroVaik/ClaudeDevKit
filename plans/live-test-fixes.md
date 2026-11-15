@@ -20,3 +20,26 @@ Owner's yes, P: ClaudeDevKit chat. Source: P: Zhratva's live-test report of dev-
 3. Tests, lint, dev-kit version bump, README if it describes this.
 
 Success criterion: the rules cover both cases; a test for any script change; lint green.
+
+## Status (2026-11-15): built in dev-kit 0.1.30
+
+- Missing agent type: `dev-kit:manager`, "Which subagent type", gives the stand-in rule (an available
+  dev-kit type whose tools cover the missing one's, with the agent file's body as instructions);
+  project-lead's overlap check points to it.
+- Worktree setup: profile section `## project-lead`, table `| Path | How |` (`copy` or `link`). P makes
+  junctions with `New-Item -ItemType Junction`, adds `--add-dir <main>/<path>` to C's launch for each
+  link (P's addition: C must never need the owner's permission for paths P set up), and before
+  `git worktree remove` removes each junction with `cmd /c rmdir` (checked: the target stays).
+  Lint checks the table header and that each row says `copy` or `link` (two tests). README lists the
+  section.
+- Proposed Zhratva profile lines (for P to pass on):
+
+  ```
+  ## project-lead
+
+  | Path | How |
+  |---|---|
+  | `data/` | link |
+  ```
+
+  Use `copy` instead if C's writes to `data/` must not reach the main checkout.

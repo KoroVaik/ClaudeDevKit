@@ -24,7 +24,10 @@ PROFILE_TABLES = {
     "manager": [["Task", "Skill"], ["Type", "Model", "When", "Returns"]],
     "fix-bug": [["The report sounds like...", "It is a...", "UI check, if authorized"]],
     "user-check": [["Setting", "Value"]],
+    "project-lead": [["Path", "How"]],
 }
+# What P does with each ignored path of a fresh worktree (the project-lead `| Path | How |` table).
+WORKTREE_SETUP = ("copy", "link")
 
 
 class Findings:
@@ -363,6 +366,8 @@ def check_profile_tables(root, plugins, where, text, findings):
             for row in rows:
                 if len(row) != len(header):
                     findings.error(where, f"section '{name}': row '{row[0]}' has {len(row)} cells, expected {len(header)}")
+                elif name == "project-lead" and row[1].strip("` ") not in WORKTREE_SETUP:
+                    findings.error(where, f"section 'project-lead': row '{row[0]}' must say {' or '.join(WORKTREE_SETUP)}, not '{row[1]}'")
                 elif name == "manager":
                     column = 0 if header[0] == "Type" else 1
                     for value in filter(None, (v.strip() for v in row[column].split(","))):

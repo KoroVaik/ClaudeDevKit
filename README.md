@@ -78,6 +78,8 @@ A project that enables the plugins keeps `.claude/dev-kit.md`:
   only `run-app` and `stop-app` may have several rows (a list of commands).
 - `## <agent or skill name>` - rules for one role, e.g. `## reviewer`; they override the plugin
   defaults.
+- `## project-lead` - optional table `| Path | How |`: the git-ignored paths a fresh worktree needs,
+  each `copy` or `link` (a junction to the main checkout's folder).
 - `## documentation` - table `| Setting | Value |` for the docs check (code folders, scanned
   folders, size limits); the setting names are listed in `plugins/dev-kit/scripts/check_docs.py`.
 

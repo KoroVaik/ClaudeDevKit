@@ -510,6 +510,16 @@ class ProfileTableTests(LintTestCase):
         findings = self.run_lint(self.profile(self.FIX_BUG.replace("It is a...", "Kind")))
         self.assertErrorContains(findings, "section 'fix-bug': table must have header")
 
+    def test_valid_project_lead_worktree_table_passes(self):
+        write(self.root / "plugins" / "dev-kit" / "skills" / "project-lead" / "SKILL.md", skill_text(name="project-lead"))
+        table = "## project-lead\n\n| Path | How |\n|---|---|\n| `data/` | link |\n| `.env` | `copy` |\n"
+        self.assertClean(self.run_lint(self.profile(table)))
+
+    def test_project_lead_worktree_row_with_unknown_how_fails(self):
+        write(self.root / "plugins" / "dev-kit" / "skills" / "project-lead" / "SKILL.md", skill_text(name="project-lead"))
+        table = "## project-lead\n\n| Path | How |\n|---|---|\n| `data/` | move |\n"
+        self.assertErrorContains(self.run_lint(self.profile(table)), "row 'data/' must say copy or link, not 'move'")
+
     def test_other_sections_tables_are_not_checked(self):
         self.assertClean(self.run_lint(self.profile("## e2e-check\n\n| Any | Header |\n|---|---|\n| a | b |\n")))
 

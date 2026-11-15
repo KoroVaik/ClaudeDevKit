@@ -123,7 +123,8 @@ A C is stuck:
   `dev-kit:overlap-checker` subagent (model haiku) with the item's words, the files or area it will
   touch if known, and the project folder. On "no overlap" go on. On an overlap do not start: tell the
   owner «<item>» overlaps «<session>» (<same task / same files>) and ask whether to start anyway,
-  with a recommendation.
+  with a recommendation. If P's session lacks that agent type (it started before the plugin update),
+  follow `dev-kit:manager`, "Which subagent type", for the stand-in.
 - Make the worktree yourself from the local main, then start C inside it:
   `git worktree add .claude/worktrees/<slug> -b c/<slug> main`, then in that folder
   `claude --bg --remote-control "C: <feature>" --name "C: <feature>" --permission-mode auto --model <model> --effort <level> -- "<first prompt>"`.
@@ -134,10 +135,17 @@ A C is stuck:
   only for a C the owner will not talk to (a mechanical batch with no decisions); a Fable model only
   after the owner's yes. Without the flags C inherits the default model, which may be the most
   expensive one. The launch line names the same model and level.
-- A fresh worktree has only tracked files. Before starting C, copy from the main checkout the
-  git-ignored local setup the project needs to run (for example `.env*`, `.agent-env/`,
+- A fresh worktree has only tracked files. Before starting C, bring in from the main checkout the
+  git-ignored local setup the project needs to run. If the profile section `## project-lead` has a
+  `| Path | How |` table, do exactly its rows (paths relative to the repo root): `copy` copies the file
+  or folder; `link` makes a junction to the main checkout's folder
+  (`New-Item -ItemType Junction -Path <worktree>/<path> -Target <main>/<path>`, PowerShell tool;
+  folders only). A junction's real path is outside C's worktree, so for each `link` row P adds
+  `--add-dir <main>/<path>` to C's `claude` command: C must never need the owner's permission for a
+  path P set up (seen live in Zhratva, 2026-11-15). Prefer `copy` where C writes and the result need
+  not reach the main checkout. Without that table, copy what the project needs (for example `.env*`, `.agent-env/`,
   `.claude/settings.local.json`, `local.properties`), never build output or dependencies (C installs
-  those). `git status --ignored --short` in the main checkout lists the candidates. The first prompt
+  those); `git status --ignored --short` in the main checkout lists the candidates. The first prompt
   names the main checkout path, so C can copy what P missed.
 - Start it with the PowerShell tool: Git Bash rewrites a prompt that starts with `/` and any `C:/...`
   path in it. The command prints only the 8-hex short id. "Workspace not trusted" means the owner must run `claude` once in
@@ -238,7 +246,10 @@ Otherwise `git merge --ff-only c/<slug>`. If it refuses (main moved since C pull
 
 After a merge, without asking the owner, run `dev-kit-sessions end --id <id>` (the short id works),
 `dev-kit-app stop --project <that C's worktree>` (releases the app lock if C left the app running),
-`claude rm <id>` (the session's job state), then `git worktree remove <worktree>` and
+`claude rm <id>` (the session's job state), then removes each `link` row's junction without following
+it (`cmd /c rmdir "<worktree>\<path>"`, PowerShell tool, no `/s`; never `Remove-Item`, `rm -r` or
+`--force` while a junction is there: they may delete the main checkout's data), then
+`git worktree remove <worktree>` and
 `git branch -d c/<slug>`: `claude rm` does not remove a worktree P made by hand. If `git worktree
 remove` refuses over untracked files, P looks at them: nothing from the task, `--force`; otherwise it
 asks the owner. A C that ended without a merge gets `dev-kit-sessions end --id <id> --status stopped`,
