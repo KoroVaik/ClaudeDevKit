@@ -18,6 +18,7 @@ Both use the dev-kit plugin. Each has a project lead session "P: <project>" from
 Read only. Sources, per project:
 - Sessions and state: `claude agents --json --cwd <project path>` (add `--all` to include finished ones). Worktrees of the project sit under that path or next to it; group by project.
 - Task sessions registered by the lead and their context fill: `dev-kit-sessions --project <project path> list` and `dev-kit-sessions --project <project path> fill`. If the command is not on PATH, run `python C:/Users/korov/MyRepositories/ClaudeDevKit/plugins/dev-kit/bin/dev-kit-sessions ...`.
+- Desktop-app sessions of all projects (title, project folder, state, age): `python scripts/list-sessions.py`.
 - What waits on the owner: the "Open questions" section of `<project path>/PROGRESS.md` (written by the lead P and task sessions C). "None." means nothing waits.
 
 Traps (checked 2026-11-14):
