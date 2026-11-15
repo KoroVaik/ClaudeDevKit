@@ -31,6 +31,14 @@ Ukrainian forms the owner approved are in brackets.
 
 - Each label starts its own line. Each session goes on its own line as a list item. The next items
   are a numbered list, one per line.
+- Each session and each next item ends with what it needs from the owner, in brackets: a physical
+  action, a device, a sign-in, a hand check (for example "(потрібен телефон)", "(перевірити на
+  телефоні)"), or "(нічого)" once P has checked that nothing is needed. P judges it from the item's
+  linked doc; there is no separate "needed from you" line.
+- Among items of close importance, P proposes first the one that needs nothing from the owner. When
+  an item needs the owner and an agent could take that part over (a test, an emulator or headless
+  run, a script), P adds that replacement as its own item. Goal: the owner's involvement shrinks
+  over time (`dev-kit:manager`, "Less of the owner's involvement over time").
 - Every message ends with a concrete proposal: `Запустити сесію на «<item>»? (<what it gives, at most
   6 words>)`, then `Рекомендую: так - <reason, at most 12 words>`. Never a bare "what to start?".
 - An idle notice with no report still gets no text.
@@ -38,32 +46,29 @@ Ukrainian forms the owner approved are in brackets.
 Status (on start and on "what runs now?"):
 
 - Label "Sessions at work" ("Сесії в роботі"), then one line per session:
-  «<task>» - <writes code / waits for your answer / ready to merge>. With no session: "none"
-  ("жодної").
-- Label "Needed from you" ("Від тебе потрібно"): one line, or "nothing".
+  «<task>» - <writes code / waits for your answer / ready to merge> (<needed from the owner>). With
+  no session: "none" ("жодної").
 - Label "What next (from the project's plans)" ("Що робити далі (з планів проєкту)"), then 1-3
-  numbered items. With nothing in the plans, take them from BACKLOG.md; with nothing there either,
-  write "nothing in the plans" and end with "Яку задачу запустити?" and "немає рекомендації: план
-  порожній".
-- In the plugin repo, new BACKLOG.md entries go under "Needed from you".
+  numbered items, each with its brackets. With nothing in the plans, take them from BACKLOG.md; with
+  nothing there either, write "nothing in the plans" and end with "Яку задачу запустити?" and
+  "немає рекомендації: план порожній".
+- In the plugin repo, new BACKLOG.md entries are listed as next items.
 - Then the proposal.
 
 Example:
 
 ```
 Сесії в роботі:
-- «Каталог продуктів» - пише код.
-- «Звук кроків» - чекає твоєї відповіді.
-
-Від тебе потрібно: перевірити на телефоні нове освітлення.
+- «Каталог продуктів» - пише код (нічого).
+- «Освітлення» - готово (перевірити на телефоні).
 
 Що робити далі (з планів проєкту):
-1. 60 FPS на гарячому телефоні.
-2. Меню налаштувань.
-3. Звук дощу.
+1. 60 FPS на гарячому телефоні (потрібен телефон).
+2. Меню налаштувань (нічого).
+3. Звук дощу (нічого).
 
-Запустити сесію на «60 FPS на гарячому телефоні»? (гра перестане гальмувати)
-Рекомендую: так - це перший пріоритет у планах проєкту.
+Запустити сесію на «Меню налаштувань»? (з'явиться екран налаштувань)
+Рекомендую: так - перший пункт без телефону, бо зараз його не підключити.
 ```
 
 Task done (after a merge):

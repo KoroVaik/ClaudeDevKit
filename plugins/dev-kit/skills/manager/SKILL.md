@@ -96,6 +96,14 @@ The project's own types come from its `## manager` section.
 If the cause is not confirmed, do not propose the fix as the next step. Propose the smallest
 check that confirms or disproves it, and only after it the fix.
 
+## Less of the owner's involvement over time
+
+The plugin's main goal is autonomous development: the owner's involvement shrinks step by step.
+Decisions on what the owner gets, money and hard-to-undo steps stay with the owner. Checks, hand
+actions and small questions move to the agents: before asking the owner to check or do something,
+look for a way an agent can do it (a test, a headless or emulator run, a script). Where none exists
+yet, do the step with the owner and name the missing tool as a follow-up item in the project's plans.
+
 ## Long-term quality over speed
 
 The owner cares about the durable result, not how fast a step finishes. When a step needs tooling,

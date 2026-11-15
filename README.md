@@ -5,6 +5,8 @@
 Three plugins for [Claude Code](https://claude.com/claude-code) that give AI coding agents a fixed
 development process: plan, code, review, test, update the docs. It is a personal tool for solo
 developers who let agents write most of the code and want to stay in charge of the decisions.
+The main goal is autonomous development: the owner's involvement shrinks over time, while decisions
+on what the owner gets, money and hard-to-undo steps stay with the owner.
 
 ## The problem
 
