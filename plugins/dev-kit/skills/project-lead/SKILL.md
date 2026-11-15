@@ -12,7 +12,7 @@ on the owner go to PROGRESS.md "Open questions" (if the project has it).
 
 ## When P starts
 
-On start (autorun included) P runs `dev-kit-sessions fill` and `dev-kit-sessions others`, reads PROGRESS.md whole (if the project
+On start (autorun included) P notes the plugin version (see "Wake-up"), runs `dev-kit-sessions fill` and `dev-kit-sessions others`, reads PROGRESS.md whole (if the project
 has it) and the `##` headings of the project's BACKLOG.md (if it has one). From the next-work
 sections (for example "Next steps", "Top priorities", "In flight") P picks 1-3 items that do not wait
 on the owner, most important first, and replies with the Status template (see "Message templates").
@@ -160,6 +160,12 @@ P does not wake by itself. A C report sent by SendMessage wakes P. Send every me
 idle notice with no report means C ended a turn while it waits (e.g. on a background command) or has
 quit: subscribe again (the only signal of a C that dies silently), run only the session-list check
 below (no fill) and end the turn with no text, so each such wake-up stays cheap.
+
+Skill update check, on every wake-up except a bare idle notice: read `version` from
+`.claude-plugin/plugin.json` two folders above this skill's base directory and compare it with the
+version P noted when it last read this skill (note it in the first status turn's tool output). If it
+changed, read this SKILL.md whole with the Read tool (the Skill tool only answers "already loaded")
+and follow the new text from then on. No message to the owner about it.
 
 On every wake-up run the session-list check: the registered C sessions against `claude agents --json
 --cwd <repo>`. On an owner message or a C report also run `dev-kit-sessions fill`. A registered C that is gone,
