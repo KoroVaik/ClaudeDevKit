@@ -37,7 +37,7 @@ Pult only informs. A project's open question is only shown, never asked here: Pu
 
 Pult owns the start of the Remote Control servers and project leads: `scripts/start-servers.ps1`
 (run at Windows logon by the Startup folder shortcut "Pult - project servers") and
-`scripts/stop-servers.ps1` (graceful stop; never kill these processes). The list of servers is
+`scripts/stop-servers.ps1` (graceful stop; never kill these processes; it refuses while a session under a server's folder is busy, `-Force` overrides, `-CheckOnly` only lists). The list of servers is
 `scripts/servers.psd1`. Windows runs them; a Pult session runs them only after the owner's
 explicit yes.
 

@@ -1,9 +1,11 @@
 # Stops all Remote Control servers ("claude remote-control") gracefully, as Ctrl-C in their window
 # would: the server shuts down its sessions and keeps them for the next start.
 # Never kill these processes: a forced stop can lock the project folder for minutes.
-# Usage: run without parameters. -TargetPid is internal (the helper that types Ctrl-C).
+# Usage: run without parameters. It refuses while a session under a server's folder is busy;
+# -Force stops anyway, -CheckOnly only lists busy sessions. -TargetPid is internal (the helper
+# that types Ctrl-C).
 
-param([int]$TargetPid = 0)
+param([int]$TargetPid = 0, [switch]$Force, [switch]$CheckOnly)
 
 if ($TargetPid -ne 0) {
     # Helper mode: attach to the server's console and type Ctrl-C into it.
@@ -37,6 +39,33 @@ public static class ConCtrlC {
 }
 "@
     if ([ConCtrlC]::Send([uint32]$TargetPid)) { exit 0 } else { exit 1 }
+}
+
+# Busy check: a session working right now under a server's folder would lose its turn.
+# The session that runs this script (an ancestor process) is not counted.
+if (-not $Force) {
+    $roots = (Import-PowerShellDataFile (Join-Path $PSScriptRoot 'servers.psd1')).Servers |
+        ForEach-Object { [IO.Path]::GetFullPath($_.Path).TrimEnd('\') + '\' }
+    $ancestors = @()
+    $p = Get-CimInstance Win32_Process -Filter "ProcessId=$PID"
+    for ($i = 0; $p -and $i -lt 30; $i++) {
+        $ancestors += $p.ProcessId
+        $p = Get-CimInstance Win32_Process -Filter "ProcessId=$($p.ParentProcessId)"
+    }
+    try {
+        $sessions = @(claude agents --json | Out-String | ConvertFrom-Json) | ForEach-Object { $_ }
+    } catch { Write-Output "Could not list sessions, nothing stopped (use -Force): $_"; exit 1 }
+    $busy = @($sessions | Where-Object {
+        if ($_.status -ne 'busy' -or -not $_.cwd -or $ancestors -contains $_.pid) { return $false }
+        $cwd = [IO.Path]::GetFullPath($_.cwd).TrimEnd('\') + '\'
+        [bool]($roots | Where-Object { $cwd.StartsWith($_, [StringComparison]::OrdinalIgnoreCase) })
+    })
+    if ($busy) {
+        Write-Output 'Busy sessions, nothing stopped (use -Force to stop anyway):'
+        $busy | ForEach-Object { Write-Output "  $($_.name) ($($_.kind)) in $($_.cwd)" }
+        exit 1
+    }
+    if ($CheckOnly) { Write-Output 'No busy sessions.'; exit 0 }
 }
 
 # Project leads "P: <name>" are background sessions: stop them through Claude (conversation kept).
