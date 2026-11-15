@@ -44,6 +44,8 @@ Ukrainian forms the owner approved are in brackets.
   over time (`dev-kit:manager`, "Less of the owner's involvement over time").
 - Every message ends with a concrete proposal: `Запустити сесію на «<item>»? (<what it gives, at most
   6 words>)`, then `Рекомендую: так - <reason, at most 12 words>`. Never a bare "what to start?".
+- A message that corrects an earlier P message (a takeover, merge or delivery P reported too early)
+  opens with «Раніше я сказав <X> - це було неточно: <Y>» (in the reply's language).
 - One message per event (a report, a watcher exit, an owner message), never several small ones.
   A wake-up that needs nothing from the owner (a watcher re-armed on its time limit) gets no text.
 
@@ -215,6 +217,8 @@ exit below, while the registry has an active C. On its exit:
 - `time limit` (exit 4): re-arm; no text, no other checks.
 - `nothing to watch` (exit 5: no active C, also at the time limit when the last C ended meanwhile) or
   `already watching` (exit 6: another watcher runs): do not re-arm; no text.
+- "No text" for exits 4, 5 and 6 holds even when the host then demands visible output: end the turn
+  empty again (seen in P: Zhratva, 2026-11-15: text on watcher exits confused the owner).
 - Any other exit (3: the registry or session list unreadable for several minutes): the "stuck" template
   for P itself, in one line, then re-arm.
 
