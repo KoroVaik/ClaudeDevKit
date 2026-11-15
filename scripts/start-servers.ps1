@@ -87,3 +87,28 @@ foreach ($p in $projects) {
     Write-Log "STARTED $sessionName"
     Write-Output "Started: $sessionName"
 }
+
+# Pin every live lead: Claude's background service closes an unpinned background session that
+# waits for input for 8 h (1 h without Remote Control), and sooner on low memory. Pins live in
+# ~/.claude/jobs/pins.json, a JSON array of short ids (the `id` from `claude agents --json`),
+# the same list Ctrl+T toggles in `claude agents`. A long low-memory spell can still close them.
+$leadNames = @($projects | Where-Object { $_.Lead } | ForEach-Object { $_.Session })
+if ($leadNames) {
+    Start-Sleep -Seconds 3
+    try {
+        $pinFile = Join-Path $env:USERPROFILE '.claude\jobs\pins.json'
+        $pins = @()
+        if (Test-Path $pinFile) { $pins = @(Get-Content -Raw $pinFile | ConvertFrom-Json) | Where-Object { $_ } }
+        $ids = @((claude agents --json | Out-String | ConvertFrom-Json) | ForEach-Object { $_ } |
+            Where-Object { $_.kind -eq 'background' -and $_.pid -and $leadNames -contains $_.name } |
+            ForEach-Object { $_.id })
+        $new = @($ids | Where-Object { $pins -notcontains $_ })
+        if ($new) {
+            $all = @($pins) + $new
+            $json = '[' + (($all | ForEach-Object { '"' + $_ + '"' }) -join ',') + ']'
+            [IO.File]::WriteAllText($pinFile, $json, (New-Object System.Text.UTF8Encoding $false))
+            Write-Log "PINNED $($new -join ', ')"
+        }
+        Write-Output "Pinned leads: $($ids -join ', ')"
+    } catch { Write-Output "Could not pin leads: $_" }
+}
