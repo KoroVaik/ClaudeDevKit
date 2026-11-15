@@ -43,7 +43,10 @@ explicit yes. A lead is resumed, not started fresh: `start-servers.ps1` takes th
 session with the lead's name and folder (`claude agents --json --all`) and runs
 `claude --bg --resume <sessionId> -- '/dev-kit:project-lead'` (helpers in `scripts/resume-lib.ps1`;
 the log gets RESUMED instead of STARTED). No other flag may be added to that command: a flag makes
-claude start a copy. Without an earlier session it starts fresh as before. Then it pins every
+claude start a copy, so before resuming it rewrites `--model` / `--effort` in the job's saved
+options (`~/.claude/jobs/<short id>/state.json`, "respawnFlags"; log MODEL): leads run on Opus,
+medium reasoning (`$LeadModel` / `$LeadEffort` in `resume-lib.ps1`). Without an earlier session
+it starts fresh with the same model. Then it pins every
 live lead in `~/.claude/jobs/pins.json` (log PINNED): Claude's background service closes an
 unpinned background session after 8 h of waiting (daemon.log "bg retire ... idle-prompt"). A Remote Control
 server first tries `claude remote-control --continue` (no `--spawn`: they cannot be combined);

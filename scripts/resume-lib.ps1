@@ -24,5 +24,35 @@ function Get-LeadStartArgs([string]$SessionName, [string]$SessionId) {
         return @('--bg', '--resume', $SessionId, '--', '/dev-kit:project-lead')
     }
     return @('--bg', '--remote-control', $SessionName, '--name', $SessionName,
-        '--permission-mode', 'auto', '--model', 'sonnet', '--', '/dev-kit:project-lead')
+        '--permission-mode', 'auto', '--model', $LeadModel, '--effort', $LeadEffort, '--', '/dev-kit:project-lead')
+}
+
+# Leads run on this model and reasoning level (the owner's rule: sessions he talks with use Opus, medium).
+$LeadModel = 'opus'
+$LeadEffort = 'medium'
+
+# A resumed session takes its model from the saved options of its job
+# (~/.claude/jobs/<short id>/state.json, "respawnFlags"). Set --model and --effort there before
+# resuming, so the lead wakes on $LeadModel / $LeadEffort. Returns $true when the file was changed.
+function Set-LeadRespawnModel([string]$SessionName, [string]$SessionId, [string]$JobsDir) {
+    if (-not $JobsDir) { $JobsDir = Join-Path $env:USERPROFILE '.claude\jobs' }
+    $utf8 = New-Object System.Text.UTF8Encoding $false
+    foreach ($f in Get-ChildItem $JobsDir -Filter state.json -Recurse -Depth 1 -ErrorAction SilentlyContinue) {
+        $text = [IO.File]::ReadAllText($f.FullName, $utf8)
+        $s = $text | ConvertFrom-Json
+        if ($s.name -cne $SessionName) { continue }
+        if ($s.sessionId -ne $SessionId -and $s.resumeSessionId -ne $SessionId) { continue }
+        $flags = @($s.respawnFlags)
+        $keep = @()
+        for ($i = 0; $i -lt $flags.Count; $i++) {
+            if ($flags[$i] -eq '--model' -or $flags[$i] -eq '--effort') { $i++; continue }
+            $keep += $flags[$i]
+        }
+        $keep += @('--model', $LeadModel, '--effort', $LeadEffort)
+        $arr = '[' + (($keep | ForEach-Object { ConvertTo-Json ([string]$_) }) -join ', ') + ']'
+        $new = [regex]::Replace($text, '"respawnFlags"\s*:\s*\[[^\]]*\]', { param($m) '"respawnFlags": ' + $arr })
+        if ($new -ne $text) { [IO.File]::WriteAllText($f.FullName, $new, $utf8); return $true }
+        return $false
+    }
+    return $false
 }

@@ -52,6 +52,10 @@ foreach ($p in $projects) {
         # Continue the previous conversation of this lead when one exists (stopped or finished).
         $resumeId = $null
         try { $resumeId = Get-ResumeSessionId $sessionName $p.Path } catch { Write-Output "Could not look up a session to resume: $_" }
+        if ($resumeId) {
+            try { if (Set-LeadRespawnModel $sessionName $resumeId) { Write-Log "MODEL $sessionName $LeadModel/$LeadEffort" } }
+            catch { Write-Output "Could not set the lead's model: $_" }
+        }
         $leadArgs = Get-LeadStartArgs $sessionName $resumeId
         claude @leadArgs | Select-Object -First 1
         Pop-Location
