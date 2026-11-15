@@ -5,7 +5,6 @@ full their context is.
     dev-kit-sessions end --id <id> [--status done|replaced|stopped]
     dev-kit-sessions list
     dev-kit-sessions fill [--limit 0.5] [--window N]
-    dev-kit-sessions list-desktop
 
 The registry is `sessions.json` in the project state folder (see dev_kit_state.py; the same folder for all worktrees
 of one repository). `add --predecessor` marks the replaced session `replaced`. `fill` finds the transcript of every
@@ -14,13 +13,6 @@ prints its context size: input + cache creation + cache read tokens of the last 
 The window comes from the transcript's model (see `window_for`) unless `--window` is given. A line ends with OVER when the
 percent reaches the limit. Exit code: 0 done (fill too, whatever the transcripts), 1 unknown or duplicate id,
 2 registry unreadable.
-
-`list-desktop` does not use the registry: it prints every live (not archived) session of the Claude desktop Code tab,
-one line each: `name | project folder | state | last activity age`. The state is busy, idle or closed, plus the
-status the app shows (blocked, completed, review_ready) when it has one. Sources (see DESKTOP_* below): the app's
-`local_*.json` files and the CLI's `~/.claude/sessions/<pid>.json`; a session is running when a pid file has its
-`cliSessionId` as `sessionId` and that process is alive. Only the needed keys are used, nothing else is printed.
-Exit code 2 when the app's sessions folder is missing.
 """
 import argparse
 import json
@@ -40,13 +32,6 @@ DEFAULT_WINDOW = 200000
 NATIVE_1M_WINDOW = 1000000
 USAGE_FIELDS = ("input_tokens", "cache_creation_input_tokens", "cache_read_input_tokens")
 CHUNK = 256 * 1024
-# Where the desktop app keeps its Code-tab sessions (layout checked on 2026-11-15; env overrides for tests).
-DESKTOP_DIR_ENV = "DEV_KIT_DESKTOP_SESSIONS_DIR"
-DESKTOP_DEFAULT_DIR = Path.home() / "AppData" / "Local" / "Claude-Data" / "claude_pzs8sxrjxfjjc" / "claude-code-sessions"
-DESKTOP_GLOB = "*/*/local_*.json"  # <accountUuid>/<orgUuid>/local_<id>.json
-CLI_SESSIONS_ENV = "DEV_KIT_CLI_SESSIONS_DIR"
-CLI_SESSIONS_DEFAULT_DIR = Path.home() / ".claude" / "sessions"  # <pid>.json
-
 
 class Unreadable(Exception):
     """The registry cannot be read: exit code 2."""
@@ -210,100 +195,6 @@ def cmd_fill(args, path, records):
     return 0
 
 
-def desktop_dir():
-    return Path(os.environ[DESKTOP_DIR_ENV]) if os.environ.get(DESKTOP_DIR_ENV) else DESKTOP_DEFAULT_DIR
-
-
-def cli_sessions_dir():
-    return Path(os.environ[CLI_SESSIONS_ENV]) if os.environ.get(CLI_SESSIONS_ENV) else CLI_SESSIONS_DEFAULT_DIR
-
-
-def pid_alive(pid):
-    """True when a process with this pid exists. Never os.kill(pid, 0): on Windows it kills the process."""
-    if not isinstance(pid, int) or pid <= 0:
-        return False
-    if os.name == "nt":
-        import ctypes
-        kernel = ctypes.windll.kernel32
-        kernel.OpenProcess.restype = ctypes.c_void_p
-        handle = kernel.OpenProcess(0x1000, False, pid)  # PROCESS_QUERY_LIMITED_INFORMATION
-        if not handle:
-            return kernel.GetLastError() == 5  # access denied: the process exists
-        code = ctypes.c_ulong()
-        ok = kernel.GetExitCodeProcess(ctypes.c_void_p(handle), ctypes.byref(code))
-        kernel.CloseHandle(ctypes.c_void_p(handle))
-        return bool(ok) and code.value == 259  # STILL_ACTIVE
-    try:
-        os.kill(pid, 0)
-    except PermissionError:
-        return True
-    except OSError:
-        return False
-    return True
-
-
-def read_json(path):
-    try:
-        data = json.loads(path.read_text(encoding="utf-8-sig"))
-    except (OSError, ValueError):
-        return None
-    return data if isinstance(data, dict) else None
-
-
-def running_by_cli_id():
-    """{cliSessionId: status} of the CLI processes that are alive (status: busy or idle)."""
-    found = {}
-    for path in cli_sessions_dir().glob("*.json"):
-        data = read_json(path)
-        if data and data.get("sessionId") and pid_alive(data.get("pid")):
-            found[data["sessionId"]] = data.get("status") or "idle"
-    return found
-
-
-def age_text(ms, now_ms):
-    if not isinstance(ms, (int, float)):
-        return "?"
-    seconds = max(0, int((now_ms - ms) / 1000))
-    for limit, unit in ((60, "s"), (3600, "m"), (86400, "h")):
-        if seconds < limit:
-            return f"{seconds // {'s': 1, 'm': 60, 'h': 3600}[unit]}{unit}"
-    return f"{seconds // 86400}d"
-
-
-def desktop_rows(now_ms=None):
-    """[(lastActivityAt, line)] of the live desktop sessions, newest first. Raises Unreadable if the folder is missing."""
-    root = desktop_dir()
-    if not root.is_dir():
-        raise Unreadable(f"the desktop sessions folder {root} does not exist (is the Claude desktop app installed? "
-                         f"set {DESKTOP_DIR_ENV} to override)")
-    now_ms = now_ms if now_ms is not None else time.time() * 1000
-    running = running_by_cli_id()
-    rows = []
-    for path in root.glob(DESKTOP_GLOB):
-        data = read_json(path)
-        if not data or data.get("isArchived"):
-            continue
-        summary = data.get("postTurnSummary") if isinstance(data.get("postTurnSummary"), dict) else {}
-        state = running.get(data.get("cliSessionId"), "closed")
-        category = summary.get("status_category")
-        if category:
-            state += f" + {category}"
-        project = Path(data["cwd"]).name if data.get("cwd") else "?"
-        activity = data.get("lastActivityAt")
-        rows.append((activity if isinstance(activity, (int, float)) else 0,
-                     f"{data.get('title') or '(no title)'} | {project} | {state} | {age_text(activity, now_ms)}"))
-    return sorted(rows, key=lambda row: row[0], reverse=True)
-
-
-def cmd_list_desktop(args, path, records):
-    rows = desktop_rows()
-    for _, line in rows:
-        print(line)
-    if not rows:
-        print("no desktop sessions")
-    return 0
-
-
 def main(argv=None):
     for stream in (sys.stdout, sys.stderr):
         if hasattr(stream, "reconfigure"):
@@ -323,11 +214,8 @@ def main(argv=None):
     fill = sub.add_parser("fill")
     fill.add_argument("--limit", type=float, default=0.5)
     fill.add_argument("--window", type=int, default=0)
-    sub.add_parser("list-desktop")
     args = parser.parse_args(argv)
     try:
-        if args.action == "list-desktop":
-            return cmd_list_desktop(args, None, None)
         path = registry_path(args.project)
         records = load(path)
         return {"add": cmd_add, "end": cmd_end, "list": cmd_list, "fill": cmd_fill}[args.action](args, path, records)

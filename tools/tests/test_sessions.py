@@ -165,43 +165,6 @@ class SessionsTestCase(unittest.TestCase):
         self.assertTrue(first.name.startswith("repo-"))
         self.assertNotEqual(first, dev_kit_state.project_state_dir(self.project))
 
-    def desktop_setup(self):
-        desk = self.tmp / "desk"
-        (desk / "acc" / "org").mkdir(parents=True)
-        cli = self.tmp / "cli"
-        cli.mkdir()
-        env = mock.patch.dict(os.environ, {"DEV_KIT_DESKTOP_SESSIONS_DIR": str(desk), "DEV_KIT_CLI_SESSIONS_DIR": str(cli)})
-        env.start()
-        self.addCleanup(env.stop)
-        return desk / "acc" / "org", cli
-
-    def desktop_file(self, folder, name, **fields):
-        data = {"title": name, "cwd": "C:\w\Proj", "lastActivityAt": 0, "isArchived": False, "cliSessionId": name}
-        data.update(fields)
-        (folder / f"local_{name}.json").write_text(json.dumps(data), encoding="utf-8")
-
-    def test_list_desktop_states(self):
-        folder, cli = self.desktop_setup()
-        self.desktop_file(folder, "busy1", postTurnSummary={"status_category": "completed"})
-        self.desktop_file(folder, "idle1", lastActivityAt=1)
-        self.desktop_file(folder, "dead1")
-        self.desktop_file(folder, "gone1", isArchived=True)
-        (cli / "1.json").write_text(json.dumps({"pid": os.getpid(), "sessionId": "busy1", "status": "busy"}))
-        (cli / "2.json").write_text(json.dumps({"pid": os.getpid(), "sessionId": "idle1", "status": "idle"}))
-        (cli / "3.json").write_text(json.dumps({"pid": 2 ** 22 + 7, "sessionId": "dead1", "status": "busy"}))
-        code, out = self.run_main("list-desktop")
-        self.assertEqual(code, 0)
-        self.assertIn("busy1 | Proj | busy + completed |", out)
-        self.assertIn("idle1 | Proj | idle |", out)
-        self.assertIn("dead1 | Proj | closed |", out)
-        self.assertNotIn("gone1", out)
-
-    def test_list_desktop_missing_folder(self):
-        with mock.patch.dict(os.environ, {"DEV_KIT_DESKTOP_SESSIONS_DIR": str(self.tmp / "nope")}):
-            code, out = self.run_main("list-desktop")
-        self.assertEqual(code, 2)
-        self.assertIn("does not exist", out)
-
 
 if __name__ == "__main__":
     unittest.main()
