@@ -2,24 +2,20 @@
 
 Pult ("пульт", the hub) is a small monitor. The owner opens its session from the phone to see the state of all his projects. Keep it simple: it watches and reports, it does not manage.
 
+This session runs in the home folder (`~`), as a Remote Control server; these rules are loaded by the `pult` plugin only for a session whose cwd is exactly the home folder. `{PLUGIN}` below is the plugin's folder.
+
 ## Projects in scope
 
-To add a project, add one row here and nothing else.
+The projects are the lead entries (`Lead = $true`) in `{PLUGIN}/scripts/servers.psd1`; each has its name and path there. To add a project, add one row there and nothing else.
 
-| Name | Path |
-|---|---|
-| Zhratva | `C:/Users/korov/MyRepositories/Zhratva` |
-| Prishch | `C:/Users/korov/MyRepositories/Prishch` |
-| ClaudeDevKit | `C:/Users/korov/MyRepositories/ClaudeDevKit` |
-
-All use the dev-kit plugin. Each has a project lead "P: <project>": a background session with Remote Control that `scripts/start-servers.ps1` starts directly (no server). The lead starts task sessions "C: <feature>". Only Pult itself runs as a Remote Control server.
+All use the dev-kit plugin. Each has a project lead "P: <project>": a background session with Remote Control that `{PLUGIN}/scripts/start-servers.ps1` starts directly (no server). The lead starts task sessions "C: <feature>". Only Pult itself runs as a Remote Control server.
 
 ## Answering "статус"
 
 Read only. Sources, per project:
 - Sessions and state: `claude agents --json --cwd <project path>` (add `--all` to include finished ones). Worktrees of the project sit under that path or next to it; group by project.
-- Task sessions registered by the lead and their context fill: `dev-kit-sessions --project <project path> list` and `dev-kit-sessions --project <project path> fill`. If the command is not on PATH, run `python C:/Users/korov/MyRepositories/ClaudeDevKit/plugins/dev-kit/bin/dev-kit-sessions ...`.
-- Desktop-app sessions of all projects (title, project folder, state, age): `python scripts/list-sessions.py`.
+- Task sessions registered by the lead and their context fill: `dev-kit-sessions --project <project path> list` and `dev-kit-sessions --project <project path> fill`. In the home folder `dev-kit-sessions` is not on PATH, so run `python {DEVKIT}/bin/dev-kit-sessions ...` with that path.
+- Desktop-app sessions of all projects (title, project folder, state, age): `python {PLUGIN}/scripts/list-sessions.py`.
 - What waits on the owner: the "Open questions" section of `<project path>/PROGRESS.md` (written by the lead P and task sessions C). "None." means nothing waits.
 
 Traps (checked 2026-11-14):
@@ -27,7 +23,7 @@ Traps (checked 2026-11-14):
 - P alive: `claude agents --json --cwd <project path>` lists a live background session named "P: <project>" (the same check `start-servers.ps1` uses). None means P is down.
 - Pult server alive: a running `claude.exe` process whose command line has ` remote-control ` and "Pult" (PowerShell `Get-CimInstance Win32_Process -Filter "Name='claude.exe'"`).
 
-- Server history: the last lines of `logs/servers.log` (written by the watcher, see "Servers"). A DOWN or EXIT line since the last start is a problem: show when it happened and the cause the log gives.
+- Server history: the last lines of `~/.claude/pult/logs/servers.log` (written by the watcher, see "Servers"). A DOWN or EXIT line since the last start is a problem: show when it happened and the cause the log gives.
 
 Reply grouped by project. For each session show name, state and context fill when available (mark OVER as a problem). Under each project list what waits on the owner. Unreadable source: say "not checked: <what>", never guess.
 
@@ -35,13 +31,13 @@ Pult only informs. A project's open question is only shown, never asked here: Pu
 
 ## Servers
 
-Pult owns the start of the Remote Control servers and project leads: `scripts/start-servers.ps1`
+Pult owns the start of the Remote Control servers and project leads: `{PLUGIN}/scripts/start-servers.ps1`
 (run at Windows logon by the Startup folder shortcut "Pult - project servers") and
-`scripts/stop-servers.ps1` (graceful stop; never kill these processes; it refuses while a session under a server's folder is busy, `-Force` overrides, `-CheckOnly` only lists). The list of servers is
-`scripts/servers.psd1`. Windows runs them; a Pult session runs them only after the owner's
+`{PLUGIN}/scripts/stop-servers.ps1` (graceful stop; never kill these processes; it refuses while a session under a server's folder is busy, `-Force` overrides, `-CheckOnly` only lists). The list of servers is
+`{PLUGIN}/scripts/servers.psd1`. Windows runs them; a Pult session runs them only after the owner's
 explicit yes. A lead is resumed, not started fresh: `start-servers.ps1` takes the newest background
 session with the lead's name and folder (`claude agents --json --all`) and runs
-`claude --bg --resume <sessionId> -- '/dev-kit:project-lead'` (helpers in `scripts/resume-lib.ps1`;
+`claude --bg --resume <sessionId> -- '/dev-kit:project-lead'` (helpers in `{PLUGIN}/scripts/resume-lib.ps1`;
 the log gets RESUMED instead of STARTED). No other flag may be added to that command: a flag makes
 claude start a copy, so before resuming it rewrites `--model` / `--effort` in the job's saved
 options (`~/.claude/jobs/<short id>/state.json`, "respawnFlags"; log MODEL): leads run on Opus,
@@ -50,18 +46,18 @@ it starts fresh with the same model. Then it pins every
 live lead in `~/.claude/jobs/pins.json` (log PINNED): Claude's background service closes an
 unpinned background session after 8 h of waiting (daemon.log "bg retire ... idle-prompt"). A Remote Control
 server first tries `claude remote-control --continue` (no `--spawn`: they cannot be combined);
-if that fails within 20 s, the log gets CONTINUE-FAILED and the server starts fresh. Not yet
+if that fails within 20 s, the log gets CONTINUE-FAILED and the server starts fresh. The hub server runs with cwd = the home folder and is matched by the command line ` remote-control ` and "Pult". Not yet
 checked on a real restart.
 
-`scripts/restart-leads.ps1 [-Name ...] [-Force]` restarts leads so they load a new dev-kit
+`{PLUGIN}/scripts/restart-leads.ps1 [-Name ...] [-Force]` restarts leads so they load a new dev-kit
 version (stop, then `start-servers.ps1` resumes them); a busy lead is skipped unless `-Force`.
 
-Start any other session (a task for the owner) only with `scripts/start-session.ps1 -Name -Path
+Start any other session (a task for the owner) only with `{PLUGIN}/scripts/start-session.ps1 -Name -Path
 -PromptFile`: Windows PowerShell cuts a prompt passed straight to `claude` at its first double
 quote; the script escapes it and uses Opus, medium.
 
-`scripts/watch-servers.ps1` (started by `start-servers.ps1`, hidden) checks every minute and
-writes to `logs/servers.log` (not in git): STATE, DOWN with the session's last state and any
+`{PLUGIN}/scripts/watch-servers.ps1` (started by `start-servers.ps1`, hidden) checks every minute and
+writes to `~/.claude/pult/logs/servers.log` (outside any repository): STATE, DOWN with the session's last state and any
 crash event, UP. Each Remote Control server's window adds an EXIT line with its exit code. The
 watcher only logs; it never restarts anything.
 
@@ -69,7 +65,8 @@ watcher only logs; it never restarts anything.
 
 - Exception held by this project: read other projects' status files (PROGRESS.md and similar) and session state.
 - Never change them during "статус". An edit in another repo, after the owner's yes, goes
-  through the `other-repo-editor` subagent (global rule "Stay in the session's project"). Never start or stop sessions without the owner's explicit yes.- On a problem (dead server, session over its limit, stuck session) only propose a fix. Act after the owner's explicit yes, and only on that fix.
+  through the `other-repo-editor` subagent (global rule "Stay in the session's project"). Never start or stop sessions without the owner's explicit yes.
+- On a problem (dead server, session over its limit, stuck session) only propose a fix. Act after the owner's explicit yes, and only on that fix.
 - Use only read-only commands for "статус".
 
 ## Session title

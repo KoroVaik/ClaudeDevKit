@@ -1,11 +1,11 @@
-﻿# Watches the servers from servers.psd1 and writes every change to logs/servers.log:
+﻿# Watches the servers from servers.psd1 and writes every change to ~\.claude\pult\logs\servers.log:
 # STATE (first look), DOWN (with what is known about why), UP. It never starts or stops anything.
 # start-servers.ps1 starts it at logon in a hidden window. -Once: one check, then exit (for tests).
 # Keep this file saved as UTF-8 with BOM.
 param([int]$IntervalSec = 60, [switch]$Once)
 
 $servers = (Import-PowerShellDataFile (Join-Path $PSScriptRoot 'servers.psd1')).Servers
-$logDir = Join-Path (Split-Path $PSScriptRoot) 'logs'
+$logDir = Join-Path $env:USERPROFILE '.claude\pult\logs'  # outside the plugin folder
 New-Item -ItemType Directory -Force $logDir | Out-Null
 $log = Join-Path $logDir 'servers.log'
 

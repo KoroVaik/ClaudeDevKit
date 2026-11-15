@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/KoroVaik/ClaudeDevKit/actions/workflows/ci.yml/badge.svg)](https://github.com/KoroVaik/ClaudeDevKit/actions/workflows/ci.yml)
 
-Three plugins for [Claude Code](https://claude.com/claude-code) that give AI coding agents a fixed
+Four plugins for [Claude Code](https://claude.com/claude-code) that give AI coding agents a fixed
 development process: plan, code, review, test, update the docs. It is a personal tool for solo
 developers who let agents write most of the code and want to stay in charge of the decisions.
 The main goal is autonomous development: the owner's involvement shrinks over time, while decisions
@@ -18,6 +18,9 @@ Python code enforces the parts that can be checked by a program.
   standard and its checker.
 - `web-kit` - browser checks: end-to-end scenarios, layout checks, mockups, wide screenshots.
 - `unity-kit` - Unity: a bridge to the open editor, a scripted "user check" of play, scene sketches, GIFs.
+- `pult` - the hub across projects (enable at user scope): starts the project leads at logon, runs a Remote
+  Control server in the home folder for the phone and shows read-only status. It acts only in a session whose
+  cwd is exactly the home folder.
 
 The plugins hold no project facts. Each project describes itself in one file, `.claude/dev-kit.md`.
 
@@ -171,7 +174,7 @@ main where it deploys, deleting data, and the like; you accept the Claude Code d
 machine). A session you started yourself can be taken over: P registers it after its first reply and
 it keeps talking with you. The plugin covers work
 inside one repository. Starting P, the project list, the phone flow and the list of all your sessions
-live in Pult (`C:/Users/korov/MyRepositories/Pult`). The rules for P:
+live in the `pult` plugin (`plugins/pult`). The rules for P:
 `plugins/dev-kit/skills/project-lead/SKILL.md`. Before a task starts, P (and any session through the
 manager skill) checks that no other live session of the repository, one you started yourself included,
 already does it: `dev-kit-sessions others` lists them without reading code and the `dev-kit:overlap-checker`

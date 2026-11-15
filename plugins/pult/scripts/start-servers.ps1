@@ -10,11 +10,12 @@
 # (not a scheduled task: windows started by a task died after the task ended).
 
 # The list of servers is servers.psd1 (shared with watch-servers.ps1).
-# Every start and every server exit (with its exit code) goes to logs/servers.log.
+# Every start and every server exit (with its exit code) goes to ~\.claude\pult\logs\servers.log.
 # Keep this file saved as UTF-8 with BOM: Windows PowerShell 5.1 misreads Cyrillic otherwise.
 . (Join-Path $PSScriptRoot 'resume-lib.ps1')
 $projects = (Import-PowerShellDataFile (Join-Path $PSScriptRoot 'servers.psd1')).Servers
-$logDir = Join-Path (Split-Path $PSScriptRoot) 'logs'
+foreach ($p in $projects) { if ($p.Hub) { $p.Path = $env:USERPROFILE } }  # the hub server runs in the home folder
+$logDir = Join-Path $env:USERPROFILE '.claude\pult\logs'  # outside the plugin folder
 New-Item -ItemType Directory -Force $logDir | Out-Null
 $log = Join-Path $logDir 'servers.log'
 function Write-Log($msg) {

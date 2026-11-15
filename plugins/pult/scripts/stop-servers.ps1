@@ -44,8 +44,12 @@ public static class ConCtrlC {
 # Busy check: a session working right now under a server's folder would lose its turn.
 # The session that runs this script (an ancestor process) is not counted.
 if (-not $Force) {
-    $roots = (Import-PowerShellDataFile (Join-Path $PSScriptRoot 'servers.psd1')).Servers |
-        ForEach-Object { [IO.Path]::GetFullPath($_.Path).TrimEnd('\') + '\' }
+    $entries = (Import-PowerShellDataFile (Join-Path $PSScriptRoot 'servers.psd1')).Servers
+    # Home is a prefix of every project, so the hub counts only a session whose cwd is exactly home.
+    $hubRoot = [IO.Path]::GetFullPath($env:USERPROFILE).TrimEnd('\') + '\'
+    $roots = @($entries | Where-Object { -not $_.Hub } |
+        ForEach-Object { [IO.Path]::GetFullPath($_.Path).TrimEnd('\') + '\' })
+    $hasHub = [bool]($entries | Where-Object { $_.Hub })
     $ancestors = @()
     $p = Get-CimInstance Win32_Process -Filter "ProcessId=$PID"
     for ($i = 0; $p -and $i -lt 30; $i++) {
@@ -58,7 +62,8 @@ if (-not $Force) {
     $busy = @($sessions | Where-Object {
         if ($_.status -ne 'busy' -or -not $_.cwd -or $ancestors -contains $_.pid) { return $false }
         $cwd = [IO.Path]::GetFullPath($_.cwd).TrimEnd('\') + '\'
-        [bool]($roots | Where-Object { $cwd.StartsWith($_, [StringComparison]::OrdinalIgnoreCase) })
+        ($hasHub -and $cwd -eq $hubRoot) -or
+            [bool]($roots | Where-Object { $cwd.StartsWith($_, [StringComparison]::OrdinalIgnoreCase) })
     })
     if ($busy) {
         Write-Output 'Busy sessions, nothing stopped (use -Force to stop anyway):'

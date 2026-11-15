@@ -19,6 +19,11 @@
       "name": "unity-kit",
       "source": "./plugins/unity-kit",
       "description": "Unity extension: working with the open editor through a bridge, a Unity operator agent, user checks (recipes of play run in one command) and scene sketches"
+    },
+    {
+      "name": "pult",
+      "source": "./plugins/pult",
+      "description": "Hub across projects: starts the project leads, runs a Remote Control server in the home folder and reports read-only status"
     }
   ]
 }

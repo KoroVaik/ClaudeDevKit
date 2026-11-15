@@ -219,7 +219,7 @@ it becomes an Open item, and the questions go on.
 
 ## A change to the plugins themselves
 
-An agent working outside the plugin repo never edits the plugins (`dev-kit`, `web-kit`, `unity-kit`:
+An agent working outside the plugin repo never edits the plugins (`dev-kit`, `web-kit`, `unity-kit`, `pult`:
 skills, agents, hooks, scripts) directly, not even to fix a process mistake or a plugin defect. It adds
 an entry to the plugin repo's own `BACKLOG.md` (not the project's), at
 `C:/Users/korov/MyRepositories/ClaudeDevKit/BACKLOG.md`. A session working in that repo decides and

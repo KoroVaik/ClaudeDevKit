@@ -1,9 +1,29 @@
-# Pult
+# pult
 
-"Пульт" (the hub): a small monitor project. Its Claude session is opened from the phone.
-On "статус" it shows all projects' sessions, their state and what waits on the owner.
-It only reads other projects' status files and session state; on a problem it proposes a fix and acts after an explicit yes.
-Project list and rules: `CLAUDE.md`.
+"Пульт" (the hub), a plugin of the `korov-dev` marketplace. It starts the project leads at Windows logon,
+runs one Remote Control server whose session you open from the phone, and shows all projects' sessions,
+their state and what waits on you. It only reads other projects' status files and session state; on a
+problem it proposes a fix and acts after an explicit yes.
+
+## How it works
+
+- The plugin is enabled at user scope, so it loads in every session on the machine. It acts only in a
+  session whose cwd is exactly the home folder: the SessionStart hook `hooks/hub-rules.py` then adds the
+  hub rules (`rules/hub.md`) to the context. Everywhere else (any project folder, including those under
+  home) the hook prints nothing.
+- The Remote Control server "Pult" runs with cwd = the home folder, so its sessions get these rules.
+- The project list is the lead entries of `scripts/servers.psd1`. To add a project, add one row there.
+- Logs: `~/.claude/pult/logs/servers.log` (written by `start-servers.ps1` and `watch-servers.ps1`; nothing is
+  written inside the plugin folder).
+
+## Start at logon
+
+Put a shortcut "Pult - project servers" in the Windows Startup folder (`shell:startup`) with the target:
+
+    powershell.exe -NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File "<repo>/plugins/pult/scripts/start-servers.ps1"
+
+`<repo>` is this repository's folder. `scripts/stop-servers.ps1` stops everything gracefully (it refuses while
+a session is busy, `-Force` overrides, `-CheckOnly` only lists).
 
 ## Working with a project lead (P) from the phone
 
@@ -14,6 +34,6 @@ P is one session per project. It starts task sessions (C), each in its own workt
 3. P starts a C named "C: <task>". It appears as its own session in the app. Talk to that C directly for details; it reports to P when it is done, stuck or needs your decision.
 4. P checks the finished work, merges it into main, removes the C and tells you the result.
 5. Ask P "що зараз іде?" to see what runs and what waits on you. Ask the "Pult" session for "статус" to see all projects at once. To list all desktop-app sessions of all projects, run `python scripts/list-sessions.py`.
-6. After a dev-kit plugin update, a running P keeps the old skill. Run `scripts/stop-servers.ps1` (graceful stop), then `scripts/start-servers.ps1`, or restart Windows. Each P continues its previous conversation (resumed, not fresh), reloading the skill.
+6. After a dev-kit plugin update, a running P keeps the old skill. Run `scripts/restart-leads.ps1`, or `scripts/stop-servers.ps1` (graceful stop) and then `scripts/start-servers.ps1`, or restart Windows. Each P continues its previous conversation (resumed, not fresh), reloading the skill.
 
 Not confirmed: whether you can still attach to a P from a terminal with `claude attach <id>` (the old plugin README said so; not checked here), and the exact wording of the session list in the phone app.
