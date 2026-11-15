@@ -12,6 +12,7 @@
 # The list of servers is servers.psd1 (shared with watch-servers.ps1).
 # Every start and every server exit (with its exit code) goes to logs/servers.log.
 # Keep this file saved as UTF-8 with BOM: Windows PowerShell 5.1 misreads Cyrillic otherwise.
+. (Join-Path $PSScriptRoot 'resume-lib.ps1')
 $projects = (Import-PowerShellDataFile (Join-Path $PSScriptRoot 'servers.psd1')).Servers
 $logDir = Join-Path (Split-Path $PSScriptRoot) 'logs'
 New-Item -ItemType Directory -Force $logDir | Out-Null
@@ -48,10 +49,19 @@ foreach ($p in $projects) {
         if ($liveLeads -contains $sessionName) { Write-Output "Already running: $sessionName"; continue }
         if (-not (Test-Path $p.Path)) { Write-Output "Folder missing, skipped: $($p.Path)"; continue }
         Push-Location $p.Path
-        claude --bg --remote-control $sessionName --name $sessionName --permission-mode auto --model sonnet -- '/dev-kit:project-lead' | Select-Object -First 1
+        # Continue the previous conversation of this lead when one exists (stopped or finished).
+        $resumeId = $null
+        try { $resumeId = Get-ResumeSessionId $sessionName $p.Path } catch { Write-Output "Could not look up a session to resume: $_" }
+        $leadArgs = Get-LeadStartArgs $sessionName $resumeId
+        claude @leadArgs | Select-Object -First 1
         Pop-Location
-        Write-Log "STARTED $sessionName"
-        Write-Output "Started lead: $sessionName"
+        if ($resumeId) {
+            Write-Log "RESUMED $sessionName $resumeId"
+            Write-Output "Resumed lead: $sessionName"
+        } else {
+            Write-Log "STARTED $sessionName"
+            Write-Output "Started lead: $sessionName"
+        }
         continue
     }
     if ($running | Where-Object { $_ -like "*$sessionName*" }) {
@@ -62,8 +72,14 @@ foreach ($p in $projects) {
         Write-Output "Folder missing, skipped: $($p.Path)"
         continue
     }
-    $cmd = "claude remote-control --name '$sessionName' --permission-mode auto --spawn same-dir"
-    if ($p.Prefix) { $cmd += " --remote-control-session-name-prefix '$($p.Prefix)'" }
+    $base = "--name '$sessionName' --permission-mode auto"
+    if ($p.Prefix) { $base += " --remote-control-session-name-prefix '$($p.Prefix)'" }
+    # First try to reattach to the server's last session (--continue cannot take --spawn; same-dir
+    # is the default). If that fails at once (nothing recorded in the last hours), start fresh.
+    $cmd = "`$t = Get-Date; claude remote-control --continue $base; " +
+        "if (`$LASTEXITCODE -ne 0 -and ((Get-Date) - `$t).TotalSeconds -lt 20) { " +
+        "Add-Content -LiteralPath '$log' -Encoding UTF8 -Value ((Get-Date -Format s) + ' CONTINUE-FAILED $sessionName, starting fresh'); " +
+        "claude remote-control $base --spawn same-dir }"
     # When the server process ends, its window writes the exit time and code to the log.
     $cmd += "; Add-Content -LiteralPath '$log' -Encoding UTF8 -Value ((Get-Date -Format s) + ' EXIT $sessionName code ' + `$LASTEXITCODE)"
     Start-Process powershell.exe -WindowStyle Hidden -WorkingDirectory $p.Path `

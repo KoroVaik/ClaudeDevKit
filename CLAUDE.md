@@ -39,7 +39,14 @@ Pult owns the start of the Remote Control servers and project leads: `scripts/st
 (run at Windows logon by the Startup folder shortcut "Pult - project servers") and
 `scripts/stop-servers.ps1` (graceful stop; never kill these processes; it refuses while a session under a server's folder is busy, `-Force` overrides, `-CheckOnly` only lists). The list of servers is
 `scripts/servers.psd1`. Windows runs them; a Pult session runs them only after the owner's
-explicit yes.
+explicit yes. A lead is resumed, not started fresh: `start-servers.ps1` takes the newest background
+session with the lead's name and folder (`claude agents --json --all`) and runs
+`claude --bg --resume <sessionId> -- '/dev-kit:project-lead'` (helpers in `scripts/resume-lib.ps1`;
+the log gets RESUMED instead of STARTED). No other flag may be added to that command: a flag makes
+claude start a copy. Without an earlier session it starts fresh as before. A Remote Control
+server first tries `claude remote-control --continue` (no `--spawn`: they cannot be combined);
+if that fails within 20 s, the log gets CONTINUE-FAILED and the server starts fresh. Not yet
+checked on a real restart.
 
 `scripts/watch-servers.ps1` (started by `start-servers.ps1`, hidden) checks every minute and
 writes to `logs/servers.log` (not in git): STATE, DOWN with the session's last state and any
