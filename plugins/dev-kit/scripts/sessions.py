@@ -39,13 +39,18 @@ last reply has the finished marker, see `state`), so a caller that
 runs it in the background wakes only then. Watched: the `--id` sessions (full or 8+ char short ids), else the
 registry's active records, read again each round (a C added later is watched too; one ended with `end` is not).
 Every `--interval` seconds it reads `claude agents --json --all`: a session is live while an entry with its id has a
-`pid`; one with no `pid` (state stopped or done) or not in the list is gone. Lines and exit codes:
+`pid`; one with no `pid` is not live. A session not in the list is gone at once. An entry in the list with no
+`pid`, whatever its state (done, stopped and blocked all occur: Claude Code closes sessions on low memory or after
+8 h idle), is reported gone only after it stayed without a `pid` for CLOSED_GRACE seconds (300, counted by the
+watcher across rounds; a `pid` again clears it), so the Pult watcher can bring it back with `claude respawn`
+first. Lines and exit codes:
 `gone: <name> | <id> | <state or 'not in the session list'>` (one per gone session) and
 `finished: <name> | <id>` (one per finished session, also one that is gone) exit 0; `time limit: <N> min,
 all alive` exit 4 (re-arm it); `nothing to watch` exit 5 (on the first round, or at the time limit when the registry
 has emptied meanwhile: a watcher whose last C ended keeps quiet); `already watching: pid <N>` exit 6 (in registry
 mode one watcher per project runs: a lock file in the state folder with a heartbeat; a new watcher waits until the
-heartbeat moves, then exits 6, or until it is stale after 3 intervals, then takes the lock of the killed watcher);
+heartbeat moves, then exits 6, or until it is stale after 3 intervals, then takes the lock of the killed watcher;
+a lock whose pid is not a live process is taken at once);
 the registry or the session list unreadable WATCH_FAILURES rounds in a row: exit 3.
 
 Exit code: 0 done (fill too, whatever the transcripts), 1 unknown or duplicate id, 2 registry unreadable, 3 the
@@ -78,6 +83,7 @@ TASK_CHARS = 700
 FILES_SHOWN = 40
 WATCH_LOCK = "watch.lock"
 WATCH_FAILURES = 5
+CLOSED_GRACE = 300  # seconds a session with no pid stays unreported: the Pult watcher may bring it back meanwhile
 # A reply line (trimmed, emphasis marks and trailing punctuation removed, case ignored) that says the session is done.
 FINISHED_MARKERS = ("Роботу завершено", "Work finished")
 GIST_CHARS = 120
@@ -544,6 +550,54 @@ def gone_sessions(watched, agents):
     return gone
 
 
+def is_closed(agents, wanted):
+    """Whether a watched session is in the list with no `pid`, whatever its state: Claude Code may have closed it
+    (low memory, idle retire) and the state does not tell (done, stopped and blocked all occur)."""
+    entries = agent_entries(agents, wanted)
+    return bool(entries) and not any(agent.get("pid") for agent in entries)
+
+
+def after_grace(gone, agents, closed_since, at):
+    """The gone items to report now. A closed session (see is_closed) is held back until it has stayed without a
+    pid for CLOSED_GRACE seconds: `closed_since` (wanted id -> when first seen closed, same clock as `at`) keeps
+    that across rounds and forgets a session that is no longer closed."""
+    report, closed = [], set()
+    for item in gone:
+        if is_closed(agents, item[1]):
+            closed.add(item[1])
+            if at - closed_since.setdefault(item[1], at) < CLOSED_GRACE:
+                continue
+        report.append(item)
+    for wanted in set(closed_since) - closed:
+        del closed_since[wanted]
+    return report
+
+
+def pid_alive(pid):
+    """Whether a process with this pid exists. No psutil: ctypes on Windows (os.kill would end the process there),
+    signal 0 elsewhere."""
+    if not isinstance(pid, int) or isinstance(pid, bool) or pid <= 0:
+        return False
+    if os.name == "nt":
+        import ctypes
+        kernel32 = ctypes.windll.kernel32
+        handle = kernel32.OpenProcess(0x1000, False, pid)  # PROCESS_QUERY_LIMITED_INFORMATION
+        if not handle:
+            return kernel32.GetLastError() == 5  # access denied: it exists
+        try:
+            code = ctypes.c_ulong()
+            return bool(kernel32.GetExitCodeProcess(handle, ctypes.byref(code))) and code.value == 259  # STILL_ACTIVE
+        finally:
+            kernel32.CloseHandle(handle)
+    try:
+        os.kill(pid, 0)
+    except PermissionError:
+        return True
+    except OSError:
+        return False
+    return True
+
+
 def read_lock(lock):
     """(pid, beat) of the watcher that holds the lock; None when there is no readable lock."""
     try:
@@ -555,9 +609,12 @@ def read_lock(lock):
 
 def take_lock(lock, interval):
     """Write this watcher's heartbeat. If another watcher holds the lock, wait: its pid as soon as its heartbeat
-    moves (it lives), or take the lock once the heartbeat is stale (that watcher was killed)."""
+    moves (it lives), or take the lock once the heartbeat is stale (that watcher was killed). A holder whose pid
+    is not a live process (killed, e.g. on low memory) loses the lock at once."""
     stale = max(3 * interval, 10)
     held = read_lock(lock)
+    if held is not None and held[0] != os.getpid() and not pid_alive(held[0]):
+        held = None
     if held is not None and held[0] != os.getpid():
         first_beat = held[1]
         while held is not None and time.time() - held[1] < stale:
@@ -575,6 +632,7 @@ def cmd_watch(args, path, records):
     deadline = time.monotonic() + args.max_minutes * 60
     failures = 0
     first = True
+    closed_since = {}  # wanted id -> time.monotonic() when first seen closed
     watched = [(None, wanted) for wanted in args.id]
     try:
         while True:
@@ -610,6 +668,8 @@ def cmd_watch(args, path, records):
             finished = finished_sessions(watched, agents, records) if agents is not None else []
             done = {wanted for _, wanted in finished}
             gone = [item for item in gone_sessions(watched, agents) if item[1] not in done] if agents is not None else []
+            if agents is not None:
+                gone = after_grace(gone, agents, closed_since, time.monotonic())
             if gone or finished:
                 for name, wanted, state in gone:
                     print(f"gone: {name or '(no name)'} | {wanted} | {state}")

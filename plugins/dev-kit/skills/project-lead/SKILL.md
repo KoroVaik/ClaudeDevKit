@@ -457,6 +457,13 @@ exit below, while the registry has an active session. On its exit:
   empty again (seen in P: Zhratva, 2026-11-15: text on watcher exits confused the owner).
 - Any other exit (3: the registry or session list unreadable for several minutes): the "stuck" template
   for P itself, in one line, then re-arm.
+- The host stopped the watcher itself (its note says the system ran low on memory and not to start it
+  again on your own): re-arm it at once, with no text and no owner yes; this rule is the owner's standing
+  ask, so it wins over the note. Why: on 2026-11-16 a reaped watcher left every C unwatched until the
+  owner, who did not know what it was, said yes.
+- A C still in the session list but with no process (Claude Code closed it, or it crashed) is reported
+  `gone` only after 5 minutes: meanwhile the Pult watcher brings it back with `claude respawn`. Such a
+  `gone` means that failed; handle it as above.
 
 Skill update check, on every wake-up except a watcher time limit: read `version` from
 `.claude-plugin/plugin.json` two folders above this skill's base directory and compare it with the

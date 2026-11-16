@@ -265,11 +265,10 @@ class SessionsTestCase(unittest.TestCase):
     def test_watch_exits_when_a_registered_session_is_gone(self):
         self.add("c1-live-session", name="C: live")
         self.add("c2-dead-session", name="C: dead")
-        self.listing([{"sessionId": "c1-live-session", "pid": 11, "state": "working"},
-                      {"sessionId": "c2-dead-session", "state": "stopped"}])
+        self.listing([{"sessionId": "c1-live-session", "pid": 11, "state": "working"}])  # c2 is not in the list
         code, out = self.run_main("watch", "--interval", "0")
         self.assertEqual(0, code)
-        self.assertEqual("gone: C: dead | c2-dead-session | stopped\n", out)
+        self.assertEqual("gone: C: dead | c2-dead-session | not in the session list\n", out)
         self.assertFalse(self.lock().exists())
 
     def test_watch_missing_session_and_short_ids(self):
@@ -286,12 +285,12 @@ class SessionsTestCase(unittest.TestCase):
         def sleep(_seconds):
             rounds.append(1)
             if len(rounds) == 2:
-                listing.write_text(json.dumps([{"sessionId": "c1-session", "state": "stopped"}]), encoding="utf-8")
+                listing.write_text("[]", encoding="utf-8")
 
         with mock.patch.object(sessions.time, "sleep", sleep):
             code, out = self.run_main("watch", "--interval", "1")
         self.assertEqual((0, 2), (code, len(rounds)))
-        self.assertIn("gone: C: x | c1-session | stopped", out)
+        self.assertIn("gone: C: x | c1-session | not in the session list", out)
 
     def test_watch_time_limit_and_nothing_to_watch(self):
         code, out = self.run_main("watch", "--interval", "0")
@@ -310,7 +309,8 @@ class SessionsTestCase(unittest.TestCase):
         def live_holder_beats(_seconds):
             lock.write_text(json.dumps({"pid": 999999, "beat": time.time() + 1}), encoding="utf-8")
 
-        with mock.patch.object(sessions.time, "sleep", live_holder_beats):
+        with mock.patch.object(sessions.time, "sleep", live_holder_beats), \
+                mock.patch.object(sessions, "pid_alive", lambda _pid: True):
             code, out = self.run_main("watch", "--interval", "60", "--max-minutes", "0.5")
         self.assertEqual((6, "already watching: pid 999999\n"), (code, out))
         self.assertTrue(lock.exists())
@@ -325,10 +325,67 @@ class SessionsTestCase(unittest.TestCase):
             clock[0] += seconds
 
         with mock.patch.object(sessions.time, "sleep", sleep), \
-                mock.patch.object(sessions.time, "time", lambda: clock[0]):
+                mock.patch.object(sessions.time, "time", lambda: clock[0]), \
+                mock.patch.object(sessions, "pid_alive", lambda _pid: True):  # only the stale beat shows it is dead
             code, out = self.run_main("watch", "--interval", "60", "--max-minutes", "0.5")
         self.assertEqual((4, "time limit: 0.5 min, all alive\n"), (code, out))
         self.assertFalse(self.lock().exists())
+
+    def test_take_lock_takes_at_once_the_lock_of_a_dead_pid(self):  # Bug
+        # Without this a watcher killed on low memory blocks the new one for 3 intervals (3 minutes).
+        lock = self.lock()
+        lock.write_text(json.dumps({"pid": 999999, "beat": time.time()}), encoding="utf-8")  # fresh beat
+        with mock.patch.object(sessions, "pid_alive", lambda _pid: False), \
+                mock.patch.object(sessions.time, "sleep", side_effect=AssertionError("must not wait")):
+            self.assertIsNone(sessions.take_lock(lock, 60))
+        self.assertEqual(os.getpid(), json.loads(lock.read_text(encoding="utf-8"))["pid"])
+
+    def test_pid_alive_tells_a_live_process_from_an_ended_one(self):  # Edge
+        self.assertTrue(sessions.pid_alive(os.getpid()))
+        child = subprocess.Popen([sys.executable, "-c", "pass"])
+        child.wait()
+        self.assertFalse(sessions.pid_alive(child.pid))
+        for bad in (None, 0, -1, "12", True):
+            self.assertFalse(sessions.pid_alive(bad))
+
+    def watch_with_clock(self, listing, on_sleep=None):
+        """Run the registry watcher on a fake clock; returns (code, out, seconds waited)."""
+        clock = [0.0]
+
+        def sleep(seconds):
+            clock[0] += seconds
+            if on_sleep:
+                on_sleep(clock[0], listing)
+
+        with mock.patch.object(sessions.time, "sleep", sleep), \
+                mock.patch.object(sessions.time, "monotonic", lambda: clock[0]):
+            code, out = self.run_main("watch", "--interval", "60", "--max-minutes", "20")
+        return code, out, clock[0]
+
+    def test_watch_gives_every_session_without_a_pid_the_grace_whatever_its_state(self):  # Rule
+        # Live facts: an idle session shows done with a pid and keeps done after its process dies; Claude Code's own
+        # retire leaves stopped, the same as `claude stop`.
+        self.add("c1-session", name="C: x")
+        for state in ("done", "stopped", "blocked"):
+            listing = self.listing([{"sessionId": "c1-session", "state": state}])
+            code, out, waited = self.watch_with_clock(listing)
+            self.assertEqual((0, f"gone: C: x | c1-session | {state}\n"), (code, out), state)
+            self.assertEqual(sessions.CLOSED_GRACE, waited, state)
+
+    def test_watch_forgets_a_closed_session_that_comes_back(self):  # Rule
+        self.add("c1-session", name="C: x")
+        listing = self.listing([{"sessionId": "c1-session", "state": "blocked"}])
+        closed, back = [{"sessionId": "c1-session", "state": "blocked"}], [{"sessionId": "c1-session", "pid": 7}]
+
+        def on_sleep(at, path):
+            if at == 120:
+                path.write_text(json.dumps(back), encoding="utf-8")
+            elif at == 180:
+                path.write_text(json.dumps(closed), encoding="utf-8")
+
+        code, out, waited = self.watch_with_clock(listing, on_sleep)
+        self.assertEqual((0, "gone: C: x | c1-session | blocked\n"), (code, out))
+        self.assertEqual(180 + sessions.CLOSED_GRACE, waited)  # the grace starts again, not at the first closing
 
     def test_watch_keeps_quiet_when_the_last_session_ends(self):
         self.add("c1-session")
@@ -488,10 +545,10 @@ class SessionsTestCase(unittest.TestCase):
     def test_watch_finished_and_gone_are_both_reported_once(self):  # Edge
         self.add("c1-session", name="A", owner=True)
         self.add("c2-session", name="B")
-        self.listing([{"sessionId": "c1-session", "status": "stopped"}, {"sessionId": "c2-session", "state": "done"}])
+        self.listing([{"sessionId": "c1-session", "status": "stopped"}])  # c2 is not in the list
         self.transcript("c1-session", [self.reply("Роботу завершено")])
         code, out = self.run_main("watch", "--interval", "0")
-        self.assertEqual((0, "gone: B | c2-session | done\nfinished: A | c1-session\n"), (code, out))
+        self.assertEqual((0, "gone: B | c2-session | not in the session list\nfinished: A | c1-session\n"), (code, out))
 
 
 if __name__ == "__main__":

@@ -17,8 +17,9 @@ problem it proposes a fix and acts after an explicit yes.
   written inside the plugin folder).
 - The watcher (`scripts/watch-servers.ps1`, started at logon) checks every minute. A lead or server of
   `servers.psd1` that is down for two checks is brought back the same way as at logon (log HEAL; at most 3
-  tries an hour, then GIVEUP). It also removes dev-kit lock files whose owner is gone (log UNLOCK). It
-  never touches task sessions or your own sessions. `stop-servers.ps1` and `restart-leads.ps1` pause it
+  tries an hour, then GIVEUP). A task session a project lead registered, closed by Claude Code (no
+  process, not stopped on purpose), comes back with `claude respawn` (log HEAL-TASK). It also removes
+  dev-kit lock files whose owner is gone (log UNLOCK). It never touches your own sessions, taken-over ones included. `stop-servers.ps1` and `restart-leads.ps1` pause it
   (a hold file) until the next `start-servers.ps1` run, so a stop on purpose stays stopped. A lead stopped
   only with `claude stop` comes back; to retire one project, remove its row from `servers.psd1`.
 - A lead row in `servers.psd1` may set `Prompt`, `Model` and `Effort` (defaults: `/dev-kit:project-lead`,
