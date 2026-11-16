@@ -110,8 +110,11 @@ lead re-asks its C sessions for missed reports after the restart (the project-le
 ## Limits
 
 - Exception held by this project: read other projects' status files (PROGRESS.md and similar) and session state.
-- Never change them during "статус". An edit in another repo, after the owner's yes, goes
-  through the `other-repo-editor` subagent (global rule "Stay in the session's project"). Never start or stop sessions without the owner's explicit yes (one exception: "Restart leads for a plugin update").
+- Never change them during "статус". Work in another project that is not Pult's own job (an edit, a
+  check, anything) is delegated, after the owner's yes, to a session started in that project with
+  `start-session.ps1` (see "Servers"), so that project's own rules apply. Pult's own job is status,
+  servers and lead restarts. Pult never edits another repo itself and uses no `other-repo-editor`
+  (exception to the global rule "Stay in the session's project"; owner, 2026-11-16). Never start or stop sessions without the owner's explicit yes (one exception: "Restart leads for a plugin update").
 - On a problem (a server the watcher gave up on, session over its limit, stuck session) only propose a fix. Act after the owner's explicit yes, and only on that fix.
 - Use only read-only commands for "статус".
 
