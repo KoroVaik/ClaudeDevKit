@@ -32,14 +32,15 @@ transcript, read from the end of the file. Status comes from `claude agents --js
 registry id by `id`, `sessionId` or a sessionId prefix): `finished` when that last reply has a line that, trimmed and
 without trailing punctuation, is one of FINISHED_MARKERS and no owner message came after it, and only for a record
 added with `--owner` (a C never reports finished); else `gone` when no
-matching entry has a `pid`; `working` when the status is busy; else `waiting`. Exit 3 when the list cannot be read.
+matching entry is live (see `watch`); `working` when the status is busy; else `waiting`. Exit 3 when the list cannot be read.
 
 `watch` waits in silence while the watched sessions live and exits with one line when one is gone or finished (the
 last reply has the finished marker, see `state`), so a caller that
 runs it in the background wakes only then. Watched: the `--id` sessions (full or 8+ char short ids), else the
 registry's active records, read again each round (a C added later is watched too; one ended with `end` is not).
 Every `--interval` seconds it reads `claude agents --json --all`: a session is live while an entry with its id has a
-`pid`; one with no `pid` (state stopped or done) or not in the list is gone. Lines and exit codes:
+`pid` or a state/status that is not an ENDED_STATES value (a waiting background session is `blocked` with no `pid`,
+so it is live); one with no `pid` and an ended state (stopped, done...) or not in the list is gone. Lines and exit codes:
 `gone: <name> | <id> | <state or 'not in the session list'>` (one per gone session) and
 `finished: <name> | <id>` (one per finished session, also one that is gone) exit 0; `time limit: <N> min,
 all alive` exit 4 (re-arm it); `nothing to watch` exit 5 (on the first round, or at the time limit when the registry
@@ -81,6 +82,9 @@ WATCH_FAILURES = 5
 # A reply line (trimmed, emphasis marks and trailing punctuation removed, case ignored) that says the session is done.
 FINISHED_MARKERS = ("Роботу завершено", "Work finished")
 GIST_CHARS = 120
+# States of `claude agents --json --all` that mean the session ended (seen: stopped, done). Any other state (blocked,
+# working, idle, waiting...) is alive: a background session that waits is listed as `blocked` with no `pid`.
+ENDED_STATES = ("stopped", "done", "closed", "exited", "failed", "killed")
 
 class Unreadable(Exception):
     """The registry cannot be read: exit code 2."""
@@ -483,6 +487,13 @@ def is_owner(records, wanted):
     return record is not None and record.get("owner") is True
 
 
+def is_live(agent):
+    """Whether a session-list entry is alive: it has a `pid`, or its state and status are not an ENDED_STATES value."""
+    if agent.get("pid"):
+        return True
+    return not any(str(agent.get(key) or "").lower() in ENDED_STATES for key in ("state", "status"))
+
+
 def session_state(agents, wanted, owner):
     """(state, gist) of a registry id: finished, gone, working or waiting (see the module docstring). Only an owner
     session can be finished: a C reports through its own channel, so its reply lines never count."""
@@ -496,7 +507,7 @@ def session_state(agents, wanted, owner):
     gist = gist_of(text) if text else "(no reply text)"
     if owner and text and not pending and any(is_marker_line(line) for line in text.splitlines()):
         return "finished", gist
-    if not any(agent.get("pid") for agent in entries):
+    if not any(is_live(agent) for agent in entries):
         return "gone", gist
     busy = any("busy" in (agent.get("status"), agent.get("state")) or agent.get("state") == "working"
                for agent in entries)
@@ -536,7 +547,7 @@ def gone_sessions(watched, agents):
     gone = []
     for name, wanted in watched:
         entries = agent_entries(agents, wanted)
-        if any(agent.get("pid") for agent in entries):
+        if any(is_live(agent) for agent in entries):
             continue
         state = next((agent.get("state") or agent.get("status") for agent in entries), None)
         gone.append((name or str(entries[0].get("name") or "") if entries else name, wanted,
