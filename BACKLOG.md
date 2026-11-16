@@ -28,17 +28,3 @@ Built (2026-11-16, pult 0.1.4): `plugins/pult/scripts/watch-servers.ps1` restart
 What: a script sends a notification to the owner's phone (a dead server, a question that waits).
 Why: idea from the Pult repo, 2026-11; not checked how Claude's phone app can be notified from a script.
 Cheapest test: find out whether the Remote Control app or another channel accepts a message from a script.
-
-## Pult: rule edits go through dev-kit:edit-rules
-
-What: add one line to `plugins/pult/rules/hub.md`: every edit of Pult's rules (`rules/hub.md`, the Pult repo's `CLAUDE.md` and `.claude/`) goes through `dev-kit:edit-rules`.
-Why: Pult, 2026-11-16: the owner enabled dev-kit in the Pult repo (project scope) so that Pult's rule edits run through edit-rules; the rule itself lives in this plugin.
-Cheapest test: in a new Pult session ask for a small rule wording change; the session runs edit-rules (read set, duplicates and conflicts list, reviewer).
-Verdict: build - one bullet in hub.md "Limits" pointing Pult's rule edits to dev-kit:edit-rules; simple.
-
-## dev-kit: narrow-agents hook blocks other-repo-editor
-
-What: let `plugins/dev-kit/hooks/narrow-agents.py` allow the owner's user-level agents (`~/.claude/agents/*.md`), or ship `other-repo-editor` in a plugin; decide also on a narrow Claude Code docs agent, since `claude-code-guide` is denied with no dev-kit replacement.
-Why: Pult, 2026-11-16: `plugins/pult/rules/hub.md` and the owner's global rule "Stay in the session's project" send edits in other repos to `other-repo-editor`, which the hook denies in every dev-kit project; Pult now has a thin project agent `.claude/agents/other-repo-editor.md` that points to the user-level file as a stopgap.
-Cheapest test: pipe `{"tool_input":{"subagent_type":"other-repo-editor"}}` into the hook with `CLAUDE_PROJECT_DIR` set to a dev-kit project without that project agent; expect no deny.
-Verdict: do not build in dev-kit - owner wants the agent local and rare; keep it user-level, launched only from Pult, no hook change; the BACKLOG append becomes a named exception in the owner's global rule, and the writer commits it at once (P: ClaudeDevKit, 2026-11-16).
