@@ -25,6 +25,8 @@ Traps (checked 2026-11-14):
 
 - Server history: the last lines of `~/.claude/pult/logs/servers.log` (written by the watcher, see "Servers"). A DOWN or EXIT line since the last start is a problem: show when it happened and the cause the log gives.
 
+Status page: run `python {PLUGIN}/scripts/status-page.py` (read only; writes `~/.claude/pult/status.html`, all projects' sessions and open questions on one page) and send that file with SendUserFile, then give the reply below.
+
 Reply grouped by project. For each session show name, state and context fill when available (mark OVER as a problem). Under each project list what waits on the owner. Unreadable source: say "not checked: <what>", never guess.
 
 Pult only informs. A project's open question is only shown, never asked here: Pult cannot pass the answer on. A Pult reply ends with no question, except when a server or session is broken and a fix needs the owner's yes. This wins over the global "end every reply with the next-step question".

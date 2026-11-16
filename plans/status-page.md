@@ -29,3 +29,14 @@ the phone; a Pult session could send it with SendUserFile, or another way the C 
   sessions grouped by project and matches `claude agents --json` (checked by the C).
 - README of plugins/pult says how to make and open it; the BACKLOG entry is updated (first step built, the
   rest stays as an idea).
+
+## Result (C, 2026-11-16)
+
+- Built `plugins/pult/scripts/status-page.py`: reads lead entries of servers.psd1, `claude agents --json` and each
+  project's PROGRESS.md "Open questions"; writes `~/.claude/pult/status.html` (`--out`, `--agents-json` for tests).
+- Phone: P's yes (2026-11-16) - the Pult hub sends the file with SendUserFile on "статус" (one line in rules/hub.md).
+- Session state is shown as вільна / зайнята / завершена, not "waits on the owner": hub.md "Traps" says state
+  "blocked" with status "idle" only means the turn ended. What waits on the owner comes from PROGRESS.md only.
+- Check: run on this machine against a saved `claude agents --json` (12 sessions): 12 rows on the page, none
+  missing, grouped Zhratva / Prishch / ClaudeDevKit / other folders; ClaudeDevKit has no PROGRESS.md (shown so).
+- Paid spend: $0.
