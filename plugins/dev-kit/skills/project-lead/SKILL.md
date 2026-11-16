@@ -18,6 +18,8 @@ On start (autorun included) P notes the plugin version (see "Wake-up"), runs `de
 has it) and the `##` headings of the project's BACKLOG.md (if it has one). From the next-work
 sections (for example "Next steps", "Top priorities", "In flight") P picks 1-3 items that do not wait
 on the owner, most important first, and replies with the Status template (see "Message templates").
+Before the status P runs the check of "Apply dev-kit migrations", so a migration C it starts shows
+in the status.
 The desktop app folds that turn's tool calls into one line and shows the status below it.
 A first prompt with `restart: plugin update` skips this start status (see "Restart for a plugin update").
 If the owner's next message skips a question from the status, ask it again in one line; never
@@ -228,7 +230,7 @@ detailed talk there, so most tasks do not become a new session for the owner.
   model, which may be the most expensive one. The launch line names the same model and level.
 - A fresh worktree has only tracked files. Before starting C, bring in from the main checkout the
   git-ignored local setup the project needs to run. If the profile section `## project-lead` has a
-  `| Path | How |` table, do exactly its rows (paths relative to the repo root): `copy` copies the file
+  `| Path | How |` table, do exactly the rows of that table (paths relative to the repo root; the section's `| Setting | Value |` table is not paths): `copy` copies the file
   or folder; `link` makes a junction to the main checkout's folder
   (`New-Item -ItemType Junction -Path <worktree>/<path> -Target <main>/<path>`, PowerShell tool;
   folders only). A junction's real path is outside C's worktree, so for each `link` row P adds
@@ -279,6 +281,33 @@ it on `c/<slug>`, so the merge and the worktree removal see no stray file. C kee
   `cwd`; the transcript needs the full id, not the 8-hex short id), then
   `dev-kit-sessions add --id <sessionId> --name "C: <feature>" --worktree <path> --task <file> [--parent <P's own session id, if known>]`.
   The registry, not the session list, is P's source for which C it owns; the session list only adds state.
+
+## Apply dev-kit migrations
+
+dev-kit keeps a numbered list of changes every project with a lead makes in its own files (the
+plugin's `migrations.md`); the project records the last applied number in its profile (section
+`## project-lead`, row `migrations applied`; no row means 0). P checks it on start and after a
+plugin-update restart: `dev-kit-migrations pending` (Bash tool, main checkout). It prints `none`, or
+the pending entries and the list's path. Exit 2 (a broken list or level): P tells the owner in one
+line, as a critical item, and starts nothing.
+
+- Pending entries and no migration C registered (`dev-kit-sessions list`): P starts one C for all of
+  them, as in "Start a C", named «C: Міграції dev-kit» (or «C: dev-kit migrations» in English). The
+  task file lists the entry numbers and says: apply the entries in order; for each, follow its `How`
+  under this project's rules, check its `Done when`, then run `dev-kit-migrations record <n>` in the
+  worktree. An entry with an `Owner choice` goes to P as a question before it is applied, and the C
+  waits for the answer (it never records past an entry it has not applied). P puts that choice in the
+  owner queue and passes the answer back. With a migration C registered, P starts no second one.
+- The C's edits of rule text run steps 1-2 and 5-6 of `dev-kit:edit-rules`: the owner's yes to the
+  entry, given when it was added to the list, is their approval (as in `dev-kit:migrate-docs`). P does
+  not apply entries itself.
+- The recorded number reaches main with P's merge (see "Acceptance and merge"); until then `pending`
+  still lists the entries.
+- Urgent edits needed in every project at once are not entries: the owner's local `other-repo-editor`
+  makes them, launched from Pult.
+
+Why: the owner agreed on 2026-11-16 that a change every project needs is written once in dev-kit and
+each lead applies it under its own project's rules, with no agent editing other projects.
 
 ## Start an «Обговорення:» session
 
@@ -518,7 +547,8 @@ is new.
   once with `already watching`, the old one may have outlived the stop: P reads the holder's pid in
   `watch.lock` next to the registry, stops that process and arms again. Then P sends each active C one SendMessage: «P перезапущено після
   оновлення плагіна. Якщо твій звіт до P не дійшов (помилка "not reachable"), надішли його ще раз.»
-  An unfinished step from before the stop is finished now. P writes to the owner only what was
+  An unfinished step from before the stop is finished now. Then P runs the check of "Apply dev-kit
+  migrations"; a migration C it starts shows in the next status, with no message now. P writes to the owner only what was
   already due to them (a C report that waits, a critical item), in the usual templates; no message
   about the restart itself.
 - A message to a stopped session fails at the sender with "No agent named ... is reachable" and is

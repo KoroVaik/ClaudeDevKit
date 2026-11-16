@@ -84,6 +84,8 @@ A project that enables the plugins keeps `.claude/dev-kit.md`:
   defaults.
 - `## project-lead` - optional table `| Path | How |`: the git-ignored paths a fresh worktree needs,
   each `copy` or `link` (a junction to the main checkout's folder).
+  A `| Setting | Value |` table there holds `migrations applied`: the last entry of
+  `plugins/dev-kit/migrations.md` the project has applied (written by `dev-kit-migrations record`).
 - `## documentation` - table `| Setting | Value |` for the docs check (code folders, scanned
   folders, size limits); the setting names are listed in `plugins/dev-kit/scripts/check_docs.py`.
 
@@ -182,8 +184,9 @@ agent compares. P wakes only on a task session's report, your message, or the ex
 `dev-kit-sessions watch`, a background watcher that stays silent while its sessions live and exits when one
 ends or writes the line "Роботу завершено"; it is generic (any session ids), so other tools can use it too.
 `dev-kit-sessions state` prints each registered session as working, waiting, finished or gone with the gist of
-its last reply, and `dev-kit-sessions add --owner` registers a session you started. After a dev-kit update, open a new P session: a running
-one keeps the old skill.
+its last reply, and `dev-kit-sessions add --owner` registers a session you started. After a dev-kit update, Pult restarts the leads so they load
+the new skill. On start and after that restart P runs `dev-kit-migrations pending` and hands the changes every
+project must make in its own files (`plugins/dev-kit/migrations.md`) to one task session.
 
 ## Hooks
 

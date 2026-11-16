@@ -42,6 +42,20 @@ Rules.
 """
 
 
+MIGRATIONS = """# dev-kit migrations
+
+Intro.
+
+## 1. First change
+
+- Added: dev-kit 0.1.44
+- What: something
+- How: steps
+- Owner choice: none
+- Done when: a check
+"""
+
+
 def write(path, text):
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(text, encoding="utf-8")
@@ -80,6 +94,7 @@ class LintTestCase(unittest.TestCase):
         for name in ("dev-kit", "web-kit"):
             write(self.root / "plugins" / name / ".claude-plugin" / "plugin.json", json.dumps({"name": name}))
         write(self.root / "plugins" / "dev-kit" / "slots.md", CORE_SLOTS)
+        write(self.root / "plugins" / "dev-kit" / "migrations.md", MIGRATIONS)
         write(self.root / "plugins" / "dev-kit" / "agents" / "coder.md", agent_text())
         write(self.root / "plugins" / "dev-kit" / "skills" / "manager" / "SKILL.md", skill_text(name="manager"))
         write(self.root / "plugins" / "web-kit" / "slots.md", EXTENSION_SLOTS)
@@ -520,8 +535,39 @@ class ProfileTableTests(LintTestCase):
         table = "## project-lead\n\n| Path | How |\n|---|---|\n| `data/` | move |\n"
         self.assertErrorContains(self.run_lint(self.profile(table)), "row 'data/' must say copy or link, not 'move'")
 
+    def test_project_lead_settings_table_passes_next_to_the_worktree_table(self):
+        # Rule: the migrations level row lives in a | Setting | Value | table that the worktree rule must not read
+        write(self.root / "plugins" / "dev-kit" / "skills" / "project-lead" / "SKILL.md", skill_text(name="project-lead"))
+        text = ("## project-lead\n\n| Setting | Value |\n|---|---|\n| migrations applied | 1 |\n\n"
+                "| Path | How |\n|---|---|\n| `data/` | link |\n")
+        self.assertClean(self.run_lint(self.profile(text)))
+
+    def test_migrations_applied_must_be_a_whole_number(self):
+        write(self.root / "plugins" / "dev-kit" / "skills" / "project-lead" / "SKILL.md", skill_text(name="project-lead"))
+        text = "## project-lead\n\n| Setting | Value |\n|---|---|\n| migrations applied | one |\n"
+        self.assertErrorContains(self.run_lint(self.profile(text)), "'migrations applied' must be a whole number")
+
+    def test_migrations_applied_name_in_backticks_is_still_checked(self):
+        write(self.root / "plugins" / "dev-kit" / "skills" / "project-lead" / "SKILL.md", skill_text(name="project-lead"))
+        text = "## project-lead\n\n| Setting | Value |\n|---|---|\n| `migrations applied` | one |\n"
+        self.assertErrorContains(self.run_lint(self.profile(text)), "'migrations applied' must be a whole number")
+
     def test_other_sections_tables_are_not_checked(self):
         self.assertClean(self.run_lint(self.profile("## e2e-check\n\n| Any | Header |\n|---|---|\n| a | b |\n")))
+
+
+class MigrationsFileTests(LintTestCase):
+    def set_migrations(self, text):
+        write(self.root / "plugins" / "dev-kit" / "migrations.md", text)
+
+    def test_missing_migrations_file_fails(self):
+        (self.root / "plugins" / "dev-kit" / "migrations.md").unlink()
+        self.assertErrorContains(self.run_lint(), "migrations file not found")
+
+    def test_parse_error_of_the_migrations_file_is_reported(self):
+        # Flow: lint shows what the shared parser rejects
+        self.set_migrations(MIGRATIONS.replace("- How: steps\n", ""))
+        self.assertErrorContains(self.run_lint(), "entry 1: the field 'How' is missing")
 
 
 class ProjectsFileTests(LintTestCase):
@@ -664,6 +710,7 @@ class CommandLineTests(LintTestCase):
         scripts.mkdir(parents=True, exist_ok=True)
         shutil.copy(Path(lint.check_docs.__file__), scripts / "check_docs.py")
         shutil.copy(Path(lint.run_app.__file__), scripts / "run_app.py")
+        shutil.copy(Path(lint.migrations.__file__), scripts / "migrations.py")
         shutil.copy(Path(lint.run_app.__file__).with_name("dev_kit_state.py"), scripts / "dev_kit_state.py")
         self.add_profile(PROFILE + "\n## Страва\n")
         write(tools / "projects.json", json.dumps({"Demo": str(self.projects_dir / "Demo")}))

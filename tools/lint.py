@@ -1,5 +1,5 @@
-"""Lint the ClaudeDevKit marketplace: manifests, hooks, skills, agents, slot tables and project profiles
-(including the `## documentation` settings table)."""
+"""Lint the ClaudeDevKit marketplace: manifests, hooks, the migrations list, skills, agents, slot tables and project
+profiles (including the `## documentation` settings table)."""
 import json
 import re
 import sys
@@ -8,6 +8,7 @@ from pathlib import Path
 CORE_PLUGIN = "dev-kit"
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "plugins" / CORE_PLUGIN / "scripts"))
 import check_docs  # noqa: E402  the documentation settings are validated by the code that reads them
+import migrations  # noqa: E402  the migrations list is validated by the code that reads it
 import run_app  # noqa: E402  the run-app and stop-app lists are validated by the code that runs them
 KEBAB = re.compile(r"^[a-z0-9]+(-[a-z0-9]+)*$")
 REFERENCE = re.compile(r"^([\w-]+):([\w.-]+)$")
@@ -24,7 +25,7 @@ PROFILE_TABLES = {
     "manager": [["Task", "Skill"], ["Type", "Model", "When", "Returns"]],
     "fix-bug": [["The report sounds like...", "It is a...", "UI check, if authorized"]],
     "user-check": [["Setting", "Value"]],
-    "project-lead": [["Path", "How"]],
+    "project-lead": [["Path", "How"], ["Setting", "Value"]],
 }
 # What P does with each ignored path of a fresh worktree (the project-lead `| Path | How |` table).
 WORKTREE_SETUP = ("copy", "link")
@@ -273,6 +274,21 @@ def check_agents(root, findings):
             findings.error(where, f"name '{fields['name']}' differs from file name '{agent.stem}'")
 
 
+def check_migrations(root, findings):
+    path = root / "plugins" / CORE_PLUGIN / "migrations.md"
+    where = rel(root, path)
+    if not path.is_file():
+        findings.error(where, "migrations file not found")
+        return
+    text = read_text(root, path, findings)
+    if text is None:
+        return
+    try:
+        migrations.parse(text)
+    except migrations.Problem as exc:
+        findings.error(where, str(exc))
+
+
 def check_hooks(root, findings):
     for path in sorted(root.glob("plugins/*/hooks/hooks.json")):
         read_json(root, path, findings)
@@ -366,8 +382,11 @@ def check_profile_tables(root, plugins, where, text, findings):
             for row in rows:
                 if len(row) != len(header):
                     findings.error(where, f"section '{name}': row '{row[0]}' has {len(row)} cells, expected {len(header)}")
-                elif name == "project-lead" and row[1].strip("` ") not in WORKTREE_SETUP:
+                elif name == "project-lead" and header == ["Path", "How"] and row[1].strip("` ") not in WORKTREE_SETUP:
                     findings.error(where, f"section 'project-lead': row '{row[0]}' must say {' or '.join(WORKTREE_SETUP)}, not '{row[1]}'")
+                elif name == "project-lead" and header == ["Setting", "Value"] and row[0] == migrations.ROW \
+                        and not re.fullmatch(r"\d+", row[1]):
+                    findings.error(where, f"section 'project-lead': '{migrations.ROW}' must be a whole number, not '{row[1]}'")
                 elif name == "manager":
                     column = 0 if header[0] == "Type" else 1
                     for value in filter(None, (v.strip() for v in row[column].split(","))):
@@ -442,6 +461,7 @@ def lint(root, projects=None):
         projects = load_projects(root, findings)
     plugins = check_marketplace(root, findings)
     check_hooks(root, findings)
+    check_migrations(root, findings)
     check_skills(root, findings)
     check_agents(root, findings)
     core_slots = check_core_slots(root, findings)
