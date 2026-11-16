@@ -39,6 +39,12 @@ class HubRulesTests(unittest.TestCase):
         self.assertIn(PLUGIN.resolve().as_posix() + "/scripts/servers.psd1", text)
         self.assertIn(PLUGIN.resolve().parent.as_posix() + "/dev-kit/bin/dev-kit-sessions", text)
 
+    def test_rules_carry_the_plugin_version_for_the_update_check(self):  # Rule
+        text = json.loads(self.run_hook({"cwd": str(self.home)}))["hookSpecificOutput"]["additionalContext"]
+        version = json.loads((PLUGIN / ".claude-plugin" / "plugin.json").read_text(encoding="utf-8"))["version"]
+        self.assertNotIn("{VERSION}", text)
+        self.assertIn(f"pult {version}", text)
+
     def test_home_cwd_matches_ignoring_case_and_slashes(self):  # Edge
         # Windows reports the folder in any case and slash form.
         for spelled in (str(self.home).upper(), str(self.home).replace("\\", "/") + "/"):

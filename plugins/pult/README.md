@@ -19,7 +19,17 @@ problem it proposes a fix and acts after an explicit yes.
   `servers.psd1` that is down for two checks is brought back the same way as at logon (log HEAL; at most 3
   tries an hour, then GIVEUP). A task session a project lead registered, closed by Claude Code (no
   process, not stopped on purpose), comes back with `claude respawn` (log HEAL-TASK). It also removes
-  dev-kit lock files whose owner is gone (log UNLOCK). It never touches your own sessions, taken-over ones included. `stop-servers.ps1` and `restart-leads.ps1` pause it
+  dev-kit lock files whose owner is gone (log UNLOCK). It restarts a lead that runs on an older dev-kit version
+  than the installed `plugins/dev-kit/.claude-plugin/plugin.json`, with no message from the hub: an idle lead
+  at once (log RESTART-LEAD). A busy lead is not interrupted: on its ordinary wake-ups it notices the new
+  version, reaches a safe point and runs `dev-kit-sessions restart ready --version <V>` (a file `restart.json`
+  in the project's dev-kit state folder); the watcher then restarts it (RESTART-LEAD with `ready`) if the mark
+  is under 10 minutes old, else it clears it (READY-EXPIRED). `scripts/restart-leads.ps1 -Ask` is the fast
+  path on your ask: it restarts the idle leads now and writes a request for each busy one (`Asked: <name>`);
+  that lead's session watcher exits 7 once with `restart requested: <V>`. One try per lead per version; a
+  failure is logged as RESTART-LEAD-FAILED. A leftover `restart.json` of a lead already on the new version
+  is cleared (RESTART-CLEARED). The versions the lead processes started on (by pid and start time) are kept
+  in `~/.claude/pult/lead-versions.json` (log LEAD-VERSION). It never touches your own sessions, taken-over ones included. `stop-servers.ps1` and `restart-leads.ps1` pause it
   (a hold file) until the next `start-servers.ps1` run, so a stop on purpose stays stopped. A lead stopped
   only with `claude stop` comes back; to retire one project, remove its row from `servers.psd1`.
 - A lead row in `servers.psd1` may set `Prompt`, `Model` and `Effort` (defaults: `/dev-kit:project-lead`,
@@ -43,6 +53,6 @@ P is one session per project. It starts task sessions (C), each in its own workt
 3. P starts a C named "C: <task>". It appears as its own session in the app. Talk to that C directly for details; it reports to P when it is done, stuck or needs your decision.
 4. P checks the finished work, merges it into main, removes the C and tells you the result.
 5. Ask the "Pult" session for "статус": it also sends you the status page, one HTML file with every project's sessions (free, busy or ended) and the open questions from its PROGRESS.md. To make the page yourself, run `python scripts/status-page.py`; it writes `~/.claude/pult/status.html` (`--out` for another file). The page is a snapshot: it does not refresh itself. Ask P "що зараз іде?" to see what runs and what waits on you. To list all desktop-app sessions of all projects, run `python scripts/list-sessions.py`.
-6. After a dev-kit plugin update, a running P keeps the old skill. P: ClaudeDevKit tells the Pult session after each version it merges; Pult asks each P to reach a safe point, and restarts each one that answers «готовий» (`scripts/restart-leads.ps1 -Ready`, see `rules/hub.md`, "Restart leads for a plugin update"). By hand: `scripts/restart-leads.ps1`, or `scripts/stop-servers.ps1` (graceful stop) and then `scripts/start-servers.ps1`, or restart Windows. Each P continues its previous conversation (resumed, not fresh), reloading the skill.
+6. After a dev-kit plugin update, a running P keeps the old skill. The watcher notices the new version by itself and restarts each P (see the watcher above); to hurry it, run `scripts/restart-leads.ps1 -Ask`. By hand: `scripts/restart-leads.ps1`, or `scripts/stop-servers.ps1` (graceful stop) and then `scripts/start-servers.ps1`, or restart Windows. Each P continues its previous conversation (resumed, not fresh), reloading the skill.
 
 Not confirmed: whether you can still attach to a P from a terminal with `claude attach <id>` (the old plugin README said so; not checked here), and the exact wording of the session list in the phone app.

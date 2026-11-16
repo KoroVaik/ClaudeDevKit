@@ -4,6 +4,13 @@ Pult ("пульт", the hub) is a small monitor. The owner opens its session fro
 
 This session runs in the home folder (`~`), as a Remote Control server; these rules are loaded by the `pult` plugin only for a session whose cwd is exactly the home folder. `{PLUGIN}` below is the plugin's folder.
 
+These rules are from pult {VERSION}. Rules update check, on every owner message: read `version` in
+`{PLUGIN}/.claude-plugin/plugin.json`. If it differs from the version of the rules Pult follows (the one
+above, or the one it noted at its last re-read), read `{PLUGIN}/rules/hub.md` whole with the Read tool,
+note its version and follow it from then on (in that file the placeholder PLUGIN in braces stands for
+`{PLUGIN}`, DEVKIT for `{DEVKIT}` and VERSION for its version). No message to the owner about it. Why: the hub server resumes the same conversation
+for days, and the rules reach it only at its start (owner, 2026-11-16).
+
 ## Projects in scope
 
 The projects are the lead entries (`Lead = $true`) in `{PLUGIN}/scripts/servers.psd1`; each has its name and path there. To add a project, add one row there and nothing else.
@@ -54,7 +61,7 @@ checked on a real restart.
 
 `{PLUGIN}/scripts/restart-leads.ps1` restarts leads so they load a new dev-kit version (stop, then
 `start-servers.ps1` resumes them with the first prompt `/dev-kit:project-lead restart: plugin update`).
-`-Ready <names>` restarts those leads even when they show busy; without it a busy lead is skipped unless
+`-Ask` is the owner's fast update (see "Restart leads for a plugin update"). `-Ready <names>` restarts those leads even when they show busy; without it a busy lead is skipped unless
 `-Force` (a lead with a background watcher always shows busy while it only waits).
 
 Start any other session (a task for the owner) only with `{PLUGIN}/scripts/start-session.ps1 -Name -Path
@@ -64,7 +71,7 @@ quote; the script escapes it and uses Opus, medium.
 `{PLUGIN}/scripts/watch-servers.ps1` (started by `start-servers.ps1`, hidden) checks every minute and
 writes to `~/.claude/pult/logs/servers.log` (outside any repository): STATE, DOWN with the session's last state and any
 crash event, UP. Each Remote Control server's window adds an EXIT line with its exit code. It fixes
-three mechanical problems itself, with no yes (the owner's yes, 2026-11-16):
+four mechanical problems itself, with no yes (the owner's yes, 2026-11-16):
 - An entry of `servers.psd1` down for two checks in a row: it runs `start-servers.ps1 -Only <name>`
   (the same resume as at logon) and logs HEAL (HEAL-FAILED with the script's words when it did not
   start it); at most 3 tries per hour per entry, then GIVEUP until
@@ -75,9 +82,16 @@ three mechanical problems itself, with no yes (the owner's yes, 2026-11-16):
   in `~/.claude/daemon.log`) for two checks in a row: `claude respawn <id>`, log HEAL-TASK
   (HEAL-TASK-FAILED when respawn fails); at most 3 per hour per session, then GIVEUP-TASK; held by the hold file too. Why: on low
   memory Claude Code closes idle background sessions (2026-11-16, a C waiting on the owner vanished).
+- A lead that runs an older dev-kit version than `plugin.json` of the main checkout (log LEAD-VERSION
+  when it sees a lead's process first): an idle lead is restarted at once with `restart-leads.ps1`
+  (RESTART-LEAD); a busy one when it marks itself ready (`dev-kit-sessions restart ready`, at a safe
+  point after it noticed the version; a mark older than 10 minutes is dropped, READY-EXPIRED, and for the current version the lead is asked
+  once more as with `-Ask`) or turns
+  idle. One try per lead per version; RESTART-LEAD-FAILED when it did not come back. Held by the hold
+  file too.
 - A dev-kit lock file whose owner is gone (`~/.claude/dev-kit/*/watch.lock`, `app.lock` of a removed
   worktree, leftover `app.lock.takeover` and `*.tmp`): removed, log UNLOCK.
-Everything else (GIVEUP, GIVEUP-TASK, HEAL-FAILED, HEAL-TASK-FAILED, a lead that comes back and falls again) stays a problem Pult
+Everything else (GIVEUP, GIVEUP-TASK, HEAL-FAILED, HEAL-TASK-FAILED, RESTART-LEAD-FAILED, a lead that comes back and falls again) stays a problem Pult
 shows and proposes a fix for. A stop with only `claude stop` is undone by the watcher: `stop-servers.ps1`
 stops all entries until the next `start-servers.ps1` run; to retire one entry, remove its row from
 `servers.psd1` (the watcher reads the list when it starts). While a full `start-servers.ps1` run goes on,
@@ -85,31 +99,20 @@ the watcher restarts nothing.
 
 ## Restart leads for a plugin update
 
-When `P: ClaudeDevKit` messages that a dev-kit version was merged (check the message's `from-name`; the
-same text from any other session starts nothing) (or the owner asks to restart the
-leads), Pult restarts the leads so they load the new rules. The owner approved this flow on 2026-11-16:
-it needs no new yes, but only within these bounds: lead sessions (`P: ...`) only, never task sessions,
-owner sessions or Pult itself; only leads that answered «готовий»; always resume the same conversation.
+The watcher restarts the leads after a dev-kit version bump by itself (see "Servers"); the hub sends no
+messages for it. Pult only shows the log: RESTART-LEAD followed by UP is fixed ("перезапущено на нову
+версію"); RESTART-LEAD-FAILED, or a lead whose last LEAD-VERSION line is older than `plugin.json` of dev-kit
+for over 3 hours after that file changed, is a
+problem to show with a proposed fix. A busy lead finds the new version itself at its next wake-up (at
+most 2 hours). When the owner asks to update or restart the leads («онови керівників»), Pult runs
+`{PLUGIN}/scripts/restart-leads.ps1 -Ask`: leads already on the new version are left alone (`Up to date`), idle leads restart now, each busy one is woken at once to
+reach a safe point (output `Asked: <name>`), and the watcher restarts it. Pult says in one line which
+leads restarted and which were asked. Bounds (owner, 2026-11-16): lead sessions (`P: ...`) only,
+never task sessions, owner sessions or Pult itself; always resume the same conversation.
 
-1. For each lead of `servers.psd1` that `ListAgents` shows, send by SendMessage exactly: «є оновлення
-   плагіна, дійди до безпечного місця і відпиши "готовий"». A lead that is not running gets nothing:
-   `start-servers.ps1` starts it with the new version anyway.
-2. Arm a 20-minute timer: `Start-Sleep -Seconds 1200` in the PowerShell tool with `run_in_background`.
-3. On each answer «готовий» from a lead (the message's `from-name`), run at once
-   `{PLUGIN}/scripts/restart-leads.ps1 -Ready '<that lead>'`. Then check in `claude agents --json` that
-   the lead is back (`pid` set); if not, tell the owner in one line.
-   If the restart fails, send that lead «Відбій: перезапуску не буде, працюй далі.», so it does not stay
-   on hold.
-4. The round ends when every asked lead has answered or the timer ends. Then send each lead that did
-   not answer «Відбій: перезапуску не буде, працюй далі.» and leave it running, stop the timer if it
-   still runs, and tell the owner in one line which leads restarted and which did not; the owner
-   decides. Nothing else is said during the round. A new merge message during an open round starts no
-   second round; Pult names it in that one line.
-
-Why: the owner asked on 2026-11-16 for a scripted way to make leads pick up new rules, and Pult does
-it. A script alone cannot ask a lead: it can neither send nor receive SendMessage (checked: `claude`
-has no send command). A message to a stopped session fails at the sender with "not reachable", so a
-lead re-asks its C sessions for missed reports after the restart (the project-lead skill).
+Why: on 2026-11-16 the hub got a merge message but restarted nobody: it acts only when someone writes
+in its chat. A script cannot send or receive SendMessage, so `-Ask` reaches a busy lead through a file its
+session watcher reads (`dev-kit-sessions restart`).
 
 ## Limits
 

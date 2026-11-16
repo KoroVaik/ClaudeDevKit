@@ -450,7 +450,8 @@ exit below, while the registry has an active session. On its exit:
   reports `finished`; its end is `gone` plus its "done" report). Do the
   "Finished" step of "Take over a session the owner started" (`end --id`, try `claude stop`, ask
   nothing), re-arm, and show it in the next status; no separate message.
-- `time limit` (exit 4): re-arm; no text, no other checks.
+- `time limit` (exit 4): run the skill update check below, then re-arm; no text, no other checks.
+- `restart requested: <version>` (exit 7): the handshake of "Restart for a plugin update".
 - `nothing to watch` (exit 5: no active session, also at the time limit when the last session ended meanwhile) or
   `already watching` (exit 6: another watcher runs): do not re-arm; no text.
 - "No text" for exits 4, 5 and 6 holds even when the host then demands visible output: end the turn
@@ -465,11 +466,12 @@ exit below, while the registry has an active session. On its exit:
   `gone` only after 5 minutes: meanwhile the Pult watcher brings it back with `claude respawn`. Such a
   `gone` means that failed; handle it as above.
 
-Skill update check, on every wake-up except a watcher time limit: read `version` from
+Skill update check, on every wake-up: read `version` from
 `.claude-plugin/plugin.json` two folders above this skill's base directory and compare it with the
 version P noted when it last read this skill (note it in the first status turn's tool output). If it
 changed, read this SKILL.md whole with the Read tool (the Skill tool only answers "already loaded")
-and follow the new text from then on. No message to the owner about it.
+and follow the new text from then on; P's process still runs the old hooks and agents, so P also runs
+the handshake of "Restart for a plugin update". No message to the owner about it.
 
 On an owner message or a C report run `dev-kit-sessions fill`.
 
@@ -535,18 +537,24 @@ by name; a background watcher may not survive `/clear`, so P arms it again.
 
 ## Restart for a plugin update
 
-Pult restarts the leads after a plugin update so they load the new skills, agents and hooks (the
-owner's request of 2026-11-16). The restart resumes the same conversation; only the session process
-is new.
+The Pult watcher restarts the leads after a dev-kit version bump so they load the new skills, agents
+and hooks (the owner's request of 2026-11-16). It notices the bump itself: it compares the version P's
+process started on with `plugin.json` of the main checkout. An idle P (no turn, no background task) is
+restarted at once. A busy P is never woken for it: it finds the new version itself at its next wake-up
+(the skill update check in "Wake-up"; the watcher's time limit wakes it at least every 2 hours). Only
+when the owner asks Pult to update the leads does the session watcher wake P at once, with
+`restart requested: <version>` (exit 7). The restart resumes the same conversation; only the session
+process is new. Why: the owner chose on 2026-11-16 no extra paid turns by default, at the cost of up to
+2 hours on the old hooks and agents.
 
-- Handshake: Pult sends «є оновлення плагіна, дійди до безпечного місця і відпиши "готовий"». From
-  then P starts no new step (no new C, no merge, no new subagent). A step already running is brought
+- Handshake (a new version found at a wake-up, or exit 7): from then P
+  starts no new step (no new C, no merge, no new subagent). A step already running is brought
   to a point where a stop breaks nothing: a merge and its clean-up are finished, an edit P began is
-  committed, a running subagent is waited for. C sessions keep working on their own. Then P answers
-  Pult by SendMessage (to the message's `from` address) with one word: «готовий», and ends the turn
-  with no text to the owner. An owner message that arrives before the restart is answered after it.
-  The hold ends on «Відбій» from Pult, or by itself 30 minutes after «готовий» with no restart; P then
-  works as usual and says nothing about it.
+  committed, a running subagent is waited for. C sessions keep working on their own. Then P runs
+  `dev-kit-sessions restart ready --version <the new version>`, re-arms the watcher if the registry has
+  an active session, and ends the turn with no text to the owner. An owner message that arrives before
+  the restart is answered after it. The hold ends by itself 10 minutes after `ready` with no restart
+  (the watcher drops an older `ready` too); P then works as usual and says nothing about it.
 - First prompt after the restart: `/dev-kit:project-lead restart: plugin update`. P skips the start
   status and goes on where it stopped: it reads this SKILL.md whole, notes the new version (see
   "Wake-up") and runs `dev-kit-sessions fill`, `dev-kit-sessions others` and `dev-kit-sessions state`.
@@ -572,13 +580,10 @@ changes there and message `P: ClaudeDevKit` (`dev-kit:manager`, "A change to the
 P has no timer. On start and on every wake-up, a new entry is one with no `Verdict:` line; P names the
 new entries in its status.
 
-After merging work that bumps the `dev-kit` version (a C's merge or P's backlog commit below),
-P sends the Pult hub one SendMessage: «Злито dev-kit <version>; перезапусти керівників.» The hub is
-the session whose cwd is exactly the home folder (from `claude agents --json`; the newest one if several).
-Its system name, e.g. «korov-f1», is not «Pult»: P sends to it by the name `ListAgents` shows for it, but in
-every message to the owner calls it «Pult». With none, P tells the owner in one line that the
-leads still run the old version. Pult then runs the handshake of "Restart for a plugin update" with
-every lead, this P included.
+After merging work that bumps the `dev-kit` version, P sends nothing about it: the Pult watcher sees
+the new version in the main checkout and restarts every lead, this P included (see "Restart for a
+plugin update"). Why: on 2026-11-16 the hub got that message but restarted nobody: it acts only when
+someone writes in its chat.
 
 - Up to 3 new entries, all simple (one place in one skill, agent or doc, no clash with other rules):
   one `dev-kit:reviewer`, whose brief carries steps 1-2 of `dev-kit:edit-rules`, reviews them together

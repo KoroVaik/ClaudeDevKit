@@ -33,3 +33,31 @@ Make the lead restart after a dev-kit version bump independent of the hub's chat
   test copy makes the watcher restart a throwaway lead-like session, which comes back on the new version.
 - Lint and tests pass; versions bumped.
 - The running Pult watcher needs a restart to load the new script: report it to P (the owner does it).
+
+## Decision (C, 2026-11-16; the owner chose the variant in this C's chat)
+
+Checked: the watcher runs from the main checkout (`plugins/pult/scripts`), so the dev-kit version is
+`plugins/dev-kit/.claude-plugin/plugin.json` next to it; leads read that same folder. A lead is `idle` with
+no turn and no background task, `busy` with its session watcher armed. A script cannot SendMessage, but a
+lead wakes when its background `dev-kit-sessions watch` exits. Owner's choice: no extra paid turns by
+default (a busy lead may run old hooks and agents up to 2 hours), a fast path only on his ask.
+
+- Pult watcher: keeps the version each lead process started on (`lead-versions.json`, by pid and start
+  time). A stale idle lead: restarted at once (RESTART-LEAD). A stale busy lead: restarted only after it
+  marks itself ready (`dev-kit-sessions restart ready --version V`, younger than 10 min; an older one
+  READY-EXPIRED, and for the current version asked once more). One try per lead per version. A lead
+  already on V: a leftover restart.json is cleared (RESTART-CLEARED).
+- Lead (project-lead skill): the skill update check, now also on the watcher's 2 h time limit, finds the
+  new version, reaches a safe point, runs `ready`, re-arms its watcher, ends the turn silently.
+- Fast path: the owner asks Pult «онови керівників»; Pult runs `restart-leads.ps1 -Ask` (up-to-date leads
+  skipped, idle ones restarted, busy ones get a request); `watch` exits 7 once per request; the lead then
+  does the same handshake.
+- Pult hub: re-reads its rules when the pult version changes (the hook passes the version).
+
+## Result
+
+- Live test on a throwaway lead (haiku): idle restart on a bump, and the fast path (`-Ask` -> exit 7 ->
+  `ready` -> restart) both came back on the new version. Not run live: a restart on `ready` while the lead
+  stays busy (the test lead stopped reading messages after its restarts); the same `restart-leads.ps1
+  -Ready` call as before.
+- Paid spend: a few haiku turns, well under $1.

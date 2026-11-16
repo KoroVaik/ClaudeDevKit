@@ -8,6 +8,7 @@ full their context is.
     dev-kit-sessions others [--self <id>] [--json]
     dev-kit-sessions state [--id <id> ...]
     dev-kit-sessions watch [--id <id> ...] [--interval 60] [--max-minutes 120]
+    dev-kit-sessions restart request --version <V> | ready [--version <V>] | status | clear
 
 The registry is `sessions.json` in the project state folder (see dev_kit_state.py; the same folder for all worktrees
 of one repository). `add --predecessor` marks the replaced session `replaced`. `add --owner` marks a session the
@@ -51,10 +52,24 @@ has emptied meanwhile: a watcher whose last C ended keeps quiet); `already watch
 mode one watcher per project runs: a lock file in the state folder with a heartbeat; a new watcher waits until the
 heartbeat moves, then exits 6, or until it is stale after 3 intervals, then takes the lock of the killed watcher;
 a lock whose pid is not a live process is taken at once);
-the registry or the session list unreadable WATCH_FAILURES rounds in a row: exit 3.
+the registry or the session list unreadable WATCH_FAILURES rounds in a row: exit 3; `restart requested: <V>` exit 7
+(each round, before the other checks and also on the first round with nothing to watch, only once per request:
+`restart.json` holds an open request that is neither ready nor notified yet; the exit sets `"notified"`, so the
+re-armed watcher stays quiet, see the next paragraph).
 
-Exit code: 0 done (fill too, whatever the transcripts), 1 unknown or duplicate id, 2 registry unreadable, 3 the
-session list could not be read.
+`restart` is the file handshake for a lead's restart on a new dev-kit version (the Pult watcher does the restart).
+`restart.json` in the project state folder holds `{"version": V, "asked": <epoch>, "ready": <epoch>, "notified":
+<epoch>}`; the last three keys are optional. The lead itself runs `ready --version V` when it sees a newer version
+than its own and is at a safe point; `restart-leads.ps1 -Ask` writes a request for a busy lead with `request
+--version V`. `request --version V` writes `{"version", "asked"}` (a request for another version replaces the old
+one, the same version keeps it, ready and notified marks included); `ready` marks the open request ready (exit 1
+and a message when none is open); `ready --version V` needs no request: it creates one that is ready, or marks
+the open one ready when it is for V (one for another version is replaced); `status` prints `none`, `asked <V>
+<seconds>` or `ready <V> <seconds>` (the seconds since the request was asked or marked ready); `clear` removes the
+file (fine when absent). A ready, notified or absent request does not stop `watch`.
+
+Exit code: 0 done (fill too, whatever the transcripts), 1 unknown or duplicate id (restart: `ready` with no
+request), 2 registry unreadable, 3 the session list could not be read.
 """
 import argparse
 import json
@@ -71,6 +86,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import dev_kit_state  # noqa: E402
 
 REGISTRY = "sessions.json"
+RESTART = "restart.json"
 PROJECTS_ENV = "DEV_KIT_PROJECTS_DIR"
 DEFAULT_WINDOW = 200000
 NATIVE_1M_WINDOW = 1000000
@@ -112,7 +128,7 @@ def load(path):
     return data
 
 
-def save(path, records):
+def save(path, records):  # records: the registry list, or the restart request dict
     temp = path.with_name(path.name + f".{os.getpid()}.tmp")
     temp.write_text(json.dumps(records, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
     for attempt in range(6):  # on Windows a reader that has the file open makes the replace fail for a moment
@@ -628,6 +644,48 @@ def take_lock(lock, interval):
     return None
 
 
+def read_restart(path):
+    """The open restart request (dict with a `version`) of the project, else None; an unreadable file counts as none."""
+    try:
+        data = json.loads(path.with_name(RESTART).read_text(encoding="utf-8-sig"))
+    except (OSError, ValueError):
+        return None
+    return data if isinstance(data, dict) and data.get("version") else None
+
+
+def cmd_restart(args, path, records):
+    target = path.with_name(RESTART)
+    request = read_restart(path)
+    if args.restart_action == "request":
+        if request is None or str(request["version"]) != args.version:
+            save(target, {"version": args.version, "asked": time.time()})
+        print(f"asked {args.version}")
+    elif args.restart_action == "ready":
+        if args.version and (request is None or str(request["version"]) != args.version):
+            request = {"version": args.version}  # no request for this version: the lead noticed the bump itself
+        elif request is None:
+            print("dev-kit-sessions: no restart request is open", file=sys.stderr)
+            return 1
+        request["ready"] = time.time()
+        save(target, request)
+        print(f"restart ready: {request['version']}")
+    elif args.restart_action == "status":
+        if request is None:
+            print("none")
+        else:
+            ready = request.get("ready")
+            since = ready if ready else request.get("asked")
+            age = int(max(0, time.time() - float(since))) if isinstance(since, (int, float)) else 0
+            print(f"{'ready' if ready else 'asked'} {request['version']} {age}")
+    else:
+        try:
+            target.unlink()
+        except FileNotFoundError:
+            pass
+        print("restart cleared")
+    return 0
+
+
 def cmd_watch(args, path, records):
     lock = None if args.id else path.with_name(WATCH_LOCK)
     deadline = time.monotonic() + args.max_minutes * 60
@@ -649,6 +707,12 @@ def cmd_watch(args, path, records):
                     watched = [(record.get("name"), str(record.get("id"))) for record in active(records)]
                 except Unreadable as exc:  # e.g. caught mid-replace on Windows; counted like a list failure
                     problem = exc
+            request = read_restart(path)
+            if request is not None and not request.get("ready") and not request.get("notified"):
+                request["notified"] = time.time()  # once per request: the lead's re-armed watcher stays quiet
+                save(path.with_name(RESTART), request)
+                print(f"restart requested: {request['version']}")
+                return 7
             if problem is None and not watched and first:
                 print("nothing to watch")
                 return 5
@@ -721,11 +785,17 @@ def main(argv=None):
     watch.add_argument("--id", action="append", default=[], help="a session to watch (repeatable; default: the registry)")
     watch.add_argument("--interval", type=float, default=60, help="seconds between reads of the session list")
     watch.add_argument("--max-minutes", type=float, default=120, help="exit with the time-limit line after this")
+    restart = sub.add_parser("restart", help="the restart request the Pult watcher leaves for a lead")
+    restart_sub = restart.add_subparsers(dest="restart_action", required=True)
+    restart_sub.add_parser("request").add_argument("--version", required=True)
+    restart_sub.add_parser("ready").add_argument("--version", help="mark ready even with no open request")
+    for action in ("status", "clear"):
+        restart_sub.add_parser(action)
     args = parser.parse_args(argv)
     try:
         path = registry_path(args.project)
-        records = load(path)
-        return {"add": cmd_add, "end": cmd_end, "list": cmd_list, "fill": cmd_fill,
+        records = [] if args.action == "restart" else load(path)  # the handshake works with a broken registry too
+        return {"add": cmd_add, "end": cmd_end, "list": cmd_list, "fill": cmd_fill, "restart": cmd_restart,
                 "others": cmd_others, "state": cmd_state, "watch": cmd_watch}[args.action](args, path, records)
     except Unreadable as exc:
         print(f"dev-kit-sessions: {exc}", file=sys.stderr)

@@ -2,7 +2,8 @@
 
 The plugin is enabled at user scope, so this hook runs in every session on the machine. It stays silent unless the
 session's cwd is exactly the home folder (a project folder under home gets nothing). The rules are `rules/hub.md`;
-`{PLUGIN}` in them is replaced with this plugin's folder and `{DEVKIT}` with the dev-kit plugin's folder (a sibling
+`{PLUGIN}` in them is replaced with this plugin's folder, `{VERSION}` with its version (`.claude-plugin/plugin.json`,
+`unknown` when unreadable) and `{DEVKIT}` with the dev-kit plugin's folder (a sibling
 of this plugin; in the plugin cache the newest version folder that holds `bin/dev-kit-sessions`).
 Never fails: any error ends it with exit code 0 and no output."""
 import json
@@ -29,6 +30,14 @@ def dev_kit_folder():
     return max(versions, key=lambda p: p.stat().st_mtime, default=sibling)
 
 
+def plugin_version():
+    """This plugin's version from its manifest, or `unknown`."""
+    try:
+        return str(json.loads((PLUGIN / ".claude-plugin" / "plugin.json").read_text(encoding="utf-8-sig"))["version"])
+    except Exception:
+        return "unknown"
+
+
 def main():
     try:
         call = json.loads(sys.stdin.buffer.read().decode("utf-8-sig"))  # unreadable input: no output
@@ -36,6 +45,7 @@ def main():
         if norm(cwd or os.getcwd()) != norm(Path.home()):
             return
         text = RULES.read_text(encoding="utf-8")
+        text = text.replace("{VERSION}", plugin_version())
         text = text.replace("{PLUGIN}", PLUGIN.as_posix()).replace("{DEVKIT}", dev_kit_folder().resolve().as_posix())
         sys.stdout.reconfigure(encoding="utf-8")
         json.dump({"hookSpecificOutput": {"hookEventName": "SessionStart", "additionalContext": text}}, sys.stdout)

@@ -561,6 +561,107 @@ class SessionsTestCase(unittest.TestCase):
         code, out = self.run_main("watch", "--interval", "0")
         self.assertEqual((0, "gone: B | c2-session | not in the session list\nfinished: A | c1-session\n"), (code, out))
 
+    def restart_file(self):
+        return dev_kit_state.project_state_dir(self.project) / sessions.RESTART
+
+    def restart_status(self):
+        return self.run_main("restart", "status")[1]
+
+    # protects: Flow
+    def test_restart_handshake_request_ready_status_clear(self):
+        self.assertEqual((0, "none\n"), self.run_main("restart", "status"))
+        self.assertEqual((1, "dev-kit-sessions: no restart request is open\n"), self.run_main("restart", "ready"))
+        self.assertEqual(0, self.run_main("restart", "request", "--version", "0.1.47")[0])
+        self.assertRegex(self.restart_status(), r"^asked 0\.1\.47 \d+\n$")
+        self.assertEqual(0, self.run_main("restart", "ready")[0])
+        self.assertRegex(self.restart_status(), r"^ready 0\.1\.47 \d+\n$")
+        self.assertEqual(0, self.run_main("restart", "clear")[0])
+        self.assertFalse(self.restart_file().exists())
+        self.assertEqual(0, self.run_main("restart", "clear")[0])  # absent is fine
+        self.assertEqual("none\n", self.restart_status())
+
+    # protects: Rule
+    def test_restart_status_prints_the_age_of_the_last_mark(self):
+        # The Pult watcher restarts only on a ready mark younger than 10 minutes: it parses this number.
+        self.restart_file().parent.mkdir(parents=True, exist_ok=True)
+        self.restart_file().write_text(json.dumps({"version": "0.1.47", "asked": time.time() - 900,
+                                                   "ready": time.time() - 120}), encoding="utf-8")
+        age = int(self.restart_status().split()[2])
+        self.assertTrue(120 <= age < 130, age)
+        self.restart_file().write_text(json.dumps({"version": "0.1.47", "asked": time.time() - 900}), encoding="utf-8")
+        self.assertTrue(900 <= int(self.restart_status().split()[2]) < 910)
+
+    # protects: Rule
+    def test_restart_request_for_the_same_version_keeps_it_and_another_replaces_it(self):
+        self.run_main("restart", "request", "--version", "0.1.47")
+        self.run_main("restart", "ready")
+        asked = json.loads(self.restart_file().read_text())["asked"]
+        self.run_main("restart", "request", "--version", "0.1.47")
+        self.assertTrue(self.restart_status().startswith("ready 0.1.47 "))
+        self.assertEqual(asked, json.loads(self.restart_file().read_text())["asked"])
+        self.run_main("restart", "request", "--version", "0.1.48")
+        self.assertTrue(self.restart_status().startswith("asked 0.1.48 "))
+
+    # protects: Flow
+    def test_restart_ready_with_a_version_needs_no_request(self):
+        # The lead notices the bump itself, so no request exists when it marks itself ready.
+        self.assertEqual(0, self.run_main("restart", "ready", "--version", "0.1.47")[0])
+        self.assertTrue(self.restart_status().startswith("ready 0.1.47 "))
+        self.assertNotIn("asked", json.loads(self.restart_file().read_text()))
+
+    # protects: Edge
+    def test_restart_ready_with_a_version_keeps_a_request_for_it_and_replaces_another(self):
+        self.run_main("restart", "request", "--version", "0.1.47")
+        self.run_main("restart", "ready", "--version", "0.1.47")
+        self.assertIn("asked", json.loads(self.restart_file().read_text()))
+        self.run_main("restart", "ready", "--version", "0.1.48")  # a request for an older version is not this one
+        saved = json.loads(self.restart_file().read_text())
+        self.assertEqual(("0.1.48", False), (saved["version"], "asked" in saved))
+
+    # protects: Flow
+    def test_watch_exits_7_on_an_open_restart_request_even_with_nothing_to_watch(self):
+        self.run_main("restart", "request", "--version", "0.1.47")
+        self.assertEqual((7, "restart requested: 0.1.47\n"), self.run_main("watch", "--interval", "0"))
+        self.assertFalse(self.lock().exists())  # the exit leaves no lock of this watcher behind
+        self.run_main("restart", "clear")
+        self.run_main("restart", "request", "--version", "0.1.47")
+        self.assertEqual(7, self.run_main("watch", "--id", "c1-session", "--interval", "0")[0])
+
+    # protects: Bug
+    # Broke: the lead's re-armed watcher exited 7 again at once on the same request, a wake-up loop
+    def test_watch_exits_7_once_per_request(self):
+        self.add("c1-session")
+        self.listing([{"sessionId": "c1-session", "pid": 5, "state": "working"}])
+        self.run_main("restart", "request", "--version", "0.1.47")
+        self.assertEqual(7, self.run_main("watch", "--interval", "0")[0])
+        self.assertTrue(json.loads(self.restart_file().read_text())["notified"])
+        self.assertEqual(4, self.run_main("watch", "--interval", "60", "--max-minutes", "0.5")[0])
+        self.run_main("restart", "request", "--version", "0.1.47")  # the same version keeps the notified mark
+        self.assertEqual(4, self.run_main("watch", "--interval", "60", "--max-minutes", "0.5")[0])
+        self.run_main("restart", "request", "--version", "0.1.48")  # a new version is a new request
+        self.assertEqual(7, self.run_main("watch", "--interval", "0")[0])
+
+    # protects: Rule
+    def test_watch_ignores_a_ready_or_absent_restart_request(self):
+        self.add("c1-session")
+        self.listing([{"sessionId": "c1-session", "pid": 5, "state": "working"}])
+        self.run_main("restart", "ready", "--version", "0.1.47")
+        self.assertEqual(4, self.run_main("watch", "--interval", "60", "--max-minutes", "0.5")[0])
+        self.run_main("restart", "clear")
+        self.assertEqual(4, self.run_main("watch", "--interval", "60", "--max-minutes", "0.5")[0])
+
+    # protects: Flow
+    def test_watch_exits_7_when_a_request_arrives_while_it_waits(self):
+        self.add("c1-session")
+        self.listing([{"sessionId": "c1-session", "pid": 5, "state": "working"}])
+
+        def sleep(_seconds):
+            self.run_main("restart", "request", "--version", "0.1.47")
+
+        with mock.patch.object(sessions.time, "sleep", sleep):
+            code, out = self.run_main("watch", "--interval", "1")
+        self.assertEqual((7, "restart requested: 0.1.47\n"), (code, out))
+
 
 if __name__ == "__main__":
     unittest.main()

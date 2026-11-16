@@ -1,20 +1,34 @@
 # Restarts project leads "P: <name>" so they load a new dev-kit version. Each lead continues its
 # conversation: stop it, then start-servers.ps1 resumes it on Opus, medium, pinned, with the first
 # prompt '/dev-kit:project-lead restart: plugin update' (the lead goes on where it stopped).
-# Normal path (the hub rules, "Restart leads for a plugin update"): the hub session first asks each
-# lead by SendMessage to reach a safe point; a script cannot send or receive those messages. The
-# leads that answered the ready word (see the hub rules) are passed in -Ready: they are restarted even when they show busy (a
-# lead with a background watcher always shows busy while it only waits).
-# Without -Ready, only idle leads are restarted and a busy one is skipped (its turn would be cut);
+# Normal path: watch-servers.ps1 does the restart by itself when it sees a lead on an older dev-kit version
+# (see its header): -Name for an idle lead, -Ready for a busy one that marked itself ready with
+# `dev-kit-sessions restart ready --version V`. The output lines (Busy, skipped / Resumed lead / Started
+# lead ...) are parsed there. -Ready restarts the named leads even when they show busy (a lead with a
+# background watcher always shows busy while it only waits).
+# By hand, on the owner's ask: -Ask restarts the idle leads now and, for each busy one, writes the request
+# `dev-kit-sessions restart request --version V` (V from <DevKitDir>\.claude-plugin\plugin.json) and prints
+# `Asked: <name>`; the watcher restarts that lead when it marks itself ready.
+# Without -Ready and -Ask, only idle leads are restarted and a busy one is skipped (its turn would be cut);
 # -Force restarts busy ones too, only after checking they are not in the middle of a step.
+# -ConfigFile and -StateDir: another server list and Pult state folder (hold file); both are passed on to
+# start-servers.ps1 (for tests with a throwaway lead; defaults: servers.psd1 and ~\.claude\pult).
+# -DevKitDir and -DevKitStateDir (only for -Ask): the dev-kit plugin folder (default: ..\..\dev-kit next to
+# this plugin) and the dev-kit state folder (default: env DEV_KIT_STATE_DIR, else ~\.claude\dev-kit).
 # Usage: restart-leads.ps1 -Ready 'P: Zhratva','P: Prishch'
+#        restart-leads.ps1 -Ask
 #        restart-leads.ps1 [-Name 'P: Zhratva'] [-Force]
 
-param([string[]]$Name, [string[]]$Ready, [switch]$Force)
+param([string[]]$Name, [string[]]$Ready, [switch]$Force, [switch]$Ask, [string]$ConfigFile, [string]$StateDir,
+    [string]$DevKitDir, [string]$DevKitStateDir)
 
 $scripts = $PSScriptRoot
-$leads = @((Import-PowerShellDataFile (Join-Path $scripts 'servers.psd1')).Servers |
-    Where-Object { $_.Lead } | ForEach-Object { $_.Session })
+if (-not $ConfigFile) { $ConfigFile = Join-Path $scripts 'servers.psd1' }
+if (-not $StateDir) { $StateDir = Join-Path $env:USERPROFILE '.claude\pult' }  # outside the plugin folder
+if (-not $DevKitDir) { $DevKitDir = Join-Path $scripts '..\..\dev-kit' }
+$DevKitDir = [IO.Path]::GetFullPath($DevKitDir)
+$rows = @((Import-PowerShellDataFile $ConfigFile).Servers | Where-Object { $_.Lead })
+$leads = @($rows | ForEach-Object { $_.Session })
 if ($Ready) { $Name = $Ready }
 $Name = @($Name | ForEach-Object { $_ -split ',' } | ForEach-Object { $_.Trim() } | Where-Object { $_ })  # -File passes one comma-joined string
 if ($Name) { $leads = @($leads | Where-Object { $Name -ccontains $_ }) }
@@ -22,15 +36,50 @@ if (-not $leads) { Write-Output 'No matching leads.'; exit 1 }
 
 # Hold the watcher (watch-servers.ps1) while the leads are down on purpose; start-servers.ps1 below
 # removes the hold.
-$stateDir = Join-Path $env:USERPROFILE '.claude\pult'
-New-Item -ItemType Directory -Force $stateDir | Out-Null
-Set-Content -LiteralPath (Join-Path $stateDir 'hold') -Encoding UTF8 -Value "restart-leads.ps1 $(Get-Date -Format s)"
+New-Item -ItemType Directory -Force $StateDir | Out-Null
+Set-Content -LiteralPath (Join-Path $StateDir 'hold') -Encoding UTF8 -Value "restart-leads.ps1 $(Get-Date -Format s)"
 $sessions = @(claude agents --json | Out-String | ConvertFrom-Json) | ForEach-Object { $_ }
 $stopped = @()
+
+# -Ask: writes the restart request of a busy lead's project; returns the line to print.
+function Request-LeadRestart($Row) {
+    if (-not $Row.Path -or -not (Test-Path -LiteralPath $Row.Path)) { return "Not asked, folder missing: $($Row.Session)" }
+    $v = $null
+    try {
+        $v = [string](Get-Content -Raw -Encoding UTF8 -LiteralPath (Join-Path $DevKitDir '.claude-plugin\plugin.json') -ErrorAction Stop |
+            ConvertFrom-Json).version
+    } catch { }
+    if (-not $v) { return "Not asked, cannot read the dev-kit version: $($Row.Session)" }
+    $old = $env:DEV_KIT_STATE_DIR
+    if ($DevKitStateDir) { $env:DEV_KIT_STATE_DIR = $DevKitStateDir }
+    try {
+        $out = & python (Join-Path $DevKitDir 'scripts\sessions.py') --project $Row.Path restart request --version $v 2>&1 | Out-String
+    } catch { $out = "$_" } finally { $env:DEV_KIT_STATE_DIR = $old }
+    $said = ($out.Trim() -replace '\s+', ' ')
+    if ($said -ceq "asked $v") { return "Asked: $($Row.Session)" }
+    return "Not asked, the request failed: $($Row.Session): $said"
+}
+
+# -Ask: $true when the watcher's lead-versions.json says this lead process already runs the installed version.
+function Test-LeadUpToDate([string]$Lead, $ProcId) {
+    try {
+        $v = [string](Get-Content -Raw -Encoding UTF8 -LiteralPath (Join-Path $DevKitDir '.claude-plugin\plugin.json') -ErrorAction Stop |
+            ConvertFrom-Json).version
+        $e = (Get-Content -Raw -Encoding UTF8 -LiteralPath (Join-Path $StateDir 'lead-versions.json') -ErrorAction Stop |
+            ConvertFrom-Json).$Lead
+        return [bool]($v -and $e -and [int]$e.pid -eq [int]$ProcId -and [string]$e.version -ceq $v)
+    } catch { return $false }
+}
+
 foreach ($lead in $leads) {
     $s = $sessions | Where-Object { $_.kind -eq 'background' -and $_.name -ceq $lead -and $_.pid } |
         Select-Object -First 1
     if (-not $s) { Write-Output "Not running, will be started: $lead"; continue }
+    if ($Ask -and (Test-LeadUpToDate $lead $s.pid)) { Write-Output "Up to date: $lead"; continue }
+    if ($s.status -eq 'busy' -and $Ask -and -not $Force -and -not $Ready) {
+        Write-Output (Request-LeadRestart ($rows | Where-Object { $_.Session -ceq $lead } | Select-Object -First 1))
+        continue
+    }
     if ($s.status -eq 'busy' -and -not $Force -and -not $Ready) { Write-Output "Busy, skipped: $lead"; continue }
     claude stop $s.id | Select-Object -First 1
     $stopped += $lead
@@ -45,6 +94,7 @@ if ($stopped) {
     } while ($alive -and (Get-Date) -lt $until)
     if ($alive) { Write-Output "Still running after the stop, not resumed: $(($alive | ForEach-Object { $_.name }) -join ', ')" }
 }
-$startArgs = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', (Join-Path $scripts 'start-servers.ps1'))
+$startArgs = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', (Join-Path $scripts 'start-servers.ps1'),
+    '-ConfigFile', $ConfigFile, '-StateDir', $StateDir)
 if ($stopped) { $startArgs += @('-Restarted', ($stopped -join ',')) }
 & powershell.exe @startArgs
