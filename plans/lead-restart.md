@@ -53,3 +53,10 @@ Owner's yes to the task: «так» (2026-11-16).
   next version bump).
 - Versions: dev-kit 0.1.40, pult 0.1.2.
 - Paid spend: about $0.01 (two haiku turns).
+- Review (dev-kit:reviewer, sonnet) fixes applied: «Відбій» release and a 30-minute self-release for a
+  lead on hold, early end of Pult's round, waiting for the stopped process before the resume,
+  a watcher that outlived the stop, `from-name` check, `-Ready` given as one comma-joined string.
+- Not checked: whether a restarted lead loads the new version. `installed_plugins.json` lists project
+  installs of dev-kit from the plugin cache (Zhratva and Prishch at 0.1.10), while the marketplace
+  is this repo's folder. If a lead loads the cache copy, a restart alone does not bring the new rules;
+  the cheapest check is the version a lead's skill base directory shows after the next restart.
