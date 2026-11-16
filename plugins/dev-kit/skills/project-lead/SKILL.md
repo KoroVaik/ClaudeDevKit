@@ -120,6 +120,19 @@ An owner item from a C (one at a time, under the session's name):
 
 P sends the owner's answer to that C verbatim by SendMessage.
 
+An owner item left by a C that P already merged and closed: heading
+`### <session name> (закрита, є питання)` (in English `(closed, has a question)`), then the question
+and its recommendation line as above, with no other line. "Sessions at work" does not list that C.
+
+P acts on the answer to such an item itself. A yes that needs real work (code, a run, a data
+change): P starts a new C with the answer in its task file and first prompt, with no second
+question. A yes that needs only a record, or a no: P records the answer in the doc the question came
+from and removes it from PROGRESS.md "Open questions". A small follow-up not worth its own session:
+P adds it to that doc's open items, and the next C in that area takes it.
+
+Why: in Zhratva on 2026-11-16 P showed a merged C as «(питає)» under «Сесії в роботі: жодної», and
+the owner could not tell who asked; the owner wants no session for a trivial answer.
+
 A C is stuck:
 
 - «<session name>» is stuck: <cause in plain words>. Critical when it cannot go on without the
@@ -269,6 +282,11 @@ setup, registration) with these differences:
 
 - Name `Обговорення: <feature>` (no guillemets in the name) (flag `--name` and `--remote-control`), `--permission-mode auto`
   (the owner answers its prompts), `--model opus --effort medium` (the owner talks with it).
+- The owner's «сабсесія», «саб-сесія», «сесія для обговорення», or «саб» to talk something over,
+  means this session, never a helper agent. When the owner's words point at a log, file or session
+  («нехай прочитає лог тієї сесії»), P adds its path to the first prompt.
+  Why: on 2026-11-16 the owner asked P: ClaudeDevKit for «саба для обговорення» and P started an
+  internal helper the owner could not talk to.
 - The owner talks with it directly. One session plays analyst and mockup designer. First prompt: the
   owner's words, the task file path, a feature file path, "run `dev-kit:discovery-round` for the
   meaning and the show-idea slot for the look; end with the acceptance criteria and the approved
