@@ -43,4 +43,18 @@ Source, BACKLOG.md entry «Pult: watcher that fixes mechanical issues»:
 ## Paid spend
 
 - Throwaway lead on haiku: one fresh start and one resume, prompt "Reply with the single word ok." About $0.01.
-  Total: about $0.01.
+- Second test run (after review fixes): one fresh start and one resume on haiku, about $0.01.
+  Total: about $0.02.
+
+## Review (sonnet reviewer) and fixes
+
+- Fixed: a planned stop or a running full start-servers.ps1 resets the down count and blocks heals; start-servers
+  removes the hold at its end and re-checks each lead right before starting it (no double resume); HEAL-FAILED
+  logs the script's words when nothing was started; the down count restarts after a HEAL (two rounds to come up);
+  docs say how to retire one entry (remove its row; `claude stop` alone is undone).
+- Recorded, not fixed: a HEAL has no timeout (a hung `claude --bg` stalls the loop); a hold left by a crashed
+  restart-leads stays until the next full start; the Pult server (non-lead) heal path is not tested live.
+- Retest on a throwaway lead after the fixes: kill -> HEAL -> RESUMED -> UP; a missing-folder entry -> HEAL-FAILED
+  with the cause; stale fake locks removed, live ones kept.
+- After the merge the running watcher (started at logon from the main checkout) still runs the old code until it
+  is restarted (stop its powershell process, then start watch-servers.ps1 hidden, or the next logon).

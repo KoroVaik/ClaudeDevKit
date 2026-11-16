@@ -19,7 +19,8 @@ problem it proposes a fix and acts after an explicit yes.
   `servers.psd1` that is down for two checks is brought back the same way as at logon (log HEAL; at most 3
   tries an hour, then GIVEUP). It also removes dev-kit lock files whose owner is gone (log UNLOCK). It
   never touches task sessions or your own sessions. `stop-servers.ps1` and `restart-leads.ps1` pause it
-  (a hold file) until the next `start-servers.ps1` run, so a stop on purpose stays stopped.
+  (a hold file) until the next `start-servers.ps1` run, so a stop on purpose stays stopped. A lead stopped
+  only with `claude stop` comes back; to retire one project, remove its row from `servers.psd1`.
 - A lead row in `servers.psd1` may set `Prompt`, `Model` and `Effort` (defaults: `/dev-kit:project-lead`,
   Opus, medium); a throwaway test lead uses a cheap model this way.
 

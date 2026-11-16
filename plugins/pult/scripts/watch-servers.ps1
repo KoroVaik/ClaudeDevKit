@@ -113,6 +113,9 @@ while ($true) {
         Where-Object { $_.CommandLine -match '\sremote-control\s' })
     $agents = Get-Agents
     $onHold = Test-Path -LiteralPath $hold
+    # A full start-servers.ps1 run (logon, restart-leads.ps1) starts the leads itself: no restarts meanwhile.
+    $starting = [bool](Get-CimInstance Win32_Process -Filter "Name='powershell.exe'" |
+        Where-Object { $_.CommandLine -like '*start-servers.ps1*' -and $_.CommandLine -notlike '*-Only*' })
     if ($onHold -and -not $holdLogged) {
         Write-Log "HOLD on ($((Get-Content -Raw -LiteralPath $hold).Trim())): no restarts until start-servers.ps1 runs"
     } elseif (-not $onHold -and $holdLogged) {
@@ -158,9 +161,11 @@ while ($true) {
 
         # Bring back an entry that is down for two rounds in a row (one round may be a start or a
         # restart in progress).
-        if ($alive) { $downRounds[$name] = 0; $gaveUp.Remove($name); continue }
+        # A planned stop or a running start resets the count, so the two rounds start after it.
+        if ($alive -or $onHold -or $starting) { $downRounds[$name] = 0; if ($alive) { $gaveUp.Remove($name) }; continue }
         $downRounds[$name] = [int]$downRounds[$name] + 1
-        if ($Once -or $onHold -or $downRounds[$name] -lt 2 -or $gaveUp[$name]) { continue }
+        if ($Once -or $downRounds[$name] -lt 2 -or $gaveUp[$name]) { continue }
+        if (Test-Path -LiteralPath $hold) { continue }  # a stop began during this round
         $tries = @($heals[$name] | Where-Object { $_ -and ((Get-Date) - $_).TotalHours -lt 1 })
         if ($tries.Count -ge $MaxHeals) {
             Write-Log "GIVEUP $name ($MaxHeals restarts in the last hour did not keep it up; restart it by hand)"
@@ -171,9 +176,11 @@ while ($true) {
         Write-Log ("HEAL {0} (down for {1} rounds, try {2} of {3})" -f $name, $downRounds[$name], ($tries.Count + 1), $MaxHeals)
         $out = & powershell.exe -NoProfile -ExecutionPolicy Bypass -File (Join-Path $PSScriptRoot 'start-servers.ps1') `
             -Only $name -ConfigFile $ConfigFile -StateDir $StateDir 2>&1 | Out-String
-        if ($LASTEXITCODE -ne 0) {
-            Write-Log ("HEAL-FAILED {0} (exit {1}): {2}" -f $name, $LASTEXITCODE, ($out.Trim() -replace '\s+', ' '))
+        $said = ($out.Trim() -replace '\s+', ' ')
+        if ($LASTEXITCODE -ne 0 -or $said -notmatch '(Resumed|Started)( lead)?: ') {
+            Write-Log ("HEAL-FAILED {0} (exit {1}): {2}" -f $name, $LASTEXITCODE, $said)
         }
+        $downRounds[$name] = 0  # give the start two rounds before the next try
     }
 
     try { Clear-StaleLocks } catch { Write-Log "WARN lock check failed: $_" }

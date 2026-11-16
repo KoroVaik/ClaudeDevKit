@@ -17,7 +17,8 @@
 # -Only: start only these entries and nothing else (no watcher start, hold kept); watch-servers.ps1
 # uses it to bring back a dead one. -ConfigFile and -StateDir point at another server list and state
 # folder (for tests with a throwaway lead; defaults: servers.psd1 and ~\.claude\pult).
-# A full run (no -Only) removes the hold file that stop-servers.ps1 and restart-leads.ps1 leave.
+# A full run (no -Only) removes the hold file that stop-servers.ps1 and restart-leads.ps1 leave, at its end;
+# the watcher restarts nothing while a full run is going on.
 param([string[]]$Restarted, [string[]]$Only, [string]$ConfigFile, [string]$StateDir)
 $Restarted = @($Restarted | ForEach-Object { $_ -split ',' } | ForEach-Object { $_.Trim() } | Where-Object { $_ })  # -File passes one comma-joined string
 $Only = @($Only | ForEach-Object { $_ -split ',' } | ForEach-Object { $_.Trim() } | Where-Object { $_ })
@@ -35,7 +36,6 @@ function Write-Log($msg) {
 }
 if ($Only) { Write-Log "START-SCRIPT run for $($Only -join ', ')" } else { Write-Log 'START-SCRIPT run' }
 $hold = Join-Path $StateDir 'hold'
-if (-not $Only -and (Test-Path $hold)) { Remove-Item -LiteralPath $hold -Force; Write-Log 'HOLD off' }
 
 # The watcher restarts a dead entry of the list (watch-servers.ps1).
 $watching = Get-CimInstance Win32_Process -Filter "Name='powershell.exe'" |
@@ -61,7 +61,13 @@ try {
 foreach ($p in $projects) {
     $sessionName = $p.Session
     if ($p.Lead) {
-        if ($liveLeads -contains $sessionName) { Write-Output "Already running: $sessionName"; continue }
+        if ($liveLeads -ccontains $sessionName) { Write-Output "Already running: $sessionName"; continue }
+        # Look again right before the start: the watcher or another run may have started it meanwhile.
+        try {
+            $now = @((claude agents --json | Out-String | ConvertFrom-Json) | ForEach-Object { $_ } |
+                Where-Object { $_.kind -eq 'background' -and $_.pid -and $_.name -ceq $sessionName })
+            if ($now) { Write-Output "Already running: $sessionName"; continue }
+        } catch { }
         if (-not (Test-Path $p.Path)) { Write-Output "Folder missing, skipped: $($p.Path)"; continue }
         Push-Location $p.Path
         # Continue the previous conversation of this lead when one exists (stopped or finished).
@@ -135,3 +141,4 @@ if ($leadNames) {
         Write-Output "Pinned leads: $($ids -join ', ')"
     } catch { Write-Output "Could not pin leads: $_" }
 }
+if (-not $Only -and (Test-Path $hold)) { Remove-Item -LiteralPath $hold -Force; Write-Log 'HOLD off' }

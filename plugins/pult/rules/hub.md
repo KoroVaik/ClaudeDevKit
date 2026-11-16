@@ -24,7 +24,7 @@ Traps (checked 2026-11-14):
 - Pult server alive: a running `claude.exe` process whose command line has ` remote-control ` and "Pult" (PowerShell `Get-CimInstance Win32_Process -Filter "Name='claude.exe'"`).
 
 - Names shown to the owner: the hub's own session (cwd = the home folder) has a system name like «<user>-f1» in `claude agents --json`. Never show that name to the owner; sessions in the home folder are «Pult».
-- Server history: the last lines of `~/.claude/pult/logs/servers.log` (the health log, written by the watcher, see "Servers"). A DOWN or EXIT line followed by HEAL and UP is fixed: show it in one line as "впав о <time>, піднявся сам". A GIVEUP or HEAL-FAILED line with no UP after it is a problem: show when it happened and the cause the log gives, and propose the fix. UNLOCK lines (a stale lock removed) are shown only when asked. HOLD on means a stop on purpose: the watcher restarts nothing until `start-servers.ps1` runs.
+- Server history: the last lines of `~/.claude/pult/logs/servers.log` (the health log, written by the watcher, see "Servers"). A HEAL line followed by UP is fixed: show it in one line as "впав о <time>, піднявся сам". A GIVEUP or HEAL-FAILED line with no UP after it is a problem: show when it happened and the cause the log gives, and propose the fix. UNLOCK lines (a stale lock removed) are shown only when asked. HOLD on means a stop on purpose: the watcher restarts nothing until `start-servers.ps1` runs.
 
 Status page: run `python {PLUGIN}/scripts/status-page.py` (read only; writes `~/.claude/pult/status.html`, all projects' sessions and open questions on one page) and send that file with SendUserFile, then give the reply below.
 
@@ -66,15 +66,18 @@ writes to `~/.claude/pult/logs/servers.log` (outside any repository): STATE, DOW
 crash event, UP. Each Remote Control server's window adds an EXIT line with its exit code. It fixes
 two mechanical problems itself, with no yes (the owner's yes, 2026-11-16):
 - An entry of `servers.psd1` down for two checks in a row: it runs `start-servers.ps1 -Only <name>`
-  (the same resume as at logon) and logs HEAL; at most 3 tries per hour per entry, then GIVEUP until
+  (the same resume as at logon) and logs HEAL (HEAL-FAILED with the script's words when it did not
+  start it); at most 3 tries per hour per entry, then GIVEUP until
   the entry is up again. It never touches a session outside the list (task sessions, owner
   sessions). `stop-servers.ps1` and `restart-leads.ps1` leave a hold file (`~/.claude/pult/hold`);
   while it exists the watcher restarts nothing (HOLD on); a full `start-servers.ps1` run removes it.
 - A dev-kit lock file whose owner is gone (`~/.claude/dev-kit/*/watch.lock`, `app.lock` of a removed
   worktree, leftover `app.lock.takeover` and `*.tmp`): removed, log UNLOCK.
 Everything else (GIVEUP, HEAL-FAILED, a lead that comes back and falls again) stays a problem Pult
-shows and proposes a fix for. To stop a lead or server for good, use `stop-servers.ps1`, never only
-`claude stop`: the watcher brings back a stopped entry when there is no hold.
+shows and proposes a fix for. A stop with only `claude stop` is undone by the watcher: `stop-servers.ps1`
+stops all entries until the next `start-servers.ps1` run; to retire one entry, remove its row from
+`servers.psd1` (the watcher reads the list when it starts). While a full `start-servers.ps1` run goes on,
+the watcher restarts nothing.
 
 ## Restart leads for a plugin update
 
