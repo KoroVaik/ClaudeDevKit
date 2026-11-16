@@ -21,6 +21,7 @@ Built (2026-11-16): first step, `plugins/pult/scripts/status-page.py`; the Pult 
 What: merge the watcher with server autorun so it fixes mechanical issues itself (dead server, stale queue locks) and keeps a health log the hub reads; the hub fixes the rest within its competence.
 Why: idea from the Pult repo, 2026-11; today the watcher only logs and the owner restarts by hand.
 Cheapest test: let the watcher restart one dead lead after the owner's yes and check the log lines.
+Built (2026-11-16, pult 0.1.4): `plugins/pult/scripts/watch-servers.ps1` restarts a dead lead or server of `servers.psd1` (HEAL, at most 3 an hour, paused by a hold file from `stop-servers.ps1` / `restart-leads.ps1`) and removes dev-kit locks whose owner is gone (UNLOCK); `rules/hub.md` says what Pult shows from the log. Tested on a throwaway lead; not yet seen on a real lead crash.
 
 ## Pult: phone notification from a script
 

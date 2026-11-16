@@ -14,23 +14,33 @@
 # Keep this file saved as UTF-8 with BOM: Windows PowerShell 5.1 misreads Cyrillic otherwise.
 # -Restarted: names of leads that restart-leads.ps1 stopped for a plugin update; when resumed, their
 # first prompt carries the restart note (resume-lib.ps1, $RestartNote).
-param([string[]]$Restarted)
+# -Only: start only these entries and nothing else (no watcher start, hold kept); watch-servers.ps1
+# uses it to bring back a dead one. -ConfigFile and -StateDir point at another server list and state
+# folder (for tests with a throwaway lead; defaults: servers.psd1 and ~\.claude\pult).
+# A full run (no -Only) removes the hold file that stop-servers.ps1 and restart-leads.ps1 leave.
+param([string[]]$Restarted, [string[]]$Only, [string]$ConfigFile, [string]$StateDir)
 $Restarted = @($Restarted | ForEach-Object { $_ -split ',' } | ForEach-Object { $_.Trim() } | Where-Object { $_ })  # -File passes one comma-joined string
+$Only = @($Only | ForEach-Object { $_ -split ',' } | ForEach-Object { $_.Trim() } | Where-Object { $_ })
+if (-not $ConfigFile) { $ConfigFile = Join-Path $PSScriptRoot 'servers.psd1' }
+if (-not $StateDir) { $StateDir = Join-Path $env:USERPROFILE '.claude\pult' }  # outside the plugin folder
 . (Join-Path $PSScriptRoot 'resume-lib.ps1')
-$projects = (Import-PowerShellDataFile (Join-Path $PSScriptRoot 'servers.psd1')).Servers
+$projects = (Import-PowerShellDataFile $ConfigFile).Servers
 foreach ($p in $projects) { if ($p.Hub) { $p.Path = $env:USERPROFILE } }  # the hub server runs in the home folder
-$logDir = Join-Path $env:USERPROFILE '.claude\pult\logs'  # outside the plugin folder
+if ($Only) { $projects = @($projects | Where-Object { $Only -ccontains $_.Session }) }
+$logDir = Join-Path $StateDir 'logs'
 New-Item -ItemType Directory -Force $logDir | Out-Null
 $log = Join-Path $logDir 'servers.log'
 function Write-Log($msg) {
     Add-Content -LiteralPath $log -Encoding UTF8 -Value ('{0} {1}' -f (Get-Date -Format s), $msg)
 }
-Write-Log 'START-SCRIPT run'
+if ($Only) { Write-Log "START-SCRIPT run for $($Only -join ', ')" } else { Write-Log 'START-SCRIPT run' }
+$hold = Join-Path $StateDir 'hold'
+if (-not $Only -and (Test-Path $hold)) { Remove-Item -LiteralPath $hold -Force; Write-Log 'HOLD off' }
 
-# The watcher only logs; it never starts or stops anything.
+# The watcher restarts a dead entry of the list (watch-servers.ps1).
 $watching = Get-CimInstance Win32_Process -Filter "Name='powershell.exe'" |
     Where-Object { $_.CommandLine -like '*watch-servers.ps1*' }
-if (-not $watching) {
+if (-not $Only -and -not $watching) {
     Start-Process powershell.exe -WindowStyle Hidden -ArgumentList '-NoProfile', '-ExecutionPolicy',
         'Bypass', '-File', "`"$(Join-Path $PSScriptRoot 'watch-servers.ps1')`""
     Write-Output 'Started: watcher'
@@ -57,11 +67,15 @@ foreach ($p in $projects) {
         # Continue the previous conversation of this lead when one exists (stopped or finished).
         $resumeId = $null
         try { $resumeId = Get-ResumeSessionId $sessionName $p.Path } catch { Write-Output "Could not look up a session to resume: $_" }
+        $opt = @{}  # optional per-lead Prompt, Model, Effort from the server list
+        foreach ($k in 'Prompt', 'Model', 'Effort') { if ($p[$k]) { $opt[$k] = $p[$k] } }
+        $model = @{}
+        foreach ($k in 'Model', 'Effort') { if ($p[$k]) { $model[$k] = $p[$k] } }
         if ($resumeId) {
-            try { if (Set-LeadRespawnModel $sessionName $resumeId) { Write-Log "MODEL $sessionName $LeadModel/$LeadEffort" } }
+            try { if (Set-LeadRespawnModel $sessionName $resumeId @model) { Write-Log "MODEL $sessionName $(if ($p.Model) { $p.Model } else { $LeadModel })/$(if ($p.Effort) { $p.Effort } else { $LeadEffort })" } }
             catch { Write-Output "Could not set the lead's model: $_" }
         }
-        $leadArgs = Get-LeadStartArgs $sessionName $resumeId -Restarted:($Restarted -ccontains $sessionName)
+        $leadArgs = Get-LeadStartArgs $sessionName $resumeId -Restarted:($Restarted -ccontains $sessionName) @opt
         claude @leadArgs | Select-Object -First 1
         Pop-Location
         if ($resumeId) {

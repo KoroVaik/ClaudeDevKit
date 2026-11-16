@@ -2,7 +2,8 @@
 # would: the server shuts down its sessions and keeps them for the next start.
 # Never kill these processes: a forced stop can lock the project folder for minutes.
 # Usage: run without parameters. It refuses while a session under a server's folder is busy;
-# -Force stops anyway, -CheckOnly only lists busy sessions. -TargetPid is internal (the helper
+# -Force stops anyway, -CheckOnly only lists busy sessions. It leaves a hold file
+# (~\.claude\pult\hold) so the watcher does not restart them; start-servers.ps1 removes it. -TargetPid is internal (the helper
 # that types Ctrl-C).
 
 param([int]$TargetPid = 0, [switch]$Force, [switch]$CheckOnly)
@@ -72,6 +73,12 @@ if (-not $Force) {
     }
     if ($CheckOnly) { Write-Output 'No busy sessions.'; exit 0 }
 }
+
+# Hold the watcher (watch-servers.ps1) so it does not bring back what is stopped on purpose; the next
+# full start-servers.ps1 run removes the hold.
+$stateDir = Join-Path $env:USERPROFILE '.claude\pult'
+New-Item -ItemType Directory -Force $stateDir | Out-Null
+Set-Content -LiteralPath (Join-Path $stateDir 'hold') -Encoding UTF8 -Value "stop-servers.ps1 $(Get-Date -Format s)"
 
 # Project leads "P: <name>" are background sessions: stop them through Claude (conversation kept).
 try {

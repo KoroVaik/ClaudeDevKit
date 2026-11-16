@@ -24,7 +24,7 @@ Traps (checked 2026-11-14):
 - Pult server alive: a running `claude.exe` process whose command line has ` remote-control ` and "Pult" (PowerShell `Get-CimInstance Win32_Process -Filter "Name='claude.exe'"`).
 
 - Names shown to the owner: the hub's own session (cwd = the home folder) has a system name like «<user>-f1» in `claude agents --json`. Never show that name to the owner; sessions in the home folder are «Pult».
-- Server history: the last lines of `~/.claude/pult/logs/servers.log` (written by the watcher, see "Servers"). A DOWN or EXIT line since the last start is a problem: show when it happened and the cause the log gives.
+- Server history: the last lines of `~/.claude/pult/logs/servers.log` (the health log, written by the watcher, see "Servers"). A DOWN or EXIT line followed by HEAL and UP is fixed: show it in one line as "впав о <time>, піднявся сам". A GIVEUP or HEAL-FAILED line with no UP after it is a problem: show when it happened and the cause the log gives, and propose the fix. UNLOCK lines (a stale lock removed) are shown only when asked. HOLD on means a stop on purpose: the watcher restarts nothing until `start-servers.ps1` runs.
 
 Status page: run `python {PLUGIN}/scripts/status-page.py` (read only; writes `~/.claude/pult/status.html`, all projects' sessions and open questions on one page) and send that file with SendUserFile, then give the reply below.
 
@@ -63,8 +63,18 @@ quote; the script escapes it and uses Opus, medium.
 
 `{PLUGIN}/scripts/watch-servers.ps1` (started by `start-servers.ps1`, hidden) checks every minute and
 writes to `~/.claude/pult/logs/servers.log` (outside any repository): STATE, DOWN with the session's last state and any
-crash event, UP. Each Remote Control server's window adds an EXIT line with its exit code. The
-watcher only logs; it never restarts anything.
+crash event, UP. Each Remote Control server's window adds an EXIT line with its exit code. It fixes
+two mechanical problems itself, with no yes (the owner's yes, 2026-11-16):
+- An entry of `servers.psd1` down for two checks in a row: it runs `start-servers.ps1 -Only <name>`
+  (the same resume as at logon) and logs HEAL; at most 3 tries per hour per entry, then GIVEUP until
+  the entry is up again. It never touches a session outside the list (task sessions, owner
+  sessions). `stop-servers.ps1` and `restart-leads.ps1` leave a hold file (`~/.claude/pult/hold`);
+  while it exists the watcher restarts nothing (HOLD on); a full `start-servers.ps1` run removes it.
+- A dev-kit lock file whose owner is gone (`~/.claude/dev-kit/*/watch.lock`, `app.lock` of a removed
+  worktree, leftover `app.lock.takeover` and `*.tmp`): removed, log UNLOCK.
+Everything else (GIVEUP, HEAL-FAILED, a lead that comes back and falls again) stays a problem Pult
+shows and proposes a fix for. To stop a lead or server for good, use `stop-servers.ps1`, never only
+`claude stop`: the watcher brings back a stopped entry when there is no hold.
 
 ## Restart leads for a plugin update
 
@@ -99,7 +109,7 @@ lead re-asks its C sessions for missed reports after the restart (the project-le
 - Exception held by this project: read other projects' status files (PROGRESS.md and similar) and session state.
 - Never change them during "статус". An edit in another repo, after the owner's yes, goes
   through the `other-repo-editor` subagent (global rule "Stay in the session's project"). Never start or stop sessions without the owner's explicit yes (one exception: "Restart leads for a plugin update").
-- On a problem (dead server, session over its limit, stuck session) only propose a fix. Act after the owner's explicit yes, and only on that fix.
+- On a problem (a server the watcher gave up on, session over its limit, stuck session) only propose a fix. Act after the owner's explicit yes, and only on that fix.
 - Use only read-only commands for "статус".
 
 ## Session title

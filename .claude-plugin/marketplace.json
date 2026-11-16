@@ -23,7 +23,7 @@
     {
       "name": "pult",
       "source": "./plugins/pult",
-      "description": "Hub across projects: starts the project leads, runs a Remote Control server in the home folder and reports read-only status"
+      "description": "Hub across projects: starts the project leads, brings back a dead lead or server, runs a Remote Control server in the home folder and reports read-only status"
     }
   ]
 }

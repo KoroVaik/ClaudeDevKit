@@ -20,6 +20,11 @@ $Name = @($Name | ForEach-Object { $_ -split ',' } | ForEach-Object { $_.Trim() 
 if ($Name) { $leads = @($leads | Where-Object { $Name -ccontains $_ }) }
 if (-not $leads) { Write-Output 'No matching leads.'; exit 1 }
 
+# Hold the watcher (watch-servers.ps1) while the leads are down on purpose; start-servers.ps1 below
+# removes the hold.
+$stateDir = Join-Path $env:USERPROFILE '.claude\pult'
+New-Item -ItemType Directory -Force $stateDir | Out-Null
+Set-Content -LiteralPath (Join-Path $stateDir 'hold') -Encoding UTF8 -Value "restart-leads.ps1 $(Get-Date -Format s)"
 $sessions = @(claude agents --json | Out-String | ConvertFrom-Json) | ForEach-Object { $_ }
 $stopped = @()
 foreach ($lead in $leads) {
