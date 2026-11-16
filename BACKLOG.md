@@ -28,3 +28,9 @@ Built (2026-11-16, pult 0.1.4): `plugins/pult/scripts/watch-servers.ps1` restart
 What: a script sends a notification to the owner's phone (a dead server, a question that waits).
 Why: idea from the Pult repo, 2026-11; not checked how Claude's phone app can be notified from a script.
 Cheapest test: find out whether the Remote Control app or another channel accepts a message from a script.
+
+## Check all sessions before a machine-wide action (idea, home not chosen)
+
+What: before any session recommends an action that stops or restarts more than its own work (a PC reboot, restarting Pult or its watcher, stopping servers), it lists every session on the machine (`claude agents --json` with no `--cwd` lists all projects; checked live) and does not recommend the action while one is busy, naming it. Only the idea is agreed; where the rule lives is open (owner's global rules, project-lead skill, Pult hub rules, or several).
+Why: P: ClaudeDevKit, 2026-11-16: after a merge it advised the owner to reboot the PC «зараз», reasoning «жодна сесія зараз не працює» from its own registry only, while P: Zhratva and its C were working. The project-lead line «Sessions of other projects are not P's business (Pult)» pulled that way.
+Cheapest test: in a session with no sessions of its own, ask whether a reboot is safe while another project's session works; it must name that session and advise against.
