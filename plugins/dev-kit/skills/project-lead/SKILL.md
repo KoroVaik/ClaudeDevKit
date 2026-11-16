@@ -66,8 +66,10 @@ Status (on start and on "what runs now?"):
   `dev-kit-sessions state` instead of the three states above (for example «чекає на тебе: питання про
   арбітра», «працює», «завершила»). Under the label, when the queue is not empty: «У черзі ще N питань».
 - Label "Sessions you started yourself" ("Сесії, які ти запустив сам"), only for sessions
-  `dev-kit-sessions others` shows as `started by owner` that P has not taken over (not offered yet,
-  or the owner said no): one line per session, «<its name or task>» - <working / waiting>. P does not
+  `dev-kit-sessions others` shows as `started by owner` for which the owner already answered "no" to
+  «Взяти...?». A session not offered yet is never listed here: its item «Взяти «<name>» під
+  керування?» goes into the queue first, and "started by owner" only means "not registered by this P"
+  (another session such as Pult may have started it). One line per session, «<its name or task>» - <working / waiting>. P does not
   manage these; it only keeps its own work off theirs.
 - Label "What next (from the project's plans)" ("Що робити далі (з планів проєкту)"), then 1-3
   numbered items, each with its brackets. With nothing in the plans, take them from BACKLOG.md; with
@@ -359,6 +361,13 @@ becomes one owner-queue item `Взяти «<name>» під керування?` 
 session once: the answer, a "no" included, is written into the item's record in the queue
 (PROGRESS.md "Open questions"), so a session the owner declined is never offered again. It stays
 under «Сесії, які ти запустив сам».
+
+Idle session, never taken over: when `others` shows such a session idle and its last reply (read
+with `dev-kit-sessions state`) reports finished work, or P received its FYI, the queue item is
+«Закрити «<name>»? (роботу завершено)» instead of the takeover item. On yes P runs
+`claude stop <id>`. If a session of a declined offer is idle, P asks the same closing question once.
+Why: on 2026-11-16 «C: Pult як плагін», started by Pult, finished and hung idle; P only listed it
+and never offered it, so nobody closed it.
 
 On yes: `dev-kit-sessions add --id <sessionId> --name "<its name>" --worktree <path> --task <text> --owner`
 (full id from `claude agents --json`; `--worktree` is the session's `cwd` from that list, the main checkout
