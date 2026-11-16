@@ -271,6 +271,17 @@ class SessionsTestCase(unittest.TestCase):
         self.assertEqual("gone: C: dead | c2-dead-session | not in the session list\n", out)
         self.assertFalse(self.lock().exists())
 
+    def test_watch_and_state_report_stopped_and_missing_sessions_as_gone(self):  # Rule
+        self.add("c1-stopped-session", name="C: stopped")
+        self.add("c2-missing-session", name="C: missing")
+        self.listing([{"sessionId": "c1-stopped-session", "state": "stopped"}])
+        gone = sessions.gone_sessions([("C: stopped", "c1-stopped-session"), ("C: missing", "c2-missing-session")],
+                                      sessions.agents_list(include_ended=True))
+        self.assertEqual([("C: stopped", "c1-stopped-session", "stopped"),
+                          ("C: missing", "c2-missing-session", "not in the session list")], gone)
+        self.assertEqual(["C: stopped | c1-stopped-session | gone | (no reply text)",
+                          "C: missing | c2-missing-session | gone | (no reply text)"], self.state_lines())
+
     def test_watch_missing_session_and_short_ids(self):
         self.listing([{"sessionId": "aaaaaaaa-1111", "name": "C: a", "pid": 1, "state": "done"}])
         code, out = self.run_main("watch", "--id", "aaaaaaaa", "--id", "bbbbbbbb", "--interval", "0")

@@ -32,7 +32,7 @@ transcript, read from the end of the file. Status comes from `claude agents --js
 registry id by `id`, `sessionId` or a sessionId prefix): `finished` when that last reply has a line that, trimmed and
 without trailing punctuation, is one of FINISHED_MARKERS and no owner message came after it, and only for a record
 added with `--owner` (a C never reports finished); else `gone` when no
-matching entry has a `pid`; `working` when the status is busy; else `waiting`. Exit 3 when the list cannot be read.
+matching entry has a `pid` (a session with none is closed, see `watch`); `working` when the status is busy; else `waiting`. Exit 3 when the list cannot be read.
 
 `watch` waits in silence while the watched sessions live and exits with one line when one is gone or finished (the
 last reply has the finished marker, see `state`), so a caller that
@@ -487,6 +487,7 @@ def is_owner(records, wanted):
     """Whether the registry record of this id (full or 8+ char prefix) is an owner session."""
     record = resolve(records, wanted)
     return record is not None and record.get("owner") is True
+
 
 
 def session_state(agents, wanted, owner):
