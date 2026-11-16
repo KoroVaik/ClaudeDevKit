@@ -56,3 +56,5 @@ To P: projects without a lead (KnowledgeBase, Zhratva-design-sandbox, the old Pu
   is the approval, as in migrate-docs); entries applied in order, an owner-choice entry waits for P's answer.
   The plugin repo itself has no profile yet, so its lead's first check starts a migration C for entry 1.
 - Paid spend: $0.
+- After merging main (pult 0.1.5: Pult uses no other-repo-editor), the urgent all-project path in the skill
+  now points to Pult starting a session in each project, not to other-repo-editor.

@@ -303,8 +303,8 @@ line, as a critical item, and starts nothing.
   not apply entries itself.
 - The recorded number reaches main with P's merge (see "Acceptance and merge"); until then `pending`
   still lists the entries.
-- Urgent edits needed in every project at once are not entries: the owner's local `other-repo-editor`
-  makes them, launched from Pult.
+- Urgent edits needed in every project at once are not entries: Pult starts a session in each project
+  for them (the `pult` plugin's hub rules).
 
 Why: the owner agreed on 2026-11-16 that a change every project needs is written once in dev-kit and
 each lead applies it under its own project's rules, with no agent editing other projects.
