@@ -83,6 +83,7 @@ in the UI design standard, platform rules in the engineering standard, product p
 - **Review.** When feature rules are added, removed or rewritten, `dev-kit:reviewer`, model sonnet,
   checks the file: glossary names, no contradiction with other features, the epic or the standards, no
   technical detail, nothing stale. Small wording fixes need no review.
+- **Agent rules.** Edits of `CLAUDE.md`, `.claude/`, skills and agents follow `dev-kit:edit-rules`.
 
 Tech files follow the code. When interdependent parts share code (two frontends, an API and a worker),
 one shared tech file holds what they share and one file per part holds what belongs only to it; a change

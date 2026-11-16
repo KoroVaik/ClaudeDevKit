@@ -29,7 +29,9 @@ assumptions as assumptions.
   test rules say.
 - If the change needs a decision the brief did not make (old behaviour or data, schema), stop and
   report it instead of choosing.
-- Do not edit docs, progress files or agent files unless the brief names them.
+- Do not edit docs, progress files or agent files unless the brief names them. A rule edit
+  (`dev-kit:edit-rules`) goes only into the home the brief names; report any other place in the
+  touched files that now repeats or contradicts it.
 
 Return briefly: what changed and where (`file:line`), why, risks to behaviour and stored data,
 the tests you added with their mark, the checks you ran with their real result, and which checks

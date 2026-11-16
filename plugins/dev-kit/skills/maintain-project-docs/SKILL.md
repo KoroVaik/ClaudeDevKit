@@ -15,7 +15,8 @@ The audit measures the docs against the `dev-kit:documentation` skill and the pr
 rules and this skill does not restate them. Apply the language and approval rules in the project's
 `CLAUDE.md`. Read the profile section `## maintain-project-docs` of `.claude/dev-kit.md` if it exists; it
 adds to these steps and overrides them. The audit may edit any docs, agent rules and skills, but only
-after the owner's yes on the proposed list (step 3); it never changes code or data, a problem found there
+after the owner's yes on the proposed list (step 3); edits of agent rules and skills follow
+`dev-kit:edit-rules`. It never changes code or data, a problem found there
 is reported.
 
 ## 1. Mechanical part
@@ -64,7 +65,8 @@ name before putting a finding in the list. Subagents do not edit.
 ## 3. Propose, wait, edit
 
 State a concrete change list: per item the file, the passage, the proposed change and why,
-plus the success criterion (the "Before finishing" rule of the standard). Wait for the owner's
+plus the success criterion (the "Before finishing" rule of the standard). An edit of agent rules or
+skills is shown to the owner as one plain idea line, as `dev-kit:edit-rules` step 3 says. Wait for the owner's
 explicit yes before editing; a directly specified edit needs no repeat approval. Deleting a whole file
 or discarding unique evidence needs its own explicit yes. Age alone does not prove a claim obsolete:
 check it against the code or the evidence.

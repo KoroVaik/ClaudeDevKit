@@ -156,7 +156,7 @@ The `run-app` and `stop-app` slots of a profile may list several commands, one r
 `plugins/dev-kit/scripts/run_app.py`) runs the run-app commands in order, `dev-kit-app stop` the stop-app
 commands in reverse, `dev-kit-app list` shows both. The plugin only sequences the project's commands: what may be
 stopped (the owner's processes) is decided by the project's own helpers. The skills that start the application
-run the teardown before the task ends. The rules: `plugins/dev-kit/slots.md`.
+run the teardown when the owner says the work is done, or at a handoff. The rules: `plugins/dev-kit/slots.md`.
 
 ## Working with the project lead (P)
 

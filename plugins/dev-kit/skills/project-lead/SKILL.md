@@ -535,7 +535,7 @@ changes there and message `P: ClaudeDevKit` (`dev-kit:manager`, "A change to the
 P has no timer. On start and on every wake-up, a new entry is one with no `Verdict:` line; P names the
 new entries in its status.
 
-After merging work that bumps the `dev-kit` version (a C's merge or the `dev-kit:coder` commit below),
+After merging work that bumps the `dev-kit` version (a C's merge or P's backlog commit below),
 P sends the Pult hub one SendMessage: «Злито dev-kit <version>; перезапусти керівників.» The hub is
 the session whose cwd is exactly the home folder (from `claude agents --json`; the newest one if several).
 Its system name, e.g. «korov-f1», is not «Pult»: P sends to it by the name `ListAgents` shows for it, but in
@@ -544,11 +544,13 @@ leads still run the old version. Pult then runs the handshake of "Restart for a 
 every lead, this P included.
 
 - Up to 3 new entries, all simple (one place in one skill, agent or doc, no clash with other rules):
-  one `dev-kit:reviewer` reviews them together and returns, per entry, a recommendation with its reason
-  and the exact edit. P writes each recommendation as a `Verdict:` line under its entry and asks the
-  owner a yes/no batch. On "так" one `dev-kit:coder` applies the edits, bumps the plugin version, runs
-  the lint, removes the built entries and commits; on "ні" P removes the entry. This is P's one
-  exception to "no task work".
+  one `dev-kit:reviewer`, whose brief carries steps 1-2 of `dev-kit:edit-rules`, reviews them together
+  and returns, per entry, a recommendation with its reason, the idea in one plain line and the exact
+  edit. P writes each recommendation as a `Verdict:` line under its entry and asks the owner a yes/no
+  batch on the ideas, not the wording. On "так" one `dev-kit:coder` applies the edits, bumps the plugin
+  version, runs the lint and removes the built entries; P runs steps 5-6 of `dev-kit:edit-rules` on the
+  diff and commits. On "ні" P removes the entry. This is P's one exception to "no task work"; any other
+  rule edit P makes follows `dev-kit:edit-rules` too.
 - A complex entry (several files, the P/C flow, a new skill or script), more than 3 new entries, or
   an entry the owner wants to discuss rather than answer yes/no: one C for the whole batch, started
   as in "Start a C".

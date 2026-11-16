@@ -34,3 +34,33 @@ note agree); then the reviewer agent checks the result.
 - One dry run on a real earlier rule edit from this repo's history shows it would catch a duplicate or a
   conflict.
 - Lint passes; dev-kit version bumped.
+
+## Owner decision via P (2026-11-16)
+
+«мені не треба дослівне правило, я апрувлю тіки ідею, щоб не читати полотна тексту які корисні агентам».
+The owner sees each rule edit as one plain line on what will behave differently and says yes to that idea; the
+exact wording goes to the owner only on request; the reviewer step also checks that the wording matches the
+approved idea. Keep dev-kit consistent with the global `docs/process-mistakes.md`, which already says this.
+
+## Work log
+
+- Home: a new skill `dev-kit:edit-rules` (it must trigger from many places and for P's and the owner's own
+  edits, so a section inside one skill would not load where needed).
+- Dry-run case found: 7dc6468 added the stop-app rule to 5 skill files although `slots.md` already held it
+  for all skills (duplicate); 1329358 reworded six of them and missed `README.md:159`, still stale at HEAD.
+- Found on the way: project-lead's backlog flow says the `dev-kit:coder` commits, but `agents/coder.md` says
+  it never commits (conflict). Fixed here: P commits.
+- Paid spend: $0 (subagents only on the plan).
+- Linked from: manager (size check, skill table, project's own rule files), documentation (Agent rules bullet),
+  project-lead backlog flow (reviewer brief carries steps 1-2, P runs 5-6 and commits), maintain-project-docs,
+  migrate-docs, coder and mechanical-editor agents. `README.md:159` stale stop-app line fixed.
+- Dry run (blind sonnet investigator, steps 1-2 and 5 on 7dc6468 at its parent): found the stop-app sentence
+  copied into four skills while `slots.md` holds it, the README restatement, and a web-kit browser-checks gap;
+  verdict "yes, the procedure would have changed this commit". Its unclear points (missing files, unbounded
+  read set, home tie-break, one idea line per behaviour) are fixed in the skill text.
+- Review (sonnet reviewer): wrong Why-line fact, maintain-project-docs step 3 conflict, migrate-docs link
+  missing, subagent cannot run a skill - all fixed. Left: stop-app wording still drifts slightly between
+  manager, fix-bug, new-feature and slots.md (pre-existing, outside this task); settings deny lines in
+  project-lead are shown with exact lines (config, not rule prose; left as is).
+- Optional follow-up for P/owner: the global `docs/process-mistakes.md` could point to `dev-kit:edit-rules`
+  once dev-kit is enabled in the home folder (global file, needs P's yes; not done).
