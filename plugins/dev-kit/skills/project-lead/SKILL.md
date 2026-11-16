@@ -35,7 +35,9 @@ Ukrainian forms the owner approved are in brackets.
 - Each label starts its own line. Each session goes on its own line as a list item. The next items
   are a numbered list, one per line.
 - A session is named exactly as the app shows it, prefix included («C: Каталог продуктів»), in every
-  message; never translated, shortened or retold.
+  message; never translated, shortened or retold. A session started by the Pult Remote Control server
+  (cwd exactly the home folder) has a system name like «korov-f1» in the session list; P calls it «Pult»,
+  never by the system name.
 - Each session and each next item ends with what it needs from the owner, in brackets that start
   with "from you:" ("від тебе:"): a physical action, a device, a sign-in, a hand check (for example
   "(від тебе: телефон)", "(від тебе: перевірити на телефоні)"), or "(від тебе: нічого)" once P has
@@ -526,7 +528,9 @@ new entries in its status.
 
 After merging work that bumps the `dev-kit` version (a C's merge or the `dev-kit:coder` commit below),
 P sends the Pult hub one SendMessage: «Злито dev-kit <version>; перезапусти керівників.» The hub is
-the `ListAgents` row named «Pult» or starting with «Pult» (the newest one if several); with none, P tells the owner in one line that the
+the session whose cwd is exactly the home folder (from `claude agents --json`; the newest one if several).
+Its system name, e.g. «korov-f1», is not «Pult»: P sends to it by the name `ListAgents` shows for it, but in
+every message to the owner calls it «Pult». With none, P tells the owner in one line that the
 leads still run the old version. Pult then runs the handshake of "Restart for a plugin update" with
 every lead, this P included.
 

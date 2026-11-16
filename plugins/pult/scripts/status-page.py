@@ -13,6 +13,7 @@ instead of running the command (for tests). Exit code 2 when the session list ca
 import argparse
 import html
 import json
+import os
 import re
 import shutil
 import subprocess
@@ -82,6 +83,21 @@ def state_of(agent):
     if state == "done":
         return "done"
     return "idle"
+
+
+def is_home(cwd):
+    """True when cwd is exactly the home folder (where the Pult hub runs)."""
+    try:
+        return bool(cwd) and os.path.normcase(Path(cwd).resolve()) == os.path.normcase(Path.home().resolve())
+    except OSError:
+        return False
+
+
+def display_name(agent):
+    """The hub's Remote Control session has a system name like "korov-f1"; the owner sees it as "Pult" in the app."""
+    if is_home(agent.get("cwd")):
+        return "Pult"
+    return agent.get("name") or "(без назви)"
 
 
 def under(child, parent):
@@ -172,7 +188,7 @@ def render(leads, agents, now_ms):
                 f"папка {where}" if where else "",
                 f"почата {age_text(agent.get('startedAt'), now_ms)} тому" if agent.get("startedAt") else "",
             ) if x)
-            rows.append(f'<li><span class="tag {css}">{label}</span>{html.escape(agent.get("name") or "(без назви)")}'
+            rows.append(f'<li><span class="tag {css}">{label}</span>{html.escape(display_name(agent))}'
                         f'<div class="meta">{html.escape(meta)}</div></li>')
         return "<ul>" + "".join(rows) + "</ul>"
 

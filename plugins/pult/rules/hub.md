@@ -23,6 +23,7 @@ Traps (checked 2026-11-14):
 - P alive: `claude agents --json --cwd <project path>` lists a live background session named "P: <project>" (the same check `start-servers.ps1` uses). None means P is down.
 - Pult server alive: a running `claude.exe` process whose command line has ` remote-control ` and "Pult" (PowerShell `Get-CimInstance Win32_Process -Filter "Name='claude.exe'"`).
 
+- Names shown to the owner: the hub's own session (cwd = the home folder) has a system name like «<user>-f1» in `claude agents --json`. Never show that name to the owner; sessions in the home folder are «Pult».
 - Server history: the last lines of `~/.claude/pult/logs/servers.log` (written by the watcher, see "Servers"). A DOWN or EXIT line since the last start is a problem: show when it happened and the cause the log gives.
 
 Status page: run `python {PLUGIN}/scripts/status-page.py` (read only; writes `~/.claude/pult/status.html`, all projects' sessions and open questions on one page) and send that file with SendUserFile, then give the reply below.
