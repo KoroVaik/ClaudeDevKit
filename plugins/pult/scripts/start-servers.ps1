@@ -12,6 +12,10 @@
 # The list of servers is servers.psd1 (shared with watch-servers.ps1).
 # Every start and every server exit (with its exit code) goes to ~\.claude\pult\logs\servers.log.
 # Keep this file saved as UTF-8 with BOM: Windows PowerShell 5.1 misreads Cyrillic otherwise.
+# -Restarted: names of leads that restart-leads.ps1 stopped for a plugin update; when resumed, their
+# first prompt carries the restart note (resume-lib.ps1, $RestartNote).
+param([string[]]$Restarted)
+$Restarted = @($Restarted | ForEach-Object { $_ -split ',' } | ForEach-Object { $_.Trim() } | Where-Object { $_ })  # -File passes one comma-joined string
 . (Join-Path $PSScriptRoot 'resume-lib.ps1')
 $projects = (Import-PowerShellDataFile (Join-Path $PSScriptRoot 'servers.psd1')).Servers
 foreach ($p in $projects) { if ($p.Hub) { $p.Path = $env:USERPROFILE } }  # the hub server runs in the home folder
@@ -57,7 +61,7 @@ foreach ($p in $projects) {
             try { if (Set-LeadRespawnModel $sessionName $resumeId) { Write-Log "MODEL $sessionName $LeadModel/$LeadEffort" } }
             catch { Write-Output "Could not set the lead's model: $_" }
         }
-        $leadArgs = Get-LeadStartArgs $sessionName $resumeId
+        $leadArgs = Get-LeadStartArgs $sessionName $resumeId -Restarted:($Restarted -ccontains $sessionName)
         claude @leadArgs | Select-Object -First 1
         Pop-Location
         if ($resumeId) {

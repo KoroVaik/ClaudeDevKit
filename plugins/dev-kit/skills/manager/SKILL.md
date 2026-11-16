@@ -38,6 +38,9 @@ nothing: the merge is P's step, so the owner sees in this chat why the session c
   this C: it fixes in the task file how the parts fit, then runs parallel subagents. A C never starts
   sessions of its own.
 - A hard ban (a deny rule in the project's settings) is never edited or worked around.
+- A SendMessage to P that fails with "not reachable" means P is being restarted. The C keeps the
+  report and goes on with its work; P asks for missed reports after its restart, and the C then sends
+  the report again.
 - A session named «Обговорення: ...» is the exception: it talks with the owner directly, settles the
   meaning of the page and the mockups through `dev-kit:discovery-round` and the `show-idea` slot, ends
   with acceptance criteria and the approved mockup in the feature file, reports done to P and builds

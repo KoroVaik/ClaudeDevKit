@@ -1,6 +1,6 @@
 {
   "name": "pult",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Hub across projects: starts the project leads, runs a Remote Control server in the home folder and reports read-only status",
   "author": { "name": "KoroVaik" }
 }

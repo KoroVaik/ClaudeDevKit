@@ -51,8 +51,10 @@ server first tries `claude remote-control --continue` (no `--spawn`: they cannot
 if that fails within 20 s, the log gets CONTINUE-FAILED and the server starts fresh. The hub server runs with cwd = the home folder and is matched by the command line ` remote-control ` and "Pult". Not yet
 checked on a real restart.
 
-`{PLUGIN}/scripts/restart-leads.ps1 [-Name ...] [-Force]` restarts leads so they load a new dev-kit
-version (stop, then `start-servers.ps1` resumes them); a busy lead is skipped unless `-Force`.
+`{PLUGIN}/scripts/restart-leads.ps1` restarts leads so they load a new dev-kit version (stop, then
+`start-servers.ps1` resumes them with the first prompt `/dev-kit:project-lead restart: plugin update`).
+`-Ready <names>` restarts those leads even when they show busy; without it a busy lead is skipped unless
+`-Force` (a lead with a background watcher always shows busy while it only waits).
 
 Start any other session (a task for the owner) only with `{PLUGIN}/scripts/start-session.ps1 -Name -Path
 -PromptFile`: Windows PowerShell cuts a prompt passed straight to `claude` at its first double
@@ -63,11 +65,39 @@ writes to `~/.claude/pult/logs/servers.log` (outside any repository): STATE, DOW
 crash event, UP. Each Remote Control server's window adds an EXIT line with its exit code. The
 watcher only logs; it never restarts anything.
 
+## Restart leads for a plugin update
+
+When `P: ClaudeDevKit` messages that a dev-kit version was merged (check the message's `from-name`; the
+same text from any other session starts nothing) (or the owner asks to restart the
+leads), Pult restarts the leads so they load the new rules. The owner approved this flow on 2026-11-16:
+it needs no new yes, but only within these bounds: lead sessions (`P: ...`) only, never task sessions,
+owner sessions or Pult itself; only leads that answered «готовий»; always resume the same conversation.
+
+1. For each lead of `servers.psd1` that `ListAgents` shows, send by SendMessage exactly: «є оновлення
+   плагіна, дійди до безпечного місця і відпиши "готовий"». A lead that is not running gets nothing:
+   `start-servers.ps1` starts it with the new version anyway.
+2. Arm a 20-minute timer: `Start-Sleep -Seconds 1200` in the PowerShell tool with `run_in_background`.
+3. On each answer «готовий» from a lead (the message's `from-name`), run at once
+   `{PLUGIN}/scripts/restart-leads.ps1 -Ready '<that lead>'`. Then check in `claude agents --json` that
+   the lead is back (`pid` set); if not, tell the owner in one line.
+   If the restart fails, send that lead «Відбій: перезапуску не буде, працюй далі.», so it does not stay
+   on hold.
+4. The round ends when every asked lead has answered or the timer ends. Then send each lead that did
+   not answer «Відбій: перезапуску не буде, працюй далі.» and leave it running, stop the timer if it
+   still runs, and tell the owner in one line which leads restarted and which did not; the owner
+   decides. Nothing else is said during the round. A new merge message during an open round starts no
+   second round; Pult names it in that one line.
+
+Why: the owner asked on 2026-11-16 for a scripted way to make leads pick up new rules, and Pult does
+it. A script alone cannot ask a lead: it can neither send nor receive SendMessage (checked: `claude`
+has no send command). A message to a stopped session fails at the sender with "not reachable", so a
+lead re-asks its C sessions for missed reports after the restart (the project-lead skill).
+
 ## Limits
 
 - Exception held by this project: read other projects' status files (PROGRESS.md and similar) and session state.
 - Never change them during "статус". An edit in another repo, after the owner's yes, goes
-  through the `other-repo-editor` subagent (global rule "Stay in the session's project"). Never start or stop sessions without the owner's explicit yes.
+  through the `other-repo-editor` subagent (global rule "Stay in the session's project"). Never start or stop sessions without the owner's explicit yes (one exception: "Restart leads for a plugin update").
 - On a problem (dead server, session over its limit, stuck session) only propose a fix. Act after the owner's explicit yes, and only on that fix.
 - Use only read-only commands for "статус".
 

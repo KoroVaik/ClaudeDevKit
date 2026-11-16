@@ -19,6 +19,7 @@ has it) and the `##` headings of the project's BACKLOG.md (if it has one). From 
 sections (for example "Next steps", "Top priorities", "In flight") P picks 1-3 items that do not wait
 on the owner, most important first, and replies with the Status template (see "Message templates").
 The desktop app folds that turn's tool calls into one line and shows the status below it.
+A first prompt with `restart: plugin update` skips this start status (see "Restart for a plugin update").
 If the owner's next message skips a question from the status, ask it again in one line; never
 "I asked you".
 
@@ -485,12 +486,49 @@ project files and the registry; the queue lives in PROGRESS.md "Open questions".
 the wake-up checks (fill, registry against the session list) and sends the status. C reports reach P
 by name; a background watcher may not survive `/clear`, so P arms it again.
 
+## Restart for a plugin update
+
+Pult restarts the leads after a plugin update so they load the new skills, agents and hooks (the
+owner's request of 2026-11-16). The restart resumes the same conversation; only the session process
+is new.
+
+- Handshake: Pult sends «є оновлення плагіна, дійди до безпечного місця і відпиши "готовий"». From
+  then P starts no new step (no new C, no merge, no new subagent). A step already running is brought
+  to a point where a stop breaks nothing: a merge and its clean-up are finished, an edit P began is
+  committed, a running subagent is waited for. C sessions keep working on their own. Then P answers
+  Pult by SendMessage (to the message's `from` address) with one word: «готовий», and ends the turn
+  with no text to the owner. An owner message that arrives before the restart is answered after it.
+  The hold ends on «Відбій» from Pult, or by itself 30 minutes after «готовий» with no restart; P then
+  works as usual and says nothing about it.
+- First prompt after the restart: `/dev-kit:project-lead restart: plugin update`. P skips the start
+  status and goes on where it stopped: it reads this SKILL.md whole, notes the new version (see
+  "Wake-up") and runs `dev-kit-sessions fill`, `dev-kit-sessions others` and `dev-kit-sessions state`.
+  If the registry has an active session, P re-arms the watcher (see "Wake-up"). If that watcher exits at
+  once with `already watching`, the old one may have outlived the stop: P reads the holder's pid in
+  `watch.lock` next to the registry, stops that process and arms again. Then P sends each active C one SendMessage: «P перезапущено після
+  оновлення плагіна. Якщо твій звіт до P не дійшов (помилка "not reachable"), надішли його ще раз.»
+  An unfinished step from before the stop is finished now. P writes to the owner only what was
+  already due to them (a C report that waits, a critical item), in the usual templates; no message
+  about the restart itself.
+- A message to a stopped session fails at the sender with "No agent named ... is reachable" and is
+  not queued (checked live 2026-11-16 with a throwaway session); after the resume the same name
+  receives messages again. So a C report sent during the stop is not lost in silence: the C sees the
+  error, and P's resend request above catches it. A C that ended during the stop shows as `gone` to the
+  re-armed watcher; before the "stuck" template P checks its task file and branch for a finished
+  result, since its "done" report may have failed.
+
 ## Plugin backlog (plugin repo only)
 
 In the plugin repo (ClaudeDevKit) P also handles `BACKLOG.md`: agents in other projects add plugin
 changes there and message `P: ClaudeDevKit` (`dev-kit:manager`, "A change to the plugins themselves").
 P has no timer. On start and on every wake-up, a new entry is one with no `Verdict:` line; P names the
 new entries in its status.
+
+After merging work that bumps the `dev-kit` version (a C's merge or the `dev-kit:coder` commit below),
+P sends the Pult hub one SendMessage: «Злито dev-kit <version>; перезапусти керівників.» The hub is
+the `ListAgents` row named «Pult» or starting with «Pult» (the newest one if several); with none, P tells the owner in one line that the
+leads still run the old version. Pult then runs the handshake of "Restart for a plugin update" with
+every lead, this P included.
 
 - Up to 3 new entries, all simple (one place in one skill, agent or doc, no clash with other rules):
   one `dev-kit:reviewer` reviews them together and returns, per entry, a recommendation with its reason

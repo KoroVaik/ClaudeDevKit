@@ -17,11 +17,19 @@ function Get-ResumeSessionId([string]$Name, [string]$Path, $Sessions) {
         Select-Object -First 1 -ExpandProperty sessionId
 }
 
+# The note a lead gets after the skill name in its first prompt when it was restarted for a plugin
+# update (the project-lead skill, "Restart for a plugin update"). No double quotes: Windows
+# PowerShell cuts an argument passed to a native command at its first double quote.
+$RestartNote = 'restart: plugin update'
+
 # The command line (as an argument array for `claude`) that continues a lead, or starts it fresh.
-function Get-LeadStartArgs([string]$SessionName, [string]$SessionId) {
+# -Restarted adds $RestartNote to the first prompt of a resumed lead.
+function Get-LeadStartArgs([string]$SessionName, [string]$SessionId, [switch]$Restarted) {
     if ($SessionId) {
+        $prompt = '/dev-kit:project-lead'
+        if ($Restarted) { $prompt += ' ' + $RestartNote }
         # No flags besides the prompt: any flag makes claude start a copy instead of waking this one.
-        return @('--bg', '--resume', $SessionId, '--', '/dev-kit:project-lead')
+        return @('--bg', '--resume', $SessionId, '--', $prompt)
     }
     return @('--bg', '--remote-control', $SessionName, '--name', $SessionName,
         '--permission-mode', 'auto', '--model', $LeadModel, '--effort', $LeadEffort, '--', '/dev-kit:project-lead')
