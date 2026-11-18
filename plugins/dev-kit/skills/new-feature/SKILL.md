@@ -17,7 +17,7 @@ or a `Why:` line without the owner.
 ## 2. Brainstorm (when the design is open)
 
 Skip for small or fully specified changes (a bug-sized tweak, a step the plan already
-details), and when the feature file already holds acceptance criteria and an approved mockup from an
+details), and when the feature file already holds an «Approved design» section from an
 «Обговорення:» session (Why: 2026-11-15, the owner settled the meaning and the look there). Otherwise
 settle the design with the owner before proposing an implementation (in a session the project lead
 started, with P, see the manager skill):

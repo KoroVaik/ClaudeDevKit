@@ -13,7 +13,7 @@
 // Board mode: opens a generated mockup board (web-kit-mockups output) once, finds every [data-screen="<id>"] frame
 // (or only the ids after --screens) and writes <id>.png, the frame alone with no caption, arrow or note. Rebuilding the
 // board never breaks it: the ids come from the spec. Window size and device scale come from --size / --scale, else from
-// the profile (a line "window WxH ... device scale N" in its `## design-sandbox` section, else a `"size": "WxH",
+// the profile (a line "window WxH ... device scale N" in its `## design-screen` section (or the older `## design-sandbox`), else a `"size": "WxH",
 // "scale": N` line anywhere in it), else 1920x1080 at scale 2. A map screen (folded details) is opened for its shot.
 // Each line printed: "<absolute path> <width>x<height> | <id> | <branch title> | <step> | <caption>". A named id the board
 // does not have, or a board without data-screen (built by an older generator: rebuild it), exits 1 with a message.
@@ -65,7 +65,7 @@ function boardWindow() {
   if (args.profile) {
     if (!existsSync(args.profile)) throw new Error(`Profile not found: ${args.profile}`);
     const text = readFileSync(args.profile, 'utf8');
-    const sandbox = text.match(/^## design-sandbox\s*$([\s\S]*?)(?=^## |(?![\s\S]))/m)?.[1] ?? '';
+    const sandbox = text.match(/^## design-(?:screen|sandbox)\s*$([\s\S]*?)(?=^## |(?![\s\S]))/m)?.[1] ?? '';
     const fromSandbox = sandbox.match(/window\s+(\d+)\s*[x×]\s*(\d+)[^\n]*?device scale\s+([\d.]+)/i);
     const fromJson = text.match(/"size":\s*"(\d+x\d+)"\s*,\s*"scale":\s*([\d.]+)/);
     if (fromSandbox) [size, scale] = [`${fromSandbox[1]}x${fromSandbox[2]}`, Number(fromSandbox[3])];

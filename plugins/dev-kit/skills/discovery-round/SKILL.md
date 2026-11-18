@@ -52,6 +52,5 @@ explanations unless asked.
 ## Boundaries
 
 No code and no scaffolding in this skill. When discovery for an area is done, offer to move
-to a plan in `plans/` and let the owner choose. In a session named «Обговорення: ...» the round ends
-with the acceptance criteria and the approved mockup recorded in the feature file; then the session
-reports done to P (Why: 2026-11-15, a C builds from that file without the owner).
+to a plan in `plans/` and let the owner choose. In a session named «Обговорення: ...» the end follows
+`dev-kit:project-lead`, "Start an «Обговорення:» session".

@@ -6,7 +6,7 @@
 // Optional <mockups folder>/mockups.config.json: { "title", "pageNote", "indexNote", "indexIntro", "filterPlaceholder", "screenCount", "userLetters", "stepTitle" }. Every page embeds the folder's mockups.css; a mockups.css missing from the folder is written from default-mockups.css
 // (next to this script); an existing one is the project's and is never touched.
 // Every screen frame (phone or desktop screen) carries data-screen="<spec id>"; `web-kit-shot --board` crops the shots by it.
-// Optional <mockups folder>/parts/<name>.json: a JSON array of blocks that specs reuse with { "type": "part", "name": "<name>" }. The spec format is in skills/draw-mockup/spec-format.md. No dependencies.
+// Optional <mockups folder>/parts/<name>.json: a JSON array of blocks that specs reuse with { "type": "part", "name": "<name>" }. The spec format is in skills/design-screen/spec-format.md. No dependencies.
 import { spawnSync } from 'node:child_process';
 import { existsSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { dirname, join, relative, resolve, sep } from 'node:path';

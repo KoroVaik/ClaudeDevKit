@@ -110,18 +110,21 @@ low-value tests and duplicates, domain by domain.
 ## Web extension
 
 `web-kit` fills `check-ui`, `check-usability`, `check-look` and `show-idea` (`plugins/web-kit/slots.md`).
-Its skills `e2e-check`, `user-walk`, `visual-check` and `draw-mockup` name their agents (`web-kit:ui-tester`, `web-kit:app-user`,
-`web-kit:layout-checker`, `web-kit:mockup-checker`, `web-kit:mockup-user`) and model themselves; the
-manager reaches them through the slots. The skill `design-sandbox` runs the design-sandbox loop with `web-kit:sandbox-builder`, `web-kit:shot-taker` and `web-kit:design-critic`. Who answers which question, and the shared browser rules:
+Its skills `e2e-check`, `user-walk`, `visual-check` and `design-screen` name their agents (`web-kit:ui-tester`, `web-kit:user`,
+`web-kit:layout-checker`, `web-kit:designer`) and model themselves; the
+manager reaches them through the slots. The skill `design-screen` designs a screen in two stages: a mockup
+approved by the owner (recorded in the feature file), then polish on real components in the design sandbox,
+each show prepared by a fresh `web-kit:user` and `web-kit:designer`, with `web-kit:sandbox-builder` and
+`web-kit:shot-taker` in stage 2. Who answers which question, and the shared browser rules:
 `plugins/web-kit/browser-checks.md`. Readable evidence screenshots of wide screens come from
 `web-kit-shot` (headless full-resolution capture, `plugins/web-kit/scripts/capture.mjs`), because the in-app browser's
 screenshot tool returns at most about 800 px wide. The project's facts go in its profile: `## e2e-check` (URLs, login,
-screenshot folder, test-data marker; read by every browser skill and agent), `## ui-tester`, `## app-user`,
-`## visual-check`, `## layout-checker` (sizes), `## mockup-checker`, `## draw-mockup` (mockups folder,
-palette, languages), `## mockup-user` (persona of both user agents, `mockup-user` and `app-user`), `## design-sandbox` (worktree, sandbox URL, checks, boards), `## design-critic` (UI standard,
-mockup folders, report language).
+screenshot folder, test-data marker; read by every browser skill and agent), `## ui-tester`,
+`## visual-check`, `## layout-checker` (sizes), `## design-screen` (mockups folder, palette, languages,
+sandbox URL, checks, shot window), `## user` (onboarding of the ordinary user: who you are, what the app is
+for, its sections), `## designer` (UI standard, mockup folders, report language).
 `web-kit-mockups` (in `plugins/web-kit/bin`, on the Bash tool PATH while web-kit is enabled) builds the
-mockup pages from JSON specs; the format is `plugins/web-kit/skills/draw-mockup/spec-format.md`.
+mockup pages from JSON specs; the format is `plugins/web-kit/skills/design-screen/spec-format.md`.
 
 ## Unity extension
 
@@ -170,7 +173,8 @@ within the approved acceptance criteria; you get a product choice, a hard-to-und
 over $1 in total per task. P sorts each task: the C alone; P and the C; up to 3 text questions to you
 through the queue; more than 3, or any question about how a screen looks, goes to an «Обговорення:»
 session, where you settle the meaning and the mockup with one agent and the feature file ends with
-acceptance criteria and the approved mockup. A C asks only P (never you in its own chat), and runs
+an «Approved design» section (acceptance criteria, the approved mockup, the user's situation);
+then P starts a C that builds the screen and shows you its shots next to the mockup. A C asks only P (never you in its own chat), and runs
 with no permission prompts when the project's committed settings hold the hard-ban deny rules (push to
 main where it deploys, deleting data, and the like; you accept the Claude Code disclaimer once per
 machine). A session you started yourself can be taken over: P registers it after its first reply and

@@ -433,13 +433,38 @@ def check_profile(root, plugins, core_slots, profile, findings):
             findings.error(where, f"section '{heading}' names no agent or skill of a marketplace plugin")
 
 
+def newest_migration(root):
+    """The number of the newest entry of the migrations file; 0 when the file is missing or malformed."""
+    try:
+        entries = migrations.parse((root / "plugins" / CORE_PLUGIN / "migrations.md").read_text(encoding="utf-8-sig"))
+    except (OSError, UnicodeDecodeError, migrations.Problem):
+        return 0
+    return entries[-1][0] if entries else 0
+
+
+def pending_migration(root, folder):
+    """The first migration the project has not applied, or None when it is at the newest level (or unreadable)."""
+    try:
+        applied = migrations.applied_level(folder)
+    except migrations.Problem:
+        return None
+    return applied + 1 if applied < newest_migration(root) else None
+
+
 def check_profiles(root, plugins, core_slots, projects, findings):
     for project, folder in projects.items():
         profile = Path(folder) / ".claude" / "dev-kit.md"
         if not profile.is_file():
             findings.warning(project, f"no profile at {profile} (not yet migrated)")
             continue
-        check_profile(root, plugins, core_slots, profile, findings)
+        found = Findings()
+        check_profile(root, plugins, core_slots, profile, found)
+        pending = pending_migration(root, folder)
+        for level, path, message in found.items:
+            if level == "error" and pending is not None:
+                findings.warning(path, f"{message} (migration {pending} pending)")
+            else:
+                findings.items.append((level, path, message))
 
 
 def load_projects(root, findings):

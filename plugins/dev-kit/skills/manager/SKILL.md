@@ -27,13 +27,13 @@ nothing: the merge is P's step, so the owner sees in this chat why the session c
   waits for P's answer. This covers every step a rule says needs the owner's consent or yes:
   `check-ui`, `check-usability`, `check-look`, the do-it-now yes/no for new work, and the same steps in
   `fix-bug`, `test-change` and the extension plugins (`web-kit`, `unity-kit`). P decides or asks the
-  owner.
+  owner. A screen's approved mockup already gives the consent for its checks (`dev-kit:test-change`).
 - It asks P first before: starting the owner's app in the main checkout, loosening a validation or
   safety guard, deleting tracked files, a paid call that would take the task's total past $1 (P also
   lists these in the first prompt). The C keeps a running total of paid spend in its task file; spend
   below $1 is never asked.
 - Within the approved acceptance criteria it decides alone. Before handing in, it checks the result
-  against the feature's criteria (and the approved mockup, if any) and fixes the gaps.
+  against the feature's criteria (and its «Approved design», if any) and fixes the gaps.
 - An independent part found mid-work goes to P as a new task, in one line. Dependent parts stay in
   this C: it fixes in the task file how the parts fit, then runs parallel subagents. A C never starts
   sessions of its own.
@@ -41,10 +41,8 @@ nothing: the merge is P's step, so the owner sees in this chat why the session c
 - A SendMessage to P that fails with "not reachable" means P is being restarted. The C keeps the
   report and goes on with its work; P asks for missed reports after its restart, and the C then sends
   the report again.
-- A session named «Обговорення: ...» is the exception: it talks with the owner directly, settles the
-  meaning of the page and the mockups through `dev-kit:discovery-round` and the `show-idea` slot, ends
-  with acceptance criteria and the approved mockup in the feature file, reports done to P and builds
-  nothing.
+- A session named «Обговорення: ...» is the exception: it talks with the owner directly and builds
+  nothing; how it works and ends is in `dev-kit:project-lead`, "Start an «Обговорення:» session".
 
 A session the owner started that P took over (after the owner's yes) is not a C: it keeps talking with
 the owner, P sends it nothing, and P watches it by reading its state. A plugin hook tells it at each
@@ -121,7 +119,7 @@ A slot nobody fills is told to the owner; do not guess a command for it.
 | Can an ordinary user reach the goal, what gets in the way (needs consent) | `check-usability` |
 | Does it look like the mockup, do the screens hold at the agreed sizes (needs consent) | `check-look` |
 | Check the docs against the standard | `check-docs` |
-| Show an idea visually while brainstorming | `show-idea` |
+| Show an idea or a screen's design visually (brainstorming, a feature's mockup, polish) | `show-idea` |
 
 ## Which subagent type
 

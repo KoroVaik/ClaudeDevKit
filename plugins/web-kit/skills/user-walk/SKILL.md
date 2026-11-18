@@ -7,19 +7,23 @@ description: Use when an ordinary user should go after a goal in the running app
 
 Answers one question: can an ordinary user reach the goal, and what gets in the way? The problems the user
 met are the result; the user's hint of what would have helped comes with each, and the mockup only shows
-where each fix belongs. It shows what a scenario check cannot: where a real user hesitates. The agent `web-kit:app-user` walks blind; the mockup
-comes only after the walk, so it cannot bias what the user notices, and the live app outranks the mockup.
+where each fix belongs. It shows what a scenario check cannot: where a real user hesitates. The agent
+`web-kit:user`, mode live, walks blind; the mockup comes only after the walk, so it cannot bias what the
+user notices, and the live app outranks the mockup.
 Whether the scenario does what the feature says is `web-kit:e2e-check`; who answers which question is the
 table in browser-checks.md. Shared rules for every browser check (consent, the single environment, test
 data, cleanup, one browser) are in [browser-checks.md](${CLAUDE_PLUGIN_ROOT}/browser-checks.md). Read them
-first, then the profile sections `## e2e-check`, `## mockup-user` and `## app-user` of `.claude/dev-kit.md`
-if they exist; they override the defaults here.
+first, then the profile sections `## e2e-check` and `## user` of `.claude/dev-kit.md` if they exist; they
+override the defaults here.
 
 ## Steps
 
 1. **Goal.** One goal per walk, taken from the feature's criteria: what the user wants, in plain everyday
    words ("you want to add tomorrow's lunch"). Never steps, screen names, button labels or expected
-   results. Pick the persona the profile section `## mockup-user` gives for this app.
+   results. Where the feature has an «Approved design» section, its user situation is the situation and
+   the goal of the walk, the same text the mockup walk used. Pick the persona the profile section
+   `## user` gives for this app, and add a one-line announcement of the feature only when the user would
+   have heard of it (it names neither the screen nor the control).
 2. **Start.** By default the app's entry, so that finding the page is part of the walk. Start deeper in only
    when the way there is not what is checked, and then tell in the situation how the user got there.
 3. **Situation and data.** Prepare the data and settings the situation needs through the API
@@ -27,29 +31,30 @@ if they exist; they override the defaults here.
    a moment ago, how they reached the start page, and the state of things as a user knows it ("you already
    have two dishes", "the app asks before saving"). Never IDs, setting keys, screen names or button labels. The walk reaches
    a goal that saves only on test-owned data; when the agent may not change the data it walks (the owner's
-   real records), tell it the step to stop before and report the walk as partial.
-4. **Walk.** Call `web-kit:app-user` (model sonnet) with the persona, start URL, situation, goal and the
-   window size the profile names for this app. Each goal is a fresh call, one after another, so what one walk
-   learned does not carry into the next; only the sorting goes back to the same agent.
+   real records), tell it the step to stop before and report the walk as partial. When the feature changes
+   a screen the user already knows, pass the previous version (shots of the screen before the change).
+4. **Walk.** Call `web-kit:user` (model sonnet), mode live, with the persona, start URL, situation, goal and
+   the window size the profile names for this app. Each goal is a fresh call, one after another, so what one
+   walk learned does not carry into the next; only the sorting goes back to the same agent.
 5. **Sort.** If the flow has a mockup board (`<mockups folder>/src/<flow>.json`, the folder from
-   `## draw-mockup`, default `docs/mockups`), send the same agent a follow-up (`SendMessage`) with the spec
-   path, the spec format reference (`${CLAUDE_PLUGIN_ROOT}/skills/draw-mockup/spec-format.md`) and the known
+   `## design-screen`, default `docs/mockups`), send the same agent a follow-up (`SendMessage`) with the spec
+   path, the spec format reference (`${CLAUDE_PLUGIN_ROOT}/skills/design-screen/spec-format.md`) and the known
    deliberate differences, found as in `web-kit:visual-check`, "Mockup comparison" step 2. Without `SendMessage`, call
-   a fresh `web-kit:app-user` with the walk report and the same three things, saying the walk is done. No
+   a fresh `web-kit:user` with the walk report and the same three things, saying the walk is done. No
    board: every problem goes to the owner as a design question.
 6. **Report** to the owner, one line per goal (reached or not), then the problems with the user's hints,
    most costly first, in two short lists with the screenshots:
    - **fix in code** (and broken steps): the app strays from the mockup; after the fix, rerun the walk for
      that goal only.
    - **design changes** (and problems not on the board): the app follows the mockup and is still in
-     the way; the owner decides whether to change the rules and the mockup (`web-kit:draw-mockup`). Nothing
+     the way; the owner decides whether to change the rules and the mockup (`web-kit:design-screen`). Nothing
      changes without the owner's yes.
 
 A problem the agent drew from the brief rather than the screen (it lists them) is weighed, not trusted.
-The hints are one user's guess at a fix: the owner and `web-kit:draw-mockup` decide the actual change.
+The hints are one user's guess at a fix: the owner and `web-kit:design-screen` decide the actual change.
 
 ## A doubtful problem
 
 Never drop or argue away a problem the user met. When you doubt one, walk the same goal again with a fresh
-`web-kit:app-user` with the same persona: a problem two users meet is strong,
+`web-kit:user` with the same persona: a problem two users meet is strong,
 one met once is still reported, marked "one user". The owner decides.

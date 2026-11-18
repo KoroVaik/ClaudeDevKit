@@ -30,7 +30,8 @@ must exist: the generator never creates it.
 
 ## Spec (`src/<flow-name>.json`)
 
-The file name is lowercase words joined by hyphens and becomes the page name.
+The file name is lowercase words joined by hyphens and becomes the page name: the feature's name, plus the
+screen when the feature has several ([stage1-mockup.md](stage1-mockup.md), step 3).
 
 | Field | Required | Meaning |
 |---|---|---|
@@ -64,7 +65,7 @@ Block names such as `dish` and the day-header `tone` values (`choice`, `chosen`,
 | `name` | `text` (bold line), `sub` (optional small muted subtitle 2px under it, an explanation of the title such as the item type) |
 | `text` | `text` (muted line), or `parts` in its place: strings and `{ "chip": "..." }` items, for a sentence with clickable values inside it |
 | `field` | `label` (optional: leave it out when the value says what it is, e.g. a unit dropdown), `placeholder` (a text input), `suggestions` (`{ label, items }`: small chips between the label and the input that fill it on a click; `label` is an optional short lead such as "from the recipe:"; `inline: true` puts them in brackets on the label's line) |
-| `bar` | `width` (1–100, a placeholder text line) |
+| `bar` | `width` (1-100, a placeholder text line) |
 | `spacer` | pushes the next blocks to the bottom |
 | `buttons` | `items`: strings or `{ text, kind, caption, disabled }` (`caption` is a small grey line under the button (left-aligned with it on a desktop screen), `disabled: true` draws it unavailable), kind `plain`, `save`, `approve`, `selected` (the answer the user has chosen, neutral, never green; green `approve` is for the button that submits), `check` (a quiet confirm control: a grey check and its word, no fill or border, lighter on hover) or `checked` (its confirmed state, green); 2+ items form one row |
 | `chips` | `items`: strings or `{ text, on, size, tone, dot, off }` (`dot: true` puts a dot in the chip's tone before the text, `off: true` draws a switched-off toggle in plain grey: a status filter row such as «Суперечності 12»); `size` is `s`, `m` or `l` (default is between `s` and `m`); `tone` is `warn`, `danger`, `ok`, `info`, `accent`, `accent-2`, `selected`, `neutral` (a plain grey border with light text, for a status with no colour of its own) or `dark` (the ordinary card border with light text and a dark dot) (the project profile says what each means; `selected` = the option the user has chosen, neutral, never green) |

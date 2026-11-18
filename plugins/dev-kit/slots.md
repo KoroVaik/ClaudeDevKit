@@ -13,7 +13,7 @@ tables, never skill descriptions, to find who does a step.
 | check-usability | Let an ordinary user go after a goal in the running application and report what got in the way |
 | check-look | Check how screens look against a mockup or at the agreed screen sizes |
 | check-docs | Check the project's docs against the documentation standard |
-| show-idea | Show an idea visually during brainstorming |
+| show-idea | Show an idea or a screen's design visually: a sketch while brainstorming, a feature's mockup the owner approves, the polish of a built screen |
 
 `run-app` and `stop-app` may each hold several rows in the profile, one command in backticks per row, both written
 in start order. `dev-kit-app start` runs the run-app rows in order and stops at the first failure; `dev-kit-app stop`

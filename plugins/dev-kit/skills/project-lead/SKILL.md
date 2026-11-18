@@ -260,8 +260,8 @@ detailed talk there, so most tasks do not become a new session for the owner.
   worktree before the start (the owner's words, the item's links, the success criterion) and commits
 it on `c/<slug>`, so the merge and the worktree removal see no stray file. C keeps its
   details there and handles it as any plan when done (`dev-kit:documentation`).
-- First prompt: the owner's words verbatim; the task file path (and the feature file with the
-  acceptance criteria and approved mockup, if an «Обговорення:» session wrote one); the main checkout
+- First prompt: the owner's words verbatim; the task file path (and the feature file, if an
+  «Обговорення:» session wrote its «Approved design»; see "Build a designed screen"); the main checkout
   path; "run the dev-kit manager skill; P ran the overlap check"; the report rule (C messages P only
   on done, decision needed, stuck - 3 lines: state, result, what is needed; details in the task
   file); "before handing in, pull main and resolve conflicts yourself". The report rule names the
@@ -323,10 +323,13 @@ setup, registration) with these differences:
   internal helper the owner could not talk to.
 - The owner talks with it directly. One session plays analyst and mockup designer. First prompt: the
   owner's words, the task file path, a feature file path, "run `dev-kit:discovery-round` for the
-  meaning and the show-idea slot for the look; end with the acceptance criteria and the approved
-  mockup in the feature file; then send P a done report by SendMessage".
-- It ends with the owner's yes on the criteria and the mockup. P merges its branch as in "Acceptance
-  and merge", then starts a C from that feature file.
+  meaning and the show-idea slot for the look; on the owner's «так» to the mockup, in the same turn,
+  write the «Approved design» section in the feature file (`dev-kit:documentation`, "Feature file")
+  and a next-step line in PROGRESS.md, then send P a done report by SendMessage; without that section
+  you may not report done".
+- It ends with the owner's «так» to the criteria and the mockup. P merges its branch as in
+  "Acceptance and merge", but never a branch whose feature file lacks the «Approved design» section:
+  P sends it back. Then P starts a C from that feature file (see "Build a designed screen").
 - After the launch P writes exactly one line and nothing else: `Відкрий сесію «Обговорення:
   <feature>» - там обговориш усе по задачі.`, with the exact name from the launch. No question, no
   button, no status, no recommendation; the owner's global rules name this exception. When the owner
@@ -334,6 +337,31 @@ setup, registration) with these differences:
 
 Why: the owner decided on 2026-11-15 that what the owner approves must be written down before the
 build, so the C builds without him and what the lead accepts is what he accepted.
+
+## Build a designed screen
+
+For a feature whose file has an «Approved design» section in state `approved, not built`. The steps
+run one after another; nothing unfinished is merged.
+
+1. P starts a C as in "Start a C", from the feature file. Its first prompt adds: the owner's «так» to
+   the mockup is consent for `check-look`, `check-ui` and `check-usability` of that screen
+   (`dev-kit:test-change`); build the screen on your own branch and check it yourself in the
+   test-change order (`check-look`: in web-kit the designer compares headless shots with the mockup
+   and layout-checker checks the widths; then `check-ui`, then `check-usability`); the done report
+   carries shots of the built screen next to the mockup.
+2. On C's done report P shows the owner the shots next to the mockup, as a queue item with the
+   choice «так» / «є питання».
+3. «так»: P merges as in "Acceptance and merge", then sets the section's state to `built` in the main
+   checkout and commits it.
+4. «є питання»: P stops the C (`dev-kit-sessions end --id <id> --status stopped`, then
+   `claude stop <id>`) and starts an «Обговорення: <feature>» session for the polish (the show-idea
+   slot's polish stage; in web-kit, `web-kit:design-screen` stage 2) on C's branch, in its worktree as
+   in "Refresh an overfull C"; if the session cannot continue that branch, on a branch made from it.
+   Its first prompt holds the owner's questions and the feature file path. It reports done to P after
+   the owner's «так» in it; then P does step 3.
+
+Why: the owner wants the design flow to go one step after another, with nothing lost (owner,
+2026-11-18).
 
 ## Ask-P list
 
@@ -343,7 +371,8 @@ Actions a C does only after P's yes (the same list is in the first prompt and in
 - loosening a validation or safety guard;
 - deleting tracked files;
 - a paid call that would take the task's total past $1 (spend below $1 is never asked);
-- any step a project rule says needs consent (check-ui, check-usability, check-look and similar).
+- any step a project rule says needs consent (check-ui, check-usability, check-look and similar),
+  except the checks a screen's approved mockup already allows (`dev-kit:test-change`).
 
 P answers these itself. It asks the owner only for money over the threshold, a hard-to-undo step or
 a product choice (see "Owner queue and critical items").
@@ -432,7 +461,7 @@ queue item after the owner answers or writes.
 
 Watcher: `dev-kit-sessions watch` in the Bash tool with `run_in_background`, run in the project's
 main checkout. It reads the registry's active sessions (C and taken-over owner sessions) every minute, stays silent
-while they live, and exits when one is gone or, for an owner session, finished; its own limit is 2 hours. Never run it in the foreground: the Bash tool kills
+while they live, and exits when one is gone, stopped on the usage limit or, for an owner session, finished; its own limit is 2 hours. Never run it in the foreground: the Bash tool kills
 a foreground command at its 10-minute timeout with no exit line, while a background one is not bound
 by the timeout (checked 2026-11-15: background runs of 150 seconds with a 60-second timeout and of
 12 minutes both finished). Arm it after `add` of a C, after `add --owner`, and after every
@@ -450,6 +479,9 @@ exit below, while the registry has an active session. On its exit:
   reports `finished`; its end is `gone` plus its "done" report). Do the
   "Finished" step of "Take over a session the owner started" (`end --id`, try `claude stop`, ask
   nothing), re-arm, and show it in the next status; no separate message.
+- `limited: <name> | <id> | resets <time>` (exit 0): that C stopped on the usage limit; it is alive and
+  goes on after the reset. Tell the owner in one line the session name and the reset time (a queue
+  item, not critical), re-arm, and never `end` or stop that C. Each stop is reported once.
 - `time limit` (exit 4): run the skill update check below, then re-arm; no text, no other checks.
 - `restart requested: <version>` (exit 7): the handshake of "Restart for a plugin update".
 - `nothing to watch` (exit 5: no active session, also at the time limit when the last session ended meanwhile) or
@@ -484,13 +516,16 @@ line marked OVER, refresh that C.
 1. Message C: reach the nearest checkpoint between steps (never mid-step), run
    `continue-work-in-another-context save`, reply with the handoff file name.
 2. Start a fresh C from inside the SAME worktree folder (no `-w`), same name, model, effort and
-   permission mode; first prompt: `/continue-work-in-another-context load <file>`.
-3. Register it with `dev-kit-sessions add ... --predecessor <old id>`.
-4. Only after the new C confirms it picked up the work, run `claude stop <old id>`.
+   permission mode; first prompt: `/continue-work-in-another-context load <file>`, then "once loaded,
+   send P «picked up» by SendMessage".
+3. Only after the new C's «picked up» reaches P, register it with `dev-kit-sessions add ...
+   --predecessor <old id>` (this ends the old record as `replaced`), then run `claude stop <old id>`.
 
 Checked live 2026-11-14: a fresh bg C started in an existing worktree loads the handoff from its first
 prompt and can write there. If a step fails, tell the owner and keep the old C running.
 Two C sessions share one name during a refresh; message the new one by its `[ref]` from ListAgents.
+Why: without the «picked up» check P could stop the old C before the new one held the work (owner,
+2026-11-18).
 
 ## Shared app
 
@@ -506,6 +541,11 @@ empty, P does not merge and tells the owner. P commits its own edits in the main
 BACKLOG.md `Verdict:` lines) right after making them, so a dirty checkout is never P's own (that is the owner's work in progress, not C's conflict).
 Otherwise `git merge --ff-only c/<slug>`. If it refuses (main moved since C pulled it), P sends it back
 ("main moved, pull main") and does not resolve anything itself.
+
+When P edits a file in the main checkout from outside its own worktree (PROGRESS.md, a feature's
+design state), it re-reads the file after each edit and checks that the edit fully applied before
+committing it. This is a stopgap: the cause, the host's worktree guard that blocks such edits, is out
+of reach (seen in P: Zhratva, 2026-11-18: shell edits half-applied).
 
 After a merge, without asking the owner, run `dev-kit-sessions end --id <id>` (the short id works),
 `dev-kit-app stop --project <that C's worktree>` (releases the app lock if C left the app running),

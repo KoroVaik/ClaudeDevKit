@@ -42,6 +42,9 @@ Rules.
 """
 
 
+# The default repo has no entries, so no project is behind and profile findings stay errors.
+NO_MIGRATIONS = "# dev-kit migrations\n\nIntro.\n"
+
 MIGRATIONS = """# dev-kit migrations
 
 Intro.
@@ -94,7 +97,7 @@ class LintTestCase(unittest.TestCase):
         for name in ("dev-kit", "web-kit"):
             write(self.root / "plugins" / name / ".claude-plugin" / "plugin.json", json.dumps({"name": name}))
         write(self.root / "plugins" / "dev-kit" / "slots.md", CORE_SLOTS)
-        write(self.root / "plugins" / "dev-kit" / "migrations.md", MIGRATIONS)
+        write(self.root / "plugins" / "dev-kit" / "migrations.md", NO_MIGRATIONS)
         write(self.root / "plugins" / "dev-kit" / "agents" / "coder.md", agent_text())
         write(self.root / "plugins" / "dev-kit" / "skills" / "manager" / "SKILL.md", skill_text(name="manager"))
         write(self.root / "plugins" / "web-kit" / "slots.md", EXTENSION_SLOTS)
@@ -568,6 +571,36 @@ class MigrationsFileTests(LintTestCase):
         # Flow: lint shows what the shared parser rejects
         self.set_migrations(MIGRATIONS.replace("- How: steps\n", ""))
         self.assertErrorContains(self.run_lint(), "entry 1: the field 'How' is missing")
+
+
+class PendingMigrationTests(LintTestCase):
+    BAD = PROFILE + "\n## ghost\n\nRules.\n"
+    LEVEL = "\n## project-lead\n\n| Setting | Value |\n|---|---|\n| migrations applied | {} |\n"
+
+    def setUp(self):
+        super().setUp()
+        write(self.root / "plugins" / "dev-kit" / "migrations.md", MIGRATIONS)
+        write(self.root / "plugins" / "dev-kit" / "skills" / "project-lead" / "SKILL.md", skill_text(name="project-lead"))
+
+    def test_profile_error_is_a_warning_while_a_migration_is_pending(self):
+        # Rule: a project that has not applied the newest migration may fail the profile check as a warning
+        findings = self.run_lint(self.add_profile(self.BAD))
+        self.assertEqual([], self.messages(findings, "error"))
+        warnings = self.messages(findings, "warning")
+        self.assertEqual(1, len(warnings), warnings)
+        self.assertIn("section 'ghost' names no agent or skill", warnings[0])
+        self.assertTrue(warnings[0].endswith("(migration 1 pending)"), warnings[0])
+
+    def test_profile_error_stays_an_error_at_the_newest_level(self):
+        # Rule: a project at the newest level keeps its profile errors
+        findings = self.run_lint(self.add_profile(self.BAD + self.LEVEL.format(1)))
+        self.assertErrorContains(findings, "section 'ghost' names no agent or skill")
+        self.assertEqual([], self.messages(findings, "warning"))
+
+    def test_plugin_error_stays_an_error_while_a_migration_is_pending(self):
+        # Rule: only the project's profile findings are loosened
+        write(self.root / "plugins" / "dev-kit" / "skills" / "bad" / "SKILL.md", skill_text("Runs"))
+        self.assertErrorContains(self.run_lint(self.add_profile()), "skills/bad/SKILL.md: description must start")
 
 
 class ProjectsFileTests(LintTestCase):

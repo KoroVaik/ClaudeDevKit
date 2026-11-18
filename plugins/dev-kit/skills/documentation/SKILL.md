@@ -37,8 +37,10 @@ describes a state that is gone.
 | Plan | Agreed work in flight, removed when done | Owner approves | `plans/<name>.md` |
 | Agent rules | How agents work in this repo | Owner approves | `CLAUDE.md`, `.claude/` |
 
-Mockups are design assets under `docs/mockups/`, linked from features. The index of the docs is
-`docs/README.md`; it holds no rules.
+Mockups are design assets under `docs/mockups/`, linked from features. A mockup is named after its
+feature; a feature with several screens adds the screen to the name (`<feature>-<screen>`).
+Why: in Zhratva a mockup named for its audience («для новачка») misled both the lead and the owner
+(owner, 2026-11-18). The index of the docs is `docs/README.md`; it holds no rules.
 
 ## Names
 
@@ -153,12 +155,23 @@ Known limits: optional, one line - what the feature deliberately does not do yet
 3-7 lines: the user does X and sees Y, naming the rules they check instead of restating them.
 Used by the test and scenario-check steps.
 
+## Approved design
+Only for a screen the owner approved as a mockup; written in the same turn as the owner's «так».
+Mockup: <link to the approved mockup, e.g. docs/mockups/<feature>.html>
+Acceptance criteria: the section above, written there at the approval.
+User situation: in real-life words, what just happened, where the user is, what they want; no screen
+names or button labels.
+State: approved, not built
+(`built` once the project lead merges the built screen.)
+
 ## Built in
 Code paths (files, folders or globs), tables, links to tech sections and mockups.
 ```
 
 A feature describes what the product does today, read from the code. A decision the code does not follow
-is a `Known limits:` line; reworking the feature is separate work the owner agrees first. An epic has a
+is a `Known limits:` line; reworking the feature is separate work the owner agrees first. The one
+exception is an «Approved design» in state `approved, not built`: it holds the approved screen until it
+is built, so nothing the owner approved stays recorded nowhere (owner, 2026-11-18). An epic has a
 `Part of the [product]` line and a "Features" list linking each of its features; every feature belongs
 to exactly one epic.
 

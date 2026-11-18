@@ -12,25 +12,26 @@ the agents.
 | Question | Looks at | Skill (slot) | Agent | Answer |
 |---|---|---|---|---|
 | Does the scenario do what the feature says? | the running app, steps and expected results from the criteria | `web-kit:e2e-check`, scenario (`check-ui`) | `web-kit:ui-tester` | pass or fail per scenario |
-| Can an ordinary user reach the goal, and what gets in the way? | the running app, the goal only; the mockup only after the walk | `web-kit:user-walk` (`check-usability`) | `web-kit:app-user` | goal reached or not, problems met with the user's hints, each marked fix in code or design change |
-| Do the screens match the mockup? | the running app and one mockup board | `web-kit:visual-check`, mockup comparison (`check-look`) | `web-kit:mockup-checker` | matches or differs per phone |
+| Can an ordinary user reach the goal, and what gets in the way? | the running app, the goal only; the mockup only after the walk | `web-kit:user-walk` (`check-usability`) | `web-kit:user`, mode live | goal reached or not, problems met with the user's hints, each marked fix in code or design change |
+| Do the screens match the mockup? | headless shots of the running app and of one mockup board; no browser | `web-kit:visual-check`, mockup comparison (`check-look`) | `web-kit:designer`, subject built | matches or differs per phone |
 | Does the layout hold up at the screen sizes? | the running app at the profile's widths | `web-kit:visual-check`, layout (`check-look`) | `web-kit:layout-checker` | defects per width |
-| Is a freshly drawn path clear to an ordinary user? | the drawn mockup's text only, no app | `web-kit:draw-mockup` (`show-idea`) | `web-kit:mockup-user` | remarks for the owner |
-| May a look variant be shown to the owner (matches the accepted mockup, no visible defects)? | the caller's headless screenshots, a headless shot of the mockup board, the UI design standard; no browser | `web-kit:design-sandbox` | `web-kit:design-critic` | pass or fail per variant, each defect with its reference |
-| Build look variants in the design sandbox, or move a picked one into the real component | the sandbox and the real components; no browser | `web-kit:design-sandbox` | `web-kit:sandbox-builder` | per variant a URL, a one-line description and the selectors to shoot |
-| Repair or report a failed or wrong headless shot (the caller runs `web-kit-shot` itself, `--board` for mockup boards) | the command's output, the URLs and selectors the caller gives | `web-kit:design-sandbox` and the callers of the shot rules | `web-kit:shot-taker` | per shot a PNG path, its size and caption, or why it fails |
+| Is a freshly drawn board or a look variant clear to an ordinary user? | headless shots of the screens only, no app | `web-kit:design-screen` (`show-idea`) | `web-kit:user`, mode mockup | problems, guessed taps and questions per screen |
+| May a board or a look variant be shown to the owner (the standard, the feature's rules, the approved mockup, no visible defects), and what fixes the user's findings? | the caller's headless screenshots, a headless shot of the mockup board, the UI design standard, the feature file, the user reports; no browser | `web-kit:design-screen` | `web-kit:designer`, subject board or variants | pass or fail per board or variant, each defect with its reference; a fix or "owner's call" per user finding |
+| Build look variants in the design sandbox, or move a picked one into the real component | the sandbox and the real components; no browser | `web-kit:design-screen`, stage 2 | `web-kit:sandbox-builder` | per variant a URL, a one-line description and the selectors to shoot |
+| Repair or report a failed or wrong headless shot (the caller runs `web-kit-shot` itself, `--board` for mockup boards) | the command's output, the URLs and selectors the caller gives | `web-kit:design-screen` and the callers of the shot rules | `web-kit:shot-taker` | per shot a PNG path, its size and caption, or why it fails |
 
-`mockup-user` and `app-user` are the same ordinary user (persona in the profile section `## mockup-user`):
-one reads a drawn path, the other walks the live app. When they disagree, the live app wins.
-`mockup-checker` lists every difference from the board; `app-user` reports what got in a user's way and uses
-the board only to say where each fix belongs.
+`web-kit:user` is one ordinary user (onboarding in the profile section `## user`): mode mockup reads the
+shots of a drawn board or of sandbox variants, mode live walks the app. When they disagree, the live app
+wins. `web-kit:designer` lists every difference from the board; the user reports what got in its way and
+uses the board only to say where each fix belongs.
 
 ## Shared browser rules
 
 - **Consent, per kind.** A browser check needs the owner's separate, explicit consent for the current
   task, under the project's rules; approval to implement a change or to preview it is not consent.
   Consent is per kind: the scenario check, the user walk and the visual check each need their own yes,
-  or their own line in a plan the owner approved (the owner's global rule "One yes per plan").
+  or their own line in a plan the owner approved (the owner's global rule "One yes per plan"). The
+  owner's «так» to a screen's mockup is consent for all three on that screen (rule: `dev-kit:test-change`).
 - **Scenarios come from the feature.** The scenarios and the user walk's goals come from the "Acceptance
   criteria" of the feature (found with `dev-kit-check-docs --who <path>`); a check that finds a rule the
   criteria miss reports it for the feature.
@@ -105,14 +106,14 @@ the board only to say where each fix belongs.
     "виправся" after it) about a delivery already sent, write the rule down and send nothing again; a
     re-send needs the owner's explicit ask.
   - **One set per answer.** Every image has a caption. All images of one answer are sent in that
-    answer's turn, after every one of them is ready (and screened, where a critic applies), never one now
+    answer's turn, after every one of them is ready (and reviewed, where the designer applies), never one now
     and another later. Captions are numbered in the order the reply names them ("1. Table close-up"), except
     when items go one message per item: then the number sits only in the item's heading and its captions
     carry none, so one item never reads as two (owner, 2026-11-13). Within
     one answer the reply never points to an image from an earlier message: it sends that image again in
     the new set. This is about one answer, not about a later turn: the images of a finished result that the
     owner already has are not sent again unless the owner asks. A new question or proposal about a look is not
-    a finished result: it carries its picture every time (draw-mockup "Rules").
+    a finished result: it carries its picture every time (`web-kit:design-screen`, "Show to the owner").
 - **After the report**, clean up what the check itself created, as above, and report any record or setting left behind. A standing fixture the owner's ongoing work still uses (the running app, the project's test draft) stays until the owner says the work is done. If a report is
   unclear, or you fixed code because of it (a fail or an observation), send the agent a follow-up or a
   rerun of that scenario rather than driving the browser yourself. If a state for a shot cannot be
