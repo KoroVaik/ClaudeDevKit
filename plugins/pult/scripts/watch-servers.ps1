@@ -16,6 +16,10 @@
 #   most $MaxHeals respawns per hour per session, then GIVEUP-TASK (once, until it is seen alive again).
 #   The lead's own watcher (dev-kit-sessions watch) waits 300 s before it calls such a session gone,
 #   so this watcher gets its chance first.
+# - A live lead of the list or active task session that stopped on the usage limit (5-hour or weekly) keeps
+#   its process and shows as blocked, so it looks alive: LIMIT <name> <session id> (resets <time>) once per
+#   stop, LIMIT-END when it goes on or is no longer live (a new watcher run logs a stop again). Its transcript tells (`sessions.py limited`, one call per round); the
+#   watcher only logs it: a respawn or restart would hit the same limit.
 # - A dev-kit lock file whose owner is gone is removed: UNLOCK (see Clear-StaleLocks).
 # - A lead that runs on an older dev-kit version than the one installed (<DevKitDir>\.claude-plugin\plugin.json)
 #   is restarted so it loads the new skills. The version each lead process started on is kept by pid and
@@ -158,11 +162,13 @@ function Invoke-TaskHeal {
         } catch { Write-Log "WARN cannot read $f : $_"; continue }
         foreach ($r in $records) {
             if ($r.status -cne 'active' -or -not $r.id -or $r.owner -eq $true -or ([string]$r.name).StartsWith('P: ', [StringComparison]::Ordinal)) { continue }
-            $wid = [string]$r.id
+            $wid = ([string]$r.id).Trim()  # an id pasted with a CR would match no session
             $seen[$wid] = $true
             $entries = @($agents | Where-Object {
                 $_ -and ((Test-IdMatch ([string]$_.sessionId) $wid) -or (Test-IdMatch ([string]$_.id) $wid)) })
             $states = @($entries | ForEach-Object { if ($_.state) { $_.state } else { $_.status } })
+            $live = $entries | Where-Object { $_.pid -and $_.sessionId } | Select-Object -First 1
+            if ($live) { $liveSessions[[string]$live.sessionId] = [string]$r.name }
             if ($entries | Where-Object { $_.pid }) {  # alive
                 $taskClosed.Remove($wid); $taskGaveUp.Remove($wid); continue
             }
@@ -195,6 +201,34 @@ function Invoke-TaskHeal {
         }
     }
     foreach ($k in @($taskClosed.Keys)) { if (-not $seen[$k]) { $taskClosed.Remove($k) } }  # no longer active
+}
+
+# Logs the live sessions in $liveSessions (session id -> name: the leads and task sessions of this round) that
+# stopped on the usage limit (see the header). $limitSeen keeps the stop already logged per session id.
+function Invoke-LimitCheck {
+    $ids = @($liveSessions.Keys)
+    $now = @{}
+    if ($ids.Count) {
+        $words = @('limited') + @($ids | ForEach-Object { '--id', $_ })
+        $out = & python (Join-Path $DevKitDir 'scripts\sessions.py') @words 2>&1 | Out-String
+        if ($LASTEXITCODE -ne 0) { Write-Log ("WARN usage-limit check failed (exit {0}): {1}" -f $LASTEXITCODE, ($out.Trim() -replace '\s+', ' ')); return }
+        foreach ($line in ($out -split "`r?`n")) {
+            $parts = @($line -split ' \| ')
+            if ($parts.Count -eq 3) { $now[$parts[0].Trim()] = @{ Resets = $parts[1].Trim(); Key = $parts[2].Trim() } }
+        }
+    }
+    foreach ($id in $now.Keys) {
+        if ($limitSeen[$id] -cne $now[$id].Key) {
+            Write-Log ("LIMIT {0} {1} (resets {2})" -f $liveSessions[$id], $id, $now[$id].Resets)
+            $limitSeen[$id] = $now[$id].Key
+        }
+    }
+    foreach ($id in @($limitSeen.Keys)) {
+        if ($now.ContainsKey($id)) { continue }
+        $how = if ($liveSessions.ContainsKey($id)) { $liveSessions[$id] } else { '(no longer live)' }
+        Write-Log ("LIMIT-END {0} {1}" -f $how, $id)
+        $limitSeen.Remove($id)
+    }
 }
 
 # The installed dev-kit version (plugin.json) or $null; sets $script:pluginTime to the file's last write time.
@@ -347,6 +381,7 @@ $gaveUp = @{}       # name -> $true after GIVEUP, until seen up
 $taskClosed = @{}   # task session id -> rounds in a row seen closed
 $taskHeals = @{}    # task session id -> times of HEAL-TASK tries in the last hour
 $taskGaveUp = @{}   # task session id -> $true after GIVEUP-TASK, until seen alive
+$limitSeen = @{}    # session id -> key of the usage-limit stop already logged (LIMIT)
 $holdLogged = $false
 $lastCheck = Get-Date
 $round = 0
@@ -367,6 +402,7 @@ while ($true) {
     }
     $holdLogged = $onHold
     $devKitVersion = Get-DevKitVersion
+    $liveSessions = @{}  # session id -> name of each live lead and task session this round (for Invoke-LimitCheck)
     if ($devKitVersion -and $devKitVersion -cne $lastVersion) { $leadTried.Clear(); $lastVersion = $devKitVersion }
 
     foreach ($s in $servers) {
@@ -376,7 +412,7 @@ while ($true) {
             if ($null -eq $agents) { continue }  # unknown this round; logged as WARN
             $m = $agents | Where-Object { $_.kind -eq 'background' -and $_.name -ceq $name -and $_.pid } |
                 Select-Object -First 1
-            if ($m) { $procId = $m.pid }
+            if ($m) { $procId = $m.pid; if ($m.sessionId) { $liveSessions[[string]$m.sessionId] = $name } }
         } else {
             $m = $procs | Where-Object { $_.CommandLine -like "*$name*" } | Select-Object -First 1
             if ($m) { $procId = $m.ProcessId }
@@ -434,6 +470,9 @@ while ($true) {
     }
 
     try { Invoke-TaskHeal } catch { Write-Log "WARN task session check failed: $_" }
+    if ($null -ne $agents) {
+        try { Invoke-LimitCheck } catch { Write-Log "WARN usage-limit check failed: $_" }
+    }
     try { Clear-StaleLocks } catch { Write-Log "WARN lock check failed: $_" }
 
     $lastCheck = Get-Date

@@ -663,5 +663,128 @@ class SessionsTestCase(unittest.TestCase):
         self.assertEqual((7, "restart requested: 0.1.47\n"), (code, out))
 
 
+    # protects: Bug
+    def test_an_id_with_a_carriage_return_still_matches(self):  # P pasted `claude --bg` output with a CR
+        state = dev_kit_state.project_state_dir(self.project)
+        (state / "sessions.json").write_text(json.dumps([{"id": "c1-session\r", "name": "C: cr", "status": "active"}]),
+                                             encoding="utf-8")
+        self.listing([{"sessionId": "c1-session", "pid": 5, "status": "busy"}])
+        self.assertEqual(["C: cr | c1-session | working | (no reply text)"], self.state_lines())
+        self.add("c2-session\r\n", name="C: two")
+        self.assertEqual("c2-session", self.records()[-1]["id"])
+        self.assertEqual(0, self.run_main("end", "--id", "c2-session \r")[0])
+
+    # protects: Bug
+    def test_claude_is_found_in_the_usual_install_places_when_not_on_path(self):
+        home = self.tmp / "home"
+        native = home / ".local" / "bin" / ("claude.exe" if os.name == "nt" else "claude")
+        with mock.patch.object(sessions.shutil, "which", lambda _name: None), \
+                mock.patch.object(sessions.Path, "home", lambda: home), \
+                mock.patch.dict(os.environ, {"APPDATA": str(self.tmp / "roaming"), "LOCALAPPDATA": str(self.tmp / "local")}):
+            self.assertIsNone(sessions.find_claude())
+            with self.assertRaisesRegex(RuntimeError, "not on PATH or in the usual install places"), \
+                    mock.patch.dict(os.environ, {sessions.AGENTS_ENV: ""}):
+                sessions.agents_list()
+            native.parent.mkdir(parents=True)
+            native.write_text("", encoding="utf-8")
+            self.assertEqual(str(native), sessions.find_claude())
+            if os.name == "nt":
+                npm = self.tmp / "roaming" / "npm" / "claude.cmd"
+                npm.parent.mkdir(parents=True)
+                npm.write_text("", encoding="utf-8")
+                native.unlink()
+                self.assertEqual(str(npm), sessions.find_claude())
+        with mock.patch.object(sessions.shutil, "which", lambda _name: "/on/path/claude"):
+            self.assertEqual("/on/path/claude", sessions.find_claude())
+
+    @staticmethod
+    def limit_notice(uuid="lim-1", resets=1795014000):
+        return {"type": "assistant", "uuid": uuid, "isSidechain": False, "apiError": "usage_limit_reached",
+                "error": "rate_limit", "isApiErrorMessage": True,
+                "apiErrorParams": {"rate_limit_info": {"status": "rejected", "resetsAt": resets}},
+                "message": {"role": "assistant", "model": "<synthetic>",
+                            "content": [{"type": "text", "text": "You've hit your weekly limit"}]}}
+
+    # protects: Rule
+    def test_usage_limit_is_the_last_notice_only(self):
+        path = self.projects / "p1" / "s1.jsonl"
+        self.transcript("s1", [self.human("go"), self.reply("Working on it."), self.limit_notice()])
+        self.assertEqual(("lim-1", 1795014000), sessions.usage_limit(path))
+        meta = {"type": "user", "isMeta": True, "message": {"content": "<reminder>"}}
+        side = dict(self.reply("subagent text"), isSidechain=True)
+        self.transcript("s1", [self.reply("x"), self.limit_notice(), meta, side])
+        self.assertEqual("lim-1", sessions.usage_limit(path)[0])
+        self.transcript("s1", [self.limit_notice(), self.human("продовж")])  # asked again: not stopped any more
+        self.assertIsNone(sessions.usage_limit(path))
+        self.transcript("s1", [self.limit_notice(), self.reply("Back to work.")])
+        self.assertIsNone(sessions.usage_limit(path))
+        old = {k: v for k, v in self.limit_notice().items() if k not in ("apiError", "apiErrorParams")}
+        self.transcript("s1", [old])
+        self.assertEqual(("lim-1", None), sessions.usage_limit(path))
+
+    # protects: Flow
+    def test_state_shows_a_session_stopped_on_the_limit_as_limited(self):
+        self.add("c1-session", name="C: lim")
+        self.listing([{"sessionId": "c1-session", "pid": 5, "status": "idle", "state": "blocked"}])
+        self.transcript("c1-session", [self.reply("Halfway."), self.limit_notice(resets=None)])
+        self.assertEqual(["C: lim | c1-session | limited | resets unknown; Halfway."], self.state_lines())
+
+    # protects: Flow
+    def test_watch_reports_a_limit_stop_once_and_a_new_one_again(self):
+        self.add("c1-session", name="C: lim")
+        self.add("c2-session", name="C: ok")
+        self.listing([{"sessionId": "c1-session", "pid": 5, "state": "blocked"},
+                      {"sessionId": "c2-session", "pid": 6, "state": "working"}])
+        self.transcript("c1-session", [self.reply("x"), self.limit_notice(resets=None)])
+        code, out = self.run_main("watch", "--interval", "0")
+        self.assertEqual((0, "limited: C: lim | c1-session | resets unknown\n"), (code, out))
+        code, out = self.run_main("watch", "--interval", "60", "--max-minutes", "0.5")  # re-armed: same stop
+        self.assertEqual((4, "time limit: 0.5 min, all alive\n"), (code, out))
+        self.transcript("c1-session", [self.limit_notice(), self.human("продовж"), self.limit_notice("lim-2", None)])
+        code, out = self.run_main("watch", "--interval", "0")
+        self.assertEqual((0, "limited: C: lim | c1-session | resets unknown\n"), (code, out))
+
+    # protects: Flow
+    def test_limited_command_reads_transcripts_only(self):
+        self.transcript("s1", [self.limit_notice(resets=None)])
+        self.transcript("s2", [self.reply("fine")])
+        with mock.patch.dict(os.environ, {sessions.AGENTS_ENV: str(self.tmp / "missing.json")}):
+            code, out = self.run_main("limited", "--id", "s1", "--id", "s2", "--id", "s3")
+        self.assertEqual((0, "s1 | unknown | lim-1\n"), (code, out))
+
+    # protects: Edge
+    def test_usage_limit_reads_past_the_first_window(self):
+        path = self.projects / "p1" / "s1.jsonl"
+        big = self.reply("y" * (sessions.CHUNK + 10))
+        self.transcript("s1", [self.limit_notice("old"), self.human("go"), big, self.limit_notice("new")])
+        self.assertEqual("new", sessions.usage_limit(path)[0])
+        self.transcript("s1", [self.limit_notice("old"), big])  # the last entry is larger than one window
+        self.assertIsNone(sessions.usage_limit(path))
+        entries = list(sessions.tail_entries(path))
+        self.assertEqual(["assistant", "assistant"], [entry["type"] for entry in entries])
+        self.assertEqual("old", entries[1]["uuid"])
+
+    # protects: Rule
+    def test_a_limited_session_without_a_pid_is_gone(self):
+        self.add("c1-session", name="C: lim")
+        self.listing([{"sessionId": "c1-session", "status": "stopped"}])
+        self.transcript("c1-session", [self.limit_notice(resets=None)])
+        self.assertEqual(["C: lim | c1-session | gone | (no reply text)"], self.state_lines())
+        self.assertEqual([], sessions.limited_sessions([("C: lim", "c1-session")], sessions.agents_list(True)))
+
+    # protects: Bug
+    def test_limits_file_keeps_the_stops_of_other_watchers(self):
+        path = dev_kit_state.project_state_dir(self.project) / sessions.REGISTRY
+        (path.with_name(sessions.LIMITS)).write_text(json.dumps({"other": "k0"}), encoding="utf-8")
+        self.assertEqual([("n", "me", "k1", None)], sessions.new_limits([("n", "me", "k1", None)], path, {"me"}))
+        self.assertEqual({"other": "k0", "me": "k1"}, json.loads(path.with_name(sessions.LIMITS).read_text()))
+        self.assertEqual([], sessions.new_limits([], path, {"me"}))
+        self.assertEqual({"other": "k0"}, json.loads(path.with_name(sessions.LIMITS).read_text()))
+
+    # protects: Edge
+    def test_reset_time_in_seconds_or_milliseconds(self):
+        self.assertEqual(sessions.reset_text(1795014000), sessions.reset_text(1795014000000))
+        self.assertEqual("unknown", sessions.reset_text(None))
+
 if __name__ == "__main__":
     unittest.main()

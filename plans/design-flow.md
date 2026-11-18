@@ -55,8 +55,15 @@ Nothing unfinished is merged.
 
 ## Build (C: design-screen, 2026-11-18)
 - Done: web-kit 0.2.0 - skill `design-screen` (SKILL.md, stage1-mockup.md, spec-format.md, stage2-sandbox.md), agents `user` and `designer`; the six old files removed (P's yes); visual-check, user-walk, e2e-check, browser-checks.md, slots.md, sandbox-builder, shot-taker, capture.mjs, README re-pointed. capture.mjs reads the window size from `## design-screen`, or the older `## design-sandbox`.
-- Done: dev-kit - documentation («Approved design», mockup naming), project-lead («Обговорення:» end and merge gate, "Build a designed screen", refresh «picked up», main-checkout edit check, watcher `limited:` exit at P's ask), test-change (mockup «так» = check consent), manager, discovery-round, new-feature, slots.md, migrations entry 2 (profile sections and names).
+- Done: dev-kit - documentation («Approved design», mockup naming), project-lead («Обговорення:» end and merge gate, "Build a designed screen", refresh «picked up», main-checkout edit check, watcher `limited:` exit at P's ask), test-change (mockup «так» = check consent), manager, discovery-round, new-feature, slots.md, migrations entry 2 (profile sections and names). dev-kit 0.1.49 (main had 0.1.48).
 - Lint loosened at P's yes: a project below the newest migration level gets its profile findings as warnings marked «migration N pending»; tests cover pending -> warning and applied -> error.
 - Decisions not fixed by the plan: the polish session is an «Обговорення:» session that P starts after stopping the done C; the new C on a refresh is registered only after «picked up»; the designer has no browser and works from headless shots.
 - Open: Zhratva's profile must apply migration 2 (its lint findings show as pending warnings until then).
 - Paid spend: none (no paid calls).
+
+## Work log: C «Сторож бачить ліміт і claude» (session-health)
+- Checked 2026-11-18: `claude agents --json` keeps a limit-stopped session's pid and shows only state "blocked" (no detail), so the list cannot tell. Job `state.json` detail and the transcript say it: the transcript ends with a synthetic assistant entry, `apiError` "usage_limit_reached", `apiErrorParams.rate_limit_info.resetsAt`. sessions.py reads the transcript.
+- sessions.py: `state` shows `limited` (with the reset time), `watch` exits with `limited: <name> | <id> | resets <time>` once per stop (`limits.json` in the state folder), new `limited --id ...` for the Pult watcher; claude found in the usual install places when not on PATH.
+- P's extra case (2026-11-18): «C: Флоу дизайну екранів» reported gone every time. Cause: its registry id ended with a CR (pasted from `claude --bg` output). Ids are now trimmed on read and on every command; the Pult watcher trims too.
+- watch-servers.ps1: LIMIT / LIMIT-END lines; hub.md and the Pult README describe them. dev-kit 0.1.48, pult 0.1.8.
+- Tests: tools/tests/test_sessions.py (+6), tools/tests/test_watch_servers_limit.py (new, runs the real watcher with a fake claude). Paid spend: $0.

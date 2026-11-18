@@ -16,7 +16,7 @@ owner's yes; a choice that differs per project goes in `Owner choice`.
 
 ## 2. Rename the design profile sections (projects that enable web-kit)
 
-- Added: dev-kit 0.1.48
+- Added: dev-kit 0.1.49
 - What: web-kit 0.2.0 merged its design skills and agents: `web-kit:design-screen` replaces draw-mockup and design-sandbox, the agent `web-kit:user` replaces mockup-user and app-user, the agent `web-kit:designer` replaces design-critic and mockup-checker. Their sections in the project profile `.claude/dev-kit.md` move to the new names.
 - How: In a project that enables web-kit, merge `## mockup-user` and `## app-user` into one `## user` section and add to it, written once per project, the onboarding text the user agent reads: who the user is, what the app is for, its sections (taken from `docs/product.md` and the epics). Merge `## draw-mockup` and `## design-sandbox` into `## design-screen`. Move any `## design-critic` or `## mockup-checker` section to `## designer`. Keep each section's content; drop only exact repeats. Elsewhere in the profile (the `## manager` table, other sections' text), replace the old skill and agent names with the new ones. A project without web-kit changes nothing and only records the level. The project's CLAUDE.md rules for editing rule text apply, and rule text is edited through `dev-kit:edit-rules`.
 - Owner choice: none
