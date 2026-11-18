@@ -28,6 +28,7 @@ Built (2026-11-16, pult 0.1.4): `plugins/pult/scripts/watch-servers.ps1` restart
 What: a script sends a notification to the owner's phone (a dead server, a question that waits).
 Why: idea from the Pult repo, 2026-11; not checked how Claude's phone app can be notified from a script.
 Cheapest test: find out whether the Remote Control app or another channel accepts a message from a script.
+Tried (2026-11-19): two PushNotification calls from P: ClaudeDevKit (a Remote Control bg session) returned «Mobile push requested», but nothing reached the owner's phone. Cause unknown; not yet tried with the Claude app closed on the phone.
 
 ## Check all sessions before a machine-wide action (idea, home not chosen)
 
