@@ -51,4 +51,4 @@ Nothing unfinished is merged.
 - What `claude agents --json` shows for a session stopped on the usage limit.
 
 ## Owner's approval
-(to be filled)
+2026-11-18: «Так» to the whole proposal above, including one design-screen skill with two stages and the mockup's «так» counting as consent for C's checks of that screen.
