@@ -41,8 +41,8 @@ Claude Code's usage-limit notice (see `usage_limit`; the gist then starts with `
 time, or `resets unknown;`): such a session keeps its process and is listed as blocked, so the list cannot tell;
 `working` when the status is busy; else `waiting`. Exit 3 when the list cannot be read.
 
-`watch` waits in silence while the watched sessions live and exits with one line when one is gone or finished (the
-last reply has the finished marker, see `state`), so a caller that
+`watch` waits in silence while the watched sessions live and exits with one line when one is gone, finished (the
+last reply has the finished marker, see `state`) or limited (stopped on the usage limit, see `state`), so a caller that
 runs it in the background wakes only then. Watched: the `--id` sessions (full or 8+ char short ids), else the
 registry's active records, read again each round (a C added later is watched too; one ended with `end` is not).
 Every `--interval` seconds it reads `claude agents --json --all`: a session is live while an entry with its id has a
@@ -585,7 +585,14 @@ def usage_limit(path):
 
 
 def reset_text(resets_at):
-    return datetime.fromtimestamp(resets_at).strftime("%Y-%m-%d %H:%M") if resets_at else "unknown"
+    if not resets_at:
+        return "unknown"
+    if resets_at > 1e11:  # milliseconds
+        resets_at /= 1000
+    try:
+        return datetime.fromtimestamp(resets_at).strftime("%Y-%m-%d %H:%M")
+    except (OverflowError, OSError, ValueError):
+        return "unknown"
 
 
 def is_marker_line(line):
@@ -675,10 +682,10 @@ def limited_sessions(watched, agents):
     return found
 
 
-def new_limits(limited, path):
+def new_limits(limited, path, watched_ids):
     """The limited items not reported yet, and remember them: LIMITS in the registry folder maps a session id to the
-    key of the limit stop last reported, so a re-armed watcher does not report the same stop again. Ids no longer
-    limited are dropped from it."""
+    key of the limit stop last reported, so a re-armed watcher does not report the same stop again. Watched ids no
+    longer limited are dropped from it; entries of other ids (another watcher's `--id` sessions) are kept."""
     target = path.with_name(LIMITS)
     try:
         known = json.loads(target.read_text(encoding="utf-8-sig"))
@@ -687,7 +694,8 @@ def new_limits(limited, path):
     if not isinstance(known, dict):
         known = {}
     report = [item for item in limited if known.get(item[1]) != item[2]]
-    current = {item[1]: item[2] for item in limited}
+    current = {key: value for key, value in known.items() if key not in watched_ids}
+    current.update({item[1]: item[2] for item in limited})
     if current != known:
         target.parent.mkdir(parents=True, exist_ok=True)
         save(target, current)
@@ -889,7 +897,7 @@ def cmd_watch(args, path, records):
                 gone = after_grace(gone, agents, closed_since, time.monotonic())
                 ended = done | {item[1] for item in gone}
                 limited = new_limits([item for item in limited_sessions(watched, agents) if item[1] not in ended],
-                                     path)
+                                     path, {wanted for _, wanted in watched})
             if gone or finished or limited:
                 for name, wanted, state in gone:
                     print(f"gone: {name or '(no name)'} | {wanted} | {state}")

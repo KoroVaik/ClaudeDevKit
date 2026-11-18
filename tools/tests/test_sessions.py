@@ -752,5 +752,39 @@ class SessionsTestCase(unittest.TestCase):
             code, out = self.run_main("limited", "--id", "s1", "--id", "s2", "--id", "s3")
         self.assertEqual((0, "s1 | unknown | lim-1\n"), (code, out))
 
+    # protects: Edge
+    def test_usage_limit_reads_past_the_first_window(self):
+        path = self.projects / "p1" / "s1.jsonl"
+        big = self.reply("y" * (sessions.CHUNK + 10))
+        self.transcript("s1", [self.limit_notice("old"), self.human("go"), big, self.limit_notice("new")])
+        self.assertEqual("new", sessions.usage_limit(path)[0])
+        self.transcript("s1", [self.limit_notice("old"), big])  # the last entry is larger than one window
+        self.assertIsNone(sessions.usage_limit(path))
+        entries = list(sessions.tail_entries(path))
+        self.assertEqual(["assistant", "assistant"], [entry["type"] for entry in entries])
+        self.assertEqual("old", entries[1]["uuid"])
+
+    # protects: Rule
+    def test_a_limited_session_without_a_pid_is_gone(self):
+        self.add("c1-session", name="C: lim")
+        self.listing([{"sessionId": "c1-session", "status": "stopped"}])
+        self.transcript("c1-session", [self.limit_notice(resets=None)])
+        self.assertEqual(["C: lim | c1-session | gone | (no reply text)"], self.state_lines())
+        self.assertEqual([], sessions.limited_sessions([("C: lim", "c1-session")], sessions.agents_list(True)))
+
+    # protects: Bug
+    def test_limits_file_keeps_the_stops_of_other_watchers(self):
+        path = dev_kit_state.project_state_dir(self.project) / sessions.REGISTRY
+        (path.with_name(sessions.LIMITS)).write_text(json.dumps({"other": "k0"}), encoding="utf-8")
+        self.assertEqual([("n", "me", "k1", None)], sessions.new_limits([("n", "me", "k1", None)], path, {"me"}))
+        self.assertEqual({"other": "k0", "me": "k1"}, json.loads(path.with_name(sessions.LIMITS).read_text()))
+        self.assertEqual([], sessions.new_limits([], path, {"me"}))
+        self.assertEqual({"other": "k0"}, json.loads(path.with_name(sessions.LIMITS).read_text()))
+
+    # protects: Edge
+    def test_reset_time_in_seconds_or_milliseconds(self):
+        self.assertEqual(sessions.reset_text(1795014000), sessions.reset_text(1795014000000))
+        self.assertEqual("unknown", sessions.reset_text(None))
+
 if __name__ == "__main__":
     unittest.main()

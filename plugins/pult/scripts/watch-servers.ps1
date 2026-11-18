@@ -18,7 +18,7 @@
 #   so this watcher gets its chance first.
 # - A live lead of the list or active task session that stopped on the usage limit (5-hour or weekly) keeps
 #   its process and shows as blocked, so it looks alive: LIMIT <name> <session id> (resets <time>) once per
-#   stop, LIMIT-END when it goes on. Its transcript tells (`sessions.py limited`, one call per round); the
+#   stop, LIMIT-END when it goes on or is no longer live (a new watcher run logs a stop again). Its transcript tells (`sessions.py limited`, one call per round); the
 #   watcher only logs it: a respawn or restart would hit the same limit.
 # - A dev-kit lock file whose owner is gone is removed: UNLOCK (see Clear-StaleLocks).
 # - A lead that runs on an older dev-kit version than the one installed (<DevKitDir>\.claude-plugin\plugin.json)
@@ -225,7 +225,8 @@ function Invoke-LimitCheck {
     }
     foreach ($id in @($limitSeen.Keys)) {
         if ($now.ContainsKey($id)) { continue }
-        if ($liveSessions.ContainsKey($id)) { Write-Log ("LIMIT-END {0} {1}" -f $liveSessions[$id], $id) }
+        $how = if ($liveSessions.ContainsKey($id)) { $liveSessions[$id] } else { '(no longer live)' }
+        Write-Log ("LIMIT-END {0} {1}" -f $how, $id)
         $limitSeen.Remove($id)
     }
 }

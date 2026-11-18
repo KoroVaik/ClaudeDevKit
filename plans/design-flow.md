@@ -52,3 +52,10 @@ Nothing unfinished is merged.
 
 ## Owner's approval
 2026-11-18: «Так» to the whole proposal above, including one design-screen skill with two stages and the mockup's «так» counting as consent for C's checks of that screen.
+
+## Work log: C «Сторож бачить ліміт і claude» (session-health)
+- Checked 2026-11-18: `claude agents --json` keeps a limit-stopped session's pid and shows only state "blocked" (no detail), so the list cannot tell. Job `state.json` detail and the transcript say it: the transcript ends with a synthetic assistant entry, `apiError` "usage_limit_reached", `apiErrorParams.rate_limit_info.resetsAt`. sessions.py reads the transcript.
+- sessions.py: `state` shows `limited` (with the reset time), `watch` exits with `limited: <name> | <id> | resets <time>` once per stop (`limits.json` in the state folder), new `limited --id ...` for the Pult watcher; claude found in the usual install places when not on PATH.
+- P's extra case (2026-11-18): «C: Флоу дизайну екранів» reported gone every time. Cause: its registry id ended with a CR (pasted from `claude --bg` output). Ids are now trimmed on read and on every command; the Pult watcher trims too.
+- watch-servers.ps1: LIMIT / LIMIT-END lines; hub.md and the Pult README describe them. dev-kit 0.1.48, pult 0.1.8.
+- Tests: tools/tests/test_sessions.py (+6), tools/tests/test_watch_servers_limit.py (new, runs the real watcher with a fake claude). Paid spend: $0.
