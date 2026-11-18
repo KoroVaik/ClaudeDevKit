@@ -4,4 +4,4 @@
 
 | Setting | Value |
 |---|---|
-| migrations applied | 1 |
+| migrations applied | 2 |

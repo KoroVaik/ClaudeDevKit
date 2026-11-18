@@ -51,6 +51,13 @@ Ukrainian forms the owner approved are in brackets.
   over time (`dev-kit:manager`, "Less of the owner's involvement over time").
 - Every message ends with a concrete proposal: `Запустити нову сесію «C: <name>»? (<what it gives, at
   most 8 words>)`, with the name the session will get, then `Рекомендую: так - <reason, at most 12 words>`. Never a bare "what to start?".
+  With nothing to propose (nothing in the plans, or the owner just said no to the proposal), the
+  message ends instead with the list of tasks P could start (plan items, BACKLOG.md ideas, parked
+  items; a declined one left out), each with its brackets, and asks nothing; with none at all, one
+  line that there is nothing to start. In the Status template that list is its "What next" list, not
+  a second one. P never asks «Яку задачу запустити?». Why: P: ClaudeDevKit,
+  2026-11-18: after the owner's «Ні» P asked that question; owner: «Нащо знову питаєш», «Краще хай
+  дає просто список доступних задач».
   Exception: the message after P starts an «Обговорення:» session (see "Start an «Обговорення:»
   session") has no status, no question and no proposal.
 - A message that corrects an earlier P message (a takeover, merge or delivery P reported too early)
@@ -74,11 +81,10 @@ Status (on start and on "what runs now?"):
   (another session such as Pult may have started it). One line per session, «<its name or task>» - <working / waiting>. P does not
   manage these; it only keeps its own work off theirs.
 - Label "What next (from the project's plans)" ("Що робити далі (з планів проєкту)"), then 1-3
-  numbered items, each with its brackets. With nothing in the plans, take them from BACKLOG.md; with
-  nothing there either, write "nothing in the plans" and end with "Яку задачу запустити?" and
-  "немає рекомендації: план порожній".
+  numbered items, each with its brackets. With nothing in the plans, take them from BACKLOG.md and parked
+  items; with none at all, one line that there is nothing to start (see the proposal bullet above).
 - In the plugin repo, new BACKLOG.md entries are listed as next items.
-- Then the proposal.
+- Then the proposal (with nothing to propose, as the proposal bullet says).
 
 Example:
 
@@ -104,7 +110,8 @@ grasp each part from one sentence; details stay in the session's own report and 
   sees or can do, in plain words.
 - Under the same heading, only if needed: numbered yes/no questions or owner actions, each followed by
   its `Рекомендую: так/ні - <reason>` line. P adds the recommendation C did not give.
-- Last, `### Next` (`### Далі`): the proposal for the next item.
+- Last, `### Next` (`### Далі`): the proposal for the next item (with nothing to propose, as the
+  proposal bullet says).
 
 Example:
 
@@ -214,8 +221,8 @@ detailed talk there, so most tasks do not become a new session for the owner.
   the local main (seen live: 6 weeks old, without `.claude/dev-kit.md`).
 - Permission mode: `bypassPermissions` (no prompts) only when the deny rules of "Hard bans" (the
   Bash and the PowerShell lines) are in a settings file committed on main and P has checked that C's
-  fresh worktree holds them; otherwise `auto`, and P proposes the hard bans to the owner (once per
-  project). A refresh or a restart uses the same mode. Checked live 2026-11-15: after the owner
+  fresh worktree holds them; otherwise `auto` (the one-time proposal of the hard bans is a dev-kit
+  migration, see "Hard bans"). A refresh or a restart uses the same mode. Checked live 2026-11-15: after the owner
   accepted the disclaimer below, a bg session with `bypassPermissions` ran a shell command with no
   prompt.
   `--bg` with `bypassPermissions` fails with exit 1 until the owner accepts a disclaimer once per
@@ -297,7 +304,8 @@ line, as a critical item, and starts nothing.
   under this project's rules, check its `Done when`, then run `dev-kit-migrations record <n>` in the
   worktree. An entry with an `Owner choice` goes to P as a question before it is applied, and the C
   waits for the answer (it never records past an entry it has not applied). P puts that choice in the
-  owner queue and passes the answer back. With a migration C registered, P starts no second one.
+  owner queue and passes the answer back; a hand action the entry gives the owner on a yes, P puts
+  in the queue too. With a migration C registered, P starts no second one.
 - The C's edits of rule text run steps 1-2 and 5-6 of `dev-kit:edit-rules`: the owner's yes to the
   entry, given when it was added to the list, is their approval (as in `dev-kit:migrate-docs`). P does
   not apply entries itself.
@@ -381,9 +389,11 @@ a product choice (see "Owner queue and critical items").
 
 Hard bans are deny rules in a settings file committed on main (`.claude/settings.json`), so every
 fresh worktree has them. Neither P nor C may add, change or lift them; the owner adds the lines by
-hand after his yes, and neither P nor C writes them. Once per project, when the settings lack them,
-P proposes this set as one yes/no with the exact lines: push to main where main deploys; deleting
-data folders or the owner's database; stopping the owner's containers; editing permission settings.
+hand after his yes, and neither P nor C writes them. The set is proposed once per project, as one
+yes/no with the exact lines, by entry 3 of the plugin's `migrations.md` (see "Apply dev-kit
+migrations"); the profile's `hard bans` row records the answer, so P does not ask again. The set: push to
+main where main deploys; deleting data folders or the owner's database; stopping the owner's
+containers; editing permission settings.
 Every Bash line has a PowerShell twin of the same shape (Claude Code docs: PowerShell rules use the
 same shape as Bash rules), because C may run either shell.
 

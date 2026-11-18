@@ -13,3 +13,10 @@ Every rule edit runs dev-kit:edit-rules steps 1-2 and 5-6; the owner approved th
 
 ## Success criterion
 Lint and tests pass; project-lead has no instruction that makes P ask «Яку задачу запустити?»; migrations.md has the hard-ban entry; `dev-kit-migrations pending` in this repo prints only the new entry (or none once applied here).
+
+## Status (C, 2026-11-18): done
+- 1: project-lead "Message templates": the proposal bullet has the nothing-to-propose case (list, no question; the Status "What next" list is that list); the Status empty-plan line, "Then the proposal" and Task done "### Next" point at it. BACKLOG entry removed.
+- 2: migrations.md entry 3 «Propose the hard bans once» (Owner choice: the filled deny lines; answer kept in the profile row `hard bans`). "Hard bans", "Permission mode" and "Apply dev-kit migrations" (P queues the owner's hand action on a yes) point at it. dev-kit 0.1.50.
+- 3: migration 2 recorded here (no web-kit); `pending` now lists only entry 3, which needs the owner's choice via P (this repo's settings have no deny lines).
+- Checks: lint 0 errors; 493 tests OK; dev-kit:reviewer (sonnet) found no confident problem, three doubts fixed (P queues the hand action, row value «accepted», one list not two).
+- Paid spend: $0.
