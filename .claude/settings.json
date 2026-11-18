@@ -1,5 +1,11 @@
 {
   "enabledPlugins": {
     "dev-kit@korov-dev": true
+  },
+  "permissions": {
+    "deny": [
+      "Edit(.claude/settings.json)",
+      "Edit(.claude/settings.local.json)"
+    ]
   }
 }
