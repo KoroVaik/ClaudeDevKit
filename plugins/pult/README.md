@@ -18,7 +18,8 @@ problem it proposes a fix and acts after an explicit yes.
 - The watcher (`scripts/watch-servers.ps1`, started at logon) checks every minute. A lead or server of
   `servers.psd1` that is down for two checks is brought back the same way as at logon (log HEAL; at most 3
   tries an hour, then GIVEUP). A task session a project lead registered, closed by Claude Code (no
-  process, not stopped on purpose), comes back with `claude respawn` (log HEAL-TASK). It also removes
+  process, not stopped on purpose), comes back with `claude respawn` (log HEAL-TASK). A live lead or task session that stopped on the
+  usage limit is logged once per stop (LIMIT, with the reset time; LIMIT-END when it goes on). It also removes
   dev-kit lock files whose owner is gone (log UNLOCK). It restarts a lead that runs on an older dev-kit version
   than the installed `plugins/dev-kit/.claude-plugin/plugin.json`, with no message from the hub: an idle lead
   at once (log RESTART-LEAD). A busy lead is not interrupted: on its ordinary wake-ups it notices the new

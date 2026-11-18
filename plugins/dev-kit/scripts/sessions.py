@@ -8,10 +8,12 @@ full their context is.
     dev-kit-sessions others [--self <id>] [--json]
     dev-kit-sessions state [--id <id> ...]
     dev-kit-sessions watch [--id <id> ...] [--interval 60] [--max-minutes 120]
+    dev-kit-sessions limited --id <id> [--id <id> ...]
     dev-kit-sessions restart request --version <V> | ready [--version <V>] | status | clear
 
 The registry is `sessions.json` in the project state folder (see dev_kit_state.py; the same folder for all worktrees
-of one repository). `add --predecessor` marks the replaced session `replaced`. `add --owner` marks a session the
+of one repository). Ids (`--id`, `--parent`, `--predecessor`, `--self`) and the registry's ids are trimmed of spaces and
+line ends: an id pasted from `claude --bg` output once carried a CR and matched no session. `add --predecessor` marks the replaced session `replaced`. `add --owner` marks a session the
 owner started and the lead took over (the record gets `"owner": true`; the UserPromptSubmit hook
 hooks/owner-session-note.py reads it). `fill` finds the transcript of every
 active record (`<projects>/*/<id>.jsonl`, projects folder = env DEV_KIT_PROJECTS_DIR, else ~/.claude/projects) and
@@ -21,19 +23,23 @@ percent reaches the limit.
 
 `others` lists the live sessions of this repository (any worktree) other than the caller, for the overlap check
 before a task starts. Source: `claude agents --json` (background sessions and running interactive ones, the desktop
-Code tab included; env DEV_KIT_AGENTS_JSON names a file to read instead). The caller is `--self`, else env
+Code tab included; env DEV_KIT_AGENTS_JSON names a file to read instead). The claude command is taken from PATH, else
+from the usual install places (see `claude_candidates`), since a subagent's shell may lack the npm folder. The caller is `--self`, else env
 CLAUDE_CODE_SESSION_ID. Lead sessions (name starts with `P: `) are left out: they do no task work. For each: name,
 state, who started it (`lead` when the registry holds its id, else `owner`), branch, cwd, the first task messages
 (owner or peer messages of its transcript, cut to TASK_CHARS) and the files it changed (the branch against the base
 branch, plus uncommitted ones). Reads no code. Prints `no other sessions` when there are none.
 
 `state` prints one line per active registry record (or per `--id`, full or 8+ char prefix): `name | id | working|
-waiting|finished|gone | gist`. The gist is the tail (at most GIST_CHARS) of the last assistant text message of the
+waiting|limited|finished|gone | gist`. The gist is the tail (at most GIST_CHARS) of the last assistant text message of the
 transcript, read from the end of the file. Status comes from `claude agents --json --all` (an entry matches a
 registry id by `id`, `sessionId` or a sessionId prefix): `finished` when that last reply has a line that, trimmed and
 without trailing punctuation, is one of FINISHED_MARKERS and no owner message came after it, and only for a record
 added with `--owner` (a C never reports finished); else `gone` when no
-matching entry has a `pid` (a session with none is closed, see `watch`); `working` when the status is busy; else `waiting`. Exit 3 when the list cannot be read.
+matching entry has a `pid` (a session with none is closed, see `watch`); `limited` when its transcript ends with
+Claude Code's usage-limit notice (see `usage_limit`; the gist then starts with `resets <YYYY-MM-DD HH:MM>;`, local
+time, or `resets unknown;`): such a session keeps its process and is listed as blocked, so the list cannot tell;
+`working` when the status is busy; else `waiting`. Exit 3 when the list cannot be read.
 
 `watch` waits in silence while the watched sessions live and exits with one line when one is gone or finished (the
 last reply has the finished marker, see `state`), so a caller that
@@ -46,7 +52,10 @@ Every `--interval` seconds it reads `claude agents --json --all`: a session is l
 watcher across rounds; a `pid` again clears it), so the Pult watcher can bring it back with `claude respawn`
 first. Lines and exit codes:
 `gone: <name> | <id> | <state or 'not in the session list'>` (one per gone session) and
-`finished: <name> | <id>` (one per finished session, also one that is gone) exit 0; `time limit: <N> min,
+`finished: <name> | <id>` (one per finished session, also one that is gone) and `limited: <name> | <id> | resets
+<time or unknown>` (one per live session that stopped on the usage limit, see `state`; each stop is reported once:
+LIMITS in the state folder keeps the stop already reported, so the re-armed watcher stays quiet until the session
+goes on and stops again) exit 0; `time limit: <N> min,
 all alive` exit 4 (re-arm it); `nothing to watch` exit 5 (on the first round, or at the time limit when the registry
 has emptied meanwhile: a watcher whose last C ended keeps quiet); `already watching: pid <N>` exit 6 (in registry
 mode one watcher per project runs: a lock file in the state folder with a heartbeat; a new watcher waits until the
@@ -56,6 +65,10 @@ the registry or the session list unreadable WATCH_FAILURES rounds in a row: exit
 (each round, before the other checks and also on the first round with nothing to watch, only once per request:
 `restart.json` holds an open request that is neither ready nor notified yet; the exit sets `"notified"`, so the
 re-armed watcher stays quiet, see the next paragraph).
+
+`limited` prints `<id> | <resets> | <key>` for each `--id` (a full session id) whose transcript ends with the
+usage-limit notice, nothing for the others; it reads transcripts only, no session list and no project state (the
+Pult watcher calls it once per round with the live leads and task sessions). Exit 0.
 
 `restart` is the file handshake for a lead's restart on a new dev-kit version (the Pult watcher does the restart).
 `restart.json` in the project state folder holds `{"version": V, "asked": <epoch>, "ready": <epoch>, "notified":
@@ -99,6 +112,8 @@ TASK_CHARS = 700
 FILES_SHOWN = 40
 WATCH_LOCK = "watch.lock"
 WATCH_FAILURES = 5
+ID_KEYS = ("id", "parent", "predecessor")
+LIMITS = "limits.json"
 CLOSED_GRACE = 300  # seconds a session with no pid stays unreported: the Pult watcher may bring it back meanwhile
 # A reply line (trimmed, emphasis marks and trailing punctuation removed, case ignored) that says the session is done.
 FINISHED_MARKERS = ("Роботу завершено", "Work finished")
@@ -125,6 +140,11 @@ def load(path):
         raise Unreadable(f"{path} is unreadable: {exc}")
     if not isinstance(data, list):
         raise Unreadable(f"{path} is not a list of records")
+    for record in data:  # an id pasted from `claude --bg` output may carry a CR or spaces: it would match nothing
+        if isinstance(record, dict):
+            for key in ID_KEYS:
+                if isinstance(record.get(key), str):
+                    record[key] = record[key].strip()
     return data
 
 
@@ -276,6 +296,28 @@ def cmd_fill(args, path, records):
     return 0
 
 
+def claude_candidates():
+    """The usual install places of the claude command, for a shell whose PATH lacks it (a subagent's or a hidden
+    window's): the native installer, the npm global folders, Homebrew and /usr/local."""
+    home = Path.home()
+    places = [home / ".local" / "bin", home / ".claude" / "local", home / ".npm-global" / "bin",
+              Path("/opt/homebrew/bin"), Path("/usr/local/bin")]
+    for env in ("APPDATA", "LOCALAPPDATA"):
+        if os.environ.get(env):
+            places.append(Path(os.environ[env]) / "npm")
+    names = ("claude.exe", "claude.cmd", "claude") if os.name == "nt" else ("claude",)
+    return [place / name for place in places for name in names]
+
+
+def find_claude():
+    """The claude command: on PATH (on Windows an npm install is claude.CMD, which a bare name misses), else the
+    first usual install place that holds it; None when there is none."""
+    found = shutil.which("claude")
+    if found:
+        return found
+    return next((str(path) for path in claude_candidates() if path.is_file()), None)
+
+
 def agents_list(include_ended=False):
     """The parsed `claude agents --json` array (`--all` adds ended sessions); RuntimeError when it cannot be read."""
     source = os.environ.get(AGENTS_ENV)
@@ -283,9 +325,9 @@ def agents_list(include_ended=False):
         if source:
             text = Path(source).read_text(encoding="utf-8-sig")
         else:
-            claude = shutil.which("claude")  # on Windows an npm install is claude.CMD, which a bare name misses
+            claude = find_claude()
             if not claude:
-                raise RuntimeError("the claude command is not on PATH")
+                raise RuntimeError("the claude command is not on PATH or in the usual install places")
             command = [claude, "agents", "--json"] + (["--all"] if include_ended else [])
             result = subprocess.run(command, capture_output=True, text=True, encoding="utf-8",
                                     timeout=60)
@@ -486,6 +528,66 @@ def last_reply(path):
             window *= 4
 
 
+def tail_entries(path):
+    """The parsed assistant and user entries of a transcript, last first, read from the end of the file in growing
+    windows (a window's first line may be cut; the next, larger read covers it whole)."""
+    size = path.stat().st_size
+    window, seen = CHUNK, 0
+    with open(path, "rb") as handle:
+        while True:
+            start = max(0, size - window)
+            handle.seek(start)
+            lines = handle.read(size - start).split(b"\n")
+            if start > 0:
+                lines = lines[1:]
+            entries = []
+            for line in reversed(lines):
+                if b'"assistant"' not in line and b'"user"' not in line:
+                    continue
+                try:
+                    entry = json.loads(line.decode("utf-8"))
+                except ValueError:  # includes UnicodeDecodeError
+                    continue
+                if isinstance(entry, dict) and entry.get("type") in ("assistant", "user"):
+                    entries.append(entry)
+            yield from entries[seen:]
+            seen = len(entries)
+            if start == 0:
+                return
+            window *= 4
+
+
+def is_limit_notice(entry):
+    """Whether a transcript entry is Claude Code's notice that the account hit its usage limit (5-hour or weekly):
+    a synthetic assistant message with `apiError` usage_limit_reached (older: `error` rate_limit)."""
+    return entry.get("type") == "assistant" and (entry.get("apiError") == "usage_limit_reached"
+                                                 or (entry.get("isApiErrorMessage") and entry.get("error") == "rate_limit"))
+
+
+def usage_limit(path):
+    """(key, resets_at) when the session stopped on the usage limit: the last entry of its transcript that is not a
+    side chain or a meta note is the limit notice (any later reply, tool result, owner or peer message means it went
+    on). key tells one stop from the next (the notice's uuid or time); resets_at is epoch seconds or None. Else
+    None. Claude Code keeps such a session's process and lists it as blocked, so the session list cannot tell."""
+    try:
+        for entry in tail_entries(path):
+            if entry.get("isSidechain") or entry.get("isMeta"):
+                continue
+            if not is_limit_notice(entry):
+                return None
+            info = ((entry.get("apiErrorParams") or {}).get("rate_limit_info") or entry.get("quotaLimits") or {})
+            resets = info.get("resetsAt") if isinstance(info, dict) else None
+            key = str(entry.get("uuid") or entry.get("timestamp") or "")
+            return key, resets if isinstance(resets, (int, float)) and not isinstance(resets, bool) else None
+    except OSError:
+        return None
+    return None
+
+
+def reset_text(resets_at):
+    return datetime.fromtimestamp(resets_at).strftime("%Y-%m-%d %H:%M") if resets_at else "unknown"
+
+
 def is_marker_line(line):
     line = line.strip().strip("*_`#> «»\"'").rstrip(".,;:!?…»\"'*_` ")
     return line.casefold() in {marker.casefold() for marker in FINISHED_MARKERS}
@@ -507,7 +609,7 @@ def is_owner(records, wanted):
 
 
 def session_state(agents, wanted, owner):
-    """(state, gist) of a registry id: finished, gone, working or waiting (see the module docstring). Only an owner
+    """(state, gist) of a registry id: finished, gone, limited, working or waiting (see the module docstring). Only an owner
     session can be finished: a C reports through its own channel, so its reply lines never count."""
     entries = agent_entries(agents, wanted)
     session_id = next((str(agent["sessionId"]) for agent in entries if agent.get("sessionId")), wanted)
@@ -521,6 +623,9 @@ def session_state(agents, wanted, owner):
         return "finished", gist
     if not any(agent.get("pid") for agent in entries):
         return "gone", gist
+    limit = usage_limit(transcript) if transcript else None
+    if limit:
+        return "limited", f"resets {reset_text(limit[1])}; {gist}"
     busy = any("busy" in (agent.get("status"), agent.get("state")) or agent.get("state") == "working"
                for agent in entries)
     return ("working" if busy else "waiting"), gist
@@ -551,6 +656,52 @@ def cmd_state(args, path, records):
         print(f"{name or '(no name)'} | {session_id} | {state} | {gist}")
     if not wanted:
         print("no active sessions")
+    return 0
+
+
+def limited_sessions(watched, agents):
+    """(name, id, key, resets_at) of each watched (name, id) that is live in the session list (has a pid) but whose
+    transcript ends with the usage-limit notice (see usage_limit)."""
+    found = []
+    for name, wanted in watched:
+        entries = agent_entries(agents, wanted)
+        if not any(agent.get("pid") for agent in entries):
+            continue
+        session_id = next((str(agent["sessionId"]) for agent in entries if agent.get("sessionId")), wanted)
+        transcript = find_transcript(session_id)
+        limit = usage_limit(transcript) if transcript else None
+        if limit:
+            found.append((name or str(entries[0].get("name") or ""), wanted, *limit))
+    return found
+
+
+def new_limits(limited, path):
+    """The limited items not reported yet, and remember them: LIMITS in the registry folder maps a session id to the
+    key of the limit stop last reported, so a re-armed watcher does not report the same stop again. Ids no longer
+    limited are dropped from it."""
+    target = path.with_name(LIMITS)
+    try:
+        known = json.loads(target.read_text(encoding="utf-8-sig"))
+    except (OSError, ValueError):
+        known = {}
+    if not isinstance(known, dict):
+        known = {}
+    report = [item for item in limited if known.get(item[1]) != item[2]]
+    current = {item[1]: item[2] for item in limited}
+    if current != known:
+        target.parent.mkdir(parents=True, exist_ok=True)
+        save(target, current)
+    return report
+
+
+def cmd_limited(args, path, records):
+    """One line per --id session whose transcript ends with the usage-limit notice: `<id> | <resets> | <key>`.
+    Reads transcripts only, not the session list (the Pult watcher already has it)."""
+    for wanted in args.id:
+        transcript = find_transcript(wanted)
+        limit = usage_limit(transcript) if transcript else None
+        if limit:
+            print(f"{wanted} | {reset_text(limit[1])} | {limit[0]}")
     return 0
 
 
@@ -733,13 +884,19 @@ def cmd_watch(args, path, records):
             finished = finished_sessions(watched, agents, records) if agents is not None else []
             done = {wanted for _, wanted in finished}
             gone = [item for item in gone_sessions(watched, agents) if item[1] not in done] if agents is not None else []
+            limited = []
             if agents is not None:
                 gone = after_grace(gone, agents, closed_since, time.monotonic())
-            if gone or finished:
+                ended = done | {item[1] for item in gone}
+                limited = new_limits([item for item in limited_sessions(watched, agents) if item[1] not in ended],
+                                     path)
+            if gone or finished or limited:
                 for name, wanted, state in gone:
                     print(f"gone: {name or '(no name)'} | {wanted} | {state}")
                 for name, wanted in finished:
                     print(f"finished: {name or '(no name)'} | {wanted}")
+                for name, wanted, _key, resets in limited:
+                    print(f"limited: {name or '(no name)'} | {wanted} | resets {reset_text(resets)}")
                 return 0
             if time.monotonic() + args.interval > deadline:
                 if not watched:
@@ -785,6 +942,8 @@ def main(argv=None):
     watch.add_argument("--id", action="append", default=[], help="a session to watch (repeatable; default: the registry)")
     watch.add_argument("--interval", type=float, default=60, help="seconds between reads of the session list")
     watch.add_argument("--max-minutes", type=float, default=120, help="exit with the time-limit line after this")
+    limited = sub.add_parser("limited", help="which sessions stopped on the usage limit (transcripts only)")
+    limited.add_argument("--id", action="append", default=[], help="a full session id (repeatable)")
     restart = sub.add_parser("restart", help="the restart request the Pult watcher leaves for a lead")
     restart_sub = restart.add_subparsers(dest="restart_action", required=True)
     restart_sub.add_parser("request").add_argument("--version", required=True)
@@ -792,11 +951,18 @@ def main(argv=None):
     for action in ("status", "clear"):
         restart_sub.add_parser(action)
     args = parser.parse_args(argv)
+    for key in ("id", "parent", "predecessor", "self", "name", "worktree", "task"):  # ids pasted with a CR or spaces
+        value = getattr(args, key, None)
+        if isinstance(value, str):
+            setattr(args, key, value.strip())
+        elif isinstance(value, list):
+            setattr(args, key, [item.strip() for item in value])
     try:
-        path = registry_path(args.project)
-        records = [] if args.action == "restart" else load(path)  # the handshake works with a broken registry too
+        path = registry_path(args.project, create=args.action != "limited")  # limited reads no project state
+        records = [] if args.action in ("restart", "limited") else load(path)  # the handshake works with a broken registry too
         return {"add": cmd_add, "end": cmd_end, "list": cmd_list, "fill": cmd_fill, "restart": cmd_restart,
-                "others": cmd_others, "state": cmd_state, "watch": cmd_watch}[args.action](args, path, records)
+                "others": cmd_others, "state": cmd_state, "watch": cmd_watch,
+                "limited": cmd_limited}[args.action](args, path, records)
     except Unreadable as exc:
         print(f"dev-kit-sessions: {exc}", file=sys.stderr)
         return 2
