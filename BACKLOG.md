@@ -23,13 +23,6 @@ Why: idea from the Pult repo, 2026-11; today the watcher only logs and the owner
 Cheapest test: let the watcher restart one dead lead after the owner's yes and check the log lines.
 Built (2026-11-16, pult 0.1.4): `plugins/pult/scripts/watch-servers.ps1` restarts a dead lead or server of `servers.psd1` (HEAL, at most 3 an hour, paused by a hold file from `stop-servers.ps1` / `restart-leads.ps1`) and removes dev-kit locks whose owner is gone (UNLOCK); `rules/hub.md` says what Pult shows from the log. Tested on a throwaway lead; not yet seen on a real lead crash.
 
-## Pult: phone notification from a script
-
-What: a script sends a notification to the owner's phone (a dead server, a question that waits).
-Why: idea from the Pult repo, 2026-11; not checked how Claude's phone app can be notified from a script.
-Cheapest test: find out whether the Remote Control app or another channel accepts a message from a script.
-Tried (2026-11-19): two PushNotification calls from P: ClaudeDevKit (a Remote Control bg session) returned «Mobile push requested», but nothing reached the owner's phone. With the Claude app closed, and again with it only minimized, the push arrived: a session's PushNotification works, it is just not shown while the app is open on screen. Next: let Pult (or a lead) push the owner's critical items instead of a script.
-
 ## Check all sessions before a machine-wide action (idea, home not chosen)
 
 What: before any session recommends an action that stops or restarts more than its own work (a PC reboot, restarting Pult or its watcher, stopping servers), it lists every session on the machine (`claude agents --json` with no `--cwd` lists all projects; checked live) and does not recommend the action while one is busy, naming it. Only the idea is agreed; where the rule lives is open (owner's global rules, project-lead skill, Pult hub rules, or several).

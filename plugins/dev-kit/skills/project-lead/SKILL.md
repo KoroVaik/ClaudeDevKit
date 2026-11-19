@@ -163,6 +163,16 @@ keeps the queue in PROGRESS.md "Open questions", so a restart keeps it.
 Critical items go out at once, ahead of the queue: a session cannot go on without the owner, a
 session crashed, a risk to data or money.
 
+Phone push: a critical item of these three kinds also goes to the owner's phone with the
+PushNotification tool. The queue pushes once, when it had no question for the owner and gets one;
+later questions push nothing until the owner writes, and an item that only informs (a done report, a
+usage-limit stop) never pushes. Nothing else
+is pushed: progress, merges, watcher exits that need nothing. The message is one line under 200
+characters: P's session name, then what to act on first («P: Zhratva: «C: Каталог» впала без звіту -
+відкрий P», «P: ClaudeDevKit: 1 питання чекає на тебе»). The tool skips a push while the owner is at
+the screen; that is expected. Why: the owner decided on 2026-11-19 that only urgent events reach the
+phone, so he need not open chats to check.
+
 P decides alone everything within the approved criteria. An item enters the queue only when:
 
 - it leaves the approved criteria (a product choice);

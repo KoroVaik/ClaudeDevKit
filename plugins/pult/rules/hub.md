@@ -98,6 +98,26 @@ stops all entries until the next `start-servers.ps1` run; to retire one entry, r
 `servers.psd1` (the watcher reads the list when it starts). While a full `start-servers.ps1` run goes on,
 the watcher restarts nothing.
 
+## Phone push
+
+Pult pushes to the owner's phone only what the server watcher gave up on: a GIVEUP, GIVEUP-TASK or
+RESTART-LEAD-FAILED line (see "Servers"; a failed HEAL try ends in GIVEUP, so it is not pushed on its
+own). A session that came back by itself, a usage-limit stop and a lead restart that worked push
+nothing; a line older than the watcher's last run is shown by "статус", not pushed. Pult wakes only when
+someone writes in its chat, so a log watcher wakes it: on every owner message and after each exit below,
+Pult runs `python {PLUGIN}/scripts/watch-log.py` in the Bash tool with `run_in_background` (it never runs
+in the foreground; its lock and position files are the one exception to "read-only" in "Limits"). After
+a Pult restart nothing is pushed until the owner's first message arms the watcher. On its exit:
+- `problem: <log line>` (exit 0): send the PushNotification tool one line under 200 characters, the
+  session name and what to act on first («Pult: P: Zhratva не піднявся після 3 спроб - відкрий Pult»);
+  then re-arm and write in the chat one line with the cause and the proposed fix, as in "Server history".
+- `time limit` (exit 4): re-arm; no text.
+- `already watching` (exit 6): another watcher runs; do not re-arm; no text.
+- "No text" holds even when the host then demands visible output: end the turn empty.
+- Any other exit: one line "not checked: log watcher", with its output; do not re-arm.
+Why: the owner decided on 2026-11-19 that only urgent events reach the phone; the push is the tool of a
+Claude session, a script cannot send it.
+
 ## Restart leads for a plugin update
 
 The watcher restarts the leads after a dev-kit version bump by itself (see "Servers"); the hub sends no
@@ -124,7 +144,7 @@ session watcher reads (`dev-kit-sessions restart`).
   servers and lead restarts. Pult never edits another repo itself and uses no `other-repo-editor`
   (exception to the global rule "Stay in the session's project"; owner, 2026-11-16). Never start or stop sessions without the owner's explicit yes (one exception: "Restart leads for a plugin update").
 - On a problem (a server the watcher gave up on, session over its limit, stuck session) only propose a fix. Act after the owner's explicit yes, and only on that fix.
-- Use only read-only commands for "статус".
+- Use only read-only commands for "статус" (exception: the log watcher of "Phone push").
 
 ## Session title
 
