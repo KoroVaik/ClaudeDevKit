@@ -47,3 +47,17 @@ review agent writing straight into the backlog, a cap of 3 entries a day).
 
 ## Success criterion
 The owner's «так» to the approved idea, written in the section «Owner's approval» below, with where each part lives.
+
+## Build (2026-11-19)
+- Script: `plugins/dev-kit/scripts/retro.py`, command `dev-kit-retro check|scan|list|done`. How it runs daily with
+  no owner step: P runs `dev-kit-retro check` at its start, every status and every Task done (same moments as the
+  backlog check); the script scans at most once a day and reads only the bytes appended since the last scan, so no
+  Windows scheduled task or Pult change is needed. A day P never wakes is caught up by the next scan.
+- Findings folder (local): `~/.claude/dev-kit/retro/` - `scan-<date>.md`, `notes.md` (sessions' lines), `state.json`.
+- Kinds: repeated call (same tool+input x3, background calls excluded), failed calls (x3), many calls (150+),
+  slow call (10+ min), long pause (5+ min before the next reply), script candidate (same Bash command in 3+ sessions).
+- Retro session: `Обговорення: Ретро сесій <date>`, skill `dev-kit:retro`; P's section "Retro of session problems".
+- Session notes: owner's global `docs/process-mistakes.md`, new second bullet.
+- Live run on real transcripts (temp folder): about 30 findings for one day, about 1 s (after the review fixes: own dev-kit commands and short commands left out).
+- Paid spend: $0 (no paid calls).
+- Review (dev-kit:reviewer, sonnet): 6 findings fixed (queue item, edit-rules steps 1-2 in the retro reviewer, done marks only what was shown, BOM-safe reads, pre-approved backlog Verdict, own-command noise).

@@ -42,7 +42,8 @@ nothing: the merge is P's step, so the owner sees in this chat why the session c
   report and goes on with its work; P asks for missed reports after its restart, and the C then sends
   the report again.
 - A session named «Обговорення: ...» is the exception: it talks with the owner directly and builds
-  nothing; how it works and ends is in `dev-kit:project-lead`, "Start an «Обговорення:» session".
+  no product code (a retro, `dev-kit:retro`, edits only rule text, after the owner's yes); how it works and
+  ends is in `dev-kit:project-lead`, "Start an «Обговорення:» session".
 
 A session the owner started that P took over (after the owner's yes) is not a C: it keeps talking with
 the owner, P sends it nothing, and P watches it by reading its state. A plugin hook tells it at each

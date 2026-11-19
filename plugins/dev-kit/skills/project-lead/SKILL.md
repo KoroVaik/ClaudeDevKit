@@ -186,7 +186,7 @@ The C keeps a running total of paid spend in its task file and asks P before a p
 
 One more item always enters the queue: «Взяти «<name>» під керування?» for each session the owner
 started that P has not offered yet (see "Take over a session the owner started"). It is a normal
-item, never critical.
+item, never critical. The same holds for the retro item of "Retro of session problems".
 
 Why: the owner decided on 2026-11-15 that he is the CEO: six messages about three sessions in
 minutes were noise, and spend under $1 or a decision inside the criteria needs no owner.
@@ -677,12 +677,34 @@ someone writes in its chat.
   version, runs the lint and removes the built entries; P runs steps 5-6 of `dev-kit:edit-rules` on the
   diff and commits. On "ні" P removes the entry. This is P's one exception to "no task work"; any other
   rule edit P makes follows `dev-kit:edit-rules` too.
+- An entry whose `Verdict:` line says the owner already said yes in a retro is not reviewed or asked
+  again: P starts a C for it as for a complex entry below.
 - A complex entry (several files, the P/C flow, a new skill or script), more than 3 new entries, or
   an entry the owner wants to discuss rather than answer yes/no: one C for the whole batch, started
   as in "Start a C".
 
 Why: the owner decided on 2026-11-14 that a C for every simple rule edit is too much, and a timer
 costs tokens while nothing is new.
+
+## Retro of session problems (plugin repo only)
+
+In the plugin repo P also runs `dev-kit-retro check` at the same moments as the backlog check above.
+It scans the transcripts of all sessions with no model at most once a day (a later run the
+same day only counts) and prints `new findings: <N>` or `no new findings`; the findings stay in a local folder
+outside any repo. With new findings and no retro item already in the queue or a retro session running, P
+adds one queue item: «Запустити ретро сесій? (<N> нових знахідок)». No new findings, no item. The
+owner may also ask for a retro at any time («ретро», «розбери проблеми сесій»); P then starts it
+even with no new findings, and the owner brings their own cases there.
+
+- «ні»: P runs `dev-kit-retro done`, so the same findings are not proposed again.
+- «так»: P starts it as in "Start an «Обговорення:» session", with these differences: the name is
+  `Обговорення: Ретро сесій <YYYY-MM-DD>`; the first prompt is the owner's words (if any) and "run
+  `dev-kit:retro`", with no feature file and no discovery, mockup or «Approved design» lines; the session may edit rule text after the owner's yes and ends with a
+  done report and its branch, which P merges as in "Acceptance and merge" with no «Approved design»
+  check and no follow-up C. The one line after the launch is the same, with this session's name.
+
+Why: the owner decided on 2026-11-19 that sessions' problems are found daily, but a retro starts
+only after the owner's «так»: a review agent writing straight into the backlog was rejected.
 
 ## Not supported yet
 
