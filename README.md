@@ -50,7 +50,7 @@ Most of the repo is Markdown prompts. The code that runs as a program:
 |---|---|---|
 | `plugins/dev-kit/scripts/check_docs.py` | 1408 | Checks a project's docs: every epic and feature has its sections, links, anchors and "Built in" paths resolve; finds the feature that owns a code file; lists open tasks and defects; lists the base docs files a project lacks. |
 | `tools/lint.py` | 461 | Checks this repo: plugin manifests, skill and agent front matter, slot tables, hook config, project profiles. |
-| `plugins/dev-kit/hooks/narrow-agents.py` | 118 | A hook that lets a project launch only its own agents and those of its enabled plugins. |
+| `plugins/dev-kit/hooks/narrow-agents.py` | 124 | A hook that lets a project launch only its own agents, those of its enabled plugins and the user-level `other-repo-editor` the global rules name. |
 | `plugins/dev-kit/hooks/owner-session-note.py` | 54 | A hook that tells a session the owner started and the project lead took over that the lead watches it and how to say it is done. |
 | `plugins/dev-kit/scripts/run_app.py` | 330 | Starts and stops a project's app from the commands in its profile, with a queue lock between worktrees. |
 | `plugins/unity-kit/scripts/user_check.py` | 544 | Plays a recipe (keys, mouse, console and state expectations) in the Unity editor and writes a report. |

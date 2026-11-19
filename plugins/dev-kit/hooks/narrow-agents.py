@@ -1,9 +1,13 @@
 """PreToolUse hook for the Agent tool: only the project's own narrow agents (.claude/agents/*.md) and agents of
-enabled plugins may be launched, never a built-in or user-level agent type."""
+enabled plugins may be launched, never a built-in or user-level agent type, except the user-level agents in
+USER_AGENTS that the owner's global rules name."""
 import json
 import os
 import sys
 from pathlib import Path
+
+# User-level agents (~/.claude/agents/<name>.md) the owner's global CLAUDE.md sends work to; allowed only while the file exists.
+USER_AGENTS = ('other-repo-editor',)
 
 
 def read_json(path):
@@ -97,13 +101,15 @@ def main():
     for key in enabled_plugins(project):
         plugins.setdefault(key.split('@', 1)[0], []).append(plugin_agents(key, project, plugin_root))
 
+    user_agents = [name for name in USER_AGENTS if (Path.home() / '.claude' / 'agents' / f'{name}.md').is_file()]
+
     plugin, _, agent = kind.partition(':')
-    if kind in project_agents:
+    if kind in project_agents or kind in user_agents:
         return
     if agent and any(names is None or agent in names for names in plugins.get(plugin, [])):
         return
 
-    allowed = list(project_agents)
+    allowed = list(project_agents) + user_agents
     for name, lists in sorted(plugins.items()):
         if None in lists:
             allowed.append(f'{name}:*')

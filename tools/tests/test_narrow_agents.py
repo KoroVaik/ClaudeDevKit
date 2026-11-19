@@ -205,6 +205,21 @@ class NarrowAgentsTests(unittest.TestCase):
     def test_project_agent_found_through_cwd_without_env(self):
         self.assertAllowed("local-coder", project_env=False)
 
+    def test_named_user_agent_is_allowed(self):
+        write(self.home / ".claude" / "agents" / "other-repo-editor.md", "x")
+        self.assertAllowed("other-repo-editor")
+
+    def test_named_user_agent_is_listed_in_the_reason(self):
+        write(self.home / ".claude" / "agents" / "other-repo-editor.md", "x")
+        self.assertIn("other-repo-editor", self.assertDenied("general-purpose"))
+
+    def test_named_user_agent_without_its_file_is_denied(self):
+        self.assertDenied("other-repo-editor")
+
+    def test_other_user_agent_is_denied(self):
+        write(self.home / ".claude" / "agents" / "broad-helper.md", "x")
+        self.assertDenied("broad-helper")
+
     def test_builtin_is_denied(self):
         reason = self.assertDenied("general-purpose")
         self.assertIn("local-coder", reason)
