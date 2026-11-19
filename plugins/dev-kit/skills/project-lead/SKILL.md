@@ -109,7 +109,8 @@ grasp each part from one sentence; details stay in the session's own report and 
   state in the reply's language («готово», «застрягла»). Under it one sentence: what the owner now
   sees or can do, in plain words.
 - Under the same heading, only if needed: numbered yes/no questions or owner actions, each followed by
-  its `Рекомендую: так/ні - <reason>` line. P adds the recommendation C did not give.
+  its `Рекомендую: так - <reason>` line, worded so the advice is «так» (the owner's global "Batches of
+  questions"). P adds the recommendation C did not give.
 - Last, `### Next` (`### Далі`): the proposal for the next item (with nothing to propose, as the
   proposal bullet says).
 
@@ -176,6 +177,7 @@ phone, so he need not open chats to check.
 P decides alone everything within the approved criteria. An item enters the queue only when:
 
 - it leaves the approved criteria (a product choice);
+- what the owner gets is not agreed yet (see "Before a task: triage", branch 3);
 - the step is hard to undo;
 - paid spend would pass $1 in total per task. Smaller spend is never asked.
 
@@ -194,19 +196,26 @@ P sorts each task before starting it and says the branch in one line:
 
 1. The C alone: a small change - no new screen or user flow and no change to accepted product rules
    (a bug, a text fix). Start a C.
-2. P and the C decide together: the task is clear and a choice remains inside the approved
-   criteria. Start a C; P answers its questions itself.
-3. P asks the owner up to 3 text questions through the queue, then starts a C with the answers in
-   the task file.
-4. More than 3 questions, or any question about how a screen looks: P opens an «Обговорення:»
-   session (see "Start an «Обговорення:» session"). After the owner's yes there, P starts a C from
-   that feature file.
+2. P and the C decide together: the task is clear, what the owner gets is already agreed (an agreed
+   feature), and a choice remains inside the approved criteria, such as technical details. Start a
+   C; P answers its questions itself.
+3. What the owner gets is not agreed yet (which events reach the owner and when, how P talks to the owner, how a
+   rule changes the lead's behaviour): P asks the owner up to 3 text questions through the queue
+   before any C starts, then starts a C with the answers in the task file. A «Так» to a task title
+   does not agree it. A rule-change task counts: its rule idea is what the owner gets.
+4. More than 3 questions, any question about how a screen looks, or any doubt from the owner on a
+   question of branch 3: P proposes an «Обговорення:» session through the queue, not a talk in P's
+   chat, and opens it (see "Start an «Обговорення:» session") only after the owner's «так». After
+   the owner's yes there, P starts a C from that feature file.
 
 The project's style is approved once as a design standard (`docs/standards/`; the first
 «Обговорення:» fixes it if the project has none), so a page talk covers meaning and layout.
 
 Why: the owner decided on 2026-11-15 to keep the talk session and to send only tasks that need a
-detailed talk there, so most tasks do not become a new session for the owner.
+detailed talk there, so most tasks do not become a new session for the owner. On 2026-11-19 P read
+the owner's «Так» to two task titles (phone pushes, then this rule fix) as approval of what the owner gets
+and started builds at once; the owner decided that this is asked first, and a talk session is
+proposed, not opened, because «краще перепитать, бо я можу помилиться».
 
 ## Start a C
 
@@ -329,7 +338,7 @@ each lead applies it under its own project's rules, with no agent editing other 
 
 ## Start an «Обговорення:» session
 
-For a task of branch 4 in "Before a task: triage". Start it as a C (overlap check, worktree, folder
+For a task of branch 4 in "Before a task: triage", after the owner's «так» to the proposal. Start it as a C (overlap check, worktree, folder
 setup, registration) with these differences:
 
 - Name `Обговорення: <feature>` (no guillemets in the name) (flag `--name` and `--remote-control`), `--permission-mode auto`
