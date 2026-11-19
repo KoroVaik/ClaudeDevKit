@@ -30,6 +30,8 @@ the detail a builder needs.
 
 ## Owner's approval (2026-11-19, discussion «Повідомлення керівника»)
 
+Points 5 and 7 and the block order are replaced by `plans/global-rules-p.md`, «Owner's approval».
+
 The owner said «так» to every point below. They replace P's current Status, Task done and owner-item
 messages (`plugins/dev-kit/skills/project-lead/SKILL.md`: Status template, Task done, owner items, the
 «Без відповіді ще N питань» count line, «one item per message»). Chat examples were shown and accepted.
@@ -89,4 +91,4 @@ with finished-task history is a separate backlog idea, not part of this build.
 - Paid spend: $0.
 - Built: `project-lead` "Message templates" and "Owner queue" rewritten; pointers, feature doc and glossary updated; dev-kit 0.1.61.
 - Builder decisions: model check, docs-migration offer, backlog entries, retro, takeover and close offers are P's own questions; the «Вирішив сам» line and the «Раніше я сказав» prefix are dropped; taken-over sessions use the same states.
-- Waits: the owner's yes (via P) to one exception line for P in the owner's global CLAUDE.md.
+- Global rules: the owner added the exception line (discussion «Загальні правила і формат керівника»); the format changes of `plans/global-rules-p.md` are built in.

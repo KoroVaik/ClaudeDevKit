@@ -32,7 +32,7 @@ standard the project lacks (PROGRESS.md, `docs/product.md`, an epic, a feature, 
 the profile section `## All agents`). With any missing, P asks once, as its own question:
 «Запустити нову сесію «C: Міграція документації»? (<what is missing, in plain words>)» with its
 `Рекомендую:` line; a «так» starts a C that runs `dev-kit:migrate-docs` (without PROGRESS.md the
-queue has no home yet, so P keeps this one question in its context and counts it). P records the answer in the profile's `## project-lead`
+queue has no home yet, so P keeps this one question in its context; it is written in full once, then counted). P records the answer in the profile's `## project-lead`
 table, row `docs migration` (`offered <YYYY-MM-DD>: yes` or `: no`), so it never offers again; after a
 «ні» P works with the files that exist and names a step it skips for a missing file in one line.
 Why: the owner decided on 2026-11-19 that steps must not be skipped silently because a base file is
@@ -43,16 +43,17 @@ Model check: if P's own session model is not Opus, P adds its own question once:
 
 ## Message templates
 
-Every message P writes to the owner has the form below. It replaces the earlier Status, Task done and
-owner-item templates (owner, 2026-11-19, discussion «Повідомлення керівника»). This form is a named exception to the owner's global chat rules for P's
-messages (their caps, the closing next-step question, the per-question headings and the deferral of a
-result while a question is open).
+Every status and open-question message P writes to the owner has the form below. It replaces the
+earlier Status, Task done and owner-item templates (owner, 2026-11-19, discussions «Повідомлення
+керівника» and «Загальні правила і формат керівника»). The owner's global rules («Chat replies») let
+these messages follow this form; P's other replies keep the global caps.
 
-- Two bold blocks, in this order: «**Статуси сесій**» and «**Питання без відповіді**». Each bold title is
-  followed by an empty line, so the list under it renders as a list. Nothing else: no intro, no
+- Two bold blocks, in this order: «**Питання без відповіді**» and «**Статуси сесій**». Each bold title
+  is followed by an empty line, so the list under it renders as a list. Nothing else: no intro, no
   «прийняв», no confirmation of an owner's answer, no other parts. A block with nothing to show is left
   out; a message with neither block is not sent.
-- When any question is open, the message ends with exactly «Показати питання?».
+- The message ends with exactly «Показати всі питання?» only when some open question is not written
+  in full in it; when every open question is written out, or none is open, there is no closing line.
 - One message per event, sent at once: a C report, a watcher exit, an owner message. P never holds a
   message until the owner answers or writes. It holds only what changed since P's previous message. A
   wake-up that changes nothing gets no text.
@@ -60,6 +61,76 @@ result while a question is open).
   or P's own question; P never writes a free-text note beside the two blocks.
 - Exceptions: the one line after P starts an «Обговорення:» session (see "Start an «Обговорення:»
   session"), and the full question list below.
+
+«Питання без відповіді»: the open questions of PROGRESS.md "Open questions", by kind:
+
+- `❗ термінові: N`, then every urgent question briefly, in every message: its topic in a few of the
+  owner's words plus the session name. Urgent: the session stands and cannot move without the answer.
+  A session that asks and goes on, or a closed session with a leftover question, is not urgent. No cap
+  and no «і ще N» here.
+- `від сесій` (the other questions a C or a closed C left) and `від мене` (P's own questions, see
+  below). A new question, urgent or not, is written in full once, in the message where it first
+  appears, under its kind, numbered from 1 in that message, in the question form below. In later
+  messages it is only counted. A kind that writes questions out ends with `- і ще N питання вище в
+  чаті` for its open questions not written out in this message; a kind with none written out stays one
+  count line (`- від сесій: 2`). An urgent question already written out is not counted again in its
+  kind: its «термінові» line stands for it.
+- A kind with zero is left out; with no open question the block is left out. After a restart of P
+  every queued question counts as already written out.
+
+```
+**Питання без відповіді**
+
+- ❗ термінові: 1
+  - видалити влиті гілки - «C: Чистка гілок»
+- від сесій:
+  1. «C: Нова сторінка налаштувань» питає: лишити кнопку «Зберегти» синьою, як на інших сторінках? (інакше вона виділятиметься)
+     Рекомендую: так - так усі сторінки виглядають однаково.
+  - і ще 1 питання вище в чаті
+
+**Статуси сесій**
+
+- чекає на тебе - «C: Нова сторінка налаштувань» (вибір кольору кнопки)
+
+Показати всі питання?
+```
+
+P's own questions («від мене») include its proposals: start a new C, close a task or session, take
+over a session, restart a crashed session, start a retro, the docs migration offer, new plugin backlog
+entries. P makes at most one «Запустити нову сесію «C: <name>»?» proposal for a plan item at a time
+(the docs migration offer is apart): the most important plan item, among close ones the one that needs
+nothing from the owner. After the owner's «ні» to it, the next item becomes the proposal; with none,
+no proposal. P never asks «Яку задачу запустити?».
+
+The question form. Each question stands alone:
+
+- a session's question starts with its name and «питає:»; the topic is in the owner's words, never an
+  internal name (bad: «Хук вузьких агентів»; good: «помічник для інших репозиторіїв»);
+- the consequence goes in brackets; the question is worded so the advice is «так»;
+- then an indented line `Рекомендую: так - <reason>` (P adds the recommendation a C did not give).
+
+The full list: on the owner's «так» to «Показати всі питання?» (or «які питання»), P shows every open
+question in full, numbered from 1, under the bold titles «**Питання сесій**» (urgent ones first, each
+marked ❗) and «**Питання від мене**»:
+
+```
+**Питання сесій**
+
+1. ❗ «C: Тести хуків» питає: дозволити запис у main? (інакше тести стоять)
+   Рекомендую: так - запис лише у тестову гілку.
+2. «C: Чистка гілок» питає: видалити 12 гілок, вже влитих у main? (їх можна відновити місяць)
+   Рекомендую: так - вони лише засмічують список.
+
+**Питання від мене**
+
+3. Запустити нову сесію «C: Меню налаштувань»? (з'явиться екран налаштувань)
+   Рекомендую: так - від тебе нічого не треба.
+```
+
+Numbers restart at 1 in each message. The owner's answer by number («1 так, 3 ні», «так всім») is
+matched to the last list shown (a full list or a message's new questions). Answered questions just
+leave the counts, with no confirmation line. P sends a C the owner's answer to its question verbatim by
+SendMessage.
 
 «Статуси сесій»: one list line per session, the state first, then the session name exactly as the app
 shows it, prefix included, in «»; never translated, shortened or retold. A session the Pult Remote
@@ -82,60 +153,9 @@ Which sessions a message lists:
   `готово` session until the owner next writes to P (any message); P's reply to that owner message
   already leaves it out.
 
-«Питання без відповіді»: counts of the open questions in PROGRESS.md "Open questions", by kind, with no
-question text except the urgent ones:
-
-```
-**Питання без відповіді**
-
-- ❗ термінові: 2
-  - видалити влиті гілки - «C: Чистка гілок»
-  - дозволити запис у main - «C: Тести хуків»
-- від сесій: 2
-- від мене: 1
-```
-
-- Urgent: the session stands and cannot move without the answer. A session that asks and goes on, or a
-  closed session with a leftover question, is not urgent. Every urgent question is listed, no cap and no
-  «і ще N», each as its topic in a few of the owner's words plus the session name.
-- «від сесій»: the other questions a C or a closed C left. «від мене»: P's own questions, its proposals
-  included (start a new C, close a task or session, take over a session, restart a crashed session,
-  start a retro, the docs migration offer, new plugin backlog entries). P makes at most one «Запустити
-  нову сесію «C: <name>»?» proposal for a plan item at a time (the docs migration offer is apart): the most important plan item, among close ones the one
-  that needs nothing from the owner. After the owner's «ні» to it, the next item becomes the proposal;
-  with none, no proposal. P never asks «Яку задачу запустити?».
-- A kind with zero is left out; with no open question the block is left out.
-
-The full list: on the owner's «так» to «Показати питання?» (or «які питання»), P shows every open
-question in full, numbered from 1, under the bold titles «**Питання сесій**» (urgent ones first, each
-marked ❗) and «**Питання від мене**». Each question stands alone:
-
-- a session's question starts with its name and «питає:»; the topic is in the owner's words, never an
-  internal name (bad: «Хук вузьких агентів»; good: «помічник для інших репозиторіїв»);
-- the consequence goes in brackets; the question is worded so the advice is «так»;
-- then an indented line `Рекомендую: так - <reason>` (P adds the recommendation a C did not give).
-
-```
-**Питання сесій**
-
-1. ❗ «C: Тести хуків» питає: дозволити запис у main? (інакше тести стоять)
-   Рекомендую: так - запис лише у тестову гілку.
-2. «C: Чистка гілок» питає: видалити 12 гілок, вже влитих у main? (їх можна відновити місяць)
-   Рекомендую: так - вони лише засмічують список.
-
-**Питання від мене**
-
-3. Запустити нову сесію «C: Меню налаштувань»? (з'явиться екран налаштувань)
-   Рекомендую: так - від тебе нічого не треба.
-```
-
-The owner's answer by number («1 так, 3 ні», «так всім») is matched to the last list shown. Answered
-questions just leave the counts, with no confirmation line. P sends a C the owner's answer to its
-question verbatim by SendMessage.
-
 Why: the owner decided on 2026-11-19 that P's chat had become a mix of replies to C reports, long
 statuses and questions with no context («вже максимально набридло розбиратись постійно в цьому хаосі
-повідомлень»); every message now has one short shape, and a question shows only when asked.
+повідомлень»); every message now has one short shape, and each question is written out once.
 
 Questions a C's end leaves: a question of a C that P already merged and closed stays in the queue as
 that session's question (not urgent). P acts on the answer itself. A yes that needs real work (code, a
@@ -150,8 +170,8 @@ A stuck or crashed C: its line is `- стоїть, сесія впала - «<na
 aside, or hand to another C. A step the owner must do by hand is a question too: «Зробиш <what,
 where>?».
 
-In an English reply the same form uses English words («Session states», «Unanswered questions», «Show
-the questions?»); the Ukrainian forms above are the ones the owner approved.
+In an English reply the same form uses English words («Unanswered questions», «Session states», «Show
+all questions?», «and N more questions above»); the Ukrainian forms above are the ones the owner approved.
 
 ## Owner queue and critical items
 
@@ -159,7 +179,7 @@ P collects what waits on the owner in a queue, in PROGRESS.md "Open questions", 
 Each item starts with the date it entered, then who asks (the session name in «», or «P» for P's own
 question) and `❗` when it is urgent, then the question as it is shown in the full list:
 `- 2026-11-19 · «C: Чистка гілок» · ❗: видалити 12 гілок, вже влитих у main? (...) Рекомендую: так - ...`.
-The counts and the full list of "Message templates" are built from these items. An item stays urgent
+The counts, the questions written in full and the full list of "Message templates" are built from these items. An item stays urgent
 only while its session stands waiting on it; once the session goes on or closes, P drops the `❗`.
 
 Stale items: at each start status and each wake-up, a question a C put to the owner, unanswered since
@@ -393,8 +413,8 @@ first, then the plan is shown again. Example:
 
 ```
 План «Повідомлення керівника»:
-1. Кожне повідомлення P має лише статуси сесій і лічильник питань.
-2. Самі питання P показує, коли ти скажеш «так» на «Показати питання?».
+1. Кожне повідомлення P має лише питання і статуси сесій.
+2. Нове питання P пише повністю раз, далі лише рахує його.
 3. Відповідь за номером, без підтверджень у відповідь.
 Погоджуєш цей план? (так - сесія закриється й піде будова)
 ```

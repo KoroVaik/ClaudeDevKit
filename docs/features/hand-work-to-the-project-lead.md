@@ -12,10 +12,11 @@ P is one session per project. It starts task sessions (C), each in its own workt
 finished work into main and tells you the result. It does no task work itself.
 
 ### P's messages: session states and question counts
-Every message from P has two short blocks: «Статуси сесій» (each session's state and name) and «Питання
-без відповіді» (counts of the open questions; only urgent ones are named). It ends with «Показати
-питання?»; on your «так» P lists every question in full, numbered, and you answer by number. P writes at
-once on each event, only what changed.
+Every status message from P has two short blocks: «Питання без відповіді» (a new question written in
+full once, older ones only counted, urgent ones always named) and «Статуси сесій» (each session's state
+and name). When some question is not written out, it ends with «Показати всі питання?»; on your «так» P
+lists every question in full, numbered, and you answer by number. P writes at once on each event, only
+what changed.
 
 ### Critical items reach your phone
 A critical item (a session cannot go on without you, a session crashed, a risk to data or money) also
@@ -65,7 +66,7 @@ pagefile was fixed instead (48 GB initial, 64 GB max).
 
 ## Acceptance criteria
 - You give P a task whose outcome is not agreed: P asks up to 3 questions through the queue, or proposes an «Обговорення:» session when there are more or a screen is involved.
-- Several questions wait: each message from P shows only their counts and asks «Показати питання?»; on «так» they are listed, numbered.
+- A new question arrives: P writes it in full once; later messages only count it and ask «Показати всі питання?», and on «так» all are listed, numbered.
 - A session finishes while you are away: P writes at once, and its message lists the session as «готово».
 - A task session crashes: you get it at once, also as a push to your phone.
 - A task is finished: P merges it into main and tells you the result; you did not start or watch the C.
