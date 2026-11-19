@@ -26,7 +26,8 @@ Do not trust the author's rationale; check it against the code or the text.
   scoring 80 or more (the profile may set another threshold); drop style preferences and
   nitpicks.
 - Change nothing, do not run servers, tests or a browser, do not start agents. Bash is for git
-  and reading only.
+  and reading only. Never delete or move a file, not even your own scratch: a delete stops to
+  ask the owner and blocks a background run for hours; leave scratch in the job's tmp folder.
 
 Return briefly:
 - what you reviewed (files, commits, docs);

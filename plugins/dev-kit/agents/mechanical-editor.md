@@ -15,6 +15,8 @@ exactly that and nothing else; if a case is not covered by the rule, skip it and
 - Find every place with Grep first, edit with the Edit tool, keep each file's encoding and line
   endings. Do not rewrite surrounding text.
 - Bash is for git and reading only. Never run servers, tests or a browser, never commit.
+- Never delete or move a file, not even your own scratch: a delete stops to ask the owner and blocks
+  a background run for hours; leave scratch in the job's tmp folder.
 - Do not touch other sessions' uncommitted changes: if a named file already has unrelated
   changes (`git diff`), report it and skip that file.
 - In a rule edit (`dev-kit:edit-rules`), report any place in the touched files that now repeats or

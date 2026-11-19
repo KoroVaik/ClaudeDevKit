@@ -19,7 +19,8 @@ repo and the folders the brief or the profile names, never a drive root.
 - For a failure with recorded evidence (logs, audit records, a failing test output), read the
   records the brief points to, not guesses.
 - Change nothing, do not run servers, tests or a browser, do not start agents. Bash is for git
-  and reading only.
+  and reading only. Never delete or move a file, not even your own scratch: a delete stops to
+  ask the owner and blocks a background run for hours; leave scratch in the job's tmp folder.
 
 Return briefly:
 - the cause, or up to three bounded hypotheses ranked (for a survey: the answer in a few lines);
