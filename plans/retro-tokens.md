@@ -54,3 +54,6 @@ The owner's «так» to the approved idea, written in the section «Owner's ap
 - Review (sonnet reviewer): fixed - ratios in findings show only with 10+ runs (or 10+ short sessions) behind them; the weight comment no longer claims the meter check; the skill compares a trial after 7+ days from the `scan-*.md` files, not from `list`; a `|` in a title no longer breaks the table.
 - Left as is (reviewer doubts): dedupe across scans is by timestamp, so a resumed copy with fresh timestamps (6 of 18 cases in 4 days) is counted twice; a subagent run that spans two scans counts as two runs; a `long session` finding repeats on each later scan while the session goes on; `state.json` keeps one title and one turn total per session.
 - Open: the Opus weight check against the owner's `/usage` meter (asked via P).
+
+## Usage readings (owner, /usage)
+- 2026-11-19 19:15: week all models 23%, week Fable 0%, 5-hour session 22% (resets 22:39).

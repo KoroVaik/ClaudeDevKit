@@ -11,13 +11,16 @@ the task sessions, merges their work and tells you the result. You are the CEO a
 P is one session per project. It starts task sessions (C), each in its own worktree, merges their
 finished work into main and tells you the result. It does no task work itself.
 
-### The owner queue
-P collects what needs you in a queue and shows each item once. Every later message ends with a count of
-the questions still waiting; the status or your «які питання» lists them again.
+### P's messages: session states and question counts
+Every status message from P has two short blocks: «Питання без відповіді» (a new question written in
+full once, older ones only counted, urgent ones always named) and «Статуси сесій» (each session's state
+and name). When some question is not written out, it ends with «Показати всі питання?»; on your «так» P
+lists every question in full, numbered, and you answer by number. P writes at once on each event, only
+what changed.
 
-### Critical items come at once
-Only a critical item (a session cannot go on without you, a session crashed, a risk to data or money)
-comes at once, also as a push to your phone.
+### Critical items reach your phone
+A critical item (a session cannot go on without you, a session crashed, a risk to data or money) also
+comes as a push to your phone.
 
 ### What P decides alone
 P decides alone within the approved acceptance criteria. You get a product choice, a hard-to-undo step,
@@ -63,7 +66,8 @@ pagefile was fixed instead (48 GB initial, 64 GB max).
 
 ## Acceptance criteria
 - You give P a task whose outcome is not agreed: P asks up to 3 questions through the queue, or proposes an «Обговорення:» session when there are more or a screen is involved.
-- Several questions wait: each message from P ends with the count, and «які питання» lists them.
+- A new question arrives: P writes it in full once; later messages only count it and ask «Показати всі питання?», and on «так» all are listed, numbered.
+- A session finishes while you are away: P writes at once, and its message lists the session as «готово».
 - A task session crashes: you get it at once, also as a push to your phone.
 - A task is finished: P merges it into main and tells you the result; you did not start or watch the C.
 - A second session already works on the same task: P does not start another one.

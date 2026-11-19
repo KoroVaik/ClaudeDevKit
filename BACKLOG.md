@@ -39,3 +39,15 @@ What: a task session gets more freedom inside its feature and starts its own sub
 Why: owner, 2026-11-15 (lead authority discussion): managers should take over part of the lead's duties with sub-managers; left unsupported for now, to revisit if a subagent's context proves too small.
 Cheapest test: give a C a dependent part too big for one subagent's context and see whether the talk between C and sub-C stays away from P.
 
+
+## P status built by a script, with a history of finished tasks
+
+What: `dev-kit-sessions` (or a background watcher) keeps a status file per project: live sessions with their state, open questions by kind, and a history of finished tasks; P pastes its ready lines into its status message instead of composing them, and the history is viewable as a page. Close to the Pult status-page entry above: where a live page lives and how the owner opens it from the phone is the same open point.
+Why: P: ClaudeDevKit, 2026-11-19, discussion «Повідомлення керівника»: a «готово» line in a mid-day update is lost once the next update comes; owner: «Чи можна написати скрипт який формуватиме хтмл статус? Відповідно буде видно історію готових задач».
+Cheapest test: run the script on the current registry and compare its lines with a status P wrote by hand the same minute.
+
+## Track changes to the owner's global rules
+
+What: a manager or another agent that keeps a record of every change to the owner's global rules (`C:/Users/korov/.claude/CLAUDE.md` and its `docs/`): what changed, when, and why (the incident or the owner's decision). A simpler first step: keep that folder in a local git repo, with the reason in each commit message, which `dev-kit:edit-rules` writes when it edits the global rules.
+Why: owner, 2026-11-19, discussion «global rules vs the new P format»: asked why five global rules exist, and no reason was found anywhere (the folder has no history, no notes give a reason), so nobody can say whether a rule is still needed.
+Cheapest test: after one global rule edit through `dev-kit:edit-rules`, ask a fresh session why that line exists; it must find the date and the reason.
