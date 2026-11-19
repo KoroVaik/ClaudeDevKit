@@ -56,6 +56,8 @@ result while a question is open).
 - One message per event, sent at once: a C report, a watcher exit, an owner message. P never holds a
   message until the owner answers or writes. It holds only what changed since P's previous message. A
   wake-up that changes nothing gets no text.
+- Every event that needs the owner (an overlap, a blocked merge, a failed step) becomes a status line
+  or P's own question; P never writes a free-text note beside the two blocks.
 - Exceptions: the one line after P starts an «Обговорення:» session (see "Start an «Обговорення:»
   session"), and the full question list below.
 
@@ -77,8 +79,8 @@ Which sessions a message lists:
 - The start status, and the answer to the owner's «що працює?» ("what runs now?"), list every session P
   manages (registry and taken-over).
 - Every other message lists only sessions whose state changed since P's previous message, plus every
-  `готово` session until the owner next writes to P (any message); from P's message after that one,
-  that session is gone.
+  `готово` session until the owner next writes to P (any message); P's reply to that owner message
+  already leaves it out.
 
 «Питання без відповіді»: counts of the open questions in PROGRESS.md "Open questions", by kind, with no
 question text except the urgent ones:
@@ -99,7 +101,7 @@ question text except the urgent ones:
 - «від сесій»: the other questions a C or a closed C left. «від мене»: P's own questions, its proposals
   included (start a new C, close a task or session, take over a session, restart a crashed session,
   start a retro, the docs migration offer, new plugin backlog entries). P makes at most one «Запустити
-  нову сесію «C: <name>»?» proposal at a time: the most important plan item, among close ones the one
+  нову сесію «C: <name>»?» proposal for a plan item at a time (the docs migration offer is apart): the most important plan item, among close ones the one
   that needs nothing from the owner. After the owner's «ні» to it, the next item becomes the proposal;
   with none, no proposal. P never asks «Яку задачу запустити?».
 - A kind with zero is left out; with no open question the block is left out.
@@ -143,8 +145,8 @@ from and removes it from the queue. A small follow-up not worth its own session:
 doc's open items, and the next C in that area takes it. Why: the owner wants no session for a trivial
 answer (Zhratva, 2026-11-16).
 
-A stuck or crashed C: its line is `стоїть, сесія впала` (crashed) or `чекає на тебе (<cause>)` (it
-cannot go on without the owner), and P adds its own question with a recommendation: restart, set
+A stuck or crashed C: its line is `- стоїть, сесія впала - «<name>»` (crashed) or `- чекає на тебе - «<name>»
+(<cause>)` (it cannot go on without the owner), and P adds its own question with a recommendation: restart, set
 aside, or hand to another C. A step the owner must do by hand is a question too: «Зробиш <what,
 where>?».
 
@@ -173,7 +175,7 @@ session crashed (`стоїть, сесія впала`), a risk to data or money
 
 Phone push: a critical item of these three kinds also goes to the owner's phone with the
 PushNotification tool. The queue pushes once, when it had no question for the owner and gets one;
-later questions push nothing until the owner writes, and an item that only informs (a done report, a
+later questions push nothing until the owner writes, and a status line alone (`готово`, a
 usage-limit stop) never pushes. Nothing else
 is pushed: progress, merges, watcher exits that need nothing. The message is one line under 200
 characters: P's session name, then what to act on first («P: Zhratva: «C: Каталог» впала без звіту -
@@ -235,9 +237,8 @@ proposed, not opened, because «краще перепитать, бо я мож�
 - Overlap check first, every time: the owner may have started a session on the same task without P.
   Run `dev-kit-sessions others`. If it prints `no other sessions`, go on. Otherwise launch a
   `dev-kit:overlap-checker` subagent (model haiku) with the item's words, the files or area it will
-  touch if known, and the project folder. On "no overlap" go on. On an overlap do not start: tell the
-  owner «<item>» overlaps «<session>» (<same task / same files>) and ask whether to start anyway,
-  with a recommendation. If P's session lacks that agent type (it started before the plugin update),
+  touch if known, and the project folder. On "no overlap" go on. On an overlap do not start: P adds its own question whether to start
+  anyway («<item>» overlaps «<session>»: <same task / same files>), with a recommendation. If P's session lacks that agent type (it started before the plugin update),
   follow `dev-kit:manager`, "Which subagent type", for the stand-in.
 - Name: in the owner's language, short, saying what the task is. Prefix by purpose, fixed at launch:
   `C:` for a session that works alone and reports to P (the owner need not open it); `Обговорення:`
@@ -331,8 +332,8 @@ dev-kit keeps a numbered list of changes every project with a lead makes in its 
 plugin's `migrations.md`); the project records the last applied number in its profile (section
 `## project-lead`, row `migrations applied`; no row means 0). P checks it on start and after a
 plugin-update restart: `dev-kit-migrations pending` (Bash tool, main checkout). It prints `none`, or
-the pending entries and the list's path. Exit 2 (a broken list or level): P tells the owner in one
-line, as a critical item, and starts nothing.
+the pending entries and the list's path. Exit 2 (a broken list or level): P adds its own question, marked
+`❗`, and starts nothing.
 
 - Pending entries and no migration C registered (`dev-kit-sessions list`): P starts one C for all of
   them, as in "Start a C", named «C: Міграції dev-kit» (or «C: dev-kit migrations» in English). The
@@ -503,7 +504,7 @@ adds a note at each owner message to it: it is watched, it ends with the line «
 fully done, and on main it commits its own work to main after each finished step, so P does not merge
 it. Right after `add --owner` P arms the watcher (see "Wake-up"). Known limit: the hook note reaches the
 session only at the owner's next message to it, so a session already idle at takeover may never write
-«Роботу завершено»; P then shows it as waiting.
+«Роботу завершено»; P then shows it as `чекає на тебе`.
 
 Watching: at every message to the owner P runs `dev-kit-sessions state` for these sessions (it reads
 the state and the last reply without messaging) and shows its state in «Статуси сесій» with the
@@ -588,7 +589,7 @@ line marked OVER, refresh that C.
    --predecessor <old id>` (this ends the old record as `replaced`), then run `claude stop <old id>`.
 
 Checked live 2026-11-14: a fresh bg C started in an existing worktree loads the handoff from its first
-prompt and can write there. If a step fails, tell the owner and keep the old C running.
+prompt and can write there. If a step fails, P adds its own question (retry or leave the old C) and keeps the old C running.
 Two C sessions share one name during a refresh; message the new one by its `[ref]` from ListAgents.
 Why: without the «picked up» check P could stop the old C before the new one held the work (owner,
 2026-11-18).
@@ -596,14 +597,14 @@ Why: without the «picked up» check P could stop the old C before the new one h
 ## Shared app
 
 C runs `dev-kit-app start` in the background after P's yes (see "Ask-P list"): it may wait in a
-queue while another C uses the app (up to 15 minutes). A queue timeout reaches P as "stuck"; P tells
-the owner which worktree holds the app.
+queue while another C uses the app (up to 15 minutes). A queue timeout reaches P as "stuck"; P shows that C as `чекає на тебе`
+with the worktree that holds the app as the reason.
 
 ## Acceptance and merge
 
 C owns all doc updates. On "done", P checks only the list of changed doc files (a reviewer subagent if
 there are many). Then, in the main checkout: if it is not on `main` or `git status --porcelain` is not
-empty, P does not merge and tells the owner. P commits its own edits in the main checkout (PROGRESS.md,
+empty, P does not merge and adds its own question (merge after the owner tidies the main checkout). P commits its own edits in the main checkout (PROGRESS.md,
 BACKLOG.md `Verdict:` lines) right after making them, so a dirty checkout is never P's own (that is the owner's work in progress, not C's conflict).
 Otherwise `git merge --ff-only c/<slug>`. If it refuses (main moved since C pulled it), P sends it back
 ("main moved, pull main") and does not resolve anything itself.

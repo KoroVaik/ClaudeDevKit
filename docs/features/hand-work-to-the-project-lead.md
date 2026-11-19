@@ -66,7 +66,7 @@ pagefile was fixed instead (48 GB initial, 64 GB max).
 ## Acceptance criteria
 - You give P a task whose outcome is not agreed: P asks up to 3 questions through the queue, or proposes an «Обговорення:» session when there are more or a screen is involved.
 - Several questions wait: each message from P shows only their counts and asks «Показати питання?»; on «так» they are listed, numbered.
-- A session finishes while you are away: P writes at once one line «готово - «C: <name>»», with no other text.
+- A session finishes while you are away: P writes at once, and its message lists the session as «готово».
 - A task session crashes: you get it at once, also as a push to your phone.
 - A task is finished: P merges it into main and tells you the result; you did not start or watch the C.
 - A second session already works on the same task: P does not start another one.
