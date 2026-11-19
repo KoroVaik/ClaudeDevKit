@@ -4,13 +4,16 @@ import importlib.util
 import io
 import os
 import shutil
+import subprocess
+import sys
 import tempfile
 import unittest
 from contextlib import redirect_stdout
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent.parent
-SPEC = importlib.util.spec_from_file_location("watch_log", ROOT / "plugins" / "pult" / "scripts" / "watch-log.py")
+SCRIPT = ROOT / "plugins" / "pult" / "scripts" / "watch-log.py"
+SPEC = importlib.util.spec_from_file_location("watch_log", SCRIPT)
 watch_log = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(watch_log)
 
@@ -72,6 +75,15 @@ class WatchLogTest(unittest.TestCase):
         old = os.path.getmtime(self.state / watch_log.POSITION) - watch_log.FRESH - 60
         os.utime(self.state / watch_log.POSITION, (old, old))
         self.assertEqual(self.run_watch(), (4, "time limit"))
+
+    def test_cyrillic_line_prints_on_a_cp1252_console(self):  # Bug
+        self.run_watch()
+        self.write("2026-11-19T10:00:00 GIVEUP P: Жратва (3 restarts)")
+        env = dict(os.environ, PYTHONIOENCODING="cp1252")
+        out = subprocess.run([sys.executable, str(SCRIPT), "--log", str(self.log), "--state-dir", str(self.state),
+                              "--interval", "0", "--max-minutes", "0"], env=env, capture_output=True)
+        self.assertEqual(out.returncode, 0, out.stderr.decode("utf-8", "replace"))
+        self.assertEqual(out.stdout.decode("utf-8").strip(), "problem: 2026-11-19T10:00:00 GIVEUP P: Жратва (3 restarts)")
 
     def test_second_watcher_leaves(self):  # Rule
         self.state.mkdir()

@@ -29,6 +29,8 @@ Leave out: done reports and merges, routine progress, sessions that came back by
 $0.
 
 ## Built (2026-11-19)
-- project-lead "Owner queue and critical items": push rule (items 1-4). Pult hub.md "Phone push" + `plugins/pult/scripts/watch-log.py` (item 5), tests `tools/tests/test_watch_log.py`. dev-kit 0.1.51, pult 0.1.9.
+- project-lead "Owner queue and critical items": push rule (items 1-4). Pult hub.md "Phone push" + `plugins/pult/scripts/watch-log.py` (item 5), tests `tools/tests/test_watch_log.py`. dev-kit 0.1.51, pult 0.1.10.
 - Review fixes: a failed HEAL try is not pushed on its own (GIVEUP follows it, one push per incident); a log line older than the watcher's last run (Pult was down > 10 min) is not pushed; after a Pult restart nothing is pushed until the owner's first message to Pult arms the watcher (Pult has no first prompt to arm it).
-- Not checked live: that an idle Pult server session wakes on its background watcher's exit and that PushNotification works there.
+- Live check (2026-11-19, owner): test line «GIVEUP P: тест-пушу» in servers.log; idle Pult woke on its watcher's exit, pushed «Pult: P: тест-пушу не піднявся ... - відкрий Pult» and the owner got it on the phone with the app closed. P-side push was already proven earlier the same day.
+- Found in the live check: watch-log.py crashed on a Cyrillic line (Windows cp1252 stdout); fixed (utf-8 stdout, position saved only after the print), pult 0.1.10, test added.
+- Found: Pult ran pult 0.1.0 from the plugin cache since 2026-11-15 (nobody runs `claude plugin update pult@korov-dev`), and a resumed Pult keeps its old rules. Updated by hand to 0.1.9 with the owner's yes and Pult restarted; reported to P as a separate task.

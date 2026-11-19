@@ -103,6 +103,8 @@ def main(argv=None):
     parser.add_argument("--interval", type=float, default=30, help="seconds between reads")
     parser.add_argument("--max-minutes", type=float, default=120)
     args = parser.parse_args(argv)
+    if hasattr(sys.stdout, "reconfigure"):
+        sys.stdout.reconfigure(encoding="utf-8")  # Windows defaults to cp1252, and session names are Cyrillic
 
     args.state_dir.mkdir(parents=True, exist_ok=True)
     lock = args.state_dir / LOCK
@@ -117,9 +119,10 @@ def main(argv=None):
         deadline = time.monotonic() + args.max_minutes * 60
         while True:
             line, position = scan(args.log, position)
+            if line is not None:
+                print(f"problem: {line}", flush=True)  # before the position is saved: a failed print loses no line
             pos_file.write_text(str(position), encoding="ascii")
             if line is not None:
-                print(f"problem: {line}")
                 return 0
             if time.monotonic() >= deadline:
                 print("time limit")
