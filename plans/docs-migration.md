@@ -1,5 +1,7 @@
 # ClaudeDevKit onto the dev-kit docs standard
 
+<!-- docs-check: no-path-mentions -->
+
 Owner's words (2026-11-19): «Так» to «Запустити нову сесію «C: Міграція документації»? (у проєкту з'являться файл прогресу й базові документи)». Approved earlier as point 5 of plans/open-questions.md («Owner's approval»).
 
 ## Checked facts
@@ -17,7 +19,7 @@ Run `dev-kit:migrate-docs` on this repo so the structure check passes, PROGRESS.
 0
 
 ## State (C)
-- Dry run done: change list at C:/Users/korov/.claude/jobs/096bf661/tmp/docs-migration-change-list.md (baseline, rows A-H, questions Q1-Q5).
-- Baseline: `dev-kit-check-docs` 2 errors (BACKLOG.md:35, docs/research-similar-plugins.md:31); `--structure` 7 missing.
-- Note: `docs/plan.md` named above does not exist; the existing docs are README.md, BACKLOG.md, docs/research-similar-plugins.md, plans/*.md.
-- Waiting for P: yes to the list (A-G), Q1-Q4, and the separate yes for deletions (H, Q5).
+- Done. P's yes (2026-11-19) to rows A-H; the "Not checked" lines of deleted plans became Open items (P's change, also applied to design-flow, launch-fixes, memory-pressure, pult-version-watch).
+- Checks run: `dev-kit-check-docs` 0 errors 0 warnings; `--structure` complete; `python tools/lint.py` 0 errors; `python -m unittest discover tools/tests` 548 OK.
+- Reviewer (sonnet) findings fixed. Left open: those "Not checked" Open items go against the standard's line that not-yet-run checks are never written to docs; kept on P's explicit instruction.
+- Glossary names wait for the owner's approval.
