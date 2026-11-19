@@ -22,28 +22,57 @@
 #   watcher only logs it: a respawn or restart would hit the same limit.
 # - A dev-kit lock file whose owner is gone is removed: UNLOCK (see Clear-StaleLocks).
 # - A lead that runs on an older dev-kit version than the one installed (<DevKitDir>\.claude-plugin\plugin.json)
-#   is restarted so it loads the new skills. The version each lead process started on is kept by pid and
-#   process start time in <StateDir>\lead-versions.json (LEAD-VERSION on a new entry; a process that started
-#   after plugin.json was last written gets the installed version, else "older"). An idle lead (status idle)
-#   is restarted at once with restart-leads.ps1 -Name: RESTART-LEAD. A busy one is not asked by the watcher:
-#   the lead itself notices the new version on its ordinary wake-ups, reaches a safe point and runs
-#   `dev-kit-sessions restart ready --version V`; or the owner's `restart-leads.ps1 -Ask` writes a request
-#   `restart request --version V` for it and its session watcher exits 7 once. The watcher restarts a busy
-#   stale lead only when `restart status` says `ready V <seconds>` with less than 10 minutes: restart-leads.ps1
-#   -Ready, RESTART-LEAD (..., ready). A ready mark that is older or for another version is cleared:
-#   READY-EXPIRED. restart.json is cleared after a restart and after a failure, and a lead already on the
-#   installed version has a left-over one cleared (RESTART-CLEARED; checked once per pid). One try per lead
-#   per version; a failure is logged as RESTART-LEAD-FAILED. The hold file and a running full start pause
-#   it, as for HEAL.
+#   is restarted so it loads the new skills. The same for an extension plugin the lead's project uses
+#   (plugin-versions.ps1: the <name>@korov-dev keys, except dev-kit and pult, that are true in
+#   <project Path>\.claude\settings.json enabledPlugins; version from plugins\<name>\.claude-plugin\plugin.json
+#   next to dev-kit): web-kit, unity-kit. The versions each lead process started on are kept by pid and
+#   process start time in <StateDir>\lead-versions.json: "version" is the dev-kit one, "ext" holds name ->
+#   version of the extensions (LEAD-VERSION on a new entry; a process that started after a plugin.json was
+#   last written gets the installed version, else "older"). An old entry with no "ext" adopts the installed
+#   extension versions (no restart on upgrade), and so does an extension that has no stored version yet.
+#   An idle lead (status idle) is restarted at once with restart-leads.ps1 -Name: RESTART-LEAD (the
+#   changed plugins are named in the line). A busy one is not asked by the watcher:
+#   for a dev-kit change the lead itself notices the new version on its ordinary wake-ups, reaches a safe
+#   point and runs `dev-kit-sessions restart ready --version V` (V: the dev-kit version); or the owner's
+#   `restart-leads.ps1 -Ask` writes a request `restart request --version V` for it and its session watcher
+#   exits 7 once. The watcher restarts a busy stale lead only when `restart status` says `ready V <seconds>`
+#   with less than 10 minutes: restart-leads.ps1 -Ready, RESTART-LEAD (..., ready). A ready mark that is
+#   older or for another version is cleared: READY-EXPIRED. A lead stale only in an extension is never woken
+#   (the skill knows only dev-kit versions, a wake-up is a paid turn, and -Ask writes no request for it): the
+#   watcher restarts it when it is idle. restart.json is cleared after a restart and after a failure, and a
+#   lead already on the installed versions has a left-over one cleared (RESTART-CLEARED; checked once per
+#   pid). One try per lead per combined version (dev-kit plus extensions); a failure is logged as
+#   RESTART-LEAD-FAILED. The hold file and a running full start pause it, as for HEAL.
+# - Its own code: it takes a fingerprint (SHA-256) of this script and the script it dot-sources
+#   (plugin-versions.ps1) at start. When the fingerprint differs and was the same in the previous round
+#   (the file is stable, not in the middle of a git merge), the new files are parse-checked: with a parse
+#   error WATCH-RESTART-SKIPPED <reason> is logged once (it tries again only when the fingerprint changes
+#   again); otherwise WATCH-RESTART <old pult version> -> <new> (pult plugin.json; version+short hash when
+#   the versions are equal) is logged, a fresh copy is started the way start-servers.ps1 starts it (hidden,
+#   the same parameters) and this one exits, but only after the new copy wrote its own "WATCH started" line
+#   (waits up to 20 s; WATCH-RESTART is logged then, after that line). A copy that exits or stays silent is
+#   stopped if it still runs and WATCH-RESTART-SKIPPED <reason> is logged: this copy keeps running the old
+#   code and tries again only when the fingerprint changes. Checked at the end of a round, never while a full start-servers.ps1
+#   run is going on; a hold file does not stop it. The watcher has no single-instance guard of its own
+#   (start-servers.ps1 only looks for a running one), so nothing is released. State kept in memory only is
+#   lost: HEAL/HEAL-TASK try counts and GIVEUP marks (a still-down entry gets up to $MaxHeals more tries), the
+#   one-try-per-version marks of leads (a failed lead restart is tried once more), the usage-limit marks (LIMIT
+#   is logged again) and the "seen" lists (STATE lines again, as at any start).
 # start-servers.ps1 starts it at logon in a hidden window. -Once: one check, then exit; -Rounds N:
 # N checks, then exit (both for tests; -Once never restarts anything or touches restart.json).
+# -RestartExe: the program that starts the new copy (default powershell.exe; for tests).
 # -ConfigFile / -StateDir / -DevKitStateDir / -DaemonLog: another server list, Pult state folder,
 # dev-kit state folder and Claude Code daemon log (for tests with a throwaway lead).
 # -DevKitDir: the dev-kit plugin folder (default: ..\..\dev-kit next to this plugin); it holds
 # .claude-plugin\plugin.json (the installed version) and scripts\sessions.py.
 # Keep this file saved as UTF-8 with BOM.
 param([int]$IntervalSec = 60, [switch]$Once, [int]$Rounds = 0, [int]$MaxHeals = 3,
-    [string]$ConfigFile, [string]$StateDir, [string]$DevKitStateDir, [string]$DaemonLog, [string]$DevKitDir)
+    [string]$ConfigFile, [string]$StateDir, [string]$DevKitStateDir, [string]$DaemonLog, [string]$DevKitDir,
+    [string]$RestartExe = 'powershell.exe')
+
+. (Join-Path $PSScriptRoot 'plugin-versions.ps1')
+$scriptParams = @{} + $PSBoundParameters  # what the new copy gets on a WATCH-RESTART
+$CodeFiles = @($PSCommandPath, (Join-Path $PSScriptRoot 'plugin-versions.ps1'))  # this script and what it dot-sources
 
 if (-not $DaemonLog) { $DaemonLog = Join-Path $env:USERPROFILE '.claude\daemon.log' }
 if (-not $DevKitDir) { $DevKitDir = Join-Path $PSScriptRoot '..\..\dev-kit' }
@@ -254,6 +283,11 @@ function Save-LeadVersions {
     $o = [ordered]@{}
     foreach ($k in $leadVer.Keys) {
         $o[$k] = [ordered]@{ pid = $leadVer[$k].Pid; started = $leadVer[$k].Started; version = $leadVer[$k].Version }
+        if ($null -ne $leadVer[$k].Ext) {  # no "ext" at all: an old entry that adopts the installed ones
+            $x = [ordered]@{}
+            foreach ($n in ($leadVer[$k].Ext.Keys | Sort-Object)) { $x[$n] = [string]$leadVer[$k].Ext[$n] }
+            $o[$k]['ext'] = $x
+        }
     }
     $json = if ($o.Count) { $o | ConvertTo-Json -Depth 3 } else { '{}' }
     $tmp = "$versionFile.$PID.tmp"
@@ -288,11 +322,18 @@ function Invoke-LeadRestart([string]$LeadName, [switch]$IsReady) {
 }
 
 # One live lead ($s: its servers.psd1 row, $m: its entry in the session list, $V: the installed dev-kit
-# version): records the version its process started on and restarts it when that is not $V (see the header).
+# version): records the versions its process started on and restarts it when the dev-kit version is not $V or
+# an extension it uses changed (see the header).
 function Invoke-LeadVersionCheck($s, $m, [string]$V) {
     $name = $s.Session
     $procId = [int]$m.pid
     $st = $leadVer[$name]
+    $ext = [ordered]@{}  # the extension plugins the project uses (plugin-versions.ps1); unreadable counts as none
+    if ($s.Path) {
+        try { $ext = Get-LeadExtensions $s.Path $DevKitDir } catch {
+            if ("$_" -ne $extWarned[$name]) { Write-Log "WARN cannot read the extensions of $name : $_"; $extWarned[$name] = "$_" }
+        }
+    }
     $firstLook = $leadSeen[$name] -ne $procId  # first time this watcher run sees this pid
     if ($firstLook) {
         $p = Get-Process -Id $procId -ErrorAction SilentlyContinue
@@ -304,16 +345,29 @@ function Invoke-LeadVersionCheck($s, $m, [string]$V) {
         if (-not $st -or $st.Pid -ne $procId -or $st.Started -cne $started) {
             $ver = 'older'
             if ($p.StartTime -ge $pluginTime) { $ver = $V }
-            $st = @{ Pid = $procId; Started = $started; Version = $ver }
+            $extStarted = @{}
+            foreach ($n in $ext.Keys) { $extStarted[$n] = $(if ($p.StartTime -ge $ext[$n].Time) { $ext[$n].Version } else { 'older' }) }
+            $st = @{ Pid = $procId; Started = $started; Version = $ver; Ext = $extStarted }
             $leadVer[$name] = $st
-            Write-Log "LEAD-VERSION $name pid ${procId}: $ver"
+            $extNote = ($extStarted.Keys | Sort-Object | ForEach-Object { " $_ $($extStarted[$_])" }) -join ','
+            Write-Log "LEAD-VERSION $name pid ${procId}: $ver$extNote"
             try { Save-LeadVersions } catch { Write-Log "WARN cannot save $versionFile : $_" }
         }
     }
     if (-not $st -or $st.Pid -ne $procId) { return }
     if ($Once -or -not $s.Path -or -not (Test-Path -LiteralPath $s.Path)) { return }
-    if ($st.Version -ceq $V) {
-        # On the new version: a restart.json left by a HEAL, a crash or a manual restart is stale. Looked at once
+    # An entry saved before the extension check existed (no Ext), or an extension it has no version for yet,
+    # adopts the installed version: no restart on upgrade, and none for a newly enabled extension.
+    $adopted = $false
+    if ($null -eq $st.Ext) { $st.Ext = @{}; $adopted = $true }
+    foreach ($n in $ext.Keys) {
+        if (-not $st.Ext.ContainsKey($n)) { $st.Ext[$n] = $ext[$n].Version; $adopted = $true }
+    }
+    if ($adopted) { try { Save-LeadVersions } catch { Write-Log "WARN cannot save $versionFile : $_" } }
+    $devStale = $st.Version -cne $V
+    $extChanges = @(Get-ExtChanges $st.Ext $ext)
+    if (-not $devStale -and -not $extChanges) {
+        # On the installed versions: a restart.json left by a HEAL, a crash or a manual restart is stale. Looked at once
         # per pid, right after the version is known, not every round.
         if ($firstLook) {
             $left = Invoke-LeadRestartFile $s.Path @('status')
@@ -325,12 +379,19 @@ function Invoke-LeadVersionCheck($s, $m, [string]$V) {
         return
     }
     if ($onHold -or $starting -or (Test-Path -LiteralPath $hold)) { return }
-    if ($leadTried[$name] -ceq $V) { return }
+    # The key of one try: the dev-kit version and the extension versions together.
+    $tryKey = $V + (($ext.Keys | Sort-Object | ForEach-Object { "|$_=$($ext[$_].Version)" }) -join '')
+    if ($leadTried[$name] -ceq $tryKey) { return }
+    $changed = @()
+    if ($devStale) { $changed += "dev-kit $($st.Version) -> $V" }
+    $changed += $extChanges
     $how = ''
     if ($m.status -eq 'idle') {
         $how = 'idle'
     } else {
-        # Busy: only a fresh `ready <V> <seconds>` of the lead itself (or of restart-leads.ps1 -Ask) counts.
+        # Busy: only a fresh `ready <V> <seconds>` of the lead itself (or of restart-leads.ps1 -Ask) counts; V is
+        # the dev-kit version, the only one the lead's handshake knows. A lead stale only in an extension is
+        # never woken: no request (a paid turn), and it is restarted when it is idle.
         $said = Invoke-LeadRestartFile $s.Path @('status')
         if ($said -match '^ready (\S+) (\d+)$') {
             $readyFor = $Matches[1]  # kept: later calls may reset $Matches
@@ -341,30 +402,109 @@ function Invoke-LeadVersionCheck($s, $m, [string]$V) {
                 # A ready mark for this version that went stale (a long hold): the lead already noted the
                 # version, so ask once more; its session watcher wakes it once (exit 7).
                 $again = ''
-                if ($readyFor -ceq $V) { $null = Invoke-LeadRestartFile $s.Path @('request', '--version', $V); $again = '; asked again' }
+                if ($devStale -and $readyFor -ceq $V) { $null = Invoke-LeadRestartFile $s.Path @('request', '--version', $V); $again = '; asked again' }
                 Write-Log "READY-EXPIRED $name ($($said -replace '\s+', ' '), installed $V$again)"
                 return
             }
         } else { return }  # none, or asked and not ready yet
     }
-    Write-Log "RESTART-LEAD $name ($($st.Version) -> $V, $how)"
+    Write-Log "RESTART-LEAD $name ($($changed -join '; '), $how)"
     $result = Invoke-LeadRestart $name -IsReady:($how -eq 'ready')
     if ($result -eq 'busy') { return }  # turned busy meanwhile: the busy path handles it next round
-    $leadTried[$name] = $V
+    $leadTried[$name] = $tryKey
     $cleared = Invoke-LeadRestartFile $s.Path @('clear')  # also after a failure: no stale ready mark stays
     if ($cleared -cne 'restart cleared') { Write-Log "WARN restart clear for $name failed: $($cleared -replace '\s+', ' ')" }
 }
 
+# SHA-256 (hex) over the files of $CodeFiles, or $null when one cannot be read (mid-merge, locked).
+function Get-CodeFingerprint {
+    try {
+        $ms = New-Object IO.MemoryStream
+        foreach ($f in $CodeFiles) { $b = [IO.File]::ReadAllBytes($f); $ms.Write($b, 0, $b.Length) }
+        $sha = [Security.Cryptography.SHA256]::Create()
+        return ([BitConverter]::ToString($sha.ComputeHash($ms.ToArray())) -replace '-', '').ToLowerInvariant()
+    } catch { return $null }
+}
+
+# The pult version (plugin.json next to this script's plugin folder) or '?'.
+function Get-PultVersion {
+    $info = Get-PluginInfo (Join-Path $PSScriptRoot '..')
+    if ($info) { return $info.Version }
+    return '?'
+}
+
+# $null when every file of $CodeFiles parses, else the first problem as one line.
+function Test-CodeParses {
+    foreach ($f in $CodeFiles) {
+        $tokens = $null; $errors = $null
+        try { [void][System.Management.Automation.Language.Parser]::ParseFile($f, [ref]$tokens, [ref]$errors) }
+        catch { return "cannot parse $(Split-Path -Leaf $f): $($_.Exception.Message)" }
+        if ($errors -and $errors.Count) {
+            return "$(Split-Path -Leaf $f) line $($errors[0].Extent.StartLineNumber): $($errors[0].Message)"
+        }
+    }
+    return $null
+}
+
+# Starts a fresh copy of this script with the parameters this one got, hidden, as start-servers.ps1 does.
+# Returns $null when the new copy is confirmed (a "WATCH started (pid N" line it wrote to the log, so it entered
+# its loop), else the reason it was not. A copy that does not confirm within $RestartWaitSec is stopped when it
+# still runs, so the caller can go on with the old code and never two watchers run.
+$RestartWaitSec = 20
+function Start-NewWatcher {
+    $argList = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', "`"$PSCommandPath`"")
+    foreach ($k in $scriptParams.Keys) {
+        $v = $scriptParams[$k]
+        if ($v -is [switch]) { if ($v) { $argList += "-$k" }; continue }
+        $argList += "-$k"
+        $argList += $(if ($v -is [string]) { "`"$v`"" } else { "$v" })
+    }
+    $before = if (Test-Path -LiteralPath $log) { (Get-Item -LiteralPath $log).Length } else { 0 }
+    try { $proc = Start-Process -FilePath $RestartExe -WindowStyle Hidden -ArgumentList $argList -PassThru }
+    catch { return "cannot start the new copy: $($_.Exception.Message)" }
+    $until = (Get-Date).AddSeconds($RestartWaitSec)
+    while ($true) {
+        $gone = $proc.HasExited  # read before the log: a copy that wrote its line and exited still counts
+        try {
+            $fs = [IO.File]::Open($log, 'Open', 'Read', 'ReadWrite')
+            try {
+                if ($fs.Length -lt $before) { $before = 0 }  # the log was rotated meanwhile
+                $null = $fs.Seek($before, 'Begin')
+                $text = (New-Object IO.StreamReader($fs, [Text.Encoding]::UTF8)).ReadToEnd()
+            } finally { $fs.Dispose() }
+            foreach ($m2 in [regex]::Matches($text, 'WATCH started \(pid (\d+),')) {
+                if ([int]$m2.Groups[1].Value -ne $PID) { return $null }
+            }
+        } catch { }  # the new copy is writing: look again
+        if ($gone -or (Get-Date) -ge $until) { break }
+        Start-Sleep -Milliseconds 300
+    }
+    $reason = "the new copy did not confirm with a WATCH started line"
+    if ($gone) { $reason += " and exited (code $($proc.ExitCode))" }
+    else { $reason += " within $RestartWaitSec s, stopped it"; try { Stop-Process -Id $proc.Id -Force -ErrorAction Stop } catch { $reason += " (cannot stop it: $($_.Exception.Message))" } }
+    return $reason
+}
+
 Write-Log "WATCH started (pid $PID, every $IntervalSec s)"
+$fpStart = Get-CodeFingerprint   # the code this run started with ($null: taken in the first round it can be read)
+$fpPrev = $null                  # the fingerprint of the previous round
+$fpSkipped = $null               # the fingerprint WATCH-RESTART-SKIPPED was logged for
+$pultStart = Get-PultVersion
 $versionFile = Join-Path $StateDir 'lead-versions.json'
-$leadVer = @{}      # lead name -> @{ Pid; Started; Version }: the dev-kit version its process started on
+$leadVer = @{}      # lead name -> @{ Pid; Started; Version; Ext }: the dev-kit version and the extension versions (name -> version) its process started on
+$extWarned = @{}    # lead name -> the last error text logged for its extension list
 try {
     if (Test-Path -LiteralPath $versionFile) {
         $saved = Get-Content -Raw -Encoding UTF8 -LiteralPath $versionFile -ErrorAction Stop | ConvertFrom-Json
         foreach ($e in $saved.PSObject.Properties) {
             $started = $e.Value.started
             if ($started -is [datetime]) { $started = $started.ToUniversalTime().ToString('o', [Globalization.CultureInfo]::InvariantCulture) }
-            $leadVer[$e.Name] = @{ Pid = [int]$e.Value.pid; Started = [string]$started; Version = [string]$e.Value.version }
+            $x = $null  # no "ext" in the entry: saved before the extension check existed
+            if ($e.Value.PSObject.Properties['ext']) {
+                $x = @{}
+                if ($e.Value.ext) { foreach ($q in $e.Value.ext.PSObject.Properties) { $x[$q.Name] = [string]$q.Value } }
+            }
+            $leadVer[$e.Name] = @{ Pid = [int]$e.Value.pid; Started = [string]$started; Version = [string]$e.Value.version; Ext = $x }
         }
     }
 } catch { Write-Log "WARN cannot read $versionFile : $_" }
@@ -475,6 +615,26 @@ while ($true) {
     }
     try { Clear-StaleLocks } catch { Write-Log "WARN lock check failed: $_" }
 
+    # Its own code changed (see the header): at the end of a round, so no work of this round is cut. Not
+    # during a full start-servers.ps1 run (it may look for a running watcher); the check is made again next round.
+    if (-not $Once -and -not $starting) {
+        $fp = Get-CodeFingerprint
+        if ($fp) {
+            if (-not $fpStart) { $fpStart = $fp }
+            if ($fp -cne $fpStart -and $fp -ceq $fpPrev -and $fp -cne $fpSkipped) {
+                $why = Test-CodeParses
+                if (-not $why) {
+                    $pultNow = Get-PultVersion
+                    $label = if ($pultNow -cne $pultStart) { "$pultStart -> $pultNow" } else { "$pultStart+$($fpStart.Substring(0, 8)) -> $pultNow+$($fp.Substring(0, 8))" }
+                    $why = Start-NewWatcher
+                    if (-not $why) { Write-Log "WATCH-RESTART $label"; exit 0 }  # logged once the new copy is confirmed
+                }
+                Write-Log "WATCH-RESTART-SKIPPED $why"
+                $fpSkipped = $fp
+            }
+            $fpPrev = $fp
+        } else { $fpPrev = $null }
+    }
     $lastCheck = Get-Date
     if ($Once -or ($Rounds -gt 0 -and $round -ge $Rounds)) { break }
     Start-Sleep -Seconds $IntervalSec

@@ -31,7 +31,7 @@ Traps (checked 2026-11-14):
 - Pult server alive: a running `claude.exe` process whose command line has ` remote-control ` and "Pult" (PowerShell `Get-CimInstance Win32_Process -Filter "Name='claude.exe'"`).
 
 - Names shown to the owner: the hub's own session (cwd = the home folder) has a system name like «<user>-f1» in `claude agents --json`. Never show that name to the owner; sessions in the home folder are «Pult».
-- Server history: the last lines of `~/.claude/pult/logs/servers.log` (the health log, written by the watcher, see "Servers"). A HEAL line followed by UP, or a HEAL-TASK line with no HEAL-TASK-FAILED after it, is fixed: show it in one line as "впав о <time>, піднявся сам". A GIVEUP, GIVEUP-TASK, HEAL-FAILED or HEAL-TASK-FAILED line with no UP after it is a problem: show when it happened and the cause the log gives, and propose the fix. A LIMIT line with no LIMIT-END and no "WATCH started" line after it means that session stopped on the usage limit: show it as "стоїть на ліміті до <reset time>" and propose no fix (a restart hits the same limit). UNLOCK lines (a stale lock removed) are shown only when asked. HOLD on means a stop on purpose: the watcher restarts nothing until `start-servers.ps1` runs.
+- Server history: the last lines of `~/.claude/pult/logs/servers.log` (the health log, written by the watcher, see "Servers"). A HEAL line followed by UP, or a HEAL-TASK line with no HEAL-TASK-FAILED after it, is fixed: show it in one line as "впав о <time>, піднявся сам". A GIVEUP, GIVEUP-TASK, HEAL-FAILED or HEAL-TASK-FAILED line with no UP after it is a problem: show when it happened and the cause the log gives, and propose the fix. A LIMIT line with no LIMIT-END and no "WATCH started" line after it means that session stopped on the usage limit: show it as "стоїть на ліміті до <reset time>" and propose no fix (a restart hits the same limit). UNLOCK lines (a stale lock removed) are shown only when asked. A WATCH-RESTART line means the watcher took new code and started a fresh copy of itself (the new copy's "WATCH started" line comes just before it; nothing to do); WATCH-RESTART-SKIPPED means its new code did not parse or the new copy did not start, so it still runs the old code: show the reason in one line and propose the fix. HOLD on means a stop on purpose: the watcher restarts nothing until `start-servers.ps1` runs.
 
 Status page: run `python {PLUGIN}/scripts/status-page.py` (read only; writes `~/.claude/pult/status.html`, all projects' sessions and open questions on one page) and send that file with SendUserFile, then give the reply below.
 
@@ -72,7 +72,7 @@ quote; the script escapes it and uses Opus, medium.
 writes to `~/.claude/pult/logs/servers.log` (outside any repository): STATE, DOWN with the session's last state and any
 crash event, UP, LIMIT for a live lead or task session that stopped on the usage limit (once per stop, with the reset time;
 LIMIT-END when it goes on). Each Remote Control server's window adds an EXIT line with its exit code. It fixes
-four mechanical problems itself, with no yes (the owner's yes, 2026-11-16):
+five mechanical problems itself, with no yes (the owner's yes, 2026-11-16; the own-code one was added 2026-11-19, P's yes):
 - An entry of `servers.psd1` down for two checks in a row: it runs `start-servers.ps1 -Only <name>`
   (the same resume as at logon) and logs HEAL (HEAL-FAILED with the script's words when it did not
   start it); at most 3 tries per hour per entry, then GIVEUP until
@@ -88,11 +88,17 @@ four mechanical problems itself, with no yes (the owner's yes, 2026-11-16):
   (RESTART-LEAD); a busy one when it marks itself ready (`dev-kit-sessions restart ready`, at a safe
   point after it noticed the version; a mark older than 10 minutes is dropped, READY-EXPIRED, and for the current version the lead is asked
   once more as with `-Ask`) or turns
-  idle. One try per lead per version; RESTART-LEAD-FAILED when it did not come back. Held by the hold
-  file too.
+  idle. The same for an extension plugin the lead's project enables (web-kit, unity-kit): an idle lead
+  is restarted, a busy one is never woken for it and waits until it is idle. One try per lead per version;
+  RESTART-LEAD-FAILED when it did not come back. Held by the hold file too.
+- Its own code (added 2026-11-19, P's yes): when `watch-servers.ps1` (or the script it loads) changed and stayed
+  the same for two checks, it starts a fresh copy of itself and, once that copy wrote its own "WATCH started"
+  line, logs WATCH-RESTART and exits; a file that does not parse, or a new copy that dies at start-up, is
+  logged once as WATCH-RESTART-SKIPPED and the old copy keeps running. Why: the watcher is one long process,
+  so a merged change never ran before.
 - A dev-kit lock file whose owner is gone (`~/.claude/dev-kit/*/watch.lock`, `app.lock` of a removed
   worktree, leftover `app.lock.takeover` and `*.tmp`): removed, log UNLOCK.
-Everything else (GIVEUP, GIVEUP-TASK, HEAL-FAILED, HEAL-TASK-FAILED, RESTART-LEAD-FAILED, a lead that comes back and falls again) stays a problem Pult
+Everything else (GIVEUP, GIVEUP-TASK, HEAL-FAILED, HEAL-TASK-FAILED, RESTART-LEAD-FAILED, WATCH-RESTART-SKIPPED, a lead that comes back and falls again) stays a problem Pult
 shows and proposes a fix for. A stop with only `claude stop` is undone by the watcher: `stop-servers.ps1`
 stops all entries until the next `start-servers.ps1` run; to retire one entry, remove its row from
 `servers.psd1` (the watcher reads the list when it starts). While a full `start-servers.ps1` run goes on,
@@ -128,7 +134,9 @@ problem to show with a proposed fix. A busy lead finds the new version itself at
 most 2 hours). When the owner asks to update or restart the leads («онови керівників»), Pult runs
 `{PLUGIN}/scripts/restart-leads.ps1 -Ask`: leads already on the new version are left alone (`Up to date`), idle leads restart now, each busy one is woken at once to
 reach a safe point (output `Asked: <name>`), and the watcher restarts it. Pult says in one line which
-leads restarted and which were asked. Bounds (owner, 2026-11-16): lead sessions (`P: ...`) only,
+leads restarted and which were asked. A change of only an extension (web-kit, unity-kit) restarts an idle lead
+the same way; `-Ask` does not wake a busy lead for it and prints `Not asked, busy and only an extension changed: <name>`:
+Pult reports that lead as «оновиться, коли звільниться» (the watcher restarts it once it is idle). Bounds (owner, 2026-11-16): lead sessions (`P: ...`) only,
 never task sessions, owner sessions or Pult itself; always resume the same conversation.
 
 Why: on 2026-11-16 the hub got a merge message but restarted nobody: it acts only when someone writes

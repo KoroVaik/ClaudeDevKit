@@ -9,6 +9,9 @@
 # By hand, on the owner's ask: -Ask restarts the idle leads now and, for each busy one, writes the request
 # `dev-kit-sessions restart request --version V` (V from <DevKitDir>\.claude-plugin\plugin.json) and prints
 # `Asked: <name>`; the watcher restarts that lead when it marks itself ready.
+# -Ask also counts the extension plugins a project uses (web-kit, unity-kit; see plugin-versions.ps1): a lead
+# stale only in an extension is restarted now when idle, and a busy one is not asked (the watcher restarts it
+# when it is idle: `Not asked, busy and only an extension changed: <name>`).
 # Without -Ready and -Ask, only idle leads are restarted and a busy one is skipped (its turn would be cut);
 # -Force restarts busy ones too, only after checking they are not in the middle of a step.
 # -ConfigFile and -StateDir: another server list and Pult state folder (hold file); both are passed on to
@@ -27,6 +30,7 @@ if (-not $ConfigFile) { $ConfigFile = Join-Path $scripts 'servers.psd1' }
 if (-not $StateDir) { $StateDir = Join-Path $env:USERPROFILE '.claude\pult' }  # outside the plugin folder
 if (-not $DevKitDir) { $DevKitDir = Join-Path $scripts '..\..\dev-kit' }
 $DevKitDir = [IO.Path]::GetFullPath($DevKitDir)
+. (Join-Path $scripts 'plugin-versions.ps1')
 $rows = @((Import-PowerShellDataFile $ConfigFile).Servers | Where-Object { $_.Lead })
 $leads = @($rows | ForEach-Object { $_.Session })
 if ($Ready) { $Name = $Ready }
@@ -60,23 +64,38 @@ function Request-LeadRestart($Row) {
     return "Not asked, the request failed: $($Row.Session): $said"
 }
 
-# -Ask: $true when the watcher's lead-versions.json says this lead process already runs the installed version.
-function Test-LeadUpToDate([string]$Lead, $ProcId) {
+# -Ask: what the watcher's lead-versions.json says about this lead process against the installed versions:
+# 'current' (dev-kit and every extension the project uses are as installed), 'ext' (dev-kit is as installed,
+# an extension changed: the lead's handshake knows only dev-kit versions, so it is not asked), or 'devkit'
+# (dev-kit changed, or nothing is known). An entry with no "ext" counts as current for the extensions, as in
+# the watcher.
+function Get-LeadStaleness([string]$Lead, $ProcId, $Row) {
     try {
         $v = [string](Get-Content -Raw -Encoding UTF8 -LiteralPath (Join-Path $DevKitDir '.claude-plugin\plugin.json') -ErrorAction Stop |
             ConvertFrom-Json).version
         $e = (Get-Content -Raw -Encoding UTF8 -LiteralPath (Join-Path $StateDir 'lead-versions.json') -ErrorAction Stop |
             ConvertFrom-Json).$Lead
-        return [bool]($v -and $e -and [int]$e.pid -eq [int]$ProcId -and [string]$e.version -ceq $v)
-    } catch { return $false }
+        if (-not ($v -and $e -and [int]$e.pid -eq [int]$ProcId -and [string]$e.version -ceq $v)) { return 'devkit' }
+        $stored = $null
+        if ($e.PSObject.Properties['ext']) {
+            $stored = @{}
+            if ($e.ext) { foreach ($q in $e.ext.PSObject.Properties) { $stored[$q.Name] = [string]$q.Value } }
+        }
+        $now = Get-LeadExtensions $Row.Path $DevKitDir
+        if (@(Get-ExtChanges $stored $now).Count) { return 'ext' }
+        return 'current'
+    } catch { return 'devkit' }
 }
 
 foreach ($lead in $leads) {
     $s = $sessions | Where-Object { $_.kind -eq 'background' -and $_.name -ceq $lead -and $_.pid } |
         Select-Object -First 1
     if (-not $s) { Write-Output "Not running, will be started: $lead"; continue }
-    if ($Ask -and (Test-LeadUpToDate $lead $s.pid)) { Write-Output "Up to date: $lead"; continue }
+    $row = $rows | Where-Object { $_.Session -ceq $lead } | Select-Object -First 1
+    $stale = if ($Ask) { Get-LeadStaleness $lead $s.pid $row } else { '' }
+    if ($stale -eq 'current') { Write-Output "Up to date: $lead"; continue }
     if ($s.status -eq 'busy' -and $Ask -and -not $Force -and -not $Ready) {
+        if ($stale -eq 'ext') { Write-Output "Not asked, busy and only an extension changed: $lead"; continue }
         Write-Output (Request-LeadRestart ($rows | Where-Object { $_.Session -ceq $lead } | Select-Object -First 1))
         continue
     }

@@ -30,7 +30,14 @@ problem it proposes a fix and acts after an explicit yes.
   that lead's session watcher exits 7 once with `restart requested: <V>`. One try per lead per version; a
   failure is logged as RESTART-LEAD-FAILED. A leftover `restart.json` of a lead already on the new version
   is cleared (RESTART-CLEARED). The versions the lead processes started on (by pid and start time) are kept
-  in `~/.claude/pult/lead-versions.json` (log LEAD-VERSION). It never touches your own sessions, taken-over ones included. `stop-servers.ps1` and `restart-leads.ps1` pause it
+  in `~/.claude/pult/lead-versions.json` (log LEAD-VERSION). The same goes for the extension plugins a
+  project enables in its `.claude/settings.json` (web-kit, unity-kit): a lead whose extension changed version
+  is restarted when it is idle; a busy one is not woken and waits until it is idle (the log line names the
+  changed plugins). The watcher also takes its own new code: when `watch-servers.ps1` or a script it loads
+  changed on disk and stayed the same for two checks, it checks that the new file parses and starts a fresh
+  copy of itself; once the new copy has written its own "WATCH started" line it logs WATCH-RESTART and exits
+  (a broken file, or a new copy that dies at start-up, is logged once as WATCH-RESTART-SKIPPED and the old
+  copy keeps running). It never touches your own sessions, taken-over ones included. `stop-servers.ps1` and `restart-leads.ps1` pause it
   (a hold file) until the next `start-servers.ps1` run, so a stop on purpose stays stopped. A lead stopped
   only with `claude stop` comes back; to retire one project, remove its row from `servers.psd1`.
 - A lead row in `servers.psd1` may set `Prompt`, `Model` and `Effort` (defaults: `/dev-kit:project-lead`,
