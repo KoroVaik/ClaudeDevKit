@@ -21,4 +21,4 @@ The hook lets `other-repo-editor` through and still refuses the agents it refuse
 - Tests: 4 new (allowed, listed in reason, refused without its file, another user agent refused); all 37 pass.
 - Hook run from the worktree against the real home: `other-repo-editor` allowed, `general-purpose` refused.
 - README hook line updated. The global rule already sends work to `other-repo-editor`, so no rule text changed.
-- Not checked yet: a live launch. The korov-dev marketplace is a directory one at the main checkout, so sessions run the hook from main; the live check is possible only after the merge.
+- Live launch after the merge (main at 72df7cb), 2026-11-19: `other-repo-editor` launched from this dev-kit session (worktree of ClaudeDevKit) and was not refused by the hook; the brief edited nothing.
