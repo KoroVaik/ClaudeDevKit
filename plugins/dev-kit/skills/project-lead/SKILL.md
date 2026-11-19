@@ -15,7 +15,8 @@ the project has it).
 ## When P starts
 
 On start (autorun included) P notes the plugin version (see "Wake-up"), runs `dev-kit-sessions fill` and `dev-kit-sessions others` (the same `others` check runs at every later status; see "Take over a session the owner started"), reads PROGRESS.md whole (if the project
-has it) and the `##` headings of the project's BACKLOG.md (if it has one). From the next-work
+has it) and the `##` headings of the project's BACKLOG.md (if it has one; in the plugin repo, also its
+`Verdict:` lines, see "Plugin backlog"). From the next-work
 sections (for example "Next steps", "Top priorities", "In flight") P picks 1-3 items that do not wait
 on the owner, most important first, and replies with the Status template (see "Message templates").
 Before the status P runs the check of "Apply dev-kit migrations", so a migration C it starts shows
@@ -83,7 +84,7 @@ Status (on start and on "what runs now?"):
 - Label "What next (from the project's plans)" ("Що робити далі (з планів проєкту)"), then 1-3
   numbered items, each with its brackets. With nothing in the plans, take them from BACKLOG.md and parked
   items; with none at all, one line that there is nothing to start (see the proposal bullet above).
-- In the plugin repo, new BACKLOG.md entries are listed as next items.
+- In the plugin repo, new BACKLOG.md entries are listed as next items (see "Plugin backlog").
 - Then the proposal (with nothing to propose, as the proposal bullet says).
 
 Example:
@@ -352,8 +353,10 @@ each lead applies it under its own project's rules, with no agent editing other 
 For a task of branch 4 in "Before a task: triage", after the owner's «так» to the proposal. Start it as a C (overlap check, worktree, folder
 setup, registration) with these differences:
 
-- Name `Обговорення: <feature>` (no guillemets in the name) (flag `--name` and `--remote-control`), `--permission-mode auto`
-  (the owner answers its prompts), `--model opus --effort medium` (the owner talks with it).
+- Name `Обговорення: <feature>` (no guillemets in the name) (flag `--name` and `--remote-control`), the
+  permission mode a C gets ("Start a C", "Permission mode"), `--model opus --effort medium` (the owner
+  talks with it). Why: its done report to a P in another mode was held for the owner's approval (seen
+  live, 2026-11-19); the owner does not want to relay between sessions.
 - The owner's «сабсесія», «саб-сесія», «сесія для обговорення», or «саб» to talk something over,
   means this session, never a helper agent. When the owner's words point at a log, file or session
   («нехай прочитає лог тієї сесії»), P adds its path to the first prompt.
@@ -655,10 +658,11 @@ process is new. Why: the owner chose on 2026-11-16 no extra paid turns by defaul
 
 ## Plugin backlog (plugin repo only)
 
-In the plugin repo (ClaudeDevKit) P also handles `BACKLOG.md`: agents in other projects add plugin
-changes there and message `P: ClaudeDevKit` (`dev-kit:manager`, "A change to the plugins themselves").
-P has no timer. On start and on every wake-up, a new entry is one with no `Verdict:` line; P names the
-new entries in its status.
+In the plugin repo (ClaudeDevKit) P also handles `BACKLOG.md`: agents in other projects commit plugin
+changes there and send no message (`dev-kit:manager`, "A change to the plugins themselves"). P has no
+timer. A new entry is one with no `Verdict:` line. P checks the file on start (a restart included),
+at every status and with every Task done template, and names the new entries in that message or, after
+a restart that sends no status, in its next message to the owner.
 
 After merging work that bumps the `dev-kit` version, P sends nothing about it: the Pult watcher sees
 the new version in the main checkout and restarts every lead, this P included (see "Restart for a

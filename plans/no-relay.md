@@ -19,3 +19,8 @@ Rule text and launch code match both points; no rule left that sends a cross-ses
 
 ## Paid spend
 0
+
+## Result (C, 2026-11-19)
+- dev-kit 0.1.55. project-lead: «Обговорення:» starts in the mode a C gets (P's mode); "Plugin backlog": no message arrives, P checks entries with no `Verdict:` on start (restart included), at every status and with every Task done template. manager: "A change to the plugins themselves" sends no SendMessage.
+- Sweep of remaining SendMessage rules: all between P and its own C / Обговорення (same mode now). Pult never uses SendMessage.
+- Reviewer (sonnet) found the "every status" claim too thin (restart skips status, Task done did not check); fixed. Left as is, unsure: `plugins/pult/scripts/start-session.ps1` hardcodes `auto` for Pult-started owner sessions; no rule makes them message a P, so no held message.

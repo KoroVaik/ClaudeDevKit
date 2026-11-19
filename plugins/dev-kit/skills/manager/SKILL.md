@@ -236,13 +236,14 @@ Entry format, appended at the end of the file, 2-4 lines under a `##` title:
 - `Cheapest test:` the smallest check that shows the change works.
 
 Commit only that file (`git add BACKLOG.md`; the repo may hold other uncommitted work) and do not push.
-Then, if `ListAgents` shows a session named `P: ClaudeDevKit`, send it the entry's title in one line
-with `SendMessage`, so it wakes and reviews the entry. With no such session send nothing: that P reads
-the backlog when it starts.
+Send no message to `P: ClaudeDevKit`: it finds entries with no `Verdict:` line itself
+and names them to the owner (`dev-kit:project-lead`, "Plugin backlog").
 A git conflict in it is resolved by keeping both entries.
 
 Why: the owner decided on 2026-11-14 that plugin changes are decided in one place, so a fix made in
-one project's session does not bend the process for all the others.
+one project's session does not bend the process for all the others. No message, since 2026-11-19: a
+SendMessage from a session in another permission mode is held for the owner's approval, and the owner
+does not want to relay between sessions.
 
 ## Quiet about background work
 
