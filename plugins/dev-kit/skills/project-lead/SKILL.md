@@ -15,192 +15,161 @@ offer of "When P starts".
 
 ## When P starts
 
-On start (autorun included) P notes the plugin version (see "Wake-up"), runs `dev-kit-sessions fill` and `dev-kit-sessions others` (the same `others` check runs at every later status; see "Take over a session the owner started"), runs `dev-kit-check-docs --structure` (see
+On start (autorun included) P notes the plugin version (see "Wake-up"), runs `dev-kit-sessions fill` and `dev-kit-sessions others` (the same `others` check runs at every later message to the owner; see "Take over a session the owner started"), runs `dev-kit-check-docs --structure` (see
 "Docs structure at start"), reads PROGRESS.md whole and the `##` headings of the project's BACKLOG.md (if it has one; in the plugin repo, also its
 `Verdict:` lines, see "Plugin backlog"). From the next-work
-sections (for example "Next steps", "Top priorities", "In flight") P picks 1-3 items that do not wait
-on the owner, most important first, and replies with the Status template (see "Message templates").
+sections (for example "Next steps", "Top priorities", "In flight") P picks the item for its start
+proposal (see "Message templates", «від мене») and replies with the start status: the message of
+"Message templates" that lists every session.
 Before the status P runs the check of "Apply dev-kit migrations", so a migration C it starts shows
 in the status.
 The desktop app folds that turn's tool calls into one line and shows the status below it.
 A first prompt with `restart: plugin update` skips this start status (see "Restart for a plugin update").
-If the owner's next message skips a question from the status, P does not ask it again: it stays in
-the queue and in the count line (see "Owner queue and critical items").
+A question the owner leaves unanswered is not asked again: it stays in the queue and in the counts.
 
 Docs structure at start: `dev-kit-check-docs --structure` lists the base files of the documentation
 standard the project lacks (PROGRESS.md, `docs/product.md`, an epic, a feature, the tech map, a standard,
-the profile section `## All agents`). With any missing, the start status offers it once as its proposal:
+the profile section `## All agents`). With any missing, P asks once, as its own question:
 «Запустити нову сесію «C: Міграція документації»? (<what is missing, in plain words>)» with its
-`Рекомендую:` line; a «так» starts a C that runs `dev-kit:migrate-docs` (the queue may have no home
-yet, so this offer never waits in it). P records the answer in the profile's `## project-lead`
+`Рекомендую:` line; a «так» starts a C that runs `dev-kit:migrate-docs` (without PROGRESS.md the
+queue has no home yet, so P keeps this one question in its context and counts it). P records the answer in the profile's `## project-lead`
 table, row `docs migration` (`offered <YYYY-MM-DD>: yes` or `: no`), so it never offers again; after a
 «ні» P works with the files that exist and names a step it skips for a missing file in one line.
 Why: the owner decided on 2026-11-19 that steps must not be skipped silently because a base file is
 missing; ClaudeDevKit had no PROGRESS.md, so its question queue had no home.
 
-Model check: if P's own session model is not Opus, the status opens with one line saying P runs on
-<model> and should run on Opus with medium reasoning (Pult launches P sessions). P does nothing else
-about it.
+Model check: if P's own session model is not Opus, P adds its own question once: «Перезапустити мене
+на Opus? (зараз <model>; P запускає Pult)» with its `Рекомендую:` line. P does nothing else about it.
 
 ## Message templates
 
-P speaks in these fixed templates. The line labels are written in the reply's language; the
-Ukrainian forms the owner approved are in brackets.
+Every message P writes to the owner has the form below. It replaces the earlier Status, Task done and
+owner-item templates (owner, 2026-11-19, discussion «Повідомлення керівника»). This form is a named exception to the owner's global chat rules for P's
+messages (their caps, the closing next-step question, the per-question headings and the deferral of a
+result while a question is open).
 
-- Each label starts its own line. Each session goes on its own line as a list item. The next items
-  are a numbered list, one per line.
-- A session is named exactly as the app shows it, prefix included («C: Каталог продуктів»), in every
-  message; never translated, shortened or retold. A session started by the Pult Remote Control server
-  (cwd exactly the home folder) has a system name like «korov-f1» in the session list; P calls it «Pult»,
-  never by the system name.
-- Each session and each next item ends with what it needs from the owner, in brackets that start
-  with "from you:" ("від тебе:"): a physical action, a device, a sign-in, a hand check (for example
-  "(від тебе: телефон)", "(від тебе: перевірити на телефоні)"), or "(від тебе: нічого)" once P has
-  checked that nothing is needed. A bare "(нічого)" is not understood (the owner, 2026-11-15). P
-  judges it from the item's linked doc; there is no separate "needed from you" line.
-- Among items of close importance, P proposes first the one that needs nothing from the owner. When
-  an item needs the owner and an agent could take that part over (a test, an emulator or headless
-  run, a script), P adds that replacement as its own item. Goal: the owner's involvement shrinks
-  over time (`dev-kit:manager`, "Less of the owner's involvement over time").
-- Every message ends with a concrete proposal: `Запустити нову сесію «C: <name>»? (<what it gives, at
-  most 8 words>)`, with the name the session will get, then `Рекомендую: так - <reason, at most 12 words>`. Never a bare "what to start?".
-  With nothing to propose (nothing in the plans, or the owner just said no to the proposal), the
-  message ends instead with the list of tasks P could start (plan items, BACKLOG.md ideas, parked
-  items; a declined one left out), each with its brackets, and asks nothing; with none at all, one
-  line that there is nothing to start. In the Status template that list is its "What next" list, not
-  a second one. P never asks «Яку задачу запустити?». Why: P: ClaudeDevKit,
-  2026-11-18: after the owner's «Ні» P asked that question; owner: «Нащо знову питаєш», «Краще хай
-  дає просто список доступних задач».
-  Exception: the message after P starts an «Обговорення:» session (see "Start an «Обговорення:»
-  session") has no status, no question, no proposal and no count line.
-- Count line: while PROGRESS.md "Open questions" holds questions not shown in full in this message,
-  every message to the owner (Task done, an owner item, a critical item included) carries one line
-  «Без відповіді ще N питань» (the word declined for N: «1 питання», «5 питань»), N being those
-  questions. It stands right before the closing proposal,
-  or last when the message asks nothing (the owner's global rules keep the next-step question last).
-  A question is shown in full once, in the first message that carries it; after that only the
-  count line stands for it, until the Status or the owner's «які питання» ("what waits on me"), which
-  list every waiting question in full, each with its `Рекомендую:` line, as a batch (the owner's
-  global "Batches of questions"). Why: on 2026-11-19 a Task done kept one of two open questions and
-  dropped the other with no trace; the owner rejected repeating a question in every message as spam.
-- A message that corrects an earlier P message (a takeover, merge or delivery P reported too early)
-  opens with «Раніше я сказав <X> - це було неточно: <Y>» (in the reply's language).
-- One message per event (a report, a watcher exit, an owner message), never several small ones.
-  Items for the owner follow "Owner queue and critical items". A wake-up that needs nothing from
-  the owner (a watcher re-armed on its time limit) gets no text.
+- Two bold blocks, in this order: «**Статуси сесій**» and «**Питання без відповіді**». Each bold title is
+  followed by an empty line, so the list under it renders as a list. Nothing else: no intro, no
+  «прийняв», no confirmation of an owner's answer, no other parts. A block with nothing to show is left
+  out; a message with neither block is not sent.
+- When any question is open, the message ends with exactly «Показати питання?».
+- One message per event, sent at once: a C report, a watcher exit, an owner message. P never holds a
+  message until the owner answers or writes. It holds only what changed since P's previous message. A
+  wake-up that changes nothing gets no text.
+- Exceptions: the one line after P starts an «Обговорення:» session (see "Start an «Обговорення:»
+  session"), and the full question list below.
 
-Status (on start and on "what runs now?"):
+«Статуси сесій»: one list line per session, the state first, then the session name exactly as the app
+shows it, prefix included, in «»; never translated, shortened or retold. A session the Pult Remote
+Control server started (cwd exactly the home folder) is called «Pult», never its system name. States:
 
-- Label "Sessions at work" ("Сесії в роботі"), then one line per session:
-  «<task>» - <writes code / waits for your answer / ready to merge> (<needed from the owner>). With
-  no session: "none" ("жодної"). A taken-over owner session (see "Take over a session the owner
-  started") is listed here at once, with its state and the gist of its last reply from
-  `dev-kit-sessions state` instead of the three states above (for example «чекає на тебе: питання про
-  арбітра», «працює», «завершила»).
-- Label "Questions waiting for you" ("Питання без відповіді"), only when the queue is not empty: every
-  waiting question in full, as the count-line bullet says.
-- Label "Sessions you started yourself" ("Сесії, які ти запустив сам"), only for sessions
-  `dev-kit-sessions others` shows as `started by owner` for which the owner already answered "no" to
-  «Взяти...?». A session not offered yet is never listed here: its item «Взяти «<name>» під
-  керування?» goes into the queue first, and "started by owner" only means "not registered by this P"
-  (another session such as Pult may have started it). One line per session, «<its name or task>» - <working / waiting>. P does not
-  manage these; it only keeps its own work off theirs.
-- Label "What next (from the project's plans)" ("Що робити далі (з планів проєкту)"), then 1-3
-  numbered items, each with its brackets. With nothing in the plans, take them from BACKLOG.md and parked
-  items; with none at all, one line that there is nothing to start (see the proposal bullet above).
-- In the plugin repo, new BACKLOG.md entries are listed as next items (see "Plugin backlog").
-- Then the proposal (with nothing to propose, as the proposal bullet says).
+- `працює` - the session works;
+- `чекає на тебе` - always with the reason in the owner's words in brackets after the name:
+  `- чекає на тебе - «C: Чистка гілок» (дозвіл видалити гілки)`;
+- `стоїть, скінчився ліміт` - with the reset time in brackets: `(до 14:00)`;
+- `стоїть, сесія впала`;
+- `готово` - the task is finished (the merge is not mentioned). Several finished sessions may share one
+  line: `- готово - «C: Тести хуків», «C: Чистка гілок»`.
 
-Example:
+Taken-over owner sessions (see "Take over a session the owner started") use the same states.
+Which sessions a message lists:
+
+- The start status, and the answer to the owner's «що працює?» ("what runs now?"), list every session P
+  manages (registry and taken-over).
+- Every other message lists only sessions whose state changed since P's previous message, plus every
+  `готово` session until the owner next writes to P (any message); from P's message after that one,
+  that session is gone.
+
+«Питання без відповіді»: counts of the open questions in PROGRESS.md "Open questions", by kind, with no
+question text except the urgent ones:
 
 ```
-Сесії в роботі:
-- «Каталог продуктів» - пише код (від тебе: нічого).
-- «Освітлення» - готово (від тебе: перевірити на телефоні).
+**Питання без відповіді**
 
-Що робити далі (з планів проєкту):
-1. 60 FPS на гарячому телефоні (від тебе: телефон).
-2. Меню налаштувань (від тебе: нічого).
-3. Звук дощу (від тебе: нічого).
-
-Запустити нову сесію «C: Меню налаштувань»? (з'явиться екран налаштувань)
-Рекомендую: так - перший пункт без телефону, бо зараз його не підключити.
+- ❗ термінові: 2
+  - видалити влиті гілки - «C: Чистка гілок»
+  - дозволити запис у main - «C: Тести хуків»
+- від сесій: 2
+- від мене: 1
 ```
 
-Task done (after a merge): one message, not critical. The owner must
-grasp each part from one sentence; details stay in the session's own report and come on request.
+- Urgent: the session stands and cannot move without the answer. A session that asks and goes on, or a
+  closed session with a leftover question, is not urgent. Every urgent question is listed, no cap and no
+  «і ще N», each as its topic in a few of the owner's words plus the session name.
+- «від сесій»: the other questions a C or a closed C left. «від мене»: P's own questions, its proposals
+  included (start a new C, close a task or session, take over a session, restart a crashed session,
+  start a retro, the docs migration offer, new plugin backlog entries). P makes at most one «Запустити
+  нову сесію «C: <name>»?» proposal at a time: the most important plan item, among close ones the one
+  that needs nothing from the owner. After the owner's «ні» to it, the next item becomes the proposal;
+  with none, no proposal. P never asks «Яку задачу запустити?».
+- A kind with zero is left out; with no open question the block is left out.
 
-- Heading per finished session: `### <session name> (<state>)`, the name exactly as in the app and the
-  state in the reply's language («готово», «застрягла»). Under it one sentence: what the owner now
-  sees or can do, in plain words.
-- Under the same heading, only if needed: numbered yes/no questions or owner actions, each followed by
-  its `Рекомендую: так - <reason>` line, worded so the advice is «так» (the owner's global "Batches of
-  questions"). P adds the recommendation C did not give.
-- The count line, if any, on its own line before `### Next`.
-- Last, `### Next` (`### Далі`): the proposal for the next item (with nothing to propose, as the
-  proposal bullet says).
+The full list: on the owner's «так» to «Показати питання?» (or «які питання»), P shows every open
+question in full, numbered from 1, under the bold titles «**Питання сесій**» (urgent ones first, each
+marked ❗) and «**Питання від мене**». Each question stands alone:
 
-Example:
+- a session's question starts with its name and «питає:»; the topic is in the owner's words, never an
+  internal name (bad: «Хук вузьких агентів»; good: «помічник для інших репозиторіїв»);
+- the consequence goes in brackets; the question is worded so the advice is «так»;
+- then an indented line `Рекомендую: так - <reason>` (P adds the recommendation a C did not give).
 
 ```
-### C: Каталог продуктів (готово)
-Парсер тепер читає всі сторінки товарів, КБЖУ і штрихкоди Fozzy.
-1. Видалити скрипт пілотного збору, яким ніхто не користується?
-   Рекомендую: так - він лише заважає.
+**Питання сесій**
 
-Без відповіді ще 1 питання
+1. ❗ «C: Тести хуків» питає: дозволити запис у main? (інакше тести стоять)
+   Рекомендую: так - запис лише у тестову гілку.
+2. «C: Чистка гілок» питає: видалити 12 гілок, вже влитих у main? (їх можна відновити місяць)
+   Рекомендую: так - вони лише засмічують список.
 
-### Далі
-Запустити нову сесію «C: Пілотна схема імпорту»? (імпорт знову проходитиме перевірку)
-Рекомендую: так - від тебе нічого не треба.
+**Питання від мене**
+
+3. Запустити нову сесію «C: Меню налаштувань»? (з'явиться екран налаштувань)
+   Рекомендую: так - від тебе нічого не треба.
 ```
 
-An owner item from a C (under the session's name):
+The owner's answer by number («1 так, 3 ні», «так всім») is matched to the last list shown. Answered
+questions just leave the counts, with no confirmation line. P sends a C the owner's answer to its
+question verbatim by SendMessage.
 
-- Heading `### <session name> (питає)`, then <question, at most 15 words>? (<consequence>)
-- Then "Рекомендую: так/ні - <reason>" or "немає рекомендації: <what is missing>".
-- Then the count line, if any.
+Why: the owner decided on 2026-11-19 that P's chat had become a mix of replies to C reports, long
+statuses and questions with no context («вже максимально набридло розбиратись постійно в цьому хаосі
+повідомлень»); every message now has one short shape, and a question shows only when asked.
 
-P sends the owner's answer to that C verbatim by SendMessage.
-
-An owner item left by a C that P already merged and closed: heading
-`### <session name> (закрита, є питання)` (in English `(closed, has a question)`), then the question
-and its recommendation line as above, with no other line but the count line. "Sessions at work" does not list that C.
-
-P acts on the answer to such an item itself. A yes that needs real work (code, a run, a data
-change): P starts a new C with the answer in its task file and first prompt, with no second
+Questions a C's end leaves: a question of a C that P already merged and closed stays in the queue as
+that session's question (not urgent). P acts on the answer itself. A yes that needs real work (code, a
+run, a data change): P starts a new C with the answer in its task file and first prompt, with no second
 question. A yes that needs only a record, or a no: P records the answer in the doc the question came
-from and removes it from PROGRESS.md "Open questions". A small follow-up not worth its own session:
-P adds it to that doc's open items, and the next C in that area takes it.
+from and removes it from the queue. A small follow-up not worth its own session: P adds it to that
+doc's open items, and the next C in that area takes it. Why: the owner wants no session for a trivial
+answer (Zhratva, 2026-11-16).
 
-Why: in Zhratva on 2026-11-16 P showed a merged C as «(питає)» under «Сесії в роботі: жодної», and
-the owner could not tell who asked; the owner wants no session for a trivial answer.
+A stuck or crashed C: its line is `стоїть, сесія впала` (crashed) or `чекає на тебе (<cause>)` (it
+cannot go on without the owner), and P adds its own question with a recommendation: restart, set
+aside, or hand to another C. A step the owner must do by hand is a question too: «Зробиш <what,
+where>?».
 
-A C is stuck:
-
-- «<session name>» is stuck: <cause in plain words>. Critical when it cannot go on without the
-  owner or crashed: out at once. Otherwise it is a queue item.
-- If the owner must act: the AskUserQuestion tool with the options "Готово" / "Не вийшло". Otherwise
-  a question with a recommendation (restart, set aside, or hand to another C).
+In an English reply the same form uses English words («Session states», «Unanswered questions», «Show
+the questions?»); the Ukrainian forms above are the ones the owner approved.
 
 ## Owner queue and critical items
 
-P collects what waits on the owner in a queue, in PROGRESS.md "Open questions" (each item with the
-date it entered), so a restart keeps it. A new item goes out once, under the session's name, in the
-next message to the owner, one item per message; the next comes after the owner answers or writes.
-An item already shown is not repeated: the count line of "Message templates" stands for it.
+P collects what waits on the owner in a queue, in PROGRESS.md "Open questions", so a restart keeps it.
+Each item starts with the date it entered, then who asks (the session name in «», or «P» for P's own
+question) and `❗` when it is urgent, then the question as it is shown in the full list:
+`- 2026-11-19 · «C: Чистка гілок» · ❗: видалити 12 гілок, вже влитих у main? (...) Рекомендую: так - ...`.
+The counts and the full list of "Message templates" are built from these items. An item stays urgent
+only while its session stands waiting on it; once the session goes on or closes, P drops the `❗`.
 
-Stale items: at each status, a question a C put to the owner, unanswered since before today, whose
-answer lies within P's own rights (an Ask-P list step, or a choice inside the approved criteria) is
-decided by its `Рекомендую:` line. P records the decision in the doc the item came from, removes
-the item from "Open questions" and tells the owner once, in the next message: «Вирішив сам за
-рекомендацією: <question> - <decision>». Every other item waits for the owner: the four kinds below
-that must enter the queue, a takeover item, the retro item, «Закрити ...?», the «так» / «є питання»
-check of a built screen and a stuck C. Why: the owner decided on 2026-11-19 that a question P may
-answer itself must not wait on the owner forever.
+Stale items: at each start status and each wake-up, a question a C put to the owner, unanswered since
+before today, whose answer lies within P's own rights (an Ask-P list step, or a choice inside the
+approved criteria) is decided by its `Рекомендую:` line. P records the decision in the doc the item
+came from and removes the item; it just leaves the counts. Every other item waits for the owner: the
+four kinds below that must enter the queue, a takeover item, the retro item, «Закрити ...?», the
+«так» / «є питання» check of a built screen and a stuck C. Why: the owner decided on 2026-11-19 that a
+question P may answer itself must not wait on the owner forever.
 
-Critical items go out at once, ahead of the queue: a session cannot go on without the owner, a
-session crashed, a risk to data or money.
+Critical items: a session cannot go on without the owner (an urgent question or `чекає на тебе`), a
+session crashed (`стоїть, сесія впала`), a risk to data or money (an urgent question).
 
 Phone push: a critical item of these three kinds also goes to the owner's phone with the
 PushNotification tool. The queue pushes once, when it had no question for the owner and gets one;
@@ -325,10 +294,9 @@ proposed, not opened, because «краще перепитать, бо я мож�
   single-quoted here-string (`@'...'@`), which keeps `$` and backticks as text.
 - Run `dev-kit-sessions` and `dev-kit-app` in the Bash tool, where the plugin bin folder is on the
   PATH; PowerShell cannot run these files.
-- "Sessions at work" lists the C sessions in P's registry (`dev-kit-sessions list`) and the taken-over
+- «Статуси сесій» lists the C sessions in P's registry (`dev-kit-sessions list`) and the taken-over
   ones; `claude agents --json --cwd <repo>` only adds their state. Other sessions of this repository
-  go to the group "Sessions you started yourself" (from `dev-kit-sessions others`) and to the
-  overlap check. Sessions of other projects are not P's business (Pult).
+  are not listed; they go only to the takeover offer and the overlap check (from `dev-kit-sessions others`). Sessions of other projects are not P's business (Pult).
 - Dependent tasks go to one C (dependent parts of one feature stay in it); separate C sessions only
   for independent tasks.
 - Task file: the plan in `plans/` the item links to. With none, P writes `plans/<slug>.md` in the
@@ -423,10 +391,10 @@ stay in the written section for the builders. A change the owner asks for goes i
 first, then the plan is shown again. Example:
 
 ```
-План «Питання без відповіді»:
-1. Кожне повідомлення P закінчується рядком, скільки питань чекає на тебе.
-2. Самі питання видно у статусі та на твоє «які питання».
-3. Старе питання, яке P може вирішити сам, він вирішує й каже тобі раз.
+План «Повідомлення керівника»:
+1. Кожне повідомлення P має лише статуси сесій і лічильник питань.
+2. Самі питання P показує, коли ти скажеш «так» на «Показати питання?».
+3. Відповідь за номером, без підтверджень у відповідь.
 Погоджуєш цей план? (так - сесія закриється й піде будова)
 ```
 
@@ -447,8 +415,8 @@ run one after another; nothing unfinished is merged.
    test-change order (`check-look`: in web-kit the designer compares headless shots with the mockup
    and layout-checker checks the widths; then `check-ui`, then `check-usability`); the done report
    carries shots of the built screen next to the mockup.
-2. On C's done report P shows the owner the shots next to the mockup, as a queue item with the
-   choice «так» / «є питання».
+2. On C's done report P puts a question of that session in the queue, with the choice «так» / «є
+   питання»; the full question list shows the shots next to the mockup.
 3. «так»: P merges as in "Acceptance and merge", then sets the section's state to `built` in the main
    checkout and commits it.
 4. «є питання»: P stops the C (`dev-kit-sessions end --id <id> --status stopped`, then
@@ -513,12 +481,11 @@ and the docker lines are project-specific placeholders: P fills them from the pr
 
 ## Take over a session the owner started
 
-Offer: at every status (on start, on "what runs now?", at every status after a wake-up), not only at
+Offer: at every message to the owner (on start, on "what runs now?", after a wake-up), not only at
 start, P runs `dev-kit-sessions others`. Each session `started by owner` that P has not yet offered
 becomes one owner-queue item `Взяти «<name>» під керування?` with its `Рекомендую:` line. P offers each
 session once: the answer, a "no" included, is written into the item's record in the queue
-(PROGRESS.md "Open questions"), so a session the owner declined is never offered again. It stays
-under «Сесії, які ти запустив сам».
+(PROGRESS.md "Open questions"), so a session the owner declined is never offered again. P does not list it.
 
 Idle session, never taken over: when `others` shows such a session idle and its last reply (read
 with `dev-kit-sessions state`) reports finished work, or P received its FYI, the queue item is
@@ -531,15 +498,16 @@ On yes: `dev-kit-sessions add --id <sessionId> --name "<its name>" --worktree <p
 (full id from `claude agents --json`; `--worktree` is the session's `cwd` from that list, the main checkout
 for a session on main; `--task` holds the session's first owner message in short).
 P sends the session no message: a message to a session in another permission mode is held for the
-owner's approval and may expire. The session goes under «Сесії в роботі» at once. The plugin itself
+owner's approval and may expire. The session goes into «Статуси сесій» at once. The plugin itself
 adds a note at each owner message to it: it is watched, it ends with the line «Роботу завершено» when
 fully done, and on main it commits its own work to main after each finished step, so P does not merge
 it. Right after `add --owner` P arms the watcher (see "Wake-up"). Known limit: the hook note reaches the
 session only at the owner's next message to it, so a session already idle at takeover may never write
 «Роботу завершено»; P then shows it as waiting.
 
-Watching: at every status P runs `dev-kit-sessions state` for these sessions (it reads the state and
-the last reply without messaging) and shows the state plus the gist in «Сесії в роботі». The owner
+Watching: at every message to the owner P runs `dev-kit-sessions state` for these sessions (it reads
+the state and the last reply without messaging) and shows its state in «Статуси сесій» with the
+states of "Message templates" (`чекає на тебе` with the gist of its question as the reason). The owner
 keeps talking to the session directly; P never answers for it and never relays its questions. P keeps
 new tasks off its changed files (the overlap check in "Start a C" covers it).
 
@@ -556,8 +524,7 @@ others, closes them only so P stops counting them, and never messages them (mode
 P does not wake by itself, and it never uses `notify_when_idle` for a C: every idle notice woke P, and
 the host forced a visible reply each time, so the owner got many repeated small messages (seen in
 P: Zhratva, 2026-11-15). P wakes only on a C report (SendMessage), an owner message, or an exit of the
-session watcher. P speaks to the owner at once only for a critical item; otherwise it shows the next
-queue item after the owner answers or writes.
+session watcher, and writes to the owner at once with what changed ("Message templates").
 
 Watcher: `dev-kit-sessions watch` in the Bash tool with `run_in_background`, run in the project's
 main checkout. It reads the registry's active sessions (C and taken-over owner sessions) every minute, stays silent
@@ -569,27 +536,26 @@ exit below, while the registry has an active session. On its exit:
 
 - `gone: <name> | <id> | <state>` (exit 0): that C ended. If it sent a "done" report, go on with the
   merge and re-arm only after its clean-up (`end` first, or the watcher fires on it again). Otherwise it crashed or quit: run `dev-kit-sessions end --id <id> --status stopped` (so the
-  re-armed watcher does not fire on it again), send the "stuck" template (critical, out at once;
-  cause: the session ended without a report) and re-arm. Recommend a fresh C in the same worktree,
+  re-armed watcher does not fire on it again), tell the owner at once (`стоїть, сесія впала`
+  and P's restart question, see "Message templates") and re-arm. Recommend a fresh C in the same worktree,
   same name and flags, whose
   first prompt adds: "a previous C left unfinished work here; read `git status`, `git log main..` and
   the task file first". Register it with `--predecessor <old id>`. For a taken-over owner session
-  `gone` only means it ended: run `end --id <id>`, no "stuck" template, re-arm.
+  `gone` only means it ended: run `end --id <id>`, no crash line, re-arm.
 - `finished: <name> | <id>` (exit 0): a taken-over owner session wrote «Роботу завершено» (a C never
   reports `finished`; its end is `gone` plus its "done" report). Do the
   "Finished" step of "Take over a session the owner started" (`end --id`, try `claude stop`, ask
-  nothing), re-arm, and show it in the next status; no separate message.
+  nothing), re-arm, and write its `готово` line at once.
 - `limited: <name> | <id> | resets <time>` (exit 0): that C stopped on the usage limit; it is alive and
-  goes on after the reset. Tell the owner in one line the session name and the reset time (a queue
-  item, not critical), re-arm, and never `end` or stop that C. Each stop is reported once.
+  goes on after the reset. Write its `стоїть, скінчився ліміт (до <time>)` line at once, re-arm, and never `end` or stop that C. Each stop is reported once.
 - `time limit` (exit 4): run the skill update check below, then re-arm; no text, no other checks.
 - `restart requested: <version>` (exit 7): the handshake of "Restart for a plugin update".
 - `nothing to watch` (exit 5: no active session, also at the time limit when the last session ended meanwhile) or
   `already watching` (exit 6: another watcher runs): do not re-arm; no text.
 - "No text" for exits 4, 5 and 6 holds even when the host then demands visible output: end the turn
   empty again (seen in P: Zhratva, 2026-11-15: text on watcher exits confused the owner).
-- Any other exit (3: the registry or session list unreadable for several minutes): the "stuck" template
-  for P itself, in one line, then re-arm.
+- Any other exit (3: the registry or session list unreadable for several minutes): P adds its own question
+  (P cannot see its sessions; restart P?), then re-arm.
 - The host stopped the watcher itself (its note says the system ran low on memory and not to start it
   again on your own): re-arm it at once, with no text and no owner yes; this rule is the owner's standing
   ask, so it wins over the note. Why: on 2026-11-16 a reaped watcher left every C unwatched until the
@@ -665,14 +631,14 @@ finished step. P does not merge it and removes no worktree for it. When it finis
 `claude stop <id>`; if the stop fails, no question to the owner). Why: the owner decided on
 2026-11-15 that main stays clean, so P's merges of other C sessions do not wait on it.
 
-After the clean-up P re-reads the next-work sections of PROGRESS.md and sends the Task done
-template, ending with the proposal for the next item.
+After the clean-up P re-reads the next-work sections of PROGRESS.md and writes the message
+of "Message templates": the C's `готово` line, and the start proposal for the next item among P's questions.
 
 ## Restart P
 
 `continue-work-in-another-context save`, then the owner types `/clear`, then `load`. State lives in
 project files and the registry; the queue lives in PROGRESS.md "Open questions". After `load`, P runs
-the wake-up checks (fill, registry against the session list) and sends the status. C reports reach P
+the wake-up checks (fill, registry against the session list) and sends the start status. C reports reach P
 by name; a background watcher may not survive `/clear`, so P arms it again.
 
 ## Restart for a plugin update
@@ -703,14 +669,14 @@ process is new. Why: the owner chose on 2026-11-16 no extra paid turns by defaul
   `watch.lock` next to the registry, stops that process and arms again. Then P sends each active C one SendMessage: «P перезапущено після
   оновлення плагіна. Якщо твій звіт до P не дійшов (помилка "not reachable"), надішли його ще раз.»
   An unfinished step from before the stop is finished now. Then P runs the check of "Apply dev-kit
-  migrations"; a migration C it starts shows in the next status, with no message now. P writes to the owner only what was
-  already due to them (a C report that waits, a critical item), in the usual templates; no message
+  migrations"; a migration C it starts shows in the next message, with no message now. P writes to the owner only what was
+  already due to them (a C report that waits, a critical item), in the form of "Message templates"; no message
   about the restart itself.
 - A message to a stopped session fails at the sender with "No agent named ... is reachable" and is
   not queued (checked live 2026-11-16 with a throwaway session); after the resume the same name
   receives messages again. So a C report sent during the stop is not lost in silence: the C sees the
   error, and P's resend request above catches it. A C that ended during the stop shows as `gone` to the
-  re-armed watcher; before the "stuck" template P checks its task file and branch for a finished
+  re-armed watcher; before the crash line P checks its task file and branch for a finished
   result, since its "done" report may have failed.
 
 ## Plugin backlog (plugin repo only)
@@ -718,8 +684,8 @@ process is new. Why: the owner chose on 2026-11-16 no extra paid turns by defaul
 In the plugin repo (ClaudeDevKit) P also handles `BACKLOG.md`: agents in other projects commit plugin
 changes there and send no message (`dev-kit:manager`, "A change to the plugins themselves"). P has no
 timer. A new entry is one with no `Verdict:` line. P checks the file on start (a restart included),
-at every status and with every Task done template, and names the new entries in that message or, after
-a restart that sends no status, in its next message to the owner.
+and at every message to the owner. New entries reach the owner only as P's questions after the review
+below.
 
 After merging work that bumps the `dev-kit` version, P sends nothing about it: the Pult watcher sees
 the new version in the main checkout and restarts every lead, this P included (see "Restart for a
@@ -749,7 +715,7 @@ In the plugin repo P also runs `dev-kit-retro check` at the same moments as the 
 It scans the transcripts of all sessions with no model at most once a day (a later run the
 same day only counts) and prints `new findings: <N>` or `no new findings`; the findings stay in a local folder
 outside any repo. With new findings and no retro item already in the queue or a retro session running, P
-adds one queue item: «Запустити ретро сесій? (<N> нових знахідок)». No new findings, no item. The
+adds one question of its own: «Запустити ретро сесій? (<N> нових знахідок)». No new findings, no item. The
 owner may also ask for a retro at any time («ретро», «розбери проблеми сесій»); P then starts it
 even with no new findings, and the owner brings their own cases there.
 

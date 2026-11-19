@@ -40,7 +40,7 @@ messages (`plugins/dev-kit/skills/project-lead/SKILL.md`: Status template, Task 
    «прийняв», no confirmation of an answer, no other parts.
 2. «Статуси сесій»: one list line per session, the state first, then the exact session name in «»:
    `- працює - «C: Тести хуків»`. States used: «працює», «чекає на тебе», «стоїть, скінчився ліміт»
-   (with when it goes on), «стоїть, сесія впала», «готово, влито в main». «чекає на тебе» always has the
+   (with when it goes on), «стоїть, сесія впала», «готово» (the owner's change, 2026-11-19: the merge is not mentioned). «чекає на тебе» always has the
    reason in brackets in the owner's words: `- чекає на тебе - «C: Чистка гілок» (дозвіл видалити гілки)`.
    Several finished sessions may share one «готово» line.
 3. The start status lists all sessions. Every later message lists only sessions whose state changed
@@ -84,3 +84,9 @@ against point 4 for P; the builder settles that through `dev-kit:edit-rules` (ow
 and asks the owner if a global line must change. The existing open-question queue (PROGRESS.md
 «Open questions», the stale-question rule) stays the store behind the counts. A script-built status
 with finished-task history is a separate backlog idea, not part of this build.
+
+## Build (C: p-messages-build)
+- Paid spend: $0.
+- Built: `project-lead` "Message templates" and "Owner queue" rewritten; pointers, feature doc and glossary updated; dev-kit 0.1.61.
+- Builder decisions: model check, docs-migration offer, backlog entries, retro, takeover and close offers are P's own questions; the «Вирішив сам» line and the «Раніше я сказав» prefix are dropped; taken-over sessions use the same states.
+- Waits: the owner's yes (via P) to one exception line for P in the owner's global CLAUDE.md.

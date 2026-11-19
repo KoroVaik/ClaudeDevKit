@@ -23,5 +23,5 @@ proposed; the owner approves them.
 | Start leads at logon and heal them | Feature: the Pult hub starts the leads at Windows logon and brings a dead one back. | - |
 | Project lead (P) | The one session per project that starts task sessions and merges their work; it does no task work itself. | - |
 | Task session (C) | A session the project lead starts for one task, in its own worktree. | - |
-| Owner queue | What waits on the owner, shown once per item, kept in PROGRESS.md "Open questions". | - |
+| Owner queue | What waits on the owner, kept in PROGRESS.md "Open questions"; P's messages show its counts. | - |
 | Discussion session («Обговорення:») | A session where the owner settles the meaning and the mockup of a feature with one agent. | - |
