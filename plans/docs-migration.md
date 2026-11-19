@@ -15,3 +15,9 @@ Run `dev-kit:migrate-docs` on this repo so the structure check passes, PROGRESS.
 
 ## Paid spend
 0
+
+## State (C)
+- Dry run done: change list at C:/Users/korov/.claude/jobs/096bf661/tmp/docs-migration-change-list.md (baseline, rows A-H, questions Q1-Q5).
+- Baseline: `dev-kit-check-docs` 2 errors (BACKLOG.md:35, docs/research-similar-plugins.md:31); `--structure` 7 missing.
+- Note: `docs/plan.md` named above does not exist; the existing docs are README.md, BACKLOG.md, docs/research-similar-plugins.md, plans/*.md.
+- Waiting for P: yes to the list (A-G), Q1-Q4, and the separate yes for deletions (H, Q5).
