@@ -35,10 +35,3 @@ What: one chain for a screen design, so nothing is lost: mockup approved -> appr
 Why: Zhratva, 2026-11-18: the approved mockup docs/mockups/admin/review-newcomer.html (approved about 2026-11-14) was recorded nowhere, so P never planned it; owner: «треба попрацювати над цим флоу, щоб нічого не губилось. І все ішло одне за одним, а не хаотично». The mockup title «для новачка» misled both P and the owner.
 Cheapest test: replay the Zhratva case on paper: after a mockup approval, the next status of P lists the build step without anyone adding it by hand.
 
-## Pult: start-session.ps1 reports a failure on success
-
-What: `plugins/pult/scripts/start-session.ps1` ends `claude --bg ... | Select-Object -First 1`, which returns exit 255 or -1 although the session started ("backgrounded" printed). Capture the output first and exit 0 when it says "backgrounded". Check `start-servers.ps1`, `restart-leads.ps1` and `stop-servers.ps1`, which pipe the same way, and whether `watch-servers.ps1` logs a false HEAL-FAILED from it.
-Why: retro 2026-11-19: sessions 7966c247 and ee6c9fdd (C: Керівник у режимі сесій) saw 7 "failed" starts that had worked; the unpiped call in c5d5f275 returned 0.
-Cheapest test: start one throwaway session through the script and check the exit code is 0.
-Verdict: owner yes in retro 2026-11-19
-

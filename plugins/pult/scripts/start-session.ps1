@@ -23,6 +23,12 @@ $prompt = [IO.File]::ReadAllText((Resolve-Path $PromptFile), (New-Object System.
 if (-not $prompt.Trim()) { Write-Output 'Empty prompt file.'; exit 1 }
 Push-Location $Path
 try {
-    claude --bg --remote-control $Name --name $Name --permission-mode auto --model $Model `
-        --effort $Effort -- (ConvertTo-NativeArg $prompt) | Select-Object -First 1
+    # Capture all output first: `| Select-Object -First 1` cut the pipe and left exit code -1 or 255
+    # although the session had started.
+    $said = @(claude --bg --remote-control $Name --name $Name --permission-mode auto --model $Model `
+        --effort $Effort -- (ConvertTo-NativeArg $prompt) 2>&1 | ForEach-Object { "$_" })
+    $code = $LASTEXITCODE
 } finally { Pop-Location }
+if ($said -match 'backgrounded') { $said | Select-Object -First 1; exit 0 }
+$said
+exit $(if ($code) { $code } else { 1 })

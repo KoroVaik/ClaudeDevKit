@@ -100,7 +100,7 @@ foreach ($lead in $leads) {
         continue
     }
     if ($s.status -eq 'busy' -and -not $Force -and -not $Ready) { Write-Output "Busy, skipped: $lead"; continue }
-    claude stop $s.id | Select-Object -First 1
+    @(claude stop $s.id) | Select-Object -First 1  # capture first: a cut pipe sets exit code -1
     $stopped += $lead
 }
 # start-servers.ps1 skips a lead whose process is still alive, so wait until every stopped one is gone.

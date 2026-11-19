@@ -84,7 +84,7 @@ Set-Content -LiteralPath (Join-Path $stateDir 'hold') -Encoding UTF8 -Value "sto
 try {
     (claude agents --json | Out-String | ConvertFrom-Json) |
         Where-Object { $_.kind -eq 'background' -and $_.name -like 'P: *' -and $_.pid } |
-        ForEach-Object { claude stop $_.id | Select-Object -First 1 }
+        ForEach-Object { @(claude stop $_.id) | Select-Object -First 1 }  # capture first: a cut pipe sets exit code -1
 } catch { Write-Output "Could not list background sessions: $_" }
 
 # Servers only: the `remote-control` subcommand, not the --remote-control flag of a background P.
