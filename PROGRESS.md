@@ -19,4 +19,3 @@ Open work of the features: `dev-kit-check-docs --open`.
 ## Open questions
 
 - 2026-11-19: Compare the usage counter (`/usage`) for one day to correct the Opus weight in the retro token count (now 5; blogs say about 3). Plan: [retro-tokens](plans/retro-tokens.md).
-- 2026-11-19: Approve the epic and feature names in the [glossary](docs/glossary.md) (written by the docs migration; agents use them until then).

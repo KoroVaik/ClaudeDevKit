@@ -1,7 +1,7 @@
 # Glossary
 
 One name per concept. Chat, docs, skills, agent files and UI text use these names. The names are
-proposed; the owner approves them.
+approved by the owner on 2026-11-19.
 
 | Name | Meaning | Do not say |
 | --- | --- | --- |
