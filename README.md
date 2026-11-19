@@ -168,7 +168,7 @@ run the teardown when the owner says the work is done, or at a handoff. The rule
 P is one session per project. It starts task sessions (C), each in its own worktree, merges their
 finished work into main and tells you the result. It does no task work itself. You are the CEO: P
 collects what needs you in a queue and shows one item at a time, and only a critical item (a session
-cannot go on without you, a session crashed, a risk to data or money) comes at once. P decides alone
+cannot go on without you, a session crashed, a risk to data or money) comes at once, also as a push to your phone. P decides alone
 within the approved acceptance criteria; you get a product choice, a hard-to-undo step, or paid spend
 over $1 in total per task. P sorts each task: the C alone; P and the C; up to 3 text questions to you
 through the queue; more than 3, or any question about how a screen looks, goes to an «Обговорення:»
