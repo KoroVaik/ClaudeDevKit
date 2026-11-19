@@ -2,7 +2,7 @@
 
     dev-kit-retro check [--days N]     scan if not yet scanned today, then print the count of unreviewed findings
     dev-kit-retro scan [--force] [--days N]
-    dev-kit-retro list                 print the unreviewed findings (scan lines, then session notes)
+    dev-kit-retro list                 print the unreviewed findings (scan lines, session notes, then the spend tables)
     dev-kit-retro done                 mark what the last check or list showed as reviewed (after a retro, or a no)
 
 Findings folder: env DEV_KIT_RETRO_DIR, else `~/.claude/dev-kit/retro` (local, outside any repository, one for all
@@ -28,6 +28,20 @@ and across transcripts:
 - `script candidate`: the same Bash command of SCRIPT_MIN_CHARS or more in SCRIPT_SESSIONS or more sessions (subagents
   count with their session).
 The plugin's own commands (containing OWN_COMMAND) count for neither repeats nor script candidates: rules run them.
+
+Token spend, in units (owner, 2026-11-19: a subscription, so no dollars; raw tokens mislead, cache reads are most of
+them): 1 unit = one fresh Sonnet input token; per kind WEIGHTS (output 5, cache read 0.1, cache write 1.25 for 5 min
+and 2 for 1 h), times MODEL_WEIGHTS by the message's model (Opus 5, Haiku 1/3; any other model 1). One message id
+repeats on several lines with the same usage: it counts once per scan, and a line dated before the previous scan
+started (a resumed session copies old lines) is not counted. Two more kinds:
+- `long session`: a main transcript with LONG_TURNS or more main turns so far (an owner or injected message that
+  is not a tool result; the total is kept in `state.json`), with this scan's units per turn against the median of
+  the sessions under SHORT_TURNS turns (only with USUAL_MIN or more of them);
+- `opus coder`: a coder subagent run on Opus, with its units against the usual Sonnet coder run (only with USUAL_MIN
+  or more such runs kept).
+The scan file also gets a `## Spend` section of `| `-table lines (sessions by title, subagents by type and model;
+not findings; `list` prints the unreviewed ones, older ones stay in the scan files). "Usual" is the median units per run of one
+subagent type on one model over the last RUNS_KEPT runs (`state.json`), shown only with USUAL_MIN or more runs.
 
 `check` runs `scan` when `state.json` has no scan for today, then prints `new findings: <N>` or `no new findings`.
 New findings are the lines of scan files dated after the last `done` plus the lines of `notes.md` past the count
@@ -60,6 +74,14 @@ WAITING_TOOLS = {"AskUserQuestion"}
 OWN_COMMAND = "dev-kit-"  # the plugin's own commands, run by its rules at fixed moments (P's checks)
 SCRIPT_MIN_CHARS = 30  # shorter Bash commands (git status, ls) are not worth a script
 DETAIL_CHARS = 160
+WEIGHTS = {"input": 1, "output": 5, "cache_read": 0.1, "cache_5m": 1.25, "cache_1h": 2}
+MODEL_WEIGHTS = {"opus": 5, "sonnet": 1, "haiku": 1 / 3}  # matched as a part of the model id; the Opus one is
+# to be checked once against the owner's subscription meter (`/usage`), plans/retro-tokens.md
+LONG_TURNS = 100
+SHORT_TURNS = 50
+USUAL_MIN = 10
+RUNS_KEPT = 50
+SPEND_ROWS = 15
 
 
 def retro_dir():
@@ -137,8 +159,33 @@ def session_label(path, root):
     return project, path.stem, ""
 
 
-def analyse(lines):
-    """Counters of one transcript window: calls, repeats, errors, slow calls, pauses, Bash commands, title."""
+def model_family(model):
+    model = str(model or "").lower()
+    return next((family for family in MODEL_WEIGHTS if family in model), "other")
+
+
+def units_of(usage, model):
+    """The units of one message's usage."""
+    def number(value):
+        return value if isinstance(value, (int, float)) else 0
+    cache = usage.get("cache_creation") if isinstance(usage.get("cache_creation"), dict) else None
+    if cache:
+        five, hour = number(cache.get("ephemeral_5m_input_tokens")), number(cache.get("ephemeral_1h_input_tokens"))
+    else:
+        five, hour = number(usage.get("cache_creation_input_tokens")), 0
+    raw = (number(usage.get("input_tokens")) * WEIGHTS["input"] + number(usage.get("output_tokens")) * WEIGHTS["output"]
+           + number(usage.get("cache_read_input_tokens")) * WEIGHTS["cache_read"]
+           + five * WEIGHTS["cache_5m"] + hour * WEIGHTS["cache_1h"])
+    return raw * MODEL_WEIGHTS.get(model_family(model), 1)
+
+
+def analyse(lines, seen=None, since=None):
+    """Counters of one transcript window: calls, repeats, errors, slow calls, pauses, Bash commands, title, spend.
+
+    `seen` is the set of message ids already counted in this scan; lines dated before `since` are not counted."""
+    seen = set() if seen is None else seen
+    units = Counter()  # model family -> units
+    turns = 0
     calls = {}
     repeats = Counter()
     first_input = {}
@@ -161,10 +208,21 @@ def analyse(lines):
         if kind not in ("assistant", "user"):
             continue
         stamp = parse_time(entry.get("timestamp"))
-        content = (entry.get("message") or {}).get("content")
+        message = entry.get("message") or {}
+        content = message.get("content")
+        fresh = not (since and stamp and stamp < since)
+        if kind == "user" and fresh and not entry.get("isMeta") and not (
+                isinstance(content, list) and any(isinstance(b, dict) and b.get("type") == "tool_result"
+                                                  for b in content)):
+            turns += 1
         if not isinstance(content, list):
             content = []
         if kind == "assistant":
+            usage, model, mid = message.get("usage"), message.get("model"), message.get("id")
+            if isinstance(usage, dict) and model != "<synthetic>" and fresh and mid not in seen:
+                if mid:
+                    seen.add(mid)
+                units[model_family(model)] += units_of(usage, model)
             if last_result_time and stamp:
                 gap = (stamp - last_result_time).total_seconds() / 60
                 if gap >= SLOW_MODEL_MIN:
@@ -202,7 +260,8 @@ def analyse(lines):
             last_result_time = stamp if got_result else None
     return {
         "title": title, "calls": len(calls), "repeats": repeats, "first_input": first_input, "errors": errors,
-        "error_tools": error_tools, "slow": slow, "pauses": pauses, "bash": bash,
+        "error_tools": error_tools, "slow": slow, "pauses": pauses, "bash": bash, "units": units, "turns": turns,
+        "runs": 1 if units else 0, "run_units": [(units.most_common(1)[0][0], sum(units.values()))] if units else [],
     }
 
 
@@ -212,7 +271,8 @@ def merge(a, b):
         "title": b["title"] or a["title"], "calls": a["calls"] + b["calls"], "repeats": a["repeats"] + b["repeats"],
         "first_input": {**b["first_input"], **a["first_input"]}, "errors": a["errors"] + b["errors"],
         "error_tools": a["error_tools"] + b["error_tools"], "slow": a["slow"] + b["slow"],
-        "pauses": a["pauses"] + b["pauses"], "bash": a["bash"] | b["bash"],
+        "pauses": a["pauses"] + b["pauses"], "bash": a["bash"] | b["bash"], "units": a["units"] + b["units"],
+        "turns": a["turns"] + b["turns"], "runs": a["runs"] + b["runs"], "run_units": a["run_units"] + b["run_units"],
     }
 
 
@@ -245,9 +305,12 @@ def scan(days=1, force=False, out=None):
         print("already scanned today", file=out)
         return 0
     root = projects_dir()
+    started = datetime.datetime.now(datetime.timezone.utc)
+    since = parse_time(state.get("scan_started", ""))
+    seen = set()  # message ids counted in this scan
     first = not state["offsets"]
     cutoff = time.time() - days * 86400
-    titles = {}
+    known = state.setdefault("titles", {})  # a title is written once, often in an earlier scan's lines
     windows = {}  # (project, session, subagent type) -> counters; subagents of one type in one session are summed
     for path in sorted(root.rglob("*.jsonl")) if root.is_dir() else []:
         key = str(path)
@@ -268,11 +331,13 @@ def scan(days=1, force=False, out=None):
         if not lines:
             continue
         project, session, sub = session_label(path, root)
-        result = analyse(lines)
+        result = analyse(lines, seen, since)
         if result["title"] and not sub:
-            titles[(project, session)] = result["title"]
+            known[f"{project}/{session}"] = result["title"]
         merged = windows.get((project, session, sub))
         windows[(project, session, sub)] = merge(merged, result) if merged else result
+    titles = {(project, session): known[f"{project}/{session}"] for project, session, _ in windows
+              if known.get(f"{project}/{session}")}
     out_lines = []
     commands = defaultdict(set)
     for (project, session, sub), result in windows.items():
@@ -287,15 +352,139 @@ def scan(days=1, force=False, out=None):
         if len(sessions) >= SCRIPT_SESSIONS:
             out_lines.append(f"- {len({p for p, _ in sessions})} project(s) | {len(sessions)} sessions | "
                              f"script candidate | {short(command)}")
-    if out_lines:
+    spend_findings, table = spend(windows, titles, state)
+    out_lines += spend_findings
+    if out_lines or table:
         report = folder / f"scan-{day}.md"
         header = "" if report.exists() else f"# Scan {day}\n\n"
         with open(report, "a", encoding="utf-8") as handle:
-            handle.write(header + "\n".join(out_lines) + "\n")
+            handle.write(header + "".join(line + "\n" for line in out_lines))
+            if table:
+                handle.write(f"\n## Spend {started.astimezone().strftime('%H:%M')}\n\n" + "\n".join(table) + "\n\n")
+    state["scan_started"] = started.isoformat()
     state["last_scan"] = day
     save_state(folder, state)
     print(f"scanned {len(windows)} transcript(s), {len(out_lines)} finding(s)", file=out)
     return 0
+
+
+def amount(units):
+    """Units in a short form: 950, 7.5k, 12k, 3.4M."""
+    if units >= 1e6:
+        return f"{units / 1e6:.1f}M"
+    if units >= 1e4:
+        return f"{units / 1e3:.0f}k"
+    return f"{units / 1e3:.1f}k" if units >= 1e3 else f"{units:.0f}"
+
+
+def median(values):
+    values = sorted(values)
+    if not values:
+        return 0
+    middle = len(values) // 2
+    return values[middle] if len(values) % 2 else (values[middle - 1] + values[middle]) / 2
+
+
+def mix(units):
+    """Model families by share: `opus 90%, sonnet 10%`."""
+    total = sum(units.values()) or 1
+    return ", ".join(f"{family} {value * 100 / total:.0f}%" for family, value in units.most_common() if value)
+
+
+def project_name(folder):
+    """A project folder in the table: `Zhratva/next-categories` for a worktree of `...-MyRepositories-Zhratva`."""
+    repo, _, worktree = folder.partition("--claude-worktrees-")
+    repo = repo.rsplit("-MyRepositories-", 1)[-1]
+    return f"{repo}/{worktree}" if worktree else repo
+
+
+def spend(windows, titles, state):
+    """The spend findings (long sessions, Opus coders) and the `## Spend` table lines of one scan."""
+    def label(project, session):
+        name = titles[(project, session)].replace("|", "/") if (project, session) in titles else ""
+        return f"{name} ({session[:8]})" if name else session
+
+    total = Counter()
+    sessions = defaultdict(lambda: {"main": Counter(), "subs": 0.0, "turns": 0})
+    subagents = defaultdict(list)  # (type, model family) -> units per run
+    for (project, session, sub), result in windows.items():
+        total += result["units"]
+        row = sessions[(project, session)]
+        if sub:
+            row["subs"] += sum(result["units"].values())
+            for family, units in result["run_units"]:
+                subagents[(sub[len("subagent "):] or "?", family)].append(units)
+        else:
+            row["main"] += result["units"]
+            row["turns"] += result["turns"]
+    grand = sum(total.values())
+    if not grand:
+        return [], []
+    history = state.setdefault("runs", {})
+    for (kind, family), runs in subagents.items():
+        key = f"{kind} {family}"
+        history[key] = (history.get(key, []) + [round(units) for units in runs])[-RUNS_KEPT:]
+    found = []
+    turns_total = state.setdefault("turns", {})
+    per_turn = {}
+    for (project, session), row in sessions.items():
+        if row["turns"]:
+            key = f"{project}/{session}"
+            turns_total[key] = turns_total.get(key, 0) + row["turns"]
+            per_turn[(project, session)] = sum(row["main"].values()) / row["turns"]
+    shorts = [cost for (project, session), cost in per_turn.items() if turns_total[f"{project}/{session}"] < SHORT_TURNS]
+    short_usual = median(shorts) if len(shorts) >= USUAL_MIN else 0
+    for (project, session), cost in per_turn.items():
+        so_far = turns_total[f"{project}/{session}"]
+        if so_far < LONG_TURNS:
+            continue
+        ratio = f", x{cost / short_usual:.1f} of a session under {SHORT_TURNS} turns" if short_usual else ""
+        found.append(f"- {project} | {label(project, session)} | long session | {so_far} main turns so far; this scan "
+                     f"{sessions[(project, session)]['turns']} turns at {amount(cost)} units per turn{ratio}")
+    sonnet_runs = [units for key, runs in history.items() if key.endswith("coder sonnet") for units in runs]
+    sonnet_coder = median(sonnet_runs) if len(sonnet_runs) >= USUAL_MIN else 0
+    for (project, session, sub), result in windows.items():
+        for family, units in result["run_units"]:
+            if family == "opus" and sub.endswith("coder"):
+                ratio = f", x{units / sonnet_coder:.0f} of a usual Sonnet coder run" if sonnet_coder else ""
+                found.append(f"- {project} | {label(project, session)} / {sub} | opus coder | "
+                             f"{amount(units)} units{ratio}")
+    subs_share = sum(sum(runs) for runs in subagents.values()) * 100 / grand
+    table = [f"Total {amount(grand)} units ({mix(total)}); subagents {subs_share:.0f}%.", "",
+             "| project | session | main models | main turns | main units | subagent units | share |",
+             "|---|---|---|---|---|---|---|"]
+    ranked = sorted(sessions.items(), key=lambda item: -(sum(item[1]["main"].values()) + item[1]["subs"]))
+    for (project, session), row in ranked[:SPEND_ROWS]:
+        both = sum(row["main"].values()) + row["subs"]
+        table.append(f"| {project_name(project)} | {label(project, session)} | {mix(row['main']) or '-'} | {row['turns']} | "
+                     f"{amount(sum(row['main'].values()))} | {amount(row['subs'])} | {both * 100 / grand:.0f}% |")
+    if subagents:
+        table += ["", "| subagent | model | runs | units | median per run | usual per run | share |",
+                  "|---|---|---|---|---|---|---|"]
+        for (kind, family), runs in sorted(subagents.items(), key=lambda item: -sum(item[1]))[:SPEND_ROWS]:
+            usual = history.get(f"{kind} {family}", [])
+            shown = amount(median(usual)) if len(usual) >= USUAL_MIN else "-"
+            table.append(f"| {kind} | {family} | {len(runs)} | {amount(sum(runs))} | {amount(median(runs))} | "
+                         f"{shown} | {sum(runs) * 100 / grand:.0f}% |")
+    return found, table
+
+
+def spend_tables(folder, until):
+    """The `## Spend` sections of the scan files dated after `until`."""
+    shown = []
+    for report in sorted(folder.glob("scan-*.md")):
+        if report.stem[len("scan-"):] <= until:
+            continue
+        inside = False
+        for line in report.read_text(encoding="utf-8-sig", errors="replace").splitlines():
+            if line.startswith("## Spend"):
+                inside = True
+                shown.append(f"### {report.stem[len('scan-'):]} {line[len('## Spend '):]}")
+            elif inside and not line.startswith("- "):
+                shown.append(line)
+            else:
+                inside = False
+    return shown
 
 
 def read_lines(path):
@@ -349,6 +538,10 @@ def list_findings(out=None):
     print("\n".join(scan_lines) or "(none)", file=out)
     print("\n## Session notes", file=out)
     print("\n".join(note_lines) or "(none)", file=out)
+    tables = spend_tables(folder, state["reviewed"].get("scans_until", ""))
+    if tables:
+        print("\n## Spend (units; evidence for the findings above, not findings)", file=out)
+        print("\n".join(tables).rstrip(), file=out)
     return 0
 
 
