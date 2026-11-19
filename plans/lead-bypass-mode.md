@@ -19,5 +19,10 @@ A P and a C both in bypassPermissions: one P -> C message is delivered with no a
 - Skill (project-lead, "Permission mode"): P runs in this mode; a C gets P's own mode (last MODE line in servers.log), so the two always match.
 - Tests: `tools/tests/test_lead_permission_mode.py` (9, pass); watcher/hub tests pass; lint clean.
 - ClaudeDevKit itself stays auto (its main has no shell deny lines), same as its C sessions.
-- Not checked live: resume honours `--permission-mode` from respawnFlags; P -> C delivery in bypass (needs a throwaway pair; asked P).
-- Open for P: «Обговорення:» sessions stay auto, so their done report to a bypass P may be held in P's chat.
+- Live check 2026-11-19 (P's yes; throwaway haiku sessions in a temp detached worktree, no real lead, Pult or watcher touched; all stopped and the worktree removed after):
+  - P fresh-started by `Get-LeadStartArgs -Mode bypassPermissions` -> bypass C: «ping from P» delivered with no approval.
+  - P resumed after `Set-LeadRespawnModel -Mode auto` -> its message held at the bypass C (C's job state `needs: approve message from ... P LiveCheck`); claude printed «woke session with its saved options (..., --permission-mode)».
+  - Same P stopped, `Set-LeadRespawnModel -Mode bypassPermissions`, resumed -> «ping from P resumed bypass» delivered. So a resume takes the rewritten mode.
+  - An auto session -> the bypass P: held (P's job state `needs: approve message from ... D LiveCheck`). So an «Обговорення:» session (auto) report to a bypass P is held in P's chat for the owner - open decision for P.
+  - Side finding: `claude --bg --resume` right after `claude stop`, even once `claude agents` shows `stopped`, can say «already running» and start a flag-less copy (default model and mode). Seen twice; a wait of about 15 s avoided it. Not changed here.
+  - A fresh temp repo gets «Workspace not trusted» for `claude --bg`, so the end-to-end `start-servers.ps1 -ConfigFile` run on a temp repo with hard bans was not possible; `Get-LeadPermissionMode` is covered by unit tests instead.
