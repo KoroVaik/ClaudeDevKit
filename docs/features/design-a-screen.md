@@ -37,6 +37,3 @@ profile ([sections](../tech/project-profile.md)).
 - `plugins/web-kit/agents/sandbox-builder.md`
 - `plugins/web-kit/agents/shot-taker.md`
 - `tools/tests/test_build_mockups.py`
-
-## Open
-- [ ] Check whether the stage 2 session can continue the C branch of the build

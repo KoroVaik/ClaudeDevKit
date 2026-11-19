@@ -21,5 +21,5 @@ Run `dev-kit:migrate-docs` on this repo so the structure check passes, PROGRESS.
 ## State (C)
 - Done. P's yes (2026-11-19) to rows A-H; the "Not checked" lines of deleted plans became Open items (P's change, also applied to design-flow, launch-fixes, memory-pressure, pult-version-watch).
 - Checks run: `dev-kit-check-docs` 0 errors 0 warnings; `--structure` complete; `python tools/lint.py` 0 errors; `python -m unittest discover tools/tests` 548 OK.
-- Reviewer (sonnet) findings fixed. Left open: those "Not checked" Open items go against the standard's line that not-yet-run checks are never written to docs; kept on P's explicit instruction.
+- Reviewer (sonnet) findings fixed. The "Not checked" Open items were removed on P's second word (the standard wins); the pult "claude attach" check stays (it was in the old pult README).
 - Glossary names wait for the owner's approval.

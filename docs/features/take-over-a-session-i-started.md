@@ -27,6 +27,3 @@ How the note is added: [hooks](../tech/hooks.md).
 - `plugins/dev-kit/scripts/sessions.py`
 - `plugins/dev-kit/skills/project-lead/SKILL.md`
 - `tools/tests/test_owner_session_note.py`
-
-## Open
-- [ ] Check `claude stop` on a taken-over session open in the app window (P then only stops counting it), and the case of a session already idle at takeover, which learns about the "Роботу завершено" marker only at your next message.

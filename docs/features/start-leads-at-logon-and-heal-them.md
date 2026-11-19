@@ -47,7 +47,4 @@ start.
 ## Open
 - [ ] Defect: a HEAL has no timeout, so a hung `claude --bg` stalls the watcher loop; `plugins/pult/scripts/watch-servers.ps1`
 - [ ] Defect: a hold file left by a crashed `restart-leads.ps1` stays until the next full `start-servers.ps1`; `plugins/pult/scripts/restart-leads.ps1`
-- [ ] Check that the heal path of the Pult server (not a lead) works live; only the lead path was tested
-- [ ] Check on a real lead that a restart loads the new dev-kit version (a throwaway lead did; read the version in the lead's skill base directory after the next restart)
 - [ ] Check whether you can still attach to a P from a terminal with `claude attach <id>`, and the exact wording of the session list in the phone app
-- [ ] Check live a restart on `ready` while the lead stays busy (a throwaway lead came back on the new version through an idle restart and `restart-leads.ps1 -Ask`; the test lead stopped reading messages after its restarts)

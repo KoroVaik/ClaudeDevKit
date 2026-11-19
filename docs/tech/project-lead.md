@@ -34,9 +34,3 @@ In this repo P also runs `dev-kit-retro check`: once a day it scans the transcri
 model, for repeated, failed, slow and very many calls, for commands worth a script and for token spend
 (too-long sessions, Opus coder subagents). With new findings P proposes a retro session (`dev-kit:retro`)
 where the owner says yes or no to each fix.
-
-## Open
-- [ ] Check with a real P on the current skill: a running C gives P no idle wake-ups, and `claude stop` of that C wakes P within about 2 minutes through the watcher (a P with a running watcher shows busy in `claude agents`; Pult reads that state).
-- [ ] Check whether the background `dev-kit-sessions watch` survives a host restart or `/clear` (the restart rules of the project-lead skill re-arm it anyway)
-- [ ] Check whether the python process of a watcher that Claude Code reaped for low memory can outlive its shell (the re-armed watcher would then exit "already watching" and the old one keeps watching, which is fine)
-- [ ] Check which exact signal Claude Code reads when it stops background shells for low memory (seen 2026-11-16: free RAM was left, the Windows commit limit was nearly reached)
