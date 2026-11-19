@@ -35,3 +35,9 @@ What: one chain for a screen design, so nothing is lost: mockup approved -> appr
 Why: Zhratva, 2026-11-18: the approved mockup docs/mockups/admin/review-newcomer.html (approved about 2026-11-14) was recorded nowhere, so P never planned it; owner: «треба попрацювати над цим флоу, щоб нічого не губилось. І все ішло одне за одним, а не хаотично». The mockup title «для новачка» misled both P and the owner.
 Cheapest test: replay the Zhratva case on paper: after a mockup approval, the next status of P lists the build step without anyone adding it by hand.
 
+
+## P status built by a script, with a history of finished tasks
+
+What: `dev-kit-sessions` (or a background watcher) keeps a status file per project: live sessions with their state, open questions by kind, and a history of finished tasks; P pastes its ready lines into its status message instead of composing them, and the history is viewable as a page. Close to the Pult status-page entry above: where a live page lives and how the owner opens it from the phone is the same open point.
+Why: P: ClaudeDevKit, 2026-11-19, discussion «Повідомлення керівника»: a «готово» line in a mid-day update is lost once the next update comes; owner: «Чи можна написати скрипт який формуватиме хтмл статус? Відповідно буде видно історію готових задач».
+Cheapest test: run the script on the current registry and compare its lines with a status P wrote by hand the same minute.
