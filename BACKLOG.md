@@ -35,8 +35,3 @@ What: one chain for a screen design, so nothing is lost: mockup approved -> appr
 Why: Zhratva, 2026-11-18: the approved mockup docs/mockups/admin/review-newcomer.html (approved about 2026-11-14) was recorded nowhere, so P never planned it; owner: «треба попрацювати над цим флоу, щоб нічого не губилось. І все ішло одне за одним, а не хаотично». The mockup title «для новачка» misled both P and the owner.
 Cheapest test: replay the Zhratva case on paper: after a mockup approval, the next status of P lists the build step without anyone adding it by hand.
 
-## P cannot message a C started with bypassPermissions (from P: Zhratva)
-
-What: P starts C with `bypassPermissions` after the hard bans, but P itself runs in another mode, so every P message to that C is held for the owner's approval in the C's chat and not delivered (P cannot answer C questions or send the restart note). Fix: P runs in the same mode as its C sessions (Pult launches P), or C starts in P's mode.
-Why: P: Zhratva, 2026-11-19, «C: Суд товарів Silpo і Fozzy»; the SendMessage tool says a session in a different permission mode holds cross-session messages for its user's approval. ClaudeDevKit P runs C in `auto` (bypass was refused by the classifier), and its messages arrive.
-Cheapest test: start P and a throwaway C both in `bypassPermissions`, send P -> C one message, check it is delivered without approval.

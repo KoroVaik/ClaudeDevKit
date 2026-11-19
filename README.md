@@ -175,7 +175,7 @@ details); what you get that is not agreed yet (a «Так» to a task title does
 first, up to 3 text questions through the queue; more than 3, any doubt from you, or any question
 about how a screen looks: P proposes an «Обговорення:» session and opens it after your «так». There you settle the meaning and the mockup with one agent and the feature file ends with
 an «Approved design» section (acceptance criteria, the approved mockup, the user's situation);
-then P starts a C that builds the screen and shows you its shots next to the mockup. A C asks only P (never you in its own chat), and runs
+then P starts a C that builds the screen and shows you its shots next to the mockup. A C asks only P (never you in its own chat), and C and P run
 with no permission prompts when the project's committed settings hold the hard-ban deny rules (push to
 main where it deploys, deleting data, and the like; you accept the Claude Code disclaimer once per
 machine). A session you started yourself can be taken over: P registers it after its first reply and

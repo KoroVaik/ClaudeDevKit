@@ -250,6 +250,11 @@ proposed, not opened, because «краще перепитать, бо я мож�
   migration, see "Hard bans"). A refresh or a restart uses the same mode. Checked live 2026-11-15: after the owner
   accepted the disclaimer below, a bg session with `bypassPermissions` ran a shell command with no
   prompt.
+  P itself runs in this mode too: Pult checks the same rule on main (and the disclaimer below) at
+  each start of P and logs it as `MODE P: <project> <mode>` in `~/.claude/pult/logs/servers.log`. A C
+  gets P's own mode, the last such line, so the two always match; with no line, the check above.
+  Why: a session holds a message from a session in another mode for the owner's approval (seen live
+  in Zhratva, 2026-11-19).
   `--bg` with `bypassPermissions` fails with exit 1 until the owner accepts a disclaimer once per
   machine (seen live, 2026-11-15). On that error P starts the C with `auto` and asks the owner once,
   as a hand action, to run `claude --dangerously-skip-permissions` interactively and accept.

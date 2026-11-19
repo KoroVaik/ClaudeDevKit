@@ -13,3 +13,11 @@ A P and a C both in bypassPermissions: one P -> C message is delivered with no a
 
 ## Paid spend
 0
+
+## State (C, 2026-11-19)
+- Built: `Get-LeadPermissionMode` in `plugins/pult/scripts/resume-lib.ps1` (hard-ban Bash + PowerShell deny lines committed on main, plus `skipDangerousModePermissionPrompt` in user settings -> bypassPermissions, else auto). `start-servers.ps1` passes it to a fresh start and rewrites `--permission-mode` in the saved respawnFlags before a resume; logs `MODE <lead> <mode> (<reason>)`. Covers logon autorun, watcher heal and restart-leads (all go through start-servers.ps1).
+- Skill (project-lead, "Permission mode"): P runs in this mode; a C gets P's own mode (last MODE line in servers.log), so the two always match.
+- Tests: `tools/tests/test_lead_permission_mode.py` (9, pass); watcher/hub tests pass; lint clean.
+- ClaudeDevKit itself stays auto (its main has no shell deny lines), same as its C sessions.
+- Not checked live: resume honours `--permission-mode` from respawnFlags; P -> C delivery in bypass (needs a throwaway pair; asked P).
+- Open for P: «Обговорення:» sessions stay auto, so their done report to a bypass P may be held in P's chat.

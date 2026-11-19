@@ -77,11 +77,15 @@ foreach ($p in $projects) {
         foreach ($k in 'Prompt', 'Model', 'Effort') { if ($p[$k]) { $opt[$k] = $p[$k] } }
         $model = @{}
         foreach ($k in 'Model', 'Effort') { if ($p[$k]) { $model[$k] = $p[$k] } }
+        # The same permission mode the lead's C sessions get (resume-lib.ps1, Get-LeadPermissionMode).
+        $perm = @{ Mode = 'auto'; Reason = 'mode check failed' }
+        try { $perm = Get-LeadPermissionMode $p.Path } catch { Write-Output "Could not check the lead's permission mode: $_" }
+        Write-Log "MODE $sessionName $($perm.Mode) ($($perm.Reason))"
         if ($resumeId) {
-            try { if (Set-LeadRespawnModel $sessionName $resumeId @model) { Write-Log "MODEL $sessionName $(if ($p.Model) { $p.Model } else { $LeadModel })/$(if ($p.Effort) { $p.Effort } else { $LeadEffort })" } }
+            try { if (Set-LeadRespawnModel $sessionName $resumeId @model -Mode $perm.Mode) { Write-Log "MODEL $sessionName $(if ($p.Model) { $p.Model } else { $LeadModel })/$(if ($p.Effort) { $p.Effort } else { $LeadEffort })/$($perm.Mode)" } }
             catch { Write-Output "Could not set the lead's model: $_" }
         }
-        $leadArgs = Get-LeadStartArgs $sessionName $resumeId -Restarted:($Restarted -ccontains $sessionName) @opt
+        $leadArgs = Get-LeadStartArgs $sessionName $resumeId -Restarted:($Restarted -ccontains $sessionName) @opt -Mode $perm.Mode
         claude @leadArgs | Select-Object -First 1
         Pop-Location
         if ($resumeId) {
