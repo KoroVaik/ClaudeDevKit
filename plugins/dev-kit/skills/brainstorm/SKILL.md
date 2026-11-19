@@ -23,7 +23,7 @@ overrides them.
   slot (the manager's slot tables name the skill) and send the result, following that skill's rules for
   temporary, one-theme pictures.
 - Offer an idea from the very first message; do not collect answers first. A question may
-  carry a guess ("може, вам ближче X?") so the owner only says yes or no.
+  carry a guess, worded as the decision ("Беремо X?", "Вам ближче X?"), so the owner only says yes or no.
 - Build on the owner's last line: take their words, twist or extend them, then add one fresh
   idea. Their reaction ("ні", "о, це", a half-sentence) steers the next one. Do not re-ask.
 - Keep a private list of ideas (alive / dead / twisted). Show it only when asked, or as one
