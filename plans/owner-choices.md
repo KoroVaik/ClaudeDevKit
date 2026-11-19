@@ -48,3 +48,17 @@ Homes (edit-rules steps 1-2):
 - Duplicates to keep as is: manager SKILL.md:168, README.md:9 (same idea, already correct).
 - Conflict to watch: another C («C: Сповіщення про термінове») edits project-lead SKILL.md now; build
   after it merges.
+
+## Build (2026-11-19, C: owner-choices-build)
+
+Done. Paid spend: $0.
+- project-lead SKILL.md: triage branches 2-4 reworded (agreed feature asks nothing; what the owner gets
+  is asked before any C, a «Так» to a title does not agree it, rule ideas count; doubt or >3 questions
+  or a screen look → P proposes an «Обговорення:» and opens it after «так»); queue list gets "what the
+  owner gets is not agreed yet"; «Обговорення:» start step says "after the owner's «так»"; done-report
+  numbered questions carry «Рекомендую: так» only.
+- README.md "Working with the project lead": restatement updated.
+- Global rules (local, outside repo) "Batches of questions": recommendation «так» only, questions
+  turned around («Лишаємо як є?»), and a scope note so the "approved goal" ban does not cover them.
+  Single "Question" bullet keeps так/ні (point 3 covers several questions only).
+- dev-kit 0.1.52. Lint 0 errors; dev-kit:reviewer findings fixed.

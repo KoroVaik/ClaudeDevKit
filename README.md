@@ -170,9 +170,10 @@ finished work into main and tells you the result. It does no task work itself. Y
 collects what needs you in a queue and shows one item at a time, and only a critical item (a session
 cannot go on without you, a session crashed, a risk to data or money) comes at once, also as a push to your phone. P decides alone
 within the approved acceptance criteria; you get a product choice, a hard-to-undo step, or paid spend
-over $1 in total per task. P sorts each task: the C alone; P and the C; up to 3 text questions to you
-through the queue; more than 3, or any question about how a screen looks, goes to an «Обговорення:»
-session, where you settle the meaning and the mockup with one agent and the feature file ends with
+over $1 in total per task. P sorts each task: the C alone; P and the C (an agreed feature, technical
+details); what you get that is not agreed yet (a «Так» to a task title does not agree it) is asked
+first, up to 3 text questions through the queue; more than 3, any doubt from you, or any question
+about how a screen looks: P proposes an «Обговорення:» session and opens it after your «так». There you settle the meaning and the mockup with one agent and the feature file ends with
 an «Approved design» section (acceptance criteria, the approved mockup, the user's situation);
 then P starts a C that builds the screen and shows you its shots next to the mockup. A C asks only P (never you in its own chat), and runs
 with no permission prompts when the project's committed settings hold the hard-ban deny rules (push to
