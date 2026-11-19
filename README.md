@@ -5,24 +5,8 @@
 Four plugins for [Claude Code](https://claude.com/claude-code) that give AI coding agents a fixed
 development process: plan, code, review, test, update the docs. It is a personal tool for solo
 developers who let agents write most of the code and want to stay in charge of the decisions.
-The main goal is autonomous development: the owner's involvement shrinks over time, while decisions
-on what the owner gets, money and hard-to-undo steps stay with the owner.
-
-## The problem
-
-An agent left alone on a project skips steps. It changes code without a test, forgets the docs, or
-reviews its own work. These plugins write the process down as skills and agents, and a small amount of
-Python code enforces the parts that can be checked by a program.
-
-- `dev-kit` - the core: the process, generic agents (coder, reviewer, investigator), the documentation
-  standard and its checker.
-- `web-kit` - browser checks: end-to-end scenarios, layout checks, mockups, wide screenshots.
-- `unity-kit` - Unity: a bridge to the open editor, a scripted "user check" of play, scene sketches, GIFs.
-- `pult` - the hub across projects (enable at user scope): starts the project leads at logon, runs a Remote
-  Control server in the home folder for the phone and shows read-only status. It acts only in a session whose
-  cwd is exactly the home folder.
-
-The plugins hold no project facts. Each project describes itself in one file, `.claude/dev-kit.md`.
+The problem, the purpose, the plugins and their epics: [the product overview](docs/product.md). All
+the docs: [the docs index](docs/README.md).
 
 ## Example
 
@@ -42,22 +26,12 @@ claude plugin marketplace add <path to this folder>
 claude plugin install dev-kit@korov-dev --scope project
 ```
 
-## What is code here
+The marketplace is a local folder, so it is a working setup, not a packaged release.
 
-Most of the repo is Markdown prompts. The code that runs as a program:
+## Develop
 
-| File | Lines | What it does |
-|---|---|---|
-| `plugins/dev-kit/scripts/check_docs.py` | 1408 | Checks a project's docs: every epic and feature has its sections, links, anchors and "Built in" paths resolve; finds the feature that owns a code file; lists open tasks and defects; lists the base docs files a project lacks. |
-| `tools/lint.py` | 461 | Checks this repo: plugin manifests, skill and agent front matter, slot tables, hook config, project profiles. |
-| `plugins/dev-kit/hooks/narrow-agents.py` | 124 | A hook that lets a project launch only its own agents, those of its enabled plugins and the user-level `other-repo-editor` the global rules name. |
-| `plugins/dev-kit/hooks/owner-session-note.py` | 54 | A hook that tells a session the owner started and the project lead took over that the lead watches it and how to say it is done. |
-| `plugins/dev-kit/scripts/run_app.py` | 330 | Starts and stops a project's app from the commands in its profile, with a queue lock between worktrees. |
-| `plugins/unity-kit/scripts/user_check.py` | 544 | Plays a recipe (keys, mouse, console and state expectations) in the Unity editor and writes a report. |
-| `plugins/unity-kit/scripts/frames_to_gif.py` | 240 | Cuts and crops recorded frames into a GIF. |
-| `plugins/web-kit/scripts/build-mockups.mjs`, `capture.mjs` | 829, 351 | Builds mockup pages from JSON specs; takes full-resolution headless screenshots. |
-
-The tests are in `tools/tests/`: 435 tests in 10 files (about 4300 lines), one skipped. Run them with:
+Most of the repo is Markdown prompts; the code that runs as a program is listed in
+[the map](docs/tech/map.md). The tests are in `tools/tests/`. Run them and the lint with:
 
 ```bash
 python -m unittest discover tools/tests
@@ -65,163 +39,10 @@ python tools/lint.py
 ```
 
 CI (`.github/workflows/ci.yml`) runs both on every push to `main` and on pull requests, with Python 3.13
-and Node 22.
-
-## Notes
-
-- Some skill descriptions contain Ukrainian phrases. They are trigger phrases the author types to start
-  a skill, so they are meant to stay.
-- The marketplace is a local folder, so it is a working setup, not a packaged release.
-
-## Project profile
-
-A project that enables the plugins keeps `.claude/dev-kit.md`:
-
-- `## All agents` - orientation files, processes agents never touch, shared rules.
-- `## Slots` - optional table `| Slot | Skill or command |` that overrides a slot for this project;
-  only `run-app` and `stop-app` may have several rows (a list of commands).
-- `## <agent or skill name>` - rules for one role, e.g. `## reviewer`; they override the plugin
-  defaults.
-- `## project-lead` - optional table `| Path | How |`: the git-ignored paths a fresh worktree needs,
-  each `copy` or `link` (a junction to the main checkout's folder).
-  A `| Setting | Value |` table there holds `migrations applied`: the last entry of
-  `plugins/dev-kit/migrations.md` the project has applied (written by `dev-kit-migrations record`).
-- `## documentation` - table `| Setting | Value |` for the docs check (code folders, scanned
-  folders, size limits); the setting names are listed in `plugins/dev-kit/scripts/check_docs.py`.
-
-## Docs check
-
-`dev-kit-check-docs` (in `plugins/dev-kit/bin`, on the Bash tool PATH while dev-kit is enabled) checks
-a project's docs against the `dev-kit:documentation` skill; `--structure` lists the base docs files a
-project lacks. A git pre-commit hook outside Claude Code
-runs `plugins/dev-kit/scripts/check_docs.py --pre-commit`, finding this folder through
-`~/.claude/plugins/known_marketplaces.json`.
-
-## Tests check
-
-`dev-kit-check-tests` checks that every test added since `HEAD` (or `--base REF`) carries a valid
-"protects" mark (`Flow`, `Rule`, `Bug`, `Edge`) in xUnit, Vitest or Python unittest syntax, as the
-`dev-kit:test-change` skill requires. `--report` prints marks per domain and the API endpoints that no
-integration test mentions (a path-mention measure); `--json` gives the same for showcases.
-`--suspects` lists the tests marked `Suspect: <why>` (they may protect nothing; an agent that
-changes their code verifies them). Old
-tests get their marks in one pass of the `dev-kit:prune-tests` skill, which also deletes clear
-low-value tests and duplicates, domain by domain.
-
-## Web extension
-
-`web-kit` fills `check-ui`, `check-usability`, `check-look` and `show-idea` (`plugins/web-kit/slots.md`).
-Its skills `e2e-check`, `user-walk`, `visual-check` and `design-screen` name their agents (`web-kit:ui-tester`, `web-kit:user`,
-`web-kit:layout-checker`, `web-kit:designer`) and model themselves; the
-manager reaches them through the slots. The skill `design-screen` designs a screen in two stages: a mockup
-approved by the owner (recorded in the feature file), then polish on real components in the design sandbox,
-each show prepared by a fresh `web-kit:user` and `web-kit:designer`, with `web-kit:sandbox-builder` and
-`web-kit:shot-taker` in stage 2. Who answers which question, and the shared browser rules:
-`plugins/web-kit/browser-checks.md`. Readable evidence screenshots of wide screens come from
-`web-kit-shot` (headless full-resolution capture, `plugins/web-kit/scripts/capture.mjs`), because the in-app browser's
-screenshot tool returns at most about 800 px wide. The project's facts go in its profile: `## e2e-check` (URLs, login,
-screenshot folder, test-data marker; read by every browser skill and agent), `## ui-tester`,
-`## visual-check`, `## layout-checker` (sizes), `## design-screen` (mockups folder, palette, languages,
-sandbox URL, checks, shot window), `## user` (onboarding of the ordinary user: who you are, what the app is
-for, its sections), `## designer` (UI standard, mockup folders, report language).
-`web-kit-mockups` (in `plugins/web-kit/bin`, on the Bash tool PATH while web-kit is enabled) builds the
-mockup pages from JSON specs; the format is `plugins/web-kit/skills/design-screen/spec-format.md`.
-
-## Unity extension
-
-`unity-kit` fills `show-idea` (`plugins/unity-kit/slots.md`) with `unity-kit:scene-sketch`, a temporary
-storyboard of one moment of play, and `check-look` with `unity-kit:game-view-check`, one screenshot of
-the Game view at its current size for the owner to judge. `unity-kit:unity-editor` holds the permissions and the order of every
-Unity action in the owner's open editor (no batchmode, no restart, one operator at a time); it fills no
-slot, so a project fills `run-app` and `run-tests` with its own commands or skills.
-`unity-kit:unity-operator` runs the Unity commands the manager chose and returns raw results.
-`unity-kit:game-clip` (no slot) shows the owner a short GIF of a moment of play: the operator records frames with the
-project's own capture, the manager makes the GIF with `unity-kit-gif` (in `plugins/unity-kit/bin`; the script is
-`plugins/unity-kit/scripts/frames_to_gif.py`, Python and Pillow) and sends it (a time window and, preferably, a crop around what moves), the owner judges the motion.
-`unity-kit:user-check` fills `check-ui`: any agent writes a recipe of play (keys, mouse, the project's own
-bridge commands, expectations on the console, state and files), the operator runs it with
-`unity-kit-user-check <name>` (in `plugins/unity-kit/bin`, on the Bash tool PATH while unity-kit is enabled;
-the runner is `plugins/unity-kit/scripts/user_check.py`) and returns the report, the manager concludes. The
-plugin ships no Unity code: the project copies the sample state and IMGUI mouse commands from
-`plugins/unity-kit/skills/user-check/samples/`. The project's facts go in its profile: `## unity-editor`
-(the bridge, its wrapper command, versions, scene, build targets, devices, Profiler), `## unity-operator`,
-`## user-check` (table `| Setting | Value |`: the bridge, recipe and report folders, scene, state command
-and "ready", click command, panel scale; the format is in the skill), `## game-view-check` (the screenshot
-command), `## game-clip` (the frame-recording command, where the frames and their time index land), `## scene-sketch` (subject, names, caption language).
-
-## Slots
-
-The core lists the process steps in `plugins/dev-kit/slots.md`. An extension fills slots in its own
-`slots.md` (`| Slot | Skill |`, skill as `<plugin>:<skill>`). The manager reads these tables, not
-skill descriptions.
-
-## Starting and stopping the application
-
-The `run-app` and `stop-app` slots of a profile may list several commands, one row each, in start order.
-`dev-kit-app start` (in `plugins/dev-kit/bin`, on the Bash tool PATH while dev-kit is enabled; the runner is
-`plugins/dev-kit/scripts/run_app.py`) runs the run-app commands in order, `dev-kit-app stop` the stop-app
-commands in reverse, `dev-kit-app list` shows both. The plugin only sequences the project's commands: what may be
-stopped (the owner's processes) is decided by the project's own helpers. The skills that start the application
-run the teardown when the owner says the work is done, or at a handoff. The rules: `plugins/dev-kit/slots.md`.
-
-## Working with the project lead (P)
-
-P is one session per project. It starts task sessions (C), each in its own worktree, merges their
-finished work into main and tells you the result. It does no task work itself. You are the CEO: P
-collects what needs you in a queue and shows each item once; every later message ends with a count
-of the questions still waiting, and the status or your «які питання» lists them again. Only a critical item (a session
-cannot go on without you, a session crashed, a risk to data or money) comes at once, also as a push to your phone. P decides alone
-within the approved acceptance criteria; you get a product choice, a hard-to-undo step, or paid spend
-over $1 in total per task. P sorts each task: the C alone; P and the C (an agreed feature, technical
-details); what you get that is not agreed yet (a «Так» to a task title does not agree it) is asked
-first, up to 3 text questions through the queue; more than 3, any doubt from you, or any question
-about how a screen looks: P proposes an «Обговорення:» session and opens it after your «так». There you settle the meaning and the mockup with one agent and the feature file ends with
-an «Approved design» section (acceptance criteria, the approved mockup, the user's situation);
-then P starts a C that builds the screen and shows you its shots next to the mockup. A C asks only P (never you in its own chat), and C and P run
-with no permission prompts when the project's committed settings hold the hard-ban deny rules (push to
-main where it deploys, deleting data, and the like; you accept the Claude Code disclaimer once per
-machine). A session you started yourself can be taken over: P registers it after its first reply and
-it keeps talking with you. The plugin covers work
-inside one repository. Starting P, the project list, the phone flow and the list of all your sessions
-live in the `pult` plugin (`plugins/pult`). The rules for P:
-`plugins/dev-kit/skills/project-lead/SKILL.md`. Before a task starts, P (and any session through the
-manager skill) checks that no other live session of the repository, one you started yourself included,
-already does it: `dev-kit-sessions others` lists them without reading code and the `dev-kit:overlap-checker`
-agent compares. P wakes only on a task session's report, your message, or the exit of
-`dev-kit-sessions watch`, a background watcher that stays silent while its sessions live and exits when one
-ends or writes the line "Роботу завершено"; it is generic (any session ids), so other tools can use it too.
-`dev-kit-sessions state` prints each registered session as working, waiting, finished or gone with the gist of
-its last reply, and `dev-kit-sessions add --owner` registers a session you started. After a dev-kit update, Pult restarts the leads so they load
-the new skill. On start and after that restart P runs `dev-kit-migrations pending` and hands the changes every
-project must make in its own files (`plugins/dev-kit/migrations.md`) to one task session.
-In this repo P also runs `dev-kit-retro check`: once a day it scans the transcripts of all sessions,
-with no model, for repeated, failed, slow and very many calls, for commands worth a script and for token spend
-(too-long sessions, Opus coder subagents); with new
-findings P proposes a retro session (`dev-kit:retro`) where you say yes or no to each fix.
-
-## Hooks
-
-`dev-kit` ships a PreToolUse hook on the `Agent` tool (`plugins/dev-kit/hooks/`): a project may launch
-only its own agents (`.claude/agents/*.md`) and agents of its enabled plugins (`<plugin>:<agent>`); built-in
-and user agent types are denied. A project that had its own copy of this hook removes it.
-
-A UserPromptSubmit hook (`owner-session-note.py`) adds a short note at each of your messages to a session you
-started and the lead took over (registered with `--owner`): the lead only reads it, and it ends its work with
-the line "Роботу завершено". Other sessions get nothing; any error in the hook is ignored.
-
-## Authoring rules
-
-- A skill description says only when to use it and starts with "Use when"; it never summarizes the
-  steps (an agent that reads a summary follows it instead of the skill).
-- An agent sets `name`, `description` and `model` explicitly.
-- Agents and skills are addressed as `<plugin>:<name>`, e.g. `dev-kit:coder`.
-
-## Checks
-
-`python tools/lint.py` checks manifests, skills, agents, slot tables and the profiles of the projects
-in `tools/projects.json` (local, not in git: `{"name": "folder"}`). It runs before every commit
-(`.githooks/pre-commit`, enabled with `git config core.hooksPath .githooks`) together with
-`claude plugin validate .` (the validate step needs the Claude Code CLI, so CI runs only the lint).
+and Node 22. The lint, the pre-commit hook and the docs check: [repo checks](docs/tech/repo-checks.md).
+The rules for writing skills and agents: [plugin authoring](docs/standards/plugin-authoring.md). The
+profile a project keeps for the plugins: [project profile](docs/tech/project-profile.md). The docs
+standard: the `dev-kit:documentation` skill (`plugins/dev-kit/skills/documentation/SKILL.md`).
 
 ## After enabling a plugin
 

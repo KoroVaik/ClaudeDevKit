@@ -5,9 +5,8 @@ other projects add their wanted plugin changes here instead of editing the plugi
 agent decides and builds them after the owner's yes. An idea leaves the backlog when the owner agrees
 it and it is built, or when the owner drops it.
 
-Entry: a `##` title, then `What:`, `Why:` (the concrete case that showed the need: project, date) and
-`Cheapest test:`, 2-4 lines in all. A reviewed entry gets a `Verdict:` line (the project lead's
-recommendation) and waits for the owner's yes or no.
+Entry format: see the Backlog kind in [the documentation standard](plugins/dev-kit/skills/documentation/SKILL.md).
+A reviewed entry gets a `Verdict:` line (the project lead's recommendation) and waits for the owner's yes or no.
 
 ## Pult: own remote client for agents
 
@@ -16,22 +15,27 @@ Why: idea from the Pult repo, 2026-11; the phone app's session list does not gro
 Cheapest test: one static page that reads `claude agents --json` and the projects' PROGRESS.md files and shows them grouped by project.
 Built (2026-11-16): first step, `plugins/pult/scripts/status-page.py`; the Pult session sends the page on "статус". Still an idea: a page that refreshes itself, and the own client app. Deferred by the owner (2026-11-19): the attached HTML is a snapshot and cannot refresh itself; first decide where a live page lives (served by the PC or published) and how the owner opens it from the phone.
 
-## Pult: watcher that fixes mechanical issues
-
-What: merge the watcher with server autorun so it fixes mechanical issues itself (dead server, stale queue locks) and keeps a health log the hub reads; the hub fixes the rest within its competence.
-Why: idea from the Pult repo, 2026-11; today the watcher only logs and the owner restarts by hand.
-Cheapest test: let the watcher restart one dead lead after the owner's yes and check the log lines.
-Built (2026-11-16, pult 0.1.4): `plugins/pult/scripts/watch-servers.ps1` restarts a dead lead or server of `servers.psd1` (HEAL, at most 3 an hour, paused by a hold file from `stop-servers.ps1` / `restart-leads.ps1`) and removes dev-kit locks whose owner is gone (UNLOCK); `rules/hub.md` says what Pult shows from the log. Tested on a throwaway lead; not yet seen on a real lead crash.
-
 ## Check all sessions before a machine-wide action (idea, home not chosen)
 
 What: before any session recommends an action that stops or restarts more than its own work (a PC reboot, restarting Pult or its watcher, stopping servers), it lists every session on the machine (`claude agents --json` with no `--cwd` lists all projects; checked live) and does not recommend the action while one is busy, naming it. Only the idea is agreed; where the rule lives is open (owner's global rules, project-lead skill, Pult hub rules, or several).
 Why: P: ClaudeDevKit, 2026-11-16: after a merge it advised the owner to reboot the PC «зараз», reasoning «жодна сесія зараз не працює» from its own registry only, while P: Zhratva and its C were working. The project-lead line «Sessions of other projects are not P's business (Pult)» pulled that way.
 Cheapest test: in a session with no sessions of its own, ask whether a reboot is safe while another project's session works; it must name that session and advise against.
 
-## Sequential UI design flow, plus P/C flow fixes (from P: Zhratva)
+## P/C flow fixes (from P: Zhratva)
 
-What: one chain for a screen design, so nothing is lost: mockup approved -> approval recorded in the feature file -> a next-step item where P reads its plans -> build C -> design-sandbox talk; the owner wants a proposal first. Also: 4) the watcher treats a C stalled on the usage limit (blocked, pid present) as alive; 5) dev-kit:overlap-checker fails with «the claude command is not on PATH» (exit 3) and gives no verdict; 6) in a background P the host's worktree guard rejects Edit on PROGRESS.md in the main checkout, so P edits through a shell script and a half-applied edit reached a commit; 7) refreshing an overfull C has no built-in «picked up» confirmation before the old C is stopped.
-Why: Zhratva, 2026-11-18: the approved mockup docs/mockups/admin/review-newcomer.html (approved about 2026-11-14) was recorded nowhere, so P never planned it; owner: «треба попрацювати над цим флоу, щоб нічого не губилось. І все ішло одне за одним, а не хаотично». The mockup title «для новачка» misled both P and the owner.
-Cheapest test: replay the Zhratva case on paper: after a mockup approval, the next status of P lists the build step without anyone adding it by hand.
+What: 5) dev-kit:overlap-checker fails with «the claude command is not on PATH» (exit 3) and gives no verdict; 6) in a background P the host's worktree guard rejects Edit on PROGRESS.md in the main checkout, so P edits through a shell script and a half-applied edit reached a commit.
+Why: Zhratva, 2026-11-18, in the same case as the approved Zhratva mockup «review-newcomer», which was recorded nowhere, so P never planned it (the design flow, the watcher on the usage limit and the «picked up» check for a refreshed C are built since then).
+Cheapest test: run overlap-checker with `claude` off PATH and expect a verdict; edit PROGRESS.md from a background P and expect no half-applied edit.
+
+## Idle session the owner started that finished its task
+
+What: when a session the owner started has finished its task and hangs idle, P offers the owner once to close it, or to take over its open question as a new task session.
+Why: Zhratva, 2026-11-15: «Неоднозначні факти арбітра» finished and hung idle; P could neither reach it (messages held, permission mode mismatch) nor close it. P: Zhratva proposed the offer; it was not in the approved build of lead authority.
+Cheapest test: first check how far the «Роботу завершено» line (dev-kit 0.1.36) already covers it; then end a throwaway owner session and see that P offers once.
+
+## A manager (C) with its own sub-sessions
+
+What: a task session gets more freedom inside its feature and starts its own sub-sessions (a sub-C under a C for a huge dependent part), taking over part of the lead's duties. Not supported today: dependent parts stay in one C with parallel subagents, an independent part goes to P as a new task.
+Why: owner, 2026-11-15 (lead authority discussion): managers should take over part of the lead's duties with sub-managers; left unsupported for now, to revisit if a subagent's context proves too small.
+Cheapest test: give a C a dependent part too big for one subagent's context and see whether the talk between C and sub-C stays away from P.
 
