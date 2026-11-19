@@ -34,10 +34,3 @@ Cheapest test: in a session with no sessions of its own, ask whether a reboot is
 What: one chain for a screen design, so nothing is lost: mockup approved -> approval recorded in the feature file -> a next-step item where P reads its plans -> build C -> design-sandbox talk; the owner wants a proposal first. Also: 4) the watcher treats a C stalled on the usage limit (blocked, pid present) as alive; 5) dev-kit:overlap-checker fails with «the claude command is not on PATH» (exit 3) and gives no verdict; 6) in a background P the host's worktree guard rejects Edit on PROGRESS.md in the main checkout, so P edits through a shell script and a half-applied edit reached a commit; 7) refreshing an overfull C has no built-in «picked up» confirmation before the old C is stopped.
 Why: Zhratva, 2026-11-18: the approved mockup docs/mockups/admin/review-newcomer.html (approved about 2026-11-14) was recorded nowhere, so P never planned it; owner: «треба попрацювати над цим флоу, щоб нічого не губилось. І все ішло одне за одним, а не хаотично». The mockup title «для новачка» misled both P and the owner.
 Cheapest test: replay the Zhratva case on paper: after a mockup approval, the next status of P lists the build step without anyone adding it by hand.
-
-
-## A resume right after a stop can start a flag-less copy
-
-What: `claude --bg --resume` right after `claude stop`, even once `claude agents` shows `stopped`, can say «already running» and start a copy with the default model and mode. Pult's lead restart and resume should wait until the old process is gone (about 15 s helped) or retry.
-Why: seen twice in the live check of plans/lead-bypass-mode.md, 2026-11-19; a lead on the default mode loses the same-mode fix and P -> C messages get held again.
-Cheapest test: stop a throwaway bg session and resume it at once in a loop of 5; count copies started without the flags.

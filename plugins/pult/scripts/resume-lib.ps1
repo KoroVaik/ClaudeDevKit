@@ -37,6 +37,38 @@ function Get-LeadStartArgs([string]$SessionName, [string]$SessionId, [switch]$Re
         '--permission-mode', $Mode, '--model', $Model, '--effort', $Effort, '--', $Prompt)
 }
 
+# Process ids of a background session that still runs: its pty host and its worker. Both command lines
+# hold the full session id (`--session-id <id>`, or `--resume <transcript folder>\<id>.jsonl` once resumed;
+# the job's short id in the pty pipe name may differ from the id's first 8 characters). A copy forked from
+# it (`--fork-session`) is another session and is left out. After `claude stop`, `claude agents` drops the
+# pid about a second before these exit; a `claude --bg --resume` in that gap says "already running" and
+# starts a copy without the saved flags (default model and mode). Checked live 2026-11-19: 2 copies in 3
+# resumes right after the pid left the list.
+function Get-SessionProcessIds([string]$SessionId, $Processes) {
+    if (-not $SessionId) { return @() }
+    if ($null -eq $Processes) { $Processes = Get-CimInstance Win32_Process -Filter "Name = 'claude.exe'" }
+    @($Processes | Where-Object {
+            $_.CommandLine -and $_.CommandLine.Contains($SessionId) -and -not $_.CommandLine.Contains('--fork-session')
+        } | ForEach-Object { $_.ProcessId })
+}
+
+# Waits until no process of the session is left (Get-SessionProcessIds). $true when gone, $false on timeout.
+function Wait-SessionGone([string]$SessionId, [int]$TimeoutSec = 60) {
+    $until = (Get-Date).AddSeconds($TimeoutSec)
+    while ((Get-SessionProcessIds $SessionId).Count) {
+        if ((Get-Date) -gt $until) { return $false }
+        Start-Sleep -Milliseconds 500
+    }
+    return $true
+}
+
+# The short id of the copy `claude --bg --resume` started instead of waking the session, from its note
+# "... is already running in the background, so this started a copy as <id>. ...", else $null.
+function Get-ResumeCopyId([string]$Output) {
+    if ($Output -match 'started a copy as ([0-9a-f]{8})') { return $Matches[1] }
+    return $null
+}
+
 # Leads run on this model and reasoning level (the owner's rule: sessions he talks with use Opus, medium).
 $LeadModel = 'opus'
 $LeadEffort = 'medium'

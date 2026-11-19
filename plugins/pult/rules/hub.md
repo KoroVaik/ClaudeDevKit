@@ -53,7 +53,11 @@ claude start a copy, so before resuming it rewrites `--model` / `--effort` / `--
 options (`~/.claude/jobs/<short id>/state.json`, "respawnFlags"; log MODEL): leads run on Opus,
 medium reasoning (`$LeadModel` / `$LeadEffort` in `resume-lib.ps1`), in the permission mode their C sessions get
 (`Get-LeadPermissionMode`, log MODE; the project-lead skill, "Permission mode"). Without an earlier session
-it starts fresh with the same model and mode. Then it pins every
+it starts fresh with the same model and mode. A lead stopped a moment ago keeps its processes about a
+second after `claude agents` drops its pid, and a resume then starts a copy without the saved options;
+so `start-servers.ps1` first waits until they are gone (up to 60 s, else log STILL-RUNNING and no
+resume), and if claude still reports a copy it stops and removes it and retries once (log COPY-REMOVED,
+NOT-RESUMED after a second copy). Then it pins every
 live lead in `~/.claude/jobs/pins.json` (log PINNED): Claude's background service closes an
 unpinned background session after 8 h of waiting (daemon.log "bg retire ... idle-prompt"). A Remote Control
 server first tries `claude remote-control --continue` (no `--spawn`: they cannot be combined);

@@ -81,13 +81,38 @@ foreach ($p in $projects) {
         $perm = @{ Mode = 'auto'; Reason = 'mode check failed' }
         try { $perm = Get-LeadPermissionMode $p.Path } catch { Write-Output "Could not check the lead's permission mode: $_" }
         Write-Log "MODE $sessionName $($perm.Mode) ($($perm.Reason))"
+        # A lead stopped a moment ago may still have its processes; a resume then starts a flag-less copy
+        # (resume-lib.ps1, Get-SessionProcessIds). Wait until they are gone, before the saved flags are set.
+        if ($resumeId -and -not (Wait-SessionGone $resumeId)) {
+            Write-Log "STILL-RUNNING $sessionName $resumeId"
+            Write-Output "Still running after the stop, not resumed: $sessionName"
+            Pop-Location; continue
+        }
         if ($resumeId) {
             try { if (Set-LeadRespawnModel $sessionName $resumeId @model -Mode $perm.Mode) { Write-Log "MODEL $sessionName $(if ($p.Model) { $p.Model } else { $LeadModel })/$(if ($p.Effort) { $p.Effort } else { $LeadEffort })/$($perm.Mode)" } }
             catch { Write-Output "Could not set the lead's model: $_" }
         }
         $leadArgs = Get-LeadStartArgs $sessionName $resumeId -Restarted:($Restarted -ccontains $sessionName) @opt -Mode $perm.Mode
-        claude @leadArgs | Select-Object -First 1
+        $copyLeft = $null
+        for ($try = 1; $try -le 2; $try++) {
+            $said = @(claude @leadArgs 2>&1 | ForEach-Object { "$_" })
+            $said | Where-Object { $_ -notlike 'note:*' } | Select-Object -First 1
+            $copyLeft = if ($resumeId) { Get-ResumeCopyId ($said -join "`n") } else { $null }
+            if (-not $copyLeft) { break }
+            # The resume started a copy without the saved flags: remove it, wait for the lead's process, retry once.
+            claude stop $copyLeft | Out-Null
+            $rmUntil = (Get-Date).AddSeconds(20)  # rm works only once the copy has exited
+            do { Start-Sleep -Seconds 1; $rm = (claude rm $copyLeft 2>&1 | Out-String) }
+            while ($rm -notmatch 'removed' -and (Get-Date) -lt $rmUntil)
+            Write-Log "COPY-REMOVED $sessionName $copyLeft (try $try)"
+            $null = Wait-SessionGone $resumeId
+        }
         Pop-Location
+        if ($copyLeft) {
+            Write-Log "NOT-RESUMED $sessionName $resumeId (claude started a copy twice)"
+            Write-Output "Not resumed, claude started a copy twice: $sessionName"
+            continue
+        }
         if ($resumeId) {
             Write-Log "RESUMED $sessionName $resumeId"
             Write-Output "Resumed lead: $sessionName"
