@@ -22,6 +22,11 @@ def result(tool_id, stamp, error=False):
             "message": {"content": [{"type": "tool_result", "tool_use_id": tool_id, "is_error": error}]}}
 
 
+def assistant(message_id, model, usage, stamp):
+    return {"type": "assistant", "timestamp": stamp,
+            "message": {"id": message_id, "model": model, "usage": usage, "content": []}}
+
+
 class RetroTestCase(unittest.TestCase):
     def setUp(self):
         tmp = Path(tempfile.mkdtemp())
@@ -117,6 +122,58 @@ class RetroTestCase(unittest.TestCase):
             handle.write("- 2026-11-19 | p | C: X | wrong order | b\n")
         self.run_cmd("done")
         self.assertIn("new findings: 1", self.run_cmd("check"))
+
+    def test_units_weigh_kinds_and_models_and_count_a_message_once(self):
+        usage = {"input_tokens": 10, "output_tokens": 2, "cache_read_input_tokens": 100,
+                 "cache_creation": {"ephemeral_5m_input_tokens": 4, "ephemeral_1h_input_tokens": 5}}
+        self.assertAlmostEqual(retro.units_of(usage, "claude-sonnet-5-5"), 10 + 10 + 10 + 5 + 10)
+        self.assertAlmostEqual(retro.units_of(usage, "claude-opus-5-5"), 45 * 5)
+        self.assertAlmostEqual(retro.units_of({"cache_creation_input_tokens": 8}, "claude-haiku-5-5"), 10 / 3)
+        line = assistant("m1", "claude-opus-5-5", {"output_tokens": 10}, "2026-11-19T10:00:00Z")
+        old = assistant("m0", "claude-opus-5-5", {"output_tokens": 999}, "2026-11-18T10:00:00Z")
+        seen = set()
+        result = retro.analyse([json.dumps(e) for e in (old, line, line)], seen,
+                               retro.parse_time("2026-11-19T00:00:00Z"))
+        self.assertEqual(result["units"], {"opus": 250})
+        self.assertEqual(retro.analyse([json.dumps(line)], seen)["units"], {})  # the same id in another file
+
+    def test_long_session_and_opus_coder_are_findings_and_spend_is_listed_apart(self):
+        entries = [{"type": "custom-title", "customTitle": "C: Long"}]
+        for n in range(60):
+            entries.append({"type": "user", "timestamp": "2026-11-19T10:00:00Z", "message": {"content": "go"}})
+            entries.append(assistant(f"L{n}", "claude-opus-5-5", {"output_tokens": 100}, "2026-11-19T10:00:01Z"))
+        self.write("proj/long1234.jsonl", entries)
+        self.write("proj/short123.jsonl", [{"type": "user", "timestamp": "2026-11-19T10:00:00Z",
+                                            "message": {"content": "hi"}},
+                                           assistant("S", "claude-opus-5-5", {"output_tokens": 50}, "2026-11-19T10:00:01Z")])
+        for n, model in enumerate(("claude-opus-5-5", "claude-sonnet-5-5")):
+            self.write(f"proj/long1234/subagents/agent-{n}.jsonl",
+                       [assistant(f"A{n}", model, {"output_tokens": 1000}, "2026-11-19T10:00:00Z")])
+            (self.projects / f"proj/long1234/subagents/agent-{n}.meta.json").write_text('{"agentType": "dev-kit:coder"}')
+        self.run_cmd("scan")
+        listing = self.run_cmd("list")
+        self.assertNotIn("long session", listing)  # 60 turns so far
+        self.assertIn("C: Long (long1234) / subagent dev-kit:coder | opus coder | 25k units\n", listing)  # under 10 Sonnet runs: no ratio
+        self.assertIn("## Spend", listing)
+        self.assertIn("| proj | C: Long (long1234) | opus 100% | 60 | 150k | 30k | 99% |", listing)
+        self.assertIn("| dev-kit:coder | opus | 1 | 25k |", listing)
+        self.run_cmd("done")
+        with open(self.projects / "proj/long1234.jsonl", "a", encoding="utf-8") as handle:
+            for n in range(40):
+                handle.write(json.dumps({"type": "user", "timestamp": "2099-01-01T10:00:00Z",
+                                         "message": {"content": "more"}}) + "\n")
+                handle.write(json.dumps(assistant(f"M{n}", "claude-opus-5-5", {"output_tokens": 300},
+                                                  "2099-01-01T10:00:01Z")) + "\n")
+        for n in range(10):  # ten short sessions make a usual cost per turn
+            self.write(f"proj/short{n}.jsonl", [{"type": "user", "timestamp": "2099-01-01T10:00:00Z",
+                                                 "message": {"content": "x"}},
+                                                assistant(f"S{n}x", "claude-opus-5-5", {"output_tokens": 50},
+                                                          "2099-01-01T10:00:01Z")])
+        with mock.patch.object(retro, "today", return_value="2099-01-01"):
+            self.assertIn("new findings: 1", self.run_cmd("check"))
+            listing = self.run_cmd("list")
+        self.assertIn("C: Long (long1234) | long session | 100 main turns so far; this scan 40 turns at 7.5k units per turn, x6.0 of a session "
+                      "under 50 turns", listing)
 
     def test_first_scan_skips_old_files(self):
         path = self.write("proj/old.jsonl", self.session())

@@ -42,3 +42,15 @@ Owner's words (2026-11-19): «Треба подумати над тим, як т
 
 ## Success criterion
 The owner's «так» to the approved idea, written in the section «Owner's approval» below, with where each part lives.
+
+## Build (2026-11-19, session «retro-tokens-build»)
+- Paid spend: $0 (no paid calls; subagents run on the subscription).
+- Code: `plugins/dev-kit/scripts/retro.py` counts units per message (weights as constants `WEIGHTS`, `MODEL_WEIGHTS`), dedupes message ids within a scan and skips lines dated before the previous scan started (a resumed file copies old lines with their timestamps: 12 of 18 cross-file repeats in 4 days kept the timestamp). Session titles and main-turn totals are kept in `state.json`, so a long session is seen across days.
+- A main turn = a user line that is not a tool result and not `isMeta` (owner or injected message). `long session`: 100+ turns so far, with this scan's units per turn against the median of sessions under 50 turns. `opus coder`: a coder subagent run whose units are mostly Opus, against the median Sonnet coder run kept in `state.json` (last 50 runs per type and model).
+- Spend tables go to a `## Spend` section of the scan file (`| ` lines, not counted as findings); `list` prints them after the notes. "Usual per run" shows only with 10+ runs of one type on one model.
+- A model that is not Opus, Sonnet or Haiku (e.g. Fable) gets weight 1 for now; not in the approved weights.
+- First real run (1 day, 89 transcripts): 417M units, Opus 92%, subagents 17%; 4 Opus coder runs, x3-x13 of a Sonnet coder run.
+- Rule edits (edit-rules steps 1-2): home of the spend-trial rule is `plugins/dev-kit/skills/retro/SKILL.md` (new section «Token spend»; trials logged in `trials.md` of the findings folder so the next retro can compare); restatement updated in `README.md` (scan description). No duplicates or conflicts found: `project-lead` counts only `new findings`, which the tables do not change; manager's retro line unaffected.
+- Review (sonnet reviewer): fixed - ratios in findings show only with 10+ runs (or 10+ short sessions) behind them; the weight comment no longer claims the meter check; the skill compares a trial after 7+ days from the `scan-*.md` files, not from `list`; a `|` in a title no longer breaks the table.
+- Left as is (reviewer doubts): dedupe across scans is by timestamp, so a resumed copy with fresh timestamps (6 of 18 cases in 4 days) is counted twice; a subagent run that spans two scans counts as two runs; a `long session` finding repeats on each later scan while the session goes on; `state.json` keeps one title and one turn total per session.
+- Open: the Opus weight check against the owner's `/usage` meter (asked via P).

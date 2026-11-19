@@ -9,7 +9,20 @@ The session talks with the owner directly, like an «Обговорення:» s
 session problems"), and runs in a worktree of ClaudeDevKit. Its input is the unreviewed findings of
 `dev-kit-retro list` (if the command is not found, `python <this plugin>/scripts/retro.py list`): the lines of the
 daily transcript scan and the lines sessions appended for what the scan cannot see (the owner's global
-`docs/process-mistakes.md`). The rules and output are the owner's: nothing changes without the owner's «так» to it.
+`docs/process-mistakes.md`), then the scan's spend tables (tokens in units, by session and by subagent). The rules
+and output are the owner's: nothing changes without the owner's «так» to it.
+
+## Token spend
+
+Spend is evidence for a way of working, not a finding of its own: the goal is a better habit, not the biggest
+spender. The scan's spend findings (`long session`, `opus coder`) go through the steps below like the others,
+with the spend tables as their evidence. Each retro proposes at most 2 spend rules, each with its numbers, worded
+in step 2 as a trial: «спробувати тиждень і порівняти». A trial the owner accepts gets one line in `trials.md` of
+the findings folder (`~/.claude/dev-kit/retro/`): `- <YYYY-MM-DD> | <the rule> | <what to compare: the kind of work
+and its units>`. A later retro, once 7 or more days have passed since a trial's date, first compares it against the
+`## Spend` sections of the `scan-*.md` files of those days and of the week before (`list` shows only unreviewed
+days) and asks the owner to keep or roll back the rule; the line then gets `| kept` or `| rolled back`. The numbers are shown only
+in this session.
 
 ## 1. Check every finding
 
@@ -57,4 +70,5 @@ then send P a done report by SendMessage (what was edited, the backlog entries a
 session's work.
 
 Why: the owner decided on 2026-11-19 that sessions' problems are logged and reviewed daily, and that nothing reaches
-a rule or the backlog without the owner's «так» in a retro session.
+a rule or the backlog without the owner's «так» in a retro session; the same day, that token spend is counted in
+units with no dollars (a subscription) and serves only as evidence for trial rules (plans/retro-tokens.md).

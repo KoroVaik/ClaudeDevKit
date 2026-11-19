@@ -193,7 +193,8 @@ its last reply, and `dev-kit-sessions add --owner` registers a session you start
 the new skill. On start and after that restart P runs `dev-kit-migrations pending` and hands the changes every
 project must make in its own files (`plugins/dev-kit/migrations.md`) to one task session.
 In this repo P also runs `dev-kit-retro check`: once a day it scans the transcripts of all sessions,
-with no model, for repeated, failed, slow and very many calls and for commands worth a script; with new
+with no model, for repeated, failed, slow and very many calls, for commands worth a script and for token spend
+(too-long sessions, Opus coder subagents); with new
 findings P proposes a retro session (`dev-kit:retro`) where you say yes or no to each fix.
 
 ## Hooks
