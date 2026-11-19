@@ -48,7 +48,7 @@ Most of the repo is Markdown prompts. The code that runs as a program:
 
 | File | Lines | What it does |
 |---|---|---|
-| `plugins/dev-kit/scripts/check_docs.py` | 1355 | Checks a project's docs: every epic and feature has its sections, links, anchors and "Built in" paths resolve; finds the feature that owns a code file; lists open tasks and defects. |
+| `plugins/dev-kit/scripts/check_docs.py` | 1408 | Checks a project's docs: every epic and feature has its sections, links, anchors and "Built in" paths resolve; finds the feature that owns a code file; lists open tasks and defects; lists the base docs files a project lacks. |
 | `tools/lint.py` | 461 | Checks this repo: plugin manifests, skill and agent front matter, slot tables, hook config, project profiles. |
 | `plugins/dev-kit/hooks/narrow-agents.py` | 118 | A hook that lets a project launch only its own agents and those of its enabled plugins. |
 | `plugins/dev-kit/hooks/owner-session-note.py` | 54 | A hook that tells a session the owner started and the project lead took over that the lead watches it and how to say it is done. |
@@ -92,7 +92,8 @@ A project that enables the plugins keeps `.claude/dev-kit.md`:
 ## Docs check
 
 `dev-kit-check-docs` (in `plugins/dev-kit/bin`, on the Bash tool PATH while dev-kit is enabled) checks
-a project's docs against the `dev-kit:documentation` skill. A git pre-commit hook outside Claude Code
+a project's docs against the `dev-kit:documentation` skill; `--structure` lists the base docs files a
+project lacks. A git pre-commit hook outside Claude Code
 runs `plugins/dev-kit/scripts/check_docs.py --pre-commit`, finding this folder through
 `~/.claude/plugins/known_marketplaces.json`.
 
@@ -167,7 +168,8 @@ run the teardown when the owner says the work is done, or at a handoff. The rule
 
 P is one session per project. It starts task sessions (C), each in its own worktree, merges their
 finished work into main and tells you the result. It does no task work itself. You are the CEO: P
-collects what needs you in a queue and shows one item at a time, and only a critical item (a session
+collects what needs you in a queue and shows each item once; every later message ends with a count
+of the questions still waiting, and the status or your «які питання» lists them again. Only a critical item (a session
 cannot go on without you, a session crashed, a risk to data or money) comes at once, also as a push to your phone. P decides alone
 within the approved acceptance criteria; you get a product choice, a hard-to-undo step, or paid spend
 over $1 in total per task. P sorts each task: the C alone; P and the C (an agreed feature, technical

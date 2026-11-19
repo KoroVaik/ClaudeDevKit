@@ -5,7 +5,11 @@ The docs layout is fixed by the documentation standard (docs/product.md, docs/ep
 docs/tech with docs/tech/map.md, docs/standards, plans). Everything project-specific is read from the
 profile `<root>/.claude/dev-kit.md`, section `## documentation`, a table `| Setting | Value |`.
 
-Modes (precedence: open/defects, then who, then the check):
+Modes (precedence: structure, then open/defects, then who, then the check):
+  --structure      the base files of the documentation standard that are missing: PROGRESS.md,
+                   docs/product.md, an epic, a feature, docs/tech/map.md, a standard, and the profile
+                   section "## All agents". One "missing:" line each, then a summary; exit 1 when any is
+                   missing, else 0. Reads no settings, so a broken profile does not hide the answer.
   no flag          full check: prints errors and warnings, exit 1 when there is any error, else 0.
   --pre-commit     the check, then two advisory lists (never an error): features that list a staged code
                    file, and code folders (two levels) that no feature "Built in" and no map line mentions.
@@ -1294,6 +1298,49 @@ class Checker:
         return out
 
 
+# ---------------------------------------------------------------- structure
+
+PROGRESS_REL = "PROGRESS.md"
+ALL_AGENTS_RX = re.compile(r"^##\s+All agents\s*$", re.MULTILINE)
+
+
+def _has_md(root, rel):
+    folder = os.path.join(root, *rel.split("/"))
+    try:
+        return any(name.lower().endswith(".md") for name in os.listdir(folder))
+    except OSError:
+        return False
+
+
+def structure_missing(root):
+    """The base files of the documentation standard that the project at root lacks, in a fixed order."""
+    missing = []
+    for rel in (PROGRESS_REL, PRODUCT_REL):
+        if not os.path.isfile(os.path.join(root, *rel.split("/"))):
+            missing.append(rel)
+    for rel, what in ((EPICS_REL, "an epic"), (FEATURES_REL, "a feature")):
+        if not _has_md(root, rel):
+            missing.append(f"{rel}/ ({what})")
+    if not os.path.isfile(os.path.join(root, *MAP_REL.split("/"))):
+        missing.append(MAP_REL)
+    if not _has_md(root, STANDARDS_REL):
+        missing.append(f"{STANDARDS_REL}/ (a standard)")
+    try:
+        profile = read_text(os.path.join(root, *PROFILE_REL.split("/")))
+    except OSError:
+        profile = ""
+    if not ALL_AGENTS_RX.search("\n".join(_strip_fences(profile))):
+        missing.append(f"{PROFILE_REL} section \"## All agents\"")
+    return missing
+
+
+def show_structure(root):
+    missing = structure_missing(root)
+    lines = [f"missing: {item}" for item in missing]
+    lines.append(f"structure: {len(missing)} missing" if missing else "structure: complete")
+    return lines, (1 if missing else 0)
+
+
 # ---------------------------------------------------------------- command line
 
 def git_toplevel():
@@ -1311,6 +1358,7 @@ def build_parser():
         prog="dev-kit-check-docs",
         description="Documentation check: structure, links, anchors, paths and the code-path-to-features index.",
     )
+    parser.add_argument("--structure", action="store_true", help="list the missing base files of the docs standard")
     parser.add_argument("--pre-commit", action="store_true", help="after the check, print the advisory lists")
     parser.add_argument("--who", metavar="PATH", help="print the features that list PATH and exit 0")
     parser.add_argument("--open", action="store_true", help="print all open items (tasks, then defects) and exit 0")
@@ -1327,6 +1375,11 @@ def main(argv=None, out=None):
     if not root:
         print("dev-kit-check-docs: not inside a git repository; pass --root DIR", file=sys.stderr)
         return 2
+    if args.structure:
+        lines, code = show_structure(os.path.abspath(root))
+        for line in lines:
+            print(line, file=out)
+        return code
     settings, problems = load_settings(os.path.abspath(root))
     if problems:
         for problem in problems:

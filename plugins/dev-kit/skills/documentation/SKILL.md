@@ -100,9 +100,11 @@ is recorded where its code lives.
   blockers, risks or next steps change. A task that stops unfinished leaves one short handoff there,
   replaced by the outcome when the task is done. `PROGRESS.md` holds no history, no decision log and no
   experiment journal.
-- **Open question:** a question that waits for the owner goes to "Open questions" in `PROGRESS.md` and
-  links its feature. Before recording it, read that feature and the plan it links: a question they
-  already answer is not recorded. It is closed only when the owner's answer settles it.
+- **Open question:** a question that waits for the owner goes to "Open questions" in `PROGRESS.md` with
+  the date it was added and links its feature. Before recording it, read that feature and the plan it links: a question they
+  already answer is not recorded. It is closed only when the owner's answer settles it, or when the
+  project lead decides a stale one it may decide itself (`dev-kit:project-lead`, "Owner queue and
+  critical items").
 - **Open item:** agreed work not started goes to the "Open" section of its feature or tech file as a
   `[ ]` item. Out-of-scope work that surfaced is proposed in chat and added only after the owner agrees.
   An item is ticked `[x]` only for what was actually run and checked, and removed once finished; never
@@ -178,7 +180,8 @@ to exactly one epic.
 ## Docs check
 
 `dev-kit-check-docs`, run by the pre-commit hook (`--pre-commit`) and on demand. Without flags it runs
-the full check. Its project specifics (code folders, folders to scan, size limits) live in the project
+the full check; `--structure` lists the base files of this standard the project lacks (the project
+lead runs it at start). Its project specifics (code folders, folders to scan, size limits) live in the project
 profile `.claude/dev-kit.md`, section `## documentation`, a `| Setting | Value |` table.
 
 - every epic is listed in `docs/product.md`, every feature is linked from exactly one epic;

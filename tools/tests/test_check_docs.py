@@ -405,6 +405,53 @@ class StructureTests(DocsTestCase):
         self.assertIn("docs/features/f.md  (f)  via src/app.py", lines)
 
 
+class BaseFilesTests(DocsTestCase):
+    """--structure: the base files of the documentation standard."""
+
+    def complete(self):
+        self.write("PROGRESS.md", "# Progress\n\n## Open questions\n")
+        self.append(".claude/dev-kit.md", "\n## All agents\n\nRead CLAUDE.md.\n")
+
+    def test_complete_project_exits_zero(self):
+        self.complete()
+        code, lines = self.check("--structure")
+        self.assertEqual(0, code)
+        self.assertEqual(["structure: complete"], lines)
+
+    def test_bare_project_lists_every_base_file(self):
+        bare = Path(self.tmp.name) / "bare"
+        bare.mkdir()
+        out = io.StringIO()
+        code = check_docs.main(["--root", str(bare), "--structure"], out=out)
+        self.assertEqual(1, code)
+        self.assertEqual([
+            "missing: PROGRESS.md",
+            "missing: docs/product.md",
+            "missing: docs/epics/ (an epic)",
+            "missing: docs/features/ (a feature)",
+            "missing: docs/tech/map.md",
+            "missing: docs/standards/ (a standard)",
+            'missing: .claude/dev-kit.md section "## All agents"',
+            "structure: 7 missing",
+        ], out.getvalue().splitlines())
+
+    def test_empty_folder_and_fenced_heading_count_as_missing(self):
+        self.complete()
+        (self.root / "docs/standards/s.md").unlink()
+        self.write(".claude/dev-kit.md", PROFILE + "\n```\n## All agents\n```\n")
+        code, lines = self.check("--structure")
+        self.assertEqual(1, code)
+        self.assertIn("missing: docs/standards/ (a standard)", lines)
+        self.assertIn('missing: .claude/dev-kit.md section "## All agents"', lines)
+
+    def test_broken_profile_does_not_hide_the_answer(self):
+        self.complete()
+        self.append(".claude/dev-kit.md", "\n## documentation\n\n| Setting | Value |\n|---|---|\n| bogus | 1 |\n")
+        code, lines = self.check("--structure")
+        self.assertEqual(0, code)
+        self.assertEqual(["structure: complete"], lines)
+
+
 class BuiltInAndMapTests(DocsTestCase):
     def built(self, *tokens):
         self.write("docs/features/f.md", feature(built="\n".join(f"- `{t}`" for t in tokens)))

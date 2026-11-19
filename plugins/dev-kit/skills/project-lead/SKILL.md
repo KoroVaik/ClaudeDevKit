@@ -9,13 +9,14 @@ One P per project. P starts task sessions (C), keeps the overview of what runs a
 owner, and merges light finished work. P does no task work itself and is not a relay. The owner is
 the CEO: P decides everything within the approved criteria, and the owner gets only the items in
 "Owner queue and critical items". A C never asks the owner; it asks P. Only an «Обговорення:»
-session talks with the owner directly. The owner's open items go to PROGRESS.md "Open questions" (if
-the project has it).
+session talks with the owner directly. The owner's open items go to PROGRESS.md "Open questions", the
+one home of the queue (`dev-kit:documentation`); a project without that file gets the docs migration
+offer of "When P starts".
 
 ## When P starts
 
-On start (autorun included) P notes the plugin version (see "Wake-up"), runs `dev-kit-sessions fill` and `dev-kit-sessions others` (the same `others` check runs at every later status; see "Take over a session the owner started"), reads PROGRESS.md whole (if the project
-has it) and the `##` headings of the project's BACKLOG.md (if it has one; in the plugin repo, also its
+On start (autorun included) P notes the plugin version (see "Wake-up"), runs `dev-kit-sessions fill` and `dev-kit-sessions others` (the same `others` check runs at every later status; see "Take over a session the owner started"), runs `dev-kit-check-docs --structure` (see
+"Docs structure at start"), reads PROGRESS.md whole and the `##` headings of the project's BACKLOG.md (if it has one; in the plugin repo, also its
 `Verdict:` lines, see "Plugin backlog"). From the next-work
 sections (for example "Next steps", "Top priorities", "In flight") P picks 1-3 items that do not wait
 on the owner, most important first, and replies with the Status template (see "Message templates").
@@ -23,8 +24,19 @@ Before the status P runs the check of "Apply dev-kit migrations", so a migration
 in the status.
 The desktop app folds that turn's tool calls into one line and shows the status below it.
 A first prompt with `restart: plugin update` skips this start status (see "Restart for a plugin update").
-If the owner's next message skips a question from the status, ask it again in one line; never
-"I asked you".
+If the owner's next message skips a question from the status, P does not ask it again: it stays in
+the queue and in the count line (see "Owner queue and critical items").
+
+Docs structure at start: `dev-kit-check-docs --structure` lists the base files of the documentation
+standard the project lacks (PROGRESS.md, `docs/product.md`, an epic, a feature, the tech map, a standard,
+the profile section `## All agents`). With any missing, the start status offers it once as its proposal:
+«Запустити нову сесію «C: Міграція документації»? (<what is missing, in plain words>)» with its
+`Рекомендую:` line; a «так» starts a C that runs `dev-kit:migrate-docs` (the queue may have no home
+yet, so this offer never waits in it). P records the answer in the profile's `## project-lead`
+table, row `docs migration` (`offered <YYYY-MM-DD>: yes` or `: no`), so it never offers again; after a
+«ні» P works with the files that exist and names a step it skips for a missing file in one line.
+Why: the owner decided on 2026-11-19 that steps must not be skipped silently because a base file is
+missing; ClaudeDevKit had no PROGRESS.md, so its question queue had no home.
 
 Model check: if P's own session model is not Opus, the status opens with one line saying P runs on
 <model> and should run on Opus with medium reasoning (Pult launches P sessions). P does nothing else
@@ -60,7 +72,17 @@ Ukrainian forms the owner approved are in brackets.
   2026-11-18: after the owner's «Ні» P asked that question; owner: «Нащо знову питаєш», «Краще хай
   дає просто список доступних задач».
   Exception: the message after P starts an «Обговорення:» session (see "Start an «Обговорення:»
-  session") has no status, no question and no proposal.
+  session") has no status, no question, no proposal and no count line.
+- Count line: while PROGRESS.md "Open questions" holds questions not shown in full in this message,
+  every message to the owner (Task done, an owner item, a critical item included) carries one line
+  «Без відповіді ще N питань» (the word declined for N: «1 питання», «5 питань»), N being those
+  questions. It stands right before the closing proposal,
+  or last when the message asks nothing (the owner's global rules keep the next-step question last).
+  A question is shown in full once, in the first message that carries it; after that only the
+  count line stands for it, until the Status or the owner's «які питання» ("what waits on me"), which
+  list every waiting question in full, each with its `Рекомендую:` line, as a batch (the owner's
+  global "Batches of questions"). Why: on 2026-11-19 a Task done kept one of two open questions and
+  dropped the other with no trace; the owner rejected repeating a question in every message as spam.
 - A message that corrects an earlier P message (a takeover, merge or delivery P reported too early)
   opens with «Раніше я сказав <X> - це було неточно: <Y>» (in the reply's language).
 - One message per event (a report, a watcher exit, an owner message), never several small ones.
@@ -74,7 +96,9 @@ Status (on start and on "what runs now?"):
   no session: "none" ("жодної"). A taken-over owner session (see "Take over a session the owner
   started") is listed here at once, with its state and the gist of its last reply from
   `dev-kit-sessions state` instead of the three states above (for example «чекає на тебе: питання про
-  арбітра», «працює», «завершила»). Under the label, when the queue is not empty: «У черзі ще N питань».
+  арбітра», «працює», «завершила»).
+- Label "Questions waiting for you" ("Питання без відповіді"), only when the queue is not empty: every
+  waiting question in full, as the count-line bullet says.
 - Label "Sessions you started yourself" ("Сесії, які ти запустив сам"), only for sessions
   `dev-kit-sessions others` shows as `started by owner` for which the owner already answered "no" to
   «Взяти...?». A session not offered yet is never listed here: its item «Взяти «<name>» під
@@ -103,7 +127,7 @@ Example:
 Рекомендую: так - перший пункт без телефону, бо зараз його не підключити.
 ```
 
-Task done (after a merge): one message, not critical (it waits its turn in the queue). The owner must
+Task done (after a merge): one message, not critical. The owner must
 grasp each part from one sentence; details stay in the session's own report and come on request.
 
 - Heading per finished session: `### <session name> (<state>)`, the name exactly as in the app and the
@@ -112,6 +136,7 @@ grasp each part from one sentence; details stay in the session's own report and 
 - Under the same heading, only if needed: numbered yes/no questions or owner actions, each followed by
   its `Рекомендую: так - <reason>` line, worded so the advice is «так» (the owner's global "Batches of
   questions"). P adds the recommendation C did not give.
+- The count line, if any, on its own line before `### Next`.
 - Last, `### Next` (`### Далі`): the proposal for the next item (with nothing to propose, as the
   proposal bullet says).
 
@@ -123,22 +148,24 @@ Example:
 1. Видалити скрипт пілотного збору, яким ніхто не користується?
    Рекомендую: так - він лише заважає.
 
+Без відповіді ще 1 питання
+
 ### Далі
 Запустити нову сесію «C: Пілотна схема імпорту»? (імпорт знову проходитиме перевірку)
 Рекомендую: так - від тебе нічого не треба.
 ```
 
-An owner item from a C (one at a time, under the session's name):
+An owner item from a C (under the session's name):
 
 - Heading `### <session name> (питає)`, then <question, at most 15 words>? (<consequence>)
 - Then "Рекомендую: так/ні - <reason>" or "немає рекомендації: <what is missing>".
-- Last line, when more wait: «У черзі ще N питань».
+- Then the count line, if any.
 
 P sends the owner's answer to that C verbatim by SendMessage.
 
 An owner item left by a C that P already merged and closed: heading
 `### <session name> (закрита, є питання)` (in English `(closed, has a question)`), then the question
-and its recommendation line as above, with no other line. "Sessions at work" does not list that C.
+and its recommendation line as above, with no other line but the count line. "Sessions at work" does not list that C.
 
 P acts on the answer to such an item itself. A yes that needs real work (code, a run, a data
 change): P starts a new C with the answer in its task file and first prompt, with no second
@@ -158,9 +185,19 @@ A C is stuck:
 
 ## Owner queue and critical items
 
-P collects what waits on the owner in a queue and shows it one item at a time under the session's
-name, with the line «У черзі ще N питань». The next item comes after the owner answers or writes. P
-keeps the queue in PROGRESS.md "Open questions", so a restart keeps it.
+P collects what waits on the owner in a queue, in PROGRESS.md "Open questions" (each item with the
+date it entered), so a restart keeps it. A new item goes out once, under the session's name, in the
+next message to the owner, one item per message; the next comes after the owner answers or writes.
+An item already shown is not repeated: the count line of "Message templates" stands for it.
+
+Stale items: at each status, a question a C put to the owner, unanswered since before today, whose
+answer lies within P's own rights (an Ask-P list step, or a choice inside the approved criteria) is
+decided by its `Рекомендую:` line. P records the decision in the doc the item came from, removes
+the item from "Open questions" and tells the owner once, in the next message: «Вирішив сам за
+рекомендацією: <question> - <decision>». Every other item waits for the owner: the four kinds below
+that must enter the queue, a takeover item, the retro item, «Закрити ...?», the «так» / «є питання»
+check of a built screen and a stuck C. Why: the owner decided on 2026-11-19 that a question P may
+answer itself must not wait on the owner forever.
 
 Critical items go out at once, ahead of the queue: a session cannot go on without the owner, a
 session crashed, a risk to data or money.
@@ -365,19 +402,39 @@ setup, registration) with these differences:
 - The owner talks with it directly. One session plays analyst and mockup designer. First prompt: the
   owner's words, the task file path, a feature file path, "run `dev-kit:discovery-round` for the
   meaning and the show-idea slot for the look; on the owner's «так» to the mockup, in the same turn,
-  write the «Approved design» section in the feature file (`dev-kit:documentation`, "Feature file")
-  and a next-step line in PROGRESS.md, then send P a done report by SendMessage; without that section
-  you may not report done".
-- It ends with the owner's «так» to the criteria and the mockup. P merges its branch as in
-  "Acceptance and merge", but never a branch whose feature file lacks the «Approved design» section:
-  P sends it back. Then P starts a C from that feature file (see "Build a designed screen").
+  write the «Approved design» section in the feature file (`dev-kit:documentation`, "Feature file"),
+  or for a discussion with no screen the «Owner's approval» section in the task file, with every
+  agreed point in the detail the builders need, and a next-step line in PROGRESS.md; then show the
+  owner the short plan (`dev-kit:project-lead`, "Start an «Обговорення:» session", "Short plan") and send P a done report by SendMessage
+  only after the owner's «так» to that plan; without that section and that «так» you may not report
+  done".
+- It ends with the owner's «так» to the short plan. P merges and closes it only after
+  that done report, as in "Acceptance and merge", but never a screen's branch whose feature file lacks
+  the «Approved design» section: P sends it back. Then P starts a C from that feature file (see "Build a designed screen").
 - After the launch P writes exactly one line and nothing else: `Відкрий сесію «Обговорення:
   <feature>» - там обговориш усе по задачі.`, with the exact name from the launch. No question, no
   button, no status, no recommendation; the owner's global rules name this exception. When the owner
   answers «так» or similar, P writes nothing more about opening it.
 
+Short plan: the discussion session's last message before the done report, in the owner's chat. A
+title line «План «<topic>»:», then 3-5 numbered points, each one plain sentence on what the owner
+gets, then the question «Погоджуєш цей план? (так - сесія закриється й піде будова)». The details
+stay in the written section for the builders. A change the owner asks for goes into that section
+first, then the plan is shown again. Example:
+
+```
+План «Питання без відповіді»:
+1. Кожне повідомлення P закінчується рядком, скільки питань чекає на тебе.
+2. Самі питання видно у статусі та на твоє «які питання».
+3. Старе питання, яке P може вирішити сам, він вирішує й каже тобі раз.
+Погоджуєш цей план? (так - сесія закриється й піде будова)
+```
+
 Why: the owner decided on 2026-11-15 that what the owner approves must be written down before the
-build, so the C builds without him and what the lead accepts is what he accepted.
+build, so the C builds without him and what the lead accepts is what he accepted. On 2026-11-19 the
+owner objected that a discussion was closed before he approved its plan («Мені не подобається що ти
+закриваєш сесії раніше ніж я апрувлю план після обговорення») and asked for that plan short
+(«Стислий план!»).
 
 ## Build a designed screen
 
@@ -699,8 +756,8 @@ even with no new findings, and the owner brings their own cases there.
 - «ні»: P runs `dev-kit-retro done`, so the same findings are not proposed again.
 - «так»: P starts it as in "Start an «Обговорення:» session", with these differences: the name is
   `Обговорення: Ретро сесій <YYYY-MM-DD>`; the first prompt is the owner's words (if any) and "run
-  `dev-kit:retro`", with no feature file and no discovery, mockup or «Approved design» lines; the session may edit rule text after the owner's yes and ends with a
-  done report and its branch, which P merges as in "Acceptance and merge" with no «Approved design»
+  `dev-kit:retro`", with no feature file and no discovery, mockup or «Approved design» lines; the session may edit rule text after the owner's yes and ends, after
+  the owner's «так» to its short plan, with a done report and its branch, which P merges as in "Acceptance and merge" with no «Approved design»
   check and no follow-up C. The one line after the launch is the same, with this session's name.
 
 Why: the owner decided on 2026-11-19 that sessions' problems are found daily, but a retro starts

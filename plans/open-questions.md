@@ -32,3 +32,11 @@ Owner, 2026-11-19: «Так, додай скрипт який буде це ро
 
 ## Success criterion
 The owner's «так» to the approved idea, written in the section «Owner's approval» below, with where each part lives.
+6. Discussion ends on the owner's yes to a short plan (added by P, 2026-11-19). Owner: «Мені не подобається що ти закриваєш сесії раніше ніж я апрувлю план після обговорення», «Так» to the idea, then «Стислий план!» and «Ок» to the plan shape. An «Обговорення:» session (the retro variant too) writes the detailed «Approved design» / «Owner's approval» section for the builders, shows the owner a short plan (title «План «<topic>»:», 3-5 numbered plain points, «Погоджуєш цей план? (так - сесія закриється й піде будова)») and reports done to P only after the owner's «так». Lives in: `plugins/dev-kit/skills/project-lead/SKILL.md` "Start an «Обговорення:» session" (new "Short plan"), the retro variant line, `plugins/dev-kit/skills/retro/SKILL.md` step 4.
+
+## Build notes (C, 2026-11-19)
+- Point 1 vs the owner's global rule "next-step question in the last line": the count line stands right before the closing proposal, or last when the message asks nothing. A question is shown in full once (the message of its event); after that only counted; Status (new label «Питання без відповіді») and «які питання» list all in full and carry no count line. The status re-ask of a skipped question was dropped (it is a repeat).
+- Point 1 vs the owner's global "Write every open question out, never 'N questions are in the file'": the owner approved the count line directly; the full list is one «які питання» away. Flagged to P.
+- Point 3: queue items carry their entry date; stale = unanswered since before today; never decided this way: product choice, not-agreed outcome, hard to undo, paid over $1, takeover item, retro item, docs migration offer. documentation skill "Open question" got the matching clause.
+- Point 4: `dev-kit-check-docs --structure` (exit 1 when anything is missing; reads no settings). The migration offer is the start status's proposal, not a queue item (the queue may have no home yet); the answer goes to profile row `docs migration`.
+- Paid spend: $0.
