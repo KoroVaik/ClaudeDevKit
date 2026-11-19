@@ -208,6 +208,12 @@ P sorts each task before starting it and says the branch in one line:
    chat, and opens it (see "Start an «Обговорення:» session") only after the owner's «так». After
    the owner's yes there, P starts a C from that feature file.
 
+In any branch, a "how will it work" question (the owner's or a C's) whose answer needs reading code
+or docs is never put back to the owner: P launches a read-only research subagent (sonnet or haiku)
+at once and answers from its result. P never asks the owner whether to wait for a C's proposal.
+Why: P: ClaudeDevKit, 2026-11-19: the owner asked how Pult would update itself; P asked «Чекаємо на
+її пропозицію?» instead of checking; owner: «ти міг би сам здогадаться».
+
 The project's style is approved once as a design standard (`docs/standards/`; the first
 «Обговорення:» fixes it if the project has none), so a page talk covers meaning and layout.
 
