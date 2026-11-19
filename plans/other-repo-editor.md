@@ -1,0 +1,17 @@
+# The other-repo helper works again
+
+Owner's words (2026-11-19): «Так» to «Запустити нову сесію «C: Помічник для інших репозиторіїв»? (помічник для чужих репозиторіїв знову працюватиме)».
+
+## Checked facts
+- The owner's global rules (C:/Users/korov/.claude/CLAUDE.md, "Stay in the session's project") send every edit in another repository that runs no code to the `other-repo-editor` subagent; that agent lives in the owner's user agents, not in a plugin.
+- dev-kit's hook plugins/dev-kit/hooks/narrow-agents.py (wired in plugins/dev-kit/hooks/hooks.json, test tools/tests/test_narrow_agents.py) refused it on 2026-11-19 in P: ClaudeDevKit: «subagent type 'other-repo-editor' is not a narrow project or enabled plugin agent; use one of: brag:*, dev-kit:coder, ...».
+- So the global rule and the hook contradict each other; P then had to commit an entry in Zhratva itself.
+
+## Goal
+A session in a dev-kit project can launch `other-repo-editor` again, while the hook still blocks the broad agents it was made to block. Keep the global rule and the hook consistent (README.md line for the hook too).
+
+## Success criterion
+The hook lets `other-repo-editor` through and still refuses the agents it refused before (tests), and a live launch of `other-repo-editor` from a dev-kit project session is not refused.
+
+## Paid spend
+0
