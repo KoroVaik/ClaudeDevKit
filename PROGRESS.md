@@ -20,4 +20,3 @@ Open work of the features: `dev-kit-check-docs --open`.
 ## Open questions
 
 - 2026-11-19: (P reminds the owner on 2026-11-20 about 19:13; re-create the reminder after a P restart) Compare the usage counter (`/usage`) for one day to correct the Opus weight in the retro token count (now 5; blogs say about 3). Plan: [retro-tokens](plans/retro-tokens.md).
-- 2026-11-20 · «P»: Запустити нову сесію «C: Прибрати завершені плани»? (у «In flight» лишаться лише живі задачі) Рекомендую: так - від тебе нічого не треба.
