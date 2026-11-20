@@ -51,3 +51,9 @@ Cheapest test: run the script on the current registry and compare its lines with
 What: a manager or another agent that keeps a record of every change to the owner's global rules (`C:/Users/korov/.claude/CLAUDE.md` and its `docs/`): what changed, when, and why (the incident or the owner's decision). A simpler first step: keep that folder in a local git repo, with the reason in each commit message, which `dev-kit:edit-rules` writes when it edits the global rules.
 Why: owner, 2026-11-19, discussion «global rules vs the new P format»: asked why five global rules exist, and no reason was found anywhere (the folder has no history, no notes give a reason), so nobody can say whether a rule is still needed.
 Cheapest test: after one global rule edit through `dev-kit:edit-rules`, ask a fresh session why that line exists; it must find the date and the reason.
+
+## Pult hub: current state instead of an empty turn
+
+What: `plugins/pult/rules/hub.md` still says to end a turn empty; give it the same rule as the project lead (dev-kit 0.1.63): when the host demands visible output, show the short current state, never a filler.
+Why: P: ClaudeDevKit, 2026-11-20: the owner said «Це погано» about P: Zhratva writing «No response requested.»; «C: Стан замість заглушок» fixed the lead and found the same rule in the hub.
+Cheapest test: wake the hub with a background exit that needs nothing; it must show the state line, not a filler.
