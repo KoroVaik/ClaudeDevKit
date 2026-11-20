@@ -450,8 +450,8 @@ setup, registration) with these differences:
   meaning and the show-idea slot for the look; on the owner's «так» to the mockup, in the same turn,
   write the «Approved design» section in the feature file (`dev-kit:documentation`, "Feature file"),
   or for a discussion with no screen the «Owner's approval» section in the task file, with every
-  agreed point in the detail the builders need, and a next-step line in PROGRESS.md; then show the
-  owner the short plan (`dev-kit:project-lead`, "Start an «Обговорення:» session", "Short plan") and send P a done report by SendMessage
+  agreed point in the detail the builders need, and a next-step line in PROGRESS.md; once the owner
+  says the talk is done, show the short plan (`dev-kit:project-lead`, "Start an «Обговорення:» session", "Short plan") and send P a done report by SendMessage
   only after the owner's «так» to that plan; without that section and that «так» you may not report
   done".
 - It ends with the owner's «так» to the short plan. P merges and closes it only after
@@ -462,9 +462,11 @@ setup, registration) with these differences:
   button, no status, no recommendation; the owner's global rules name this exception. When the owner
   answers «так» or similar, P writes nothing more about opening it.
 
-Short plan: the discussion session's last message before the done report, in the owner's chat. A
-title line «План «<topic>»:», then 3-5 numbered points, each one plain sentence on what the owner
-gets, then the question «Погоджуєш цей план? (так - сесія закриється й піде будова)». The details
+Short plan: the discussion session's last message before the done report, in the owner's chat. It is
+shown only after the owner says in his own words that the talk is done, as a message of its own with
+this one question, never in a batch or next to another question; only a «так» to this question
+approves it. A title line «План «<topic>»:», then 3-5 numbered points, each one plain sentence on what the owner
+gets, then the question «Погоджуєш план і закриваємо обговорення?». The details
 stay in the written section for the builders. A change the owner asks for goes into that section
 first, then the plan is shown again. Example:
 
@@ -473,14 +475,16 @@ first, then the plan is shown again. Example:
 1. Кожне повідомлення P має лише питання і статуси сесій.
 2. Нове питання P пише повністю раз, далі лише рахує його.
 3. Відповідь за номером, без підтверджень у відповідь.
-Погоджуєш цей план? (так - сесія закриється й піде будова)
+Погоджуєш план і закриваємо обговорення?
 ```
 
 Why: the owner decided on 2026-11-15 that what the owner approves must be written down before the
 build, so the C builds without him and what the lead accepts is what he accepted. On 2026-11-19 the
 owner objected that a discussion was closed before he approved its plan («Мені не подобається що ти
 закриваєш сесії раніше ніж я апрувлю план після обговорення») and asked for that plan short
-(«Стислий план!»).
+(«Стислий план!»). On 2026-11-20 a session put the plan question into a batch, took the owner's «так
+всім» as the approval and reported done while he was still talking («я не закінчив обговорення, і не
+погодив список змін»); he asked that the final question name both the plan and the closing.
 
 ## Build a designed screen
 
