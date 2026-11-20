@@ -10,3 +10,6 @@ Each entry's cheapest test is met by the rule text (no live run needed); lint an
 
 ## Paid spend
 Total: 0 USD
+
+## Result (2026-11-20)
+All four entries held against the current files (no duplicate of the global pictures rule: plugin text links to it) and are built: web-kit 0.3.0 (design-screen: no spot check by the main session, designer before any new drawn element; browser-checks: PNG check by an agent, blocks, `web-kit-pair` for mockup and result; visual-check report uses it), dev-kit 0.1.77 (project-lead full list: a look question carries its shots every time). `web-kit-pair` checked on two real PNGs (title, equal height, no cut-off, seen by a haiku agent). Lint 0 errors, 556+3 tests pass. Reviewer findings on call/number wording fixed.

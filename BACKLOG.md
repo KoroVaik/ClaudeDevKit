@@ -46,28 +46,3 @@ Why: owner, 2026-11-19, discussion «global rules vs the new P format»: asked w
 Cheapest test: after one global rule edit through `dev-kit:edit-rules`, ask a fresh session why that line exists; it must find the date and the reason.
 Verdict (2026-11-20): build now: a local git repo in the owner's `.claude` folder tracking only `CLAUDE.md` and `docs/` (allow-list `.gitignore`), and one `dev-kit:edit-rules` line to commit each global-rule edit with its reason.
 Built (2026-11-20, owner's yes): the `dev-kit:edit-rules` line (step 6, dev-kit 0.1.67) and the local git repo in the owner's `.claude` folder.
-
-## Design-screen spot check leaks into the owner's chat
-
-What: in `web-kit:design-screen` (SKILL.md, "Roles"), the main session no longer opens a shot itself as the spot check of a set it sends; a cheap subagent (haiku) opens the shots and reports cut-off, empty or illegible ones, or the session relies on the size `web-kit-shot` prints. Only the numbered `SendUserFile` pictures reach the owner.
-Why: Zhratva, «Обговорення: Смаки партнера», 2026-11-20: in the phone app every image the main session reads with Read shows in the owner's chat, so a spot-check picture arrived unnumbered next to the numbered set and the owner asked why there were three pictures for two cases. Owner: «пофіксим ці картинки спочатку», «Запиши».
-Cheapest test: run one design-screen show from the phone app; the chat must show only the numbered pictures.
-
-## Design-screen: no new picture reaches the owner without the designer
-
-What: in `web-kit:design-screen` (SKILL.md, "The loop before each show"), the skip clause «While the owner tunes a look round by round (a shade, a size, a spacing), skip the loop» covers only shades, sizes and spacing of elements the designer already passed. Any new screen, popup, state or control drawn mid-discussion goes to `web-kit:designer` before the owner sees it, even when the loop's user walk is skipped.
-Why: Zhratva, «Обговорення: Смаки партнера», 2026-11-20: mid-discussion the session sent new popups, an empty state and a tab switcher without the designer; the switcher rendered as one word «МоїОлі». Owner: «це має буть флоу де дизайнер апрувить а потім мені дається».
-Cheapest test: in a design discussion, ask for a new control mid-round; the session must run the designer before sending the picture.
-
-## project-lead: a look question carries its shots every time
-
-What: in `plugins/dev-kit/skills/project-lead/SKILL.md` (section "Message templates", paragraph "The full list"), add one sentence: a question about how a screen looks (the «так» / «є питання» check of "Build a designed screen", step 2) carries its shots next to the mockup every time it is shown, in the full list and when asked again, even if they were sent before.
-Why: Zhratva, 2026-11-20: P showed the full question list for the built «Смаки» tab without the shots because it had sent them one message earlier; owner: «Чому сюди не продублювались фінальні фото?». The owner's global rules were sharpened the same day (a look question carries its picture every time it is shown; this wins over the no-re-send ban).
-Cheapest test: in a P chat, a built-screen question shown twice (new, then in the full list) has the shots both times.
-Verdict (2026-11-20): owner yes to the idea in the Zhratva lead's chat.
-
-## web-kit: pictures for the owner in blocks, mockup and result side by side
-
-What: the owner's global rule (2026-11-20) now says pictures go as separate files in logical blocks (one send per block with its caption), never a stitched sheet of many screens, and a mockup and its result of one state are one picture side by side with a very short line on top saying what the frame shows. Align web-kit: `plugins/web-kit/browser-checks.md` (about lines 100-119) and `plugins/web-kit/skills/design-screen/SKILL.md` (about lines 104-106, "one SendUserFile call per image", "more than two items: one message per item") name the side-by-side pair as one image and allow one send per block, with numbering reconciled to per-block captions. Add a small command (for example `web-kit-pair`) that joins a mockup PNG and an app PNG side by side at equal height with a short title line on top, so no agent writes a one-off Pillow script; the check-look flow (`browser-checks.md`, about lines 93-99, and the check-look row about line 16) uses it for owner-facing comparisons. Each half stays one full phone window (the one-screen rule).
-Why: Zhratva, 2026-11-20: the built «Смаки» tab went to the owner as three wide contact sheets; owner: «Фото потрібно розбивати на логічні блоки і постити не склейками, бо їх незручно на телефоні переглядать», then «Склей мокапи і результат», then «Замість мокап і збудовано описуй дуже стисло суть фото». Owner yes to the idea in the Zhratva lead's chat, 2026-11-20.
-Cheapest test: a check-look report of 4 states reaches the owner as one block of 4 side-by-side pictures, each with a short title line, readable on a phone.

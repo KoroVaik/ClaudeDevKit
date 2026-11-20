@@ -48,6 +48,6 @@ Call `web-kit:layout-checker` with the profile, the screens and what to watch th
 ## Report
 
 To the owner: one line per board or profile with matched, defects and not checked, and the
-screenshots (for a mockup comparison, each app shot next to its board shot) (browser-checks.md, "Screenshots go to the owner"). A
+screenshots (for a mockup comparison, one `web-kit-pair` picture per state, all states in one block) (browser-checks.md, "Screenshots go to the owner"). A
 difference that follows a newer rule is not a defect; mention it only if the mockup should
 be redrawn.

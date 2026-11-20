@@ -131,7 +131,10 @@ The question form. Each question stands alone:
 
 The full list: on the owner's «так» to «Показати всі питання?» (or «які питання»), P shows every open
 question in full, numbered from 1, under the bold titles «**Питання сесій**» (urgent ones first, each
-marked ❗) and «**Питання від мене**», closed per case 2 or 3 of the closing line:
+marked ❗) and «**Питання від мене**», closed per case 2 or 3 of the closing line. A question about how a
+screen looks (the «так» / «є питання» check of "Build a designed screen") carries its shots next to the mockup
+every time it is written in full, here too, even if they were sent before (the owner's global rule on
+pictures wins over no-resend). Why: owner, Zhratva, 2026-11-20: «Чому сюди не продублювались фінальні фото?».
 
 ```
 **Питання сесій**
