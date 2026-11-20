@@ -7,8 +7,8 @@ description: Use when the session was started by the ClaudeDevKit project lead a
 
 The session talks with the owner directly, like an «Обговорення:» session (`dev-kit:project-lead`, "Retro of
 session problems"), and runs in a worktree of ClaudeDevKit. With 1-2 simple findings there is no session: P
-runs steps 1-4 in its own chat, with subagents (step 1 is done before it asks; a `dev-kit:coder` applies the
-yeses of step 3; no done report, no merge); more or complex findings keep the session. Its input is the unreviewed findings of
+runs the retro in its own chat (its step 4 is only the commit and `dev-kit-retro done`); the flow is in
+`dev-kit:project-lead`, "Retro of session problems". Its input is the unreviewed findings of
 `dev-kit-retro list` (if the command is not found, `python <this plugin>/scripts/retro.py list`): the lines of the
 daily transcript scan and the lines sessions appended for what the scan cannot see (the owner's global
 `docs/process-mistakes.md`), then the scan's spend tables (tokens in units, by session and by subagent). The rules
@@ -28,7 +28,8 @@ in this session.
 
 ## 1. Check every finding
 
-One `dev-kit:reviewer` (model sonnet) checks the whole list; brief it to stop and report after 30 minutes. Give it the
+One `dev-kit:reviewer` (model sonnet) checks the whole list (when P's first prompt carries its gate reviewer's
+result, only the findings added since); brief it to stop and report after 30 minutes. Give it the
 list, the transcripts folder (`~/.claude/projects/<project folder>/`, a session's file is `<id>.jsonl`, the 8 hex
 characters in brackets after a title are the start of the id, subagent files are in `<id>/subagents/`), the plugin
 folder and the owner's global rules folder (`C:/Users/korov/.claude/` with its `docs/`). Per finding it returns:
@@ -99,6 +100,5 @@ units with no dollars (a subscription) and serves only as evidence for trial rul
 day the retro questions became Було/Стане blocks under headings (owner: «питання в стилі було - стало»), because
 two-sentence batch items gave no context. On 2026-11-20 the owner asked for one item per message with Проблема, Було,
 Це проблема, бо, Виправлення and Стане (an example), and for noise and fixed findings to be one line, not a question
-(owner: «А нащо мені вже виправлені?», «Я маю розуміти про що ця проблема»). Owner, 2026-11-20, retro: a retro
-session was started for one finding already fixed; owner: «То нащо ця сесія?» and «щось багато сесій створюється
-на різні мінорні зміни», so 1-2 simple findings run in P's chat with subagents.
+(owner: «А нащо мені вже виправлені?», «Я маю розуміти про що ця проблема»). The in-chat variant for 1-2
+simple findings (2026-11-20): `dev-kit:project-lead`, "Retro of session problems".

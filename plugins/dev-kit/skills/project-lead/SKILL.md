@@ -6,8 +6,8 @@ description: Use when the owner makes this session the lead of a project ("ти 
 # Project lead (P)
 
 One P per project. P starts task sessions (C), keeps the overview of what runs and what waits on the
-owner, and merges light finished work. P does no task work itself (one exception: the small rule edit of
-"Plugin backlog") and is not a relay. The owner is
+owner, and merges light finished work. P does no task work itself (one exception: "Small rule edit")
+and is not a relay. The owner is
 the CEO: P decides everything within the approved criteria, and the owner gets only the items in
 "Owner queue and critical items". A C never asks the owner; it asks P. Only an «Обговорення:»
 session talks with the owner directly. The owner's open items go to PROGRESS.md "Open questions", the
@@ -284,7 +284,7 @@ P sorts each task before starting it and says the branch in one line:
    rule changes the lead's behaviour): P asks the owner up to 3 text questions through the queue
    before any C starts, then starts a C with the answers in the task file. A «Так» to a task title
    does not agree it. A rule-change task counts: its rule idea is what the owner gets. Exception: a
-   small rule edit is no task; P does it itself ("Plugin backlog").
+   small rule edit is no task; P does it itself ("Small rule edit").
 4. More than 3 questions, any question about how a screen looks, or any doubt from the owner on a
    question of branch 3: P proposes an «Обговорення:» session through the queue, not a talk in P's
    chat, and opens it (see "Start an «Обговорення:» session") only after the owner's «так». After
@@ -774,16 +774,8 @@ the new version in the main checkout and restarts every lead, this P included (s
 plugin update"). Why: on 2026-11-16 the hub got that message but restarted nobody: it acts only when
 someone writes in its chat.
 
-- A small rule edit, whatever its source (up to 3 new backlog entries, the owner's request in P's chat, a
-  process mistake): one place in one skill, agent or doc, no clash with other rules, no code or tests to
-  run. P does it without a new session. One `dev-kit:reviewer`, whose brief carries steps 1-2 of
-  `dev-kit:edit-rules`, reviews the items together and returns, per item, a recommendation with its
-  reason, the idea in one plain line and the exact edit. P writes each recommendation as a `Verdict:` line
-  under a backlog entry and asks the owner a yes/no batch on the ideas, not the wording. On "так" one
-  `dev-kit:coder` applies the edits, bumps the plugin version, runs the lint and removes the built backlog
-  entries; P runs steps 5-6 of `dev-kit:edit-rules` on the diff and commits. On "ні" P removes the backlog
-  entry. This is P's one exception to "no task work"; any other rule edit P makes follows
-  `dev-kit:edit-rules` too.
+- Up to 3 new entries, all simple (one place in one skill, agent or doc, no clash with other rules): P
+  handles them as a small rule edit ("Small rule edit").
 - An entry whose `Verdict:` line says the owner already said yes in a retro is not reviewed or asked
   again: P starts a C for it as for a complex entry below.
 - A complex entry (several files, the P/C flow, a new skill or script), more than 3 new entries, or
@@ -791,44 +783,70 @@ someone writes in its chat.
   as in "Start a C".
 
 Why: the owner decided on 2026-11-14 that a C for every simple rule edit is too much, and a timer
-costs tokens while nothing is new. Owner, 2026-11-20, retro: the same for edits from any source, not only
-the backlog; «щось багато сесій створюється на різні мінорні зміни», and he prefers subagents for minor
-edits.
+costs tokens while nothing is new.
+
+## Small rule edit
+
+A small rule edit is one place in one skill, agent or doc, with no clash with other rules and no code or
+tests to run. P does it itself, with no new session, whatever its source: a backlog entry, the owner's
+request in P's chat, a process mistake or a retro item. It edits the project's own rules (`CLAUDE.md`,
+`.claude/`, docs, in the plugin repo the plugins too); in another project a plugin rule still goes to the
+plugin repo's `BACKLOG.md` (`dev-kit:manager`, "A change to the plugins themselves"). This is P's one
+exception to "no task work"; any other rule edit P makes follows `dev-kit:edit-rules` too.
+
+- Up to 3 items at once: one `dev-kit:reviewer`, whose brief carries steps 1-2 of `dev-kit:edit-rules`,
+  reviews them together and returns, per item, a recommendation with its reason, the idea in one plain
+  line and the exact edit (a retro item already has this from the gate reviewer).
+- A backlog entry gets a `Verdict:` line with the recommendation and is removed after the edit or on
+  «ні». An owner-chat, process-mistake or retro item has no entry.
+- P asks the owner a yes/no batch on the ideas, not the wording (a retro item is asked as in
+  `dev-kit:retro`, step 2). On «так» one `dev-kit:coder` applies the edits, bumps the plugin version if a
+  plugin changed and runs the repo's lint; P runs steps 5-6 of `dev-kit:edit-rules` on the diff and
+  commits. The owner's global files (the local `.claude` folder) are edited in place and committed in that
+  folder's local git (step 6 of `dev-kit:edit-rules`).
+
+Why: owner, 2026-11-20, retro: a retro session was started for one finding already fixed; owner: «То нащо
+ця сесія?» and «щось багато сесій створюється на різні мінорні зміни»; he prefers subagents for minor
+edits. This widens the 2026-11-14 backlog decision (a C for every simple rule edit is too much) to any
+source.
 
 ## Retro of session problems (plugin repo only)
 
 In the plugin repo P also runs `dev-kit-retro check` at the same moments as the backlog check above.
 It scans the transcripts of all sessions with no model at most once a day (a later run the
 same day only counts) and prints `new findings: <N>` or `no new findings`; the findings stay in a local folder
-outside any repo. With new findings and no retro item already in the queue or a retro session running, P
-first launches one `dev-kit:reviewer` (sonnet) with the brief of `dev-kit:retro`, step 1, and
-counts only the findings it marks real. No real finding (all already fixed, noise or handed over):
-P runs `dev-kit-retro done` itself, with no item and no message. Otherwise:
+outside any repo. A trial of `dev-kit:retro`, "Token spend", is due when its line in `trials.md` is 7 or
+more days old with no `| kept` or `| rolled back`. With new findings or a due trial, and no retro item
+in the queue, no retro session, no gate review and no in-chat retro running, P first launches one
+`dev-kit:reviewer` (sonnet), the gate reviewer, with the brief of `dev-kit:retro`, step 1 (and, for a due
+trial, its comparison). It counts only the findings it marks real; a due trial counts as one item. No
+real finding and no due trial (all already fixed, noise or handed over): P runs `dev-kit-retro done`
+itself, with no item and no message. Otherwise:
 
-- 1-2 real findings, each a wording edit in one place with no clash (the reviewer's step-2 list): P runs
-  the retro in its own chat, with no session. The owner gets the items one per message in the format of
-  `dev-kit:retro`, step 2, as normal queue items; for each «так» one `dev-kit:coder` applies the edit
-  (brief with the step-3 list of `dev-kit:edit-rules`), and P runs its steps 5-6, commits and runs
-  `dev-kit-retro done` after the last answer. A finding that needs a script, a hook, a new agent or skill,
-  a spend rule or a change of the scan makes the retro complex.
-- More real findings, or a complex one: P adds one question of its own: «Запустити ретро сесій? (<N> нових
-  знахідок)».
+- 1-2 items, each a wording edit in one place with no clash (the reviewer's step-2 list) or a trial
+  comparison: P runs the retro in its own chat, with no session. The owner gets the items one per message in
+  the format of `dev-kit:retro`, step 2 (its exemption from the global question cap holds), as normal queue
+  items; each «так» is applied as in "Small rule edit". After the last answer P commits and runs
+  `dev-kit-retro done`; no short plan, no done report, no merge. A finding that needs a script, a hook, a new
+  agent or skill, a spend rule or a change of the scan makes the retro complex.
+- More items, or a complex one: P adds one question of its own: «Запустити ретро сесій? (<N> нових
+  знахідок)», where <N> is the real count after the gate reviewer.
 
 The owner may also ask for a retro at any time («ретро», «розбери проблеми сесій»); P then starts a session
 even with no new findings, and the owner brings their own cases there.
 
 - «ні»: P runs `dev-kit-retro done`, so the same findings are not proposed again.
 - «так»: P starts it as in "Start an «Обговорення:» session", with these differences: the name is
-  `Обговорення: Ретро сесій <YYYY-MM-DD>`; the first prompt is the owner's words (if any) and "run
-  `dev-kit:retro`", with no feature file and no discovery, mockup or «Approved design» lines; the session may edit rule text after the owner's yes and ends, after
+  `Обговорення: Ретро сесій <YYYY-MM-DD>`; the first prompt is the owner's words (if any), "run
+  `dev-kit:retro`" and the gate reviewer's result (retro step 1 then checks only findings added since); with no feature file and no discovery, mockup or «Approved design» lines; the session may edit rule text after the owner's yes and ends, after
   the owner's «так» to its short plan, with a done report and its branch, which P merges as in "Acceptance and merge" with no «Approved design»
   check and no follow-up C. The one line after the launch is the same, with this session's name.
 
 Why: the owner decided on 2026-11-19 that sessions' problems are found daily, but a retro starts
 only after the owner's «так»: a review agent writing straight into the backlog was rejected.
-Owner, 2026-11-20, retro: a retro session was started for one finding that was already fixed; owner: «То
-нащо ця сесія?» and «щось багато сесій створюється на різні мінорні зміни». So fixed findings need no
-question, and one or two simple ones are handled in P's chat with subagents.
+Owner, 2026-11-20, retro (quotes in "Small rule edit"): fixed findings need no question, and one or two
+simple ones are handled in P's chat with subagents. A due trial forces a retro so a trial is never left
+uncompared.
 
 ## Not supported yet
 
