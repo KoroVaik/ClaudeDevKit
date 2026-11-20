@@ -51,3 +51,10 @@ Cheapest test: run one design-screen show from the phone app; the chat must show
 What: in `web-kit:design-screen` (SKILL.md, "The loop before each show"), the skip clause «While the owner tunes a look round by round (a shade, a size, a spacing), skip the loop» covers only shades, sizes and spacing of elements the designer already passed. Any new screen, popup, state or control drawn mid-discussion goes to `web-kit:designer` before the owner sees it, even when the loop's user walk is skipped.
 Why: Zhratva, «Обговорення: Смаки партнера», 2026-11-20: mid-discussion the session sent new popups, an empty state and a tab switcher without the designer; the switcher rendered as one word «МоїОлі». Owner: «це має буть флоу де дизайнер апрувить а потім мені дається».
 Cheapest test: in a design discussion, ask for a new control mid-round; the session must run the designer before sending the picture.
+
+## project-lead: a look question carries its shots every time
+
+What: in `plugins/dev-kit/skills/project-lead/SKILL.md` (section "Message templates", paragraph "The full list"), add one sentence: a question about how a screen looks (the «так» / «є питання» check of "Build a designed screen", step 2) carries its shots next to the mockup every time it is shown, in the full list and when asked again, even if they were sent before.
+Why: Zhratva, 2026-11-20: P showed the full question list for the built «Смаки» tab without the shots because it had sent them one message earlier; owner: «Чому сюди не продублювались фінальні фото?». The owner's global rules were sharpened the same day (a look question carries its picture every time it is shown; this wins over the no-re-send ban).
+Cheapest test: in a P chat, a built-screen question shown twice (new, then in the full list) has the shots both times.
+Verdict (2026-11-20): owner yes to the idea in the Zhratva lead's chat.
