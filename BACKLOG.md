@@ -57,3 +57,10 @@ Cheapest test: after one global rule edit through `dev-kit:edit-rules`, ask a fr
 What: `plugins/pult/rules/hub.md` still says to end a turn empty; give it the same rule as the project lead (dev-kit 0.1.63): when the host demands visible output, show the short current state, never a filler.
 Why: P: ClaudeDevKit, 2026-11-20: the owner said «Це погано» about P: Zhratva writing «No response requested.»; «C: Стан замість заглушок» fixed the lead and found the same rule in the hub.
 Cheapest test: wake the hub with a background exit that needs nothing; it must show the state line, not a filler.
+
+## P's status messages hide sessions that keep working
+
+What: the project-lead skill ("Message templates", "Which sessions a message lists") lists in every message except the start status and «що працює?» only the sessions whose state changed (plus finished ones until the owner's next message). So after a merge P sent «Статуси сесій» with only «готово - <one C>», and two sessions still working were missing; the owner asked «Чому в статусі нема сесії аналізу?» and asked to fix it (P: Zhratva, 2026-11-20).
+Why: the owner reads «Статуси сесій» as the full picture; a missing working session looks like it vanished.
+Proposed change: every message that has the «Статуси сесій» block lists every session P manages (working ones included), not only the changed ones.
+Cheapest test: after a merge with two other sessions running, P's message lists all three.
