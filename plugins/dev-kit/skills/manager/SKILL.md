@@ -29,9 +29,9 @@ nothing: the merge is P's step, so the owner sees in this chat why the session c
   `fix-bug`, `test-change` and the extension plugins (`web-kit`, `unity-kit`). P decides or asks the
   owner. A screen's approved mockup already gives the consent for its checks (`dev-kit:test-change`).
 - It asks P first before: starting the owner's app in the main checkout, loosening a validation or
-  safety guard, deleting tracked files, a paid call that would take the task's total past $1 (P also
+  safety guard, deleting tracked files, a paid call that would take the task's total past 1 USD (P also
   lists these in the first prompt). The C keeps a running total of paid spend in its task file; spend
-  below $1 is never asked.
+  below 1 USD is never asked.
 - Within the approved acceptance criteria it decides alone. Before handing in, it checks the result
   against the feature's criteria (and its «Approved design», if any) and fixes the gaps.
 - An independent part found mid-work goes to P as a new task, in one line. Dependent parts stay in
@@ -166,7 +166,7 @@ check that confirms or disproves it, and only after it the fix.
 ## Less of the owner's involvement over time
 
 The plugin's main goal is autonomous development: the owner's involvement shrinks step by step.
-Decisions on what the owner gets, money (over $1 per task) and hard-to-undo steps stay with the owner. Checks, hand
+Decisions on what the owner gets, money (over 1 USD per task) and hard-to-undo steps stay with the owner. Checks, hand
 actions and small questions move to the agents: before asking the owner to check or do something,
 look for a way an agent can do it (a test, a headless or emulator run, a script). Where none exists
 yet, do the step with the owner and name the missing tool as a follow-up item in the project's plans.

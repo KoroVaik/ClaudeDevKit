@@ -216,6 +216,18 @@ class SkillTests(LintTestCase):
         (self.root / "plugins" / "dev-kit" / "skills" / "empty-folder").mkdir()
         self.assertErrorContains(self.run_lint(), "skills/empty-folder: SKILL.md not found")
 
+    def test_dollar_digit_in_skill_body_fails(self):
+        write(self.root / "plugins" / "dev-kit" / "skills" / "money" / "SKILL.md", skill_text() + "Ask past $1 in total.\n")
+        self.assertErrorContains(self.run_lint(), "skills/money/SKILL.md: line")
+
+    def test_arguments_placeholder_in_agent_body_fails(self):
+        write(self.root / "plugins" / "dev-kit" / "agents" / "coder.md", agent_text() + "Use $ARGUMENTS here.\n")
+        self.assertErrorContains(self.run_lint(), "agents/coder.md: line")
+
+    def test_money_in_usd_words_is_accepted(self):
+        write(self.root / "plugins" / "dev-kit" / "skills" / "money" / "SKILL.md", skill_text() + "Ask past 1 USD; $HOME stays.\n")
+        self.assertClean(self.run_lint())
+
     def test_bom_in_skill_is_accepted(self):
         data = b"\xef\xbb\xbf" + skill_text().encode("utf-8")
         write_bytes(self.root / "plugins" / "dev-kit" / "skills" / "bom" / "SKILL.md", data)

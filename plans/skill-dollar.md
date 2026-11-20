@@ -13,3 +13,8 @@ No `$<digit>` or `$ARGUMENTS` left in skill or agent text unless it is meant as 
 
 ## Paid spend
 Total: $0
+
+## Done
+- `$1` -> `1 USD` in `manager` and `project-lead` skills (only places found by grep over plugins/**/*.md; no `$ARGUMENTS`, no `arguments:` frontmatter).
+- `tools/lint.py` now fails on `$<digit>`/`$ARGUMENTS` in skill and agent bodies; 3 tests; `docs/tech/repo-checks.md` notes it.
+- dev-kit 0.1.70. Tests and lint pass.
