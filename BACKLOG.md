@@ -39,3 +39,10 @@ Why: owner, 2026-11-19, discussion «global rules vs the new P format»: asked w
 Cheapest test: after one global rule edit through `dev-kit:edit-rules`, ask a fresh session why that line exists; it must find the date and the reason.
 Verdict (2026-11-20): build now: a local git repo in the owner's `.claude` folder tracking only `CLAUDE.md` and `docs/` (allow-list `.gitignore`), and one `dev-kit:edit-rules` line to commit each global-rule edit with its reason.
 Built (2026-11-20, owner's yes): the `dev-kit:edit-rules` line (step 6, dev-kit 0.1.67). Still to do, handed to P: create the local git repo in the owner's `.claude` folder (outside this repo).
+
+## P's status messages hide sessions that keep working
+
+What: the project-lead skill ("Message templates", "Which sessions a message lists") lists in every message except the start status and «що працює?» only the sessions whose state changed (plus finished ones until the owner's next message). So after a merge P sent «Статуси сесій» with only «готово - <one C>», and two sessions still working were missing; the owner asked «Чому в статусі нема сесії аналізу?» and asked to fix it (P: Zhratva, 2026-11-20).
+Why: the owner reads «Статуси сесій» as the full picture; a missing working session looks like it vanished.
+Proposed change: every message that has the «Статуси сесій» block lists every session P manages (working ones included), not only the changed ones.
+Cheapest test: after a merge with two other sessions running, P's message lists all three.
