@@ -19,3 +19,4 @@ Open work of the features: `dev-kit-check-docs --open`.
 ## Open questions
 
 - 2026-11-20 · «P» (retro): показ дизайну питає одне питання зі своїми картинками, наступне лише після відповіді? Рекомендую: так - ти сам попросив «По черзі!!!!!!». (edit: plugins/web-kit/skills/design-screen/SKILL.md «The text» bullet, named exception to discovery-round 3 questions; gate review 2026-11-20)
+- 2026-11-20 · «P»: Записати правило: знахідку ретро в моєму чаті я питаю звичайним коротким питанням? (подробиці лише на прохання) Рекомендую: так - довгий формат ретро тут виглядає як полотно. (edit: project-lead «Retro of session problems», in-chat bullet: P question form instead of retro step 2 format)
