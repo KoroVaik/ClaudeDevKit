@@ -58,3 +58,6 @@ Cause: a Claude session is woken only to re-arm a watcher the host kills every 2
 
 ## Fill under-report (owner's report, 2026-11-20)
 - Checked by an investigator: `dev-kit-sessions fill` is right (653,819 = 65% now for 04d7121c); 37% and 41% were the true values at 13:17 and 14:00 UTC; the C crossed 0.5 at about 14:58 UTC. Cause: P runs fill only on an owner message or a C report, so nothing checked it after 14:58. Hardening only: skip `isSidechain` lines in `last_usage` (sessions.py:210-214).
+
+## Wake by message, checked live (2026-11-20)
+- A one-shot `claude -p --model haiku --permission-mode auto --no-session-persistence --allowedTools SendMessage,ListAgents` session lists the live sessions (Pult shows as `interactive · idle`, leads as `bg`) and its SendMessage to «Pult» was taken without the owner's approval: Pult answered «тест отримано» in its chat within seconds (Pult transcript, 19:56:51Z). No stop, no restart: Pult keeps its conversation, so a push it sends leads to Pult. Proposed to replace the restarts of points 2-4 and 6 (not yet agreed). Paid spend now about 0.02 USD.
