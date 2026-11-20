@@ -2,7 +2,7 @@
 
 ## Built
 
-- `dev-kit` 0.1.74 - the process skills, generic agents, the documentation standard and its checker, the project lead and its session tools.
+- `dev-kit` 0.1.75 - the process skills, generic agents, the documentation standard and its checker, the project lead and its session tools.
 - `web-kit` 0.2.1 - browser checks and the two-stage screen design.
 - `unity-kit` 0.2.1 - the Unity bridge, user check, scene sketch, GIFs.
 - `pult` 0.1.15 - the hub: leads started at logon, the watcher, the status page.
@@ -13,8 +13,6 @@
 - [Token spend in the retro](plans/retro-tokens.md): built; Opus weight set to 1.5 from the /usage readings (plan, «Opus weight check»); the spend trial is compared in a later retro.
 
 - [Pult idle cost](plans/pult-idle-cost.md): design in «Owner's approval», owner's «так» to the plan (2026-11-20); next: P starts a C for phase 1 after its plugin-update restart.
-
-- Reminder duplicates: owner's «так» (2026-11-20) to a small rule edit in project-lead «A stuck or crashed C» (timed hand step): before re-creating a reminder after a P restart, check CronList; a reminder survived restarts and fired 4 times. Next: P makes it after its plugin-update restart.
 
 Open work of the features: `dev-kit-check-docs --open`.
 

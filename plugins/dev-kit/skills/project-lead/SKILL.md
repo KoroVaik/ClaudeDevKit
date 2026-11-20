@@ -203,8 +203,9 @@ A stuck or crashed C: its line is `- стоїть, сесія впала - «<na
 aside, or hand to another C. A step the owner must do by hand is a question too: «Зробиш <what,
 where>?». The owner's «так» answers it: the item leaves the queue and
 the counts at once; P tracks the pending step in PROGRESS.md "In flight" (with its time, if any) and,
-for a timed step, sets a one-shot CronCreate reminder at that time (session-only, so re-created after
-a P restart) that sends one push and one chat line; this is the one timer exception to "Wake-up". P
+for a timed step, sets a one-shot CronCreate reminder at that time; after a P restart P first checks CronList and
+re-creates it only if it is gone (a job can outlive the restart; re-creating it blindly made one
+reminder fire 4 times, 2026-11-20) that sends one push and one chat line; this is the one timer exception to "Wake-up". P
 never asks it again; it comes back only if the owner says the step did not work. P removes the "In
 flight" line when the owner reports the step done. Why: P kept «Знімеш другий показник /usage
 близько 19:15?» in the queue after the owner's «так» to all, and showed it again; owner: «Я ж
