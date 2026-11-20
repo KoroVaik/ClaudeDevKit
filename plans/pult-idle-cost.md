@@ -21,7 +21,7 @@ Owner's words (to Pult): «Пропналізуй доцільність пул�
 ## Goal
 Find with the owner the cause-level fix: what must wake a model at all, and what the owner gets on the phone. Measure before deciding where cheap (tokens per wake, wakes per day). Write the agreed design in «Owner's approval» here.
 
-## Owner's approval (2026-11-20)
+## Draft design (agreed point by point 2026-11-20; the change list is not approved yet)
 
 Cause: a Claude session is woken only to re-arm a watcher the host kills every 2 h. Fix: no model keeps a watcher; the server watcher (`plugins/pult/scripts/watch-servers.ps1`, already a non-Claude process) does all watching and wakes a model only on a real event. One running script; plus a prompt hook.
 
