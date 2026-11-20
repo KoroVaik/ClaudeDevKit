@@ -14,8 +14,9 @@
 
 - [Pult idle cost](plans/pult-idle-cost.md): design in «Owner's approval», owner's «так» to the plan (2026-11-20); next: P starts a C for phase 1 after its plugin-update restart.
 
+- Reminder duplicates: owner's «так» (2026-11-20) to a small rule edit in project-lead «A stuck or crashed C» (timed hand step): before re-creating a reminder after a P restart, check CronList; a reminder survived restarts and fired 4 times. Next: P makes it after its plugin-update restart.
+
 Open work of the features: `dev-kit-check-docs --open`.
 
 ## Open questions
 
-- 2026-11-20 · «P»: Записати правило: перед новим нагадуванням після перезапуску я перевіряю, чи старе ще живе? (сьогодні нагадування спрацювало 4 рази) Рекомендую: так - старі нагадування пережили перезапуски, тож я їх дублював.
