@@ -41,3 +41,20 @@ Cause: a Claude session is woken only to re-arm a watcher the host kills every 2
     - P checks its own fill too (same limit 0.5, half the context window) and at the nearest safe point saves a handoff (`continue-work-in-another-context save`).
     - `watch-servers.ps1` starts the fresh lead session from that handoff by itself when the lead is idle (same name, model, effort, mode; first prompt `/continue-work-in-another-context load <file>`), then stops the old one; no owner action. A lead's state already lives in project files and the registry.
     - The 700k push (point 11) stays as the backstop when the move did not happen.
+
+## Design review (sonnet reviewer, 2026-11-20), open until the owner decides
+- Pult is a `claude remote-control --continue` server (start-servers.ps1:137-140), not a background session: no first prompt, no Pult-only stop. Restarting Pult with a message (points 2-4) has no mechanism. Proposed: the script always pushes the events through the one-shot session; Pult learns them from the hook (point 5) or «статус».
+- An event restart of a lead reuses the heavy plugin-update first prompt (SKILL.md:749-760; wakes every C, full status). Needs a light first prompt that reads an events file; event text must not be passed as a command argument (resume-lib.ps1:21-22).
+- Cost unmeasured: an event restart is a cold re-read of the lead's context, the same price as an idle wake. Count the non-time-limit watcher exits (gone, finished, limited, stale) per lead over the last 5 days first; batch several events into one restart; decide in the script which stale lines need a model.
+- A one-shot round of cmd_watch does not exist: LIMITS/STALE marks are written at detection (sessions.py:692-709, 764-783), the `gone` grace is in memory (sessions.py:817-830, 934). Split detection from marking; keep the queue in a file; mark only after delivery.
+- Point 13 handoff: fights hub.md:149 («always resume the same conversation»); the first prompt must load the project-lead skill; stop the old session before starting the new one (two sessions with one name split C reports); unsure whether the owner's phone chat follows a fresh session.
+- Messages sent to a lead while it is stopped are lost (SKILL.md:761-766): re-check idle right before the stop.
+- The lead hook needs a per-session events file (`events-<sessionId>.json`) shared with the restart path, so lines are not shown twice.
+- Wider rewrite scope: SKILL.md:66-72, 246-256, 398, 582-649, 726, 744-754; hub.md:112-148, 164 (status is read-only, but «shown once» needs state); docs/tech/map.md; pult README; watch-log.py and its tests.
+- Thresholds: the weekly limit estimate is about 30% uncertain; 0.5%/day waste may never fire (hub idle about 0.45%/day); express 700k as 0.7 of the window.
+- Latency of a `gone` event grows from 1-2 min to about 11 min; the stale reminder text («кеш згорить за ~40 хв») would be false.
+- Migration: ship dev-kit and pult together; `restart-leads.ps1 -Ask` request path is dead without a lead watcher.
+- Unverified: does a lead with no watcher show idle; lead cache TTL 5 min or 1 h; one-shot push reaching the phone with the owner away.
+
+## Fill under-report (owner's report, 2026-11-20)
+- Checked by an investigator: `dev-kit-sessions fill` is right (653,819 = 65% now for 04d7121c); 37% and 41% were the true values at 13:17 and 14:00 UTC; the C crossed 0.5 at about 14:58 UTC. Cause: P runs fill only on an owner message or a C report, so nothing checked it after 14:58. Hardening only: skip `isSidechain` lines in `last_usage` (sessions.py:210-214).
