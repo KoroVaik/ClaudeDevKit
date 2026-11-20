@@ -91,7 +91,7 @@ so its question stays last; with no real item, the whole message is «Нових
 Run `dev-kit-retro done`, so the findings `list` showed are not proposed again, even when the owner said «ні» to
 all; findings added during the retro stay new. Commit, show the owner the short plan of what this retro
 changed and added (`dev-kit:project-lead`, "Start an «Обговорення:» session", "Short plan"), and only after the
-owner's «так» to it send P a done report by SendMessage (what was edited, the backlog entries added); P merges the branch as any
+owner's «так» to it, and only if no owner message came after that «так», send P a done report by SendMessage (what was edited, the backlog entries added); P merges the branch as any
 session's work.
 
 Why: the owner decided on 2026-11-19 that sessions' problems are logged and reviewed daily, and that nothing reaches
