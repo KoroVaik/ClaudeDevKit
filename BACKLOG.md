@@ -46,6 +46,7 @@ Why: owner, 2026-11-19, discussion «global rules vs the new P format»: asked w
 Cheapest test: after one global rule edit through `dev-kit:edit-rules`, ask a fresh session why that line exists; it must find the date and the reason.
 Verdict (2026-11-20): build now: a local git repo in the owner's `.claude` folder tracking only `CLAUDE.md` and `docs/` (allow-list `.gitignore`), and one `dev-kit:edit-rules` line to commit each global-rule edit with its reason.
 Built (2026-11-20, owner's yes): the `dev-kit:edit-rules` line (step 6, dev-kit 0.1.67) and the local git repo in the owner's `.claude` folder.
+
 ## Rule: how agents state cost on a subscription
 
 What: a rule on how agents state cost on a subscription. (1) A Claude Code cost figure (`/cost`, the session cost record, which prices tokens at API rates) is always labelled "API-price equivalent, not billed on the subscription", never plain USD. (2) It is a relative yardstick between runs only (fewer tokens, cheaper models = lower number), not money and not a share of subscription limits unless a documented source says so. (3) Real money is named only for actual API-key calls. (4) Cost targets in plans use the same labelled yardstick. Place: where the maintainer judges best (manager or project-lead skill, or a reporting standard).
