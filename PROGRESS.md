@@ -10,7 +10,7 @@
 
 ## In flight
 
-- [Token spend in the retro](plans/retro-tokens.md): built; both /usage readings are in; next, a C corrects the Opus weight in `retro.py` (plan, «Usage readings»).
+- [Token spend in the retro](plans/retro-tokens.md): built; Opus weight set to 1.5 from the /usage readings (plan, «Opus weight check»); the spend trial is compared in a later retro.
 
 Open work of the features: `dev-kit-check-docs --open`.
 
