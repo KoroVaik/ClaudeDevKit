@@ -3,7 +3,7 @@
 ## Built
 
 - `dev-kit` 0.1.76 - the process skills, generic agents, the documentation standard and its checker, the project lead and its session tools.
-- `web-kit` 0.2.1 - browser checks and the two-stage screen design.
+- `web-kit` 0.2.2 - browser checks and the two-stage screen design.
 - `unity-kit` 0.2.1 - the Unity bridge, user check, scene sketch, GIFs.
 - `pult` 0.1.15 - the hub: leads started at logon, the watcher, the status page.
 - Docs moved onto the documentation standard: [the docs index](docs/README.md).
@@ -18,4 +18,3 @@ Open work of the features: `dev-kit-check-docs --open`.
 
 ## Open questions
 
-- 2026-11-20 · «P» (retro): показ дизайну питає одне питання зі своїми картинками, наступне лише після відповіді? Рекомендую: так - ти сам попросив «По черзі!!!!!!». (edit: plugins/web-kit/skills/design-screen/SKILL.md «The text» bullet, named exception to discovery-round 3 questions; gate review 2026-11-20)

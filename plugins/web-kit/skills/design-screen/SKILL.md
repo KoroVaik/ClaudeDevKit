@@ -109,6 +109,11 @@ remarks outrank the mockup walk.
   its reason, and one question. Weak spots of the recommendation go into that line; a note that the pick
   changes a feature rule goes into the question's brackets. This is stricter than the global report list
   and wins over it: no other items, notes or arguments, no process words (built, sent, committed).
+  A show asks one question, with its own pictures, and opens with a counter «Питання N/M» (M may grow when
+  a new question comes up). When several visual questions are open, ask the first; ask the next only after
+  the owner answers. This wins over `dev-kit:discovery-round`'s «at most 3 numbered questions per round».
+  Why: owner, 2026-11-20: three questions with eight pictures in one message, so he could not tell which
+  picture went with which question («По черзі!!!!!!»); the counter shows how many are left.
 - Take no variant to the owner that the designer did not pass. The designer filters; it does not choose,
   and neither does the session: the recommendation is a reasoned line, the owner picks.
 - The reply follows the project's chat rules (language, length).
