@@ -10,10 +10,9 @@
 
 ## In flight
 
-- [Token spend in the retro](plans/retro-tokens.md): built; the Opus weight check waits on the owner (see Open questions).
+- [Token spend in the retro](plans/retro-tokens.md): built; the Opus weight check waits on the owner's second /usage reading (owner agreed 2026-11-20; P reminds at about 19:13, re-create the reminder after a P restart).
 
 Open work of the features: `dev-kit-check-docs --open`.
 
 ## Open questions
 
-- 2026-11-19: (P reminds the owner on 2026-11-20 about 19:13; re-create the reminder after a P restart) Compare the usage counter (`/usage`) for one day to correct the Opus weight in the retro token count (now 5; blogs say about 3). Plan: [retro-tokens](plans/retro-tokens.md).
