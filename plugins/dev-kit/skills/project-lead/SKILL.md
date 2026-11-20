@@ -200,7 +200,14 @@ answer (Zhratva, 2026-11-16).
 A stuck or crashed C: its line is `- стоїть, сесія впала - «<name>»` (crashed) or `- чекає на тебе - «<name>»
 (<cause>)` (it cannot go on without the owner), and P adds its own question with a recommendation: restart, set
 aside, or hand to another C. A step the owner must do by hand is a question too: «Зробиш <what,
-where>?».
+where>?». The owner's «так» answers it: the item leaves the queue and
+the counts at once; P tracks the pending step in PROGRESS.md "In flight" (with its time, if any) and,
+for a timed step, sets a one-shot CronCreate reminder at that time (session-only, so re-created after
+a P restart) that sends one push and one chat line; this is the one timer exception to "Wake-up". P
+never asks it again; it comes back only if the owner says the step did not work. P removes the "In
+flight" line when the owner reports the step done. Why: P kept «Знімеш другий показник /usage
+близько 19:15?» in the queue after the owner's «так» to all, and showed it again; owner: «Я ж
+написав так» (P: ClaudeDevKit, 2026-11-20).
 
 In an English reply the same form uses English words («Unanswered questions», «Session states», «Show
 all questions?», «Accept all my recommendations?», «and N more questions above»); the Ukrainian forms above are the ones the owner approved.
@@ -586,7 +593,7 @@ others, closes them only so P stops counting them, and never messages them (mode
 
 ## Wake-up
 
-P does not wake by itself, and it never uses `notify_when_idle` for a C: every idle notice woke P, and
+P does not wake by itself (except the reminder of a timed hand step, see "Message templates"), and it never uses `notify_when_idle` for a C: every idle notice woke P, and
 the host forced a visible reply each time, so the owner got many repeated small messages (seen in
 P: Zhratva, 2026-11-15). P wakes only on a C report (SendMessage), an owner message, or an exit of the
 session watcher, and writes to the owner at once with what changed ("Message templates").
