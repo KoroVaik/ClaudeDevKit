@@ -63,3 +63,15 @@ Build notes (agent's method, within the approved points):
 ## Success criterion
 The owner approves a short plan; the «Owner's approval» section here holds every agreed point in the
 detail a builder needs.
+
+## Build (2026-11-20)
+- `dev-kit-sessions watch` reports `stale: <name> | <id> | waiting <N> min` (`--stale-minutes`, default 20);
+  `stale.json` beside the registry keeps each reported wait (kept through busy or no-pid flickers, pruned
+  after 7 days), so one push per wait also across watcher restarts. P keeps no push record of its own.
+- `project-lead` SKILL.md: "Reminder push" beside "Phone push", and the `stale:` exit in "Wake-up".
+  Feature doc and tech doc updated; dev-kit 0.1.66. Tests: 2 new in `tools/tests/test_sessions.py`; all
+  tests and the lint pass.
+- Known limits (reviewer doubts, left as is): the push text says «20 хв ... ~40 хв» even when a session
+  already waited longer (only after a P restart with an old wait); a wait whose question is not yet in the
+  owner queue at the wake-up is not reminded (the watcher has already counted it).
+- Paid spend: $0.

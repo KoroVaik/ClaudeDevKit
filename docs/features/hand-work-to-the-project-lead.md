@@ -25,7 +25,9 @@ waiting, it is one line saying so.
 
 ### Critical items reach your phone
 A critical item (a session cannot go on without you, a session crashed, a risk to data or money) also
-comes as a push to your phone.
+comes as a push to your phone. A session that has waited on you 20 minutes (a question from it in P's
+queue, or an «Обговорення:» session) gets one reminder push, before its cache runs out after about an
+hour and the next answer costs its whole context again; one push per wait.
 
 ### What P decides alone
 P decides alone within the approved acceptance criteria. You get a product choice, a hard-to-undo step,
@@ -75,6 +77,7 @@ pagefile was fixed instead (48 GB initial, 64 GB max).
 - You answer a P message with a bare «так»: P takes it as the answer to the message's last line and acts, never asking «1 чи 2?».
 - A session finishes while you are away: P writes at once, and its message lists the session as «готово».
 - A task session crashes: you get it at once, also as a push to your phone.
+- A session waits on your answer for 20 minutes: you get one reminder push for that wait; a session waiting on P pushes nothing.
 - A task is finished: P merges it into main and tells you the result; you did not start or watch the C.
 - A second session already works on the same task: P does not start another one.
 

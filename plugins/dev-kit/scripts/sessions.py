@@ -7,7 +7,7 @@ full their context is.
     dev-kit-sessions fill [--limit 0.5] [--window N]
     dev-kit-sessions others [--self <id>] [--json]
     dev-kit-sessions state [--id <id> ...]
-    dev-kit-sessions watch [--id <id> ...] [--interval 60] [--max-minutes 120]
+    dev-kit-sessions watch [--id <id> ...] [--interval 60] [--max-minutes 120] [--stale-minutes 20]
     dev-kit-sessions limited --id <id> [--id <id> ...]
     dev-kit-sessions restart request --version <V> | ready [--version <V>] | status | clear
 
@@ -42,7 +42,8 @@ time, or `resets unknown;`): such a session keeps its process and is listed as b
 `working` when the status is busy; else `waiting`. Exit 3 when the list cannot be read.
 
 `watch` waits in silence while the watched sessions live and exits with one line when one is gone, finished (the
-last reply has the finished marker, see `state`) or limited (stopped on the usage limit, see `state`), so a caller that
+last reply has the finished marker, see `state`), limited (stopped on the usage limit, see `state`) or stale (waiting
+`--stale-minutes` since its last reply), so a caller that
 runs it in the background wakes only then. Watched: the `--id` sessions (full or 8+ char short ids), else the
 registry's active records, read again each round (a C added later is watched too; one ended with `end` is not).
 Every `--interval` seconds it reads `claude agents --json --all`: a session is live while an entry with its id has a
@@ -55,7 +56,11 @@ first. Lines and exit codes:
 `finished: <name> | <id>` (one per finished session, also one that is gone) and `limited: <name> | <id> | resets
 <time or unknown>` (one per live session that stopped on the usage limit, see `state`; each stop is reported once:
 LIMITS in the state folder keeps the stop already reported, so the re-armed watcher stays quiet until the session
-goes on and stops again) exit 0; `time limit: <N> min,
+goes on and stops again) and `stale: <name> | <id> | waiting <N> min` (one per live session in `waiting` whose last
+assistant entry, see `wait_started`, is at least `--stale-minutes` old, default 20; each wait is reported once:
+STALE in the state folder keeps the wait start already reported, so the re-armed watcher stays quiet until the
+session answers again and a new wait passes the threshold; the lead decides whether the wait is on the owner and
+pushes a reminder, since the cache of a waiting session lives about one hour) exit 0; `time limit: <N> min,
 all alive` exit 4 (re-arm it); `nothing to watch` exit 5 (on the first round, or at the time limit when the registry
 has emptied meanwhile: a watcher whose last C ended keeps quiet); `already watching: pid <N>` exit 6 (in registry
 mode one watcher per project runs: a lock file in the state folder with a heartbeat; a new watcher waits until the
@@ -114,6 +119,8 @@ WATCH_LOCK = "watch.lock"
 WATCH_FAILURES = 5
 ID_KEYS = ("id", "parent", "predecessor")
 LIMITS = "limits.json"
+STALE = "stale.json"
+STALE_KEEP_DAYS = 7
 CLOSED_GRACE = 300  # seconds a session with no pid stays unreported: the Pult watcher may bring it back meanwhile
 # A reply line (trimmed, emphasis marks and trailing punctuation removed, case ignored) that says the session is done.
 FINISHED_MARKERS = ("Роботу завершено", "Work finished")
@@ -702,6 +709,80 @@ def new_limits(limited, path, watched_ids):
     return report
 
 
+def parse_time(value):
+    """Epoch seconds of a transcript `timestamp` (ISO 8601, `Z` allowed), else None."""
+    if not isinstance(value, str):
+        return None
+    try:
+        return datetime.fromisoformat(value.replace("Z", "+00:00")).timestamp()
+    except ValueError:
+        return None
+
+
+def wait_started(path):
+    """(key, epoch) of the start of a session's current wait: the timestamp of the last assistant entry of its
+    transcript (side chains, meta notes and limit notices skipped). None when an owner or peer message came after it
+    (the session was asked again), when there is no such entry or its time is unreadable."""
+    try:
+        for entry in tail_entries(path):
+            if entry.get("isSidechain") or entry.get("isMeta"):
+                continue
+            if entry.get("type") == "user":
+                if message_text(entry):
+                    return None
+                continue  # a tool result: the turn goes on
+            if is_limit_notice(entry):
+                continue
+            at = parse_time(entry.get("timestamp"))
+            return (entry["timestamp"], at) if at is not None else None
+    except OSError:
+        return None
+    return None
+
+
+def stale_sessions(watched, agents, minutes, at):
+    """(name, id, key, waited minutes) of each watched (name, id) that is live, not busy, not stopped on the usage
+    limit and whose wait (see wait_started) began at least `minutes` before `at` (epoch seconds)."""
+    found = []
+    for name, wanted in watched:
+        entries = agent_entries(agents, wanted)
+        if not any(agent.get("pid") for agent in entries):
+            continue
+        if any("busy" in (agent.get("status"), agent.get("state")) or agent.get("state") == "working"
+               for agent in entries):
+            continue
+        session_id = next((str(agent["sessionId"]) for agent in entries if agent.get("sessionId")), wanted)
+        transcript = find_transcript(session_id)
+        if not transcript or usage_limit(transcript):
+            continue
+        start = wait_started(transcript)
+        if start and at - start[1] >= minutes * 60:
+            found.append((name or str(entries[0].get("name") or ""), wanted, start[0], int((at - start[1]) // 60)))
+    return found
+
+
+def new_stale(stale, path):
+    """The stale items not reported yet, and remember them: STALE in the registry folder maps a session id to the
+    start of the wait last reported, so a re-armed or restarted watcher does not report the same wait again. An entry
+    stays while its session is not stale (a round with no pid or a busy flicker must not let the same wait fire
+    twice; a new wait has a new key anyway) and is dropped once its wait started over STALE_KEEP_DAYS ago."""
+    target = path.with_name(STALE)
+    try:
+        known = json.loads(target.read_text(encoding="utf-8-sig"))
+    except (OSError, ValueError):
+        known = {}
+    if not isinstance(known, dict):
+        known = {}
+    report = [item for item in stale if known.get(item[1]) != item[2]]
+    cutoff = time.time() - STALE_KEEP_DAYS * 86400
+    current = {key: value for key, value in known.items() if (parse_time(value) or 0) >= cutoff}
+    current.update({item[1]: item[2] for item in stale})
+    if current != known:
+        target.parent.mkdir(parents=True, exist_ok=True)
+        save(target, current)
+    return report
+
+
 def cmd_limited(args, path, records):
     """One line per --id session whose transcript ends with the usage-limit notice: `<id> | <resets> | <key>`.
     Reads transcripts only, not the session list (the Pult watcher already has it)."""
@@ -892,19 +973,24 @@ def cmd_watch(args, path, records):
             finished = finished_sessions(watched, agents, records) if agents is not None else []
             done = {wanted for _, wanted in finished}
             gone = [item for item in gone_sessions(watched, agents) if item[1] not in done] if agents is not None else []
-            limited = []
+            limited, stale = [], []
             if agents is not None:
                 gone = after_grace(gone, agents, closed_since, time.monotonic())
                 ended = done | {item[1] for item in gone}
                 limited = new_limits([item for item in limited_sessions(watched, agents) if item[1] not in ended],
                                      path, {wanted for _, wanted in watched})
-            if gone or finished or limited:
+                ended |= {item[1] for item in limited}
+                stale = new_stale([item for item in stale_sessions(watched, agents, args.stale_minutes, time.time())
+                                   if item[1] not in ended], path)
+            if gone or finished or limited or stale:
                 for name, wanted, state in gone:
                     print(f"gone: {name or '(no name)'} | {wanted} | {state}")
                 for name, wanted in finished:
                     print(f"finished: {name or '(no name)'} | {wanted}")
                 for name, wanted, _key, resets in limited:
                     print(f"limited: {name or '(no name)'} | {wanted} | resets {reset_text(resets)}")
+                for name, wanted, _key, waited in stale:
+                    print(f"stale: {name or '(no name)'} | {wanted} | waiting {waited} min")
                 return 0
             if time.monotonic() + args.interval > deadline:
                 if not watched:
@@ -950,6 +1036,8 @@ def main(argv=None):
     watch.add_argument("--id", action="append", default=[], help="a session to watch (repeatable; default: the registry)")
     watch.add_argument("--interval", type=float, default=60, help="seconds between reads of the session list")
     watch.add_argument("--max-minutes", type=float, default=120, help="exit with the time-limit line after this")
+    watch.add_argument("--stale-minutes", type=float, default=20,
+                       help="report a session waiting this long since its last assistant entry")
     limited = sub.add_parser("limited", help="which sessions stopped on the usage limit (transcripts only)")
     limited.add_argument("--id", action="append", default=[], help="a full session id (repeatable)")
     restart = sub.add_parser("restart", help="the restart request the Pult watcher leaves for a lead")

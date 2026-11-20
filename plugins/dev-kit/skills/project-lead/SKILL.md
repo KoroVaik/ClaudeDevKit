@@ -226,7 +226,19 @@ is pushed: progress, merges, watcher exits that need nothing. The message is one
 characters: P's session name, then what to act on first («P: Zhratva: «C: Каталог» впала без звіту -
 відкрий P», «P: ClaudeDevKit: 1 питання чекає на тебе»). The tool skips a push while the owner is at
 the screen; that is expected. Why: the owner decided on 2026-11-19 that only urgent events reach the
-phone, so he need not open chats to check.
+phone, so he need not open chats to check. The one exception to both limits is the reminder push below.
+
+Reminder push: a second, time-based case. When the watcher reports `stale:` (a session has waited 20
+minutes since its last reply) and that session waits on the owner, P pushes one line under 200
+characters: `P: <project>: «<session name>» чекає 20 хв - кеш згорить за ~40 хв`; several such sessions
+in one wake-up make one push that names the first and adds «і ще <N>». It waits on the owner when a
+question from it stands in the owner queue (a taken-over owner session in `чекає на тебе` counts), or
+when it is an «Обговорення:» session. A C that waits on P pushes nothing. One push per wait: the
+watcher reports each wait once, also across restarts, and a new wait (after the session answers again)
+may push again. A push the tool skips while the owner is at the screen still counts. Sessions outside
+the registry are not covered. Why: the owner decided on 2026-11-20 to be reminded before the
+session's prompt cache (about one hour) runs out and the next turn re-reads its whole context at full
+price.
 
 P decides alone everything within the approved criteria. An item enters the queue only when:
 
@@ -574,7 +586,7 @@ session watcher, and writes to the owner at once with what changed ("Message tem
 
 Watcher: `dev-kit-sessions watch` in the Bash tool with `run_in_background`, run in the project's
 main checkout. It reads the registry's active sessions (C and taken-over owner sessions) every minute, stays silent
-while they live, and exits when one is gone, stopped on the usage limit or, for an owner session, finished; its own limit is 2 hours. Never run it in the foreground: the Bash tool kills
+while they live, and exits when one is gone, stopped on the usage limit, waiting 20 minutes since its last reply or, for an owner session, finished; its own limit is 2 hours. Never run it in the foreground: the Bash tool kills
 a foreground command at its 10-minute timeout with no exit line, while a background one is not bound
 by the timeout (checked 2026-11-15: background runs of 150 seconds with a 60-second timeout and of
 12 minutes both finished). Arm it after `add` of a C, after `add --owner`, and after every
@@ -594,13 +606,16 @@ exit below, while the registry has an active session. On its exit:
   nothing), re-arm, and write its `готово` line at once.
 - `limited: <name> | <id> | resets <time>` (exit 0): that C stopped on the usage limit; it is alive and
   goes on after the reset. Write its `стоїть, скінчився ліміт (до <time>)` line at once, re-arm, and never `end` or stop that C. Each stop is reported once.
+- `stale: <name> | <id> | waiting <N> min` (exit 0, one line per session): if the session waits on the
+  owner, send the reminder push of "Owner queue and critical items" ("Reminder push"); else nothing.
+  Re-arm; no text. Each wait is reported once.
 - `time limit` (exit 4): run the skill update check below, then re-arm; no text, no other checks.
 - `restart requested: <version>` (exit 7): the handshake of "Restart for a plugin update".
 - `nothing to watch` (exit 5: no active session, also at the time limit when the last session ended meanwhile) or
   `already watching` (exit 6: another watcher runs): do not re-arm; no text.
 - Exit -1 (a watcher P stopped itself, or one killed by a restart): re-arm if the registry has an
   active session; no text.
-- "No text" for exits 4, 5, 6 and -1 means no news about the exit (seen in P: Zhratva, 2026-11-15:
+- "No text" for `stale` and exits 4, 5, 6 and -1 means no news about the exit (seen in P: Zhratva, 2026-11-15:
   text on watcher exits confused the owner); if the host then demands visible output, P sends the
   forced-output state of "Message templates".
 - Any other exit (3: the registry or session list unreadable for several minutes): P adds its own question

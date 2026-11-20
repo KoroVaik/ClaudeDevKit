@@ -12,7 +12,9 @@ Code: `plugins/dev-kit/scripts/sessions.py`, `plugins/dev-kit/scripts/migrations
   code. P, and any session through the manager skill, runs it before a task starts; the
   `dev-kit:overlap-checker` agent then compares them with the task.
 - `watch` is a background watcher: generic (any session ids, so other tools can use it too), silent while
-  its sessions live, it exits when one ends or writes the line "Роботу завершено". P wakes only on a task
+  its sessions live, it exits when one ends, writes the line "Роботу завершено", stops on the usage limit, or
+  has waited `--stale-minutes` (20) since its last reply (`stale:`, each wait once; `stale.json` beside the
+  registry keeps the waits reported, so a restart does not repeat one). P wakes only on a task
   session's report, the owner's message, or the exit of this watcher.
 - `state` prints each registered session as working, waiting, finished or gone with the gist of its last reply.
 - `add --owner` registers a session the owner started.

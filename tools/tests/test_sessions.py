@@ -786,5 +786,45 @@ class SessionsTestCase(unittest.TestCase):
         self.assertEqual(sessions.reset_text(1795014000), sessions.reset_text(1795014000000))
         self.assertEqual("unknown", sessions.reset_text(None))
 
+    @staticmethod
+    def ago(minutes):
+        from datetime import datetime, timedelta, timezone
+        return (datetime.now(timezone.utc) - timedelta(minutes=minutes)).isoformat().replace("+00:00", "Z")
+
+    # protects: Flow
+    def test_watch_reports_a_long_wait_once(self):
+        self.add("c1-session", name="C: wait")
+        self.listing([{"sessionId": "c1-session", "pid": 5, "status": "idle", "state": "idle"}])
+        self.transcript("c1-session", [self.human("go"), self.reply("Question?", timestamp=self.ago(19))])
+        code, out = self.run_main("watch", "--interval", "60", "--max-minutes", "0.5", "--stale-minutes", "20")
+        self.assertEqual((4, "time limit: 0.5 min, all alive\n"), (code, out))
+        wait = self.ago(21)
+        self.transcript("c1-session", [self.human("go"), self.reply("Question?", timestamp=wait)])
+        code, out = self.run_main("watch", "--interval", "0", "--stale-minutes", "20")
+        self.assertEqual((0, "stale: C: wait | c1-session | waiting 21 min\n"), (code, out))
+        self.listing([{"sessionId": "c1-session", "pid": 5, "status": "busy"}])  # a busy flicker keeps the record
+        self.assertEqual(4, self.run_main("watch", "--interval", "60", "--max-minutes", "0.5")[0])
+        self.listing([{"sessionId": "c1-session", "pid": 5, "status": "idle", "state": "idle"}])
+        code, out = self.run_main("watch", "--interval", "60", "--max-minutes", "0.5")  # restarted: same wait
+        self.assertEqual((4, "time limit: 0.5 min, all alive\n"), (code, out))
+        self.transcript("c1-session", [self.reply("Question?", timestamp=wait), self.human("yes"),
+                                       self.reply("Next question?", timestamp=self.ago(20))])
+        code, out = self.run_main("watch", "--interval", "0")  # a new wait reports again
+        self.assertEqual((0, "stale: C: wait | c1-session | waiting 20 min\n"), (code, out))
+
+    # protects: Rule
+    def test_a_busy_asked_or_limited_session_is_not_stale(self):
+        self.add("c1-session", name="C: busy")
+        self.add("c2-session", name="C: asked")
+        self.listing([{"sessionId": "c1-session", "pid": 5, "status": "busy"},
+                      {"sessionId": "c2-session", "pid": 6, "status": "idle"}])
+        self.transcript("c1-session", [self.reply("x", timestamp=self.ago(30))])
+        self.transcript("c2-session", [self.reply("x", timestamp=self.ago(30)), self.human("go on")])
+        agents = sessions.agents_list(True)
+        watched = [("C: busy", "c1-session"), ("C: asked", "c2-session")]
+        self.assertEqual([], sessions.stale_sessions(watched, agents, 20, time.time()))
+        self.transcript("c2-session", [self.reply("x", timestamp=self.ago(30)), self.limit_notice(resets=None)])
+        self.assertEqual([], sessions.stale_sessions(watched, agents, 20, time.time()))
+
 if __name__ == "__main__":
     unittest.main()
