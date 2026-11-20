@@ -12,7 +12,7 @@
 
 - [Token spend in the retro](plans/retro-tokens.md): built; Opus weight set to 1.5 from the /usage readings (plan, «Opus weight check»); the spend trial is compared in a later retro.
 
-- [Pult idle cost](plans/pult-idle-cost.md): design in «Owner's approval», waiting for the owner's yes to the short plan; next: phase 1 build.
+- [Pult idle cost](plans/pult-idle-cost.md): design in «Owner's approval», owner's «так» to the plan (2026-11-20); next: P starts a C for phase 1 after its plugin-update restart.
 
 Open work of the features: `dev-kit-check-docs --open`.
 
