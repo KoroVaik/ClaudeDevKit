@@ -12,8 +12,9 @@
 
 - [Token spend in the retro](plans/retro-tokens.md): built; the Opus weight check waits on the owner's second /usage reading (owner agreed 2026-11-20; P reminds at about 19:13, re-create the reminder after a P restart).
 
+- C sessions without remote control: owner said «так» 2026-11-20 to launching «C:» sessions without `--remote-control` (the phone push «Remote control enabled» stays only for «Обговорення:» and P; no setting turns that push off). Next: P makes it as a small rule edit (project-lead «Start a C» launch line, and any restatement).
+
 Open work of the features: `dev-kit-check-docs --open`.
 
 ## Open questions
 
-- 2026-11-20 · «P»: Запускати робочі сесії «C:» без керування з телефона? (push лишиться лише для «Обговорення:» і P; C на телефоні не видно) Рекомендую: так - з C ти не говориш, вона звітує мені.
