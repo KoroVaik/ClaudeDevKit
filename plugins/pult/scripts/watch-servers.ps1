@@ -35,7 +35,12 @@
 #   for a dev-kit change the lead itself notices the new version on its ordinary wake-ups, reaches a safe
 #   point and runs `dev-kit-sessions restart ready --version V` (V: the dev-kit version); or the owner's
 #   `restart-leads.ps1 -Ask` writes a request `restart request --version V` for it and its session watcher
-#   exits 7 once. The watcher restarts a busy stale lead only when `restart status` says `ready V <seconds>`
+#   exits 7 once. A lead that started on dev-kit $WakeMinDevKit or later keeps no session watcher (see the wakes
+#   below), so for a dev-kit change the watcher writes that request itself when the lead is busy, or idle while a
+#   task session of its registry is live and busy (a restart would lose that session's reports), and no request
+#   for the installed version is open: RESTART-ASKED (once; the `restart` event of the wakes then reaches the
+#   lead by message). Such a lead stale only in an extension waits until it is idle with no busy task session.
+#   The watcher restarts a busy stale lead only when `restart status` says `ready V <seconds>`
 #   with less than 10 minutes: restart-leads.ps1 -Ready, RESTART-LEAD (..., ready). A ready mark that is
 #   older or for another version is cleared: READY-EXPIRED. A lead stale only in an extension is never woken
 #   (the skill knows only dev-kit versions, a wake-up is a paid turn, and -Ask writes no request for it): the
@@ -43,6 +48,42 @@
 #   lead already on the installed versions has a left-over one cleared (RESTART-CLEARED; checked once per
 #   pid). One try per lead per combined version (dev-kit plus extensions); a failure is logged as
 #   RESTART-LEAD-FAILED. The hold file and a running full start pause it, as for HEAL.
+# - Wakes: no Claude session keeps a watcher of its own (the host kills a background run after 2 h, and each
+#   re-arm is a paid cold turn); this watcher wakes Pult and the leads by a cross-session message only when
+#   something needs them. A pass after the heal work each round (not with -Once):
+#   - Lead events: for each lead of the list with a Path that is live and whose process started on dev-kit
+#     $WakeMinDevKit or later (lead-versions.json; "older" counts as below), `sessions.py --project <Path> check`
+#     (the round's session list passed in env DEV_KIT_AGENTS_JSON) prints the events not delivered yet (gone,
+#     finished, limited, stale, fill, restart); each becomes a line for that lead (as the old watcher printed it,
+#     `<kind>: <name> | <id> | <detail>`, or `restart requested: <V>`) with a `sessions.py mark` call run after
+#     delivery. A lead below that version keeps its own watcher and is skipped.
+#   - Pult events: each GIVEUP, GIVEUP-TASK and RESTART-LEAD-FAILED line also goes to Pult (the session list entry
+#     named exactly Pult, kind interactive). Once ever (wake-state.json), when Pult is live, it is told that its
+#     log watcher (watch-log.py) is retired and must not be armed again.
+#   - Keep-warm ping: a lead (version as above) that is live and idle, has a non-owner task session of its registry
+#     that is live and busy (status busy or state working), whose transcript was last written $PingQuietMin or
+#     more minutes ago and that got no wake for as long, gets `$PingLine`. Not when a wake for it is pending: an
+#     event message wakes it anyway.
+#   - Size: each round one `sessions.py size` call for the live leads, live task sessions and Pult. A session at
+#     $SizePushShare of its window or more gets one phone push (once per session id, wake-state.json):
+#     PUSH-SIZE. Every $SizeLogMin minutes the call takes `--wakes <StateDir>\size-state.json` and each session
+#     is logged: SIZE <name> <session id> <tokens> owner=N peer=N notify=N units=U.
+#   The lines of one target are merged into one message (`[EVT-<id>] Pult server watcher:`, the lines, one fixed
+#   instruction line; control characters removed, each line cut at 300 characters, at most about 1500 per
+#   message, more lines wait for the next one), kept in <StateDir>\wake-pending.json until delivered. At most
+#   one message per target per round and one in flight per target, none within $WakeCooldownSec s of the last
+#   send to it, none while on hold or during a full start. Send-Wake runs one hidden one-shot `claude -p` (haiku,
+#   safe mode, only the SendMessage tool, the target's permission mode: Pult auto, a lead its last
+#   `MODE <name> <mode> (` line of servers.log, auto or bypassPermissions, else auto) in <StateDir>\wake, the
+#   prompt by stdin; it is stopped after $WakeWaitSec s; its json `result` says sent or failed. Logged: WAKE
+#   <target> <id> cause=event|ping|note kinds=<kinds> (first send), WAKE-SENT, WAKE-FAILED <reason>. A message
+#   is delivered when `[EVT-<id>]` shows in the tail of the target's transcript (<projects>\*\<session id>.jsonl,
+#   env DEV_KIT_PROJECTS_DIR or ~\.claude\projects): WAKE-TAKEN <target> <id> (<s> s), then the marks run. Not
+#   seen within $WakeConfirmSec s: sent again, at most $WakeMaxTries times; a target not live sends nothing.
+#   After that, or after $WakeDownSec s not live: WAKE-FALLBACK, and the event lines go to the phone by the
+#   same one-shot with the PushNotification tool (mode auto, under 200 characters; Pult: «Pult не піднявся -
+#   запусти його на комп'ютері» and the events), then the marks run; a failed push is tried again every
+#   $PhoneRetrySec s, events are never dropped. A ping or the Pult note that is not taken is dropped (WAKE-FAILED).
 # - Its own code: it takes a fingerprint (SHA-256) of this script and the script it dot-sources
 #   (plugin-versions.ps1) at start. When the fingerprint differs and was the same in the previous round
 #   (the file is stable, not in the middle of a git merge), the new files are parse-checked: with a parse
@@ -57,10 +98,16 @@
 #   (start-servers.ps1 only looks for a running one), so nothing is released. State kept in memory only is
 #   lost: HEAL/HEAL-TASK try counts and GIVEUP marks (a still-down entry gets up to $MaxHeals more tries), the
 #   one-try-per-version marks of leads (a failed lead restart is tried once more), the usage-limit marks (LIMIT
-#   is logged again) and the "seen" lists (STATE lines again, as at any start).
+#   is logged again) and the "seen" lists (STATE lines again, as at any start). The wake files stay on disk and
+#   the new copy goes on with them: wake-pending.json (undelivered messages and their marks), wake-state.json
+#   (the Pult note, the size pushes, the last send per target) and size-state.json (the `size --wakes` offsets);
+#   only the time of the last SIZE lines is lost (they are logged again at once).
 # start-servers.ps1 starts it at logon in a hidden window. -Once: one check, then exit; -Rounds N:
-# N checks, then exit (both for tests; -Once never restarts anything or touches restart.json).
+# N checks, then exit (both for tests; -Once never restarts anything, touches restart.json or wakes anyone).
 # -RestartExe: the program that starts the new copy (default powershell.exe; for tests).
+# -WakeExe: the program of the one-shot sender (default: claude from PATH); -SessionsPy: the sessions.py it calls
+# (default: <DevKitDir>\scripts\sessions.py); -WakeConfirmSec, -WakeCooldownSec, -WakeDownSec: the waits of the
+# wakes (all for tests).
 # -ConfigFile / -StateDir / -DevKitStateDir / -DaemonLog: another server list, Pult state folder,
 # dev-kit state folder and Claude Code daemon log (for tests with a throwaway lead).
 # -DevKitDir: the dev-kit plugin folder (default: ..\..\dev-kit next to this plugin); it holds
@@ -68,7 +115,8 @@
 # Keep this file saved as UTF-8 with BOM.
 param([int]$IntervalSec = 60, [switch]$Once, [int]$Rounds = 0, [int]$MaxHeals = 3,
     [string]$ConfigFile, [string]$StateDir, [string]$DevKitStateDir, [string]$DaemonLog, [string]$DevKitDir,
-    [string]$RestartExe = 'powershell.exe')
+    [string]$RestartExe = 'powershell.exe', [string]$WakeExe, [string]$SessionsPy,
+    [int]$WakeConfirmSec = 120, [int]$WakeCooldownSec = 120, [int]$WakeDownSec = 600)
 
 . (Join-Path $PSScriptRoot 'plugin-versions.ps1')
 $scriptParams = @{} + $PSBoundParameters  # what the new copy gets on a WATCH-RESTART
@@ -77,6 +125,19 @@ $CodeFiles = @($PSCommandPath, (Join-Path $PSScriptRoot 'plugin-versions.ps1')) 
 if (-not $DaemonLog) { $DaemonLog = Join-Path $env:USERPROFILE '.claude\daemon.log' }
 if (-not $DevKitDir) { $DevKitDir = Join-Path $PSScriptRoot '..\..\dev-kit' }
 $DevKitDir = [IO.Path]::GetFullPath($DevKitDir)
+if (-not $SessionsPy) { $SessionsPy = Join-Path $DevKitDir 'scripts\sessions.py' }
+if (-not $WakeExe) {  # an Application: claude.exe or claude.cmd, never the npm claude.ps1 that Start-Process cannot run
+    $WakeExe = [string](Get-Command claude -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1).Source
+}
+$WakeMinDevKit = '0.1.77'  # a lead that started on this dev-kit or later keeps no session watcher: it is woken by message
+$WakeMaxTries = 3          # sends of one message before the phone fallback
+$WakeWaitSec = 60          # a one-shot sender still running after this is stopped
+$PhoneRetrySec = 600       # a failed phone push is tried again after this
+$PingQuietMin = 50         # a lead with a busy task session silent this long gets the keep-warm ping
+$SizePushShare = 0.7       # a conversation at this share of its window gets one phone push
+$SizeLogMin = 10           # minutes between the SIZE lines
+$PingLine = 'PING keep-warm: answer with your standard status only; first run dev-kit-sessions fill for your C sessions and yourself.'
+$NoteLine = 'Note: your log watcher (watch-log.py) is retired. Events now arrive as messages from the server watcher, like this one, so do not arm it again.'
 
 if (-not $ConfigFile) { $ConfigFile = Join-Path $PSScriptRoot 'servers.psd1' }
 if (-not $StateDir) { $StateDir = Join-Path $env:USERPROFILE '.claude\pult' }  # outside the plugin folder
@@ -96,14 +157,43 @@ function Write-Log($msg) {
     Add-Content -LiteralPath $log -Encoding UTF8 -Value ('{0} {1}' -f (Get-Date -Format s), $msg)
 }
 
+# The parsed session list, or $null; $script:agentsText keeps the text as read (the wakes pass it to sessions.py).
 function Get-Agents([switch]$All) {
+    $script:agentsText = $null
     try {
         $out = if ($All) { claude agents --json --all } else { claude agents --json }
-        return @($out | Out-String | ConvertFrom-Json)
+        $text = $out | Out-String
+        $list = @($text | ConvertFrom-Json)
+        $script:agentsText = $text
+        return $list
     } catch {
         Write-Log "WARN cannot list background sessions: $_"
         return $null
     }
+}
+
+# Logs "WARN <text>" unless the same text was the last one logged for $Key (a failure repeated every round).
+function Write-WarnOnce([string]$Key, [string]$Text) {
+    if ($warnedOnce[$Key] -cne $Text) { Write-Log "WARN $Text"; $warnedOnce[$Key] = $Text }
+}
+
+# Logs a critical line (GIVEUP, GIVEUP-TASK, RESTART-LEAD-FAILED); the wake pass of the round sends it to Pult.
+function Write-Critical([string]$Msg) {
+    Write-Log $Msg
+    [void]$pultEvents.Add($Msg)
+}
+
+# Runs sessions.py (-SessionsPy) with env DEV_KIT_STATE_DIR = the dev-kit state folder of this watcher and, when
+# given, DEV_KIT_AGENTS_JSON = a file with the session list. Returns @{ Code; Out } (stdout and stderr, trimmed).
+function Invoke-Sessions([string[]]$Words, [string]$AgentsFile) {
+    $oldState = $env:DEV_KIT_STATE_DIR; $oldAgents = $env:DEV_KIT_AGENTS_JSON
+    $env:DEV_KIT_STATE_DIR = $DevKitStateDir
+    if ($AgentsFile) { $env:DEV_KIT_AGENTS_JSON = $AgentsFile }
+    try {
+        $out = & python $SessionsPy @Words 2>&1 | Out-String
+        $code = $LASTEXITCODE
+    } catch { $out = "$_"; $code = -1 } finally { $env:DEV_KIT_STATE_DIR = $oldState; $env:DEV_KIT_AGENTS_JSON = $oldAgents }
+    return @{ Code = $code; Out = $out.Trim() }
 }
 
 function Test-PidAlive([int]$Id, [string]$NameLike = '*') {
@@ -215,7 +305,7 @@ function Invoke-TaskHeal {
             if (Test-Path -LiteralPath $hold) { continue }  # a stop began during this round
             $tries = @($taskHeals[$wid] | Where-Object { $_ -and ((Get-Date) - $_).TotalHours -lt 1 })
             if ($tries.Count -ge $MaxHeals) {
-                Write-Log "GIVEUP-TASK $($r.name) $wid ($MaxHeals respawns in the last hour did not keep it up; respawn it by hand)"
+                Write-Critical "GIVEUP-TASK $($r.name) $wid ($MaxHeals respawns in the last hour did not keep it up; respawn it by hand)"
                 $taskGaveUp[$wid] = $true
                 continue
             }
@@ -239,7 +329,7 @@ function Invoke-LimitCheck {
     $now = @{}
     if ($ids.Count) {
         $words = @('limited') + @($ids | ForEach-Object { '--id', $_ })
-        $out = & python (Join-Path $DevKitDir 'scripts\sessions.py') @words 2>&1 | Out-String
+        $out = & python $SessionsPy @words 2>&1 | Out-String
         if ($LASTEXITCODE -ne 0) { Write-Log ("WARN usage-limit check failed (exit {0}): {1}" -f $LASTEXITCODE, ($out.Trim() -replace '\s+', ' ')); return }
         foreach ($line in ($out -split "`r?`n")) {
             $parts = @($line -split ' \| ')
@@ -298,12 +388,7 @@ function Save-LeadVersions {
 # Runs `dev-kit-sessions --project <path> restart <args>` against the dev-kit state folder of this watcher;
 # returns its trimmed output (stdout and stderr).
 function Invoke-LeadRestartFile([string]$LeadPath, [string[]]$Words) {
-    $old = $env:DEV_KIT_STATE_DIR
-    $env:DEV_KIT_STATE_DIR = $DevKitStateDir
-    try {
-        $out = & python (Join-Path $DevKitDir 'scripts\sessions.py') --project $LeadPath restart @Words 2>&1 | Out-String
-    } catch { $out = "$_" } finally { $env:DEV_KIT_STATE_DIR = $old }
-    return $out.Trim()
+    return (Invoke-Sessions (@('--project', $LeadPath, 'restart') + $Words)).Out
 }
 
 # Restarts one lead with restart-leads.ps1 (-Name, or -Ready when it marked itself ready). Returns 'busy' when
@@ -317,7 +402,7 @@ function Invoke-LeadRestart([string]$LeadName, [switch]$IsReady) {
     $said = ($out.Trim() -replace '\s+', ' ')
     if ($said -match 'Busy, skipped') { return 'busy' }
     if ($said -match ('(Resumed|Started) lead: ' + [regex]::Escape($LeadName))) { return 'ok' }
-    Write-Log ("RESTART-LEAD-FAILED {0}: {1}" -f $LeadName, $said)
+    Write-Critical ("RESTART-LEAD-FAILED {0}: {1}" -f $LeadName, $said)
     return 'failed'
 }
 
@@ -386,13 +471,24 @@ function Invoke-LeadVersionCheck($s, $m, [string]$V) {
     if ($devStale) { $changed += "dev-kit $($st.Version) -> $V" }
     $changed += $extChanges
     $how = ''
-    if ($m.status -eq 'idle') {
+    # A lead woken by message keeps no session watcher (see the header): it is not restarted at once while one of
+    # its task sessions works, and it gets the request below instead of noticing the version on a watcher exit.
+    $wokenByMessage = Test-WakeLead $name $procId
+    $busyTask = $null
+    if ($wokenByMessage -and $m.status -eq 'idle') { $busyTask = Get-BusyTask $s.Path }
+    if ($m.status -eq 'idle' -and -not $busyTask) {
         $how = 'idle'
     } else {
         # Busy: only a fresh `ready <V> <seconds>` of the lead itself (or of restart-leads.ps1 -Ask) counts; V is
         # the dev-kit version, the only one the lead's handshake knows. A lead stale only in an extension is
         # never woken: no request (a paid turn), and it is restarted when it is idle.
         $said = Invoke-LeadRestartFile $s.Path @('status')
+        if ($wokenByMessage -and $devStale -and ($said -ceq 'none' -or ($said -match '^asked (\S+) ' -and $Matches[1] -cne $V))) {
+            $null = Invoke-LeadRestartFile $s.Path @('request', '--version', $V)
+            $why = if ($busyTask) { "idle, $busyTask working" } else { 'busy' }
+            Write-Log "RESTART-ASKED $name (dev-kit $($st.Version) -> $V, $why)"
+            return
+        }
         if ($said -match '^ready (\S+) (\d+)$') {
             $readyFor = $Matches[1]  # kept: later calls may reset $Matches
             if ($Matches[1] -ceq $V -and [int]$Matches[2] -lt $ReadyMaxAgeSec) {
@@ -400,7 +496,7 @@ function Invoke-LeadVersionCheck($s, $m, [string]$V) {
             } else {
                 $null = Invoke-LeadRestartFile $s.Path @('clear')
                 # A ready mark for this version that went stale (a long hold): the lead already noted the
-                # version, so ask once more; its session watcher wakes it once (exit 7).
+                # version, so ask once more; its session watcher wakes it once (exit 7), or a wake message does.
                 $again = ''
                 if ($devStale -and $readyFor -ceq $V) { $null = Invoke-LeadRestartFile $s.Path @('request', '--version', $V); $again = '; asked again' }
                 Write-Log "READY-EXPIRED $name ($($said -replace '\s+', ' '), installed $V$again)"
@@ -414,6 +510,420 @@ function Invoke-LeadVersionCheck($s, $m, [string]$V) {
     $leadTried[$name] = $tryKey
     $cleared = Invoke-LeadRestartFile $s.Path @('clear')  # also after a failure: no stale ready mark stays
     if ($cleared -cne 'restart cleared') { Write-Log "WARN restart clear for $name failed: $($cleared -replace '\s+', ' ')" }
+}
+
+# ---- Wakes (see the header) ----
+
+function Get-Now { return [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds() / 1000.0 }  # epoch seconds
+
+# Seconds since an epoch time; a very large number for 0 (never).
+function Get-Age([double]$Since) { if ($Since -le 0) { return [double]::MaxValue }; return (Get-Now) - $Since }
+
+# True when the lead's process (lead-versions.json, by pid) started on dev-kit $WakeMinDevKit or later.
+function Test-WakeLead([string]$Name, $ProcId) {
+    $st = $leadVer[$Name]
+    if (-not $st -or $st.Pid -ne [int]$ProcId) { return $false }
+    $v = $null
+    if (-not [version]::TryParse([string]$st.Version, [ref]$v)) { return $false }  # "older" too
+    return $v -ge [version]$WakeMinDevKit
+}
+
+# The dev-kit state folder of a project (the registry's folder), computed by dev_kit_state.py; cached per path.
+function Get-RegistryDir([string]$ProjectPath) {
+    if ($registryDirs.ContainsKey($ProjectPath)) { return $registryDirs[$ProjectPath] }
+    $code = 'import sys; sys.path.insert(0, sys.argv[1]); import dev_kit_state; print(dev_kit_state.project_state_dir(sys.argv[2], False))'
+    $old = $env:DEV_KIT_STATE_DIR
+    $env:DEV_KIT_STATE_DIR = $DevKitStateDir
+    $out = ''
+    try { $out = & python -c $code (Join-Path $DevKitDir 'scripts') $ProjectPath 2>$null | Out-String; $exit = $LASTEXITCODE }
+    catch { $exit = -1 } finally { $env:DEV_KIT_STATE_DIR = $old }
+    if ($exit -ne 0 -or -not $out.Trim()) { Write-WarnOnce "registry $ProjectPath" "cannot find the dev-kit state folder of $ProjectPath"; return $null }
+    $registryDirs[$ProjectPath] = $out.Trim()
+    return $registryDirs[$ProjectPath]
+}
+
+# The name of an active task session of the project's registry (not a lead; -NonOwner: not an owner session either)
+# that is live and busy in this round's session list (status busy or state working), else $null.
+function Get-BusyTask([string]$ProjectPath, [switch]$NonOwner) {
+    if ($null -eq $agents -or -not $ProjectPath) { return $null }
+    $dir = Get-RegistryDir $ProjectPath
+    if (-not $dir) { return $null }
+    $f = Join-Path $dir 'sessions.json'
+    if (-not (Test-Path -LiteralPath $f)) { return $null }
+    try { $records = @(Get-Content -Raw -Encoding UTF8 -LiteralPath $f | ConvertFrom-Json | ForEach-Object { $_ }) }
+    catch { Write-WarnOnce "registry read $f" "cannot read $f : $_"; return $null }
+    foreach ($r in $records) {
+        if ($r.status -cne 'active' -or -not $r.id -or ([string]$r.name).StartsWith('P: ', [StringComparison]::Ordinal)) { continue }
+        if ($NonOwner -and $r.owner -eq $true) { continue }
+        $wid = ([string]$r.id).Trim()
+        $hit = $agents | Where-Object { $_ -and $_.pid -and ($_.status -eq 'busy' -or $_.state -eq 'working') -and
+            ((Test-IdMatch ([string]$_.sessionId) $wid) -or (Test-IdMatch ([string]$_.id) $wid)) } | Select-Object -First 1
+        if ($hit) { return [string]$r.name }
+    }
+    return $null
+}
+
+# The newest transcript file of a session id, or $null.
+function Find-Transcript([string]$SessionId) {
+    if (-not $SessionId) { return $null }
+    $dir = if ($env:DEV_KIT_PROJECTS_DIR) { $env:DEV_KIT_PROJECTS_DIR } else { Join-Path $env:USERPROFILE '.claude\projects' }
+    if (-not (Test-Path -LiteralPath $dir)) { return $null }
+    return Get-ChildItem -LiteralPath $dir -Directory -ErrorAction SilentlyContinue |
+        ForEach-Object { Get-Item -LiteralPath (Join-Path $_.FullName "$SessionId.jsonl") -ErrorAction SilentlyContinue } |
+        Sort-Object LastWriteTimeUtc -Descending | Select-Object -First 1
+}
+
+# True when $Text is in the last 512 KB of the session's transcript.
+function Test-TranscriptHas([string]$SessionId, [string]$Text) {
+    $f = Find-Transcript $SessionId
+    if (-not $f) { return $false }
+    try {
+        $fs = [IO.File]::Open($f.FullName, 'Open', 'Read', 'ReadWrite')
+        try {
+            $start = [Math]::Max(0, $fs.Length - 512KB)
+            $null = $fs.Seek($start, 'Begin')
+            $tail = (New-Object IO.StreamReader($fs, [Text.Encoding]::UTF8)).ReadToEnd()
+        } finally { $fs.Dispose() }
+    } catch { return $false }
+    return $tail.IndexOf($Text, [StringComparison]::Ordinal) -ge 0
+}
+
+# A permission mode for a message to a lead: its last `MODE <name> <mode> (` line of servers.log (start-servers.ps1
+# writes it), auto or bypassPermissions; else auto. A message from another mode is held for the owner's approval.
+function Get-LeadMode([string]$Name) {
+    $mode = 'auto'
+    $pattern = '^\S+ MODE ' + [regex]::Escape($Name) + ' (\S+) \('
+    foreach ($f in @("$log.old", $log)) {
+        if (-not (Test-Path -LiteralPath $f)) { continue }
+        try {
+            $hit = Select-String -LiteralPath $f -Pattern $pattern -CaseSensitive -Encoding UTF8 | Select-Object -Last 1
+            if ($hit) { $mode = $hit.Matches[0].Groups[1].Value }
+        } catch { }
+    }
+    if ($mode -cne 'bypassPermissions') { $mode = 'auto' }
+    return $mode
+}
+
+# One line of a message: no control characters, at most $Max characters.
+function Get-CleanLine([string]$Text, [int]$Max = 300) {
+    $t = ($Text -replace '[\x00-\x1f\x7f]+', ' ').Trim()
+    if ($t.Length -gt $Max) { $t = $t.Substring(0, $Max - 3) + '...' }
+    return $t
+}
+
+function New-WakeId { return [datetime]::UtcNow.ToString('MMddHHmmss') + '-' + ('{0:x4}' -f (Get-Random -Maximum 65536)) }
+
+function New-WakeItem([string]$Target, [string]$Kind, [string]$Cause) {
+    return @{ Id = (New-WakeId); Target = $Target; Kind = $Kind; Cause = $Cause; Mode = ''; Lines = @(); Kinds = @()
+        EventKeys = @(); Marks = @(); Tries = 0; Created = (Get-Now); Sent = 0.0; FirstSent = 0.0; SessionId = ''
+        DownSince = 0.0; Text = ''; Keep = $false; From = '' }
+}
+
+function ConvertTo-WakeItem($o) {
+    $h = @{}
+    foreach ($k in 'Id', 'Target', 'Kind', 'Cause', 'Mode', 'SessionId', 'Text', 'From') { $h[$k] = [string]$o.$k }
+    foreach ($k in 'Created', 'Sent', 'FirstSent', 'DownSince') { $h[$k] = [double]$o.$k }
+    # Not named "Keys": a hashtable's own Keys property would win over such an entry.
+    foreach ($k in 'Lines', 'Kinds', 'EventKeys') { $h[$k] = @(@($o.$k) | Where-Object { $null -ne $_ } | ForEach-Object { [string]$_ }) }
+    $h.Marks = @(@($o.Marks) | Where-Object { $null -ne $_ } |
+        ForEach-Object { @{ Project = [string]$_.Project; Kind = [string]$_.Kind; Id = [string]$_.Id; Key = [string]$_.Key } })
+    $h.Tries = [int]$o.Tries
+    $h.Keep = [bool]$o.Keep
+    return $h
+}
+
+function Save-WakeJson([string]$Path, $Value) {
+    $json = ConvertTo-Json -InputObject $Value -Depth 6
+    $tmp = "$Path.$PID.tmp"
+    [IO.File]::WriteAllText($tmp, $json, (New-Object System.Text.UTF8Encoding $false))
+    Move-Item -Force -LiteralPath $tmp -Destination $Path
+}
+
+function Save-WakePending {
+    try { Save-WakeJson $wakePendingFile @($wakePending) } catch { Write-Log "WARN cannot save $wakePendingFile : $_" }
+}
+
+function Save-WakeState {
+    try { Save-WakeJson $wakeStateFile $wakeState } catch { Write-Log "WARN cannot save $wakeStateFile : $_" }
+}
+
+# Queues one event line for a target (a lead or Pult): merged into its message that is not sent yet while that
+# stays within about 1500 characters. $Key: an event already queued with it is not queued again (sessions.py
+# check prints an event each round until it is marked). $Mark: the sessions.py mark to run after delivery.
+function Add-WakeLine([string]$Target, [string]$Kind, [string]$Line, [string]$EventKind, [string]$Key, $Mark) {
+    if ($Key -and ($wakePending | Where-Object { $_.EventKeys -ccontains $Key })) { return }
+    $Line = Get-CleanLine $Line
+    $item = $wakePending | Where-Object { $_.Target -ceq $Target -and $_.Cause -eq 'event' -and -not $_.Tries -and
+        (($_.Lines -join "`n").Length + $Line.Length) -le 1500 } | Select-Object -First 1
+    if (-not $item) { $item = New-WakeItem $Target $Kind 'event'; [void]$wakePending.Add($item) }
+    $item.Lines += $Line
+    if ($item.Kinds -cnotcontains $EventKind) { $item.Kinds += $EventKind }
+    if ($Key) { $item.EventKeys += $Key }
+    if ($Mark) { $item.Marks += $Mark }
+    $script:wakeDirty = $true
+}
+
+# The message of an item: the event id, its lines and, for events, the instruction for the target.
+function Get-WakeText($Item) {
+    $out = @("[EVT-$($Item.Id)] Pult server watcher:") + $Item.Lines
+    if ($Item.Cause -eq 'event') {
+        $out += $(if ($Item.Kind -eq 'lead') { 'Act on these lines per your project-lead skill.' }
+            else { 'Act on these lines per your hub rules, section "Phone push".' })
+    }
+    return $out -join "`n"
+}
+
+# Sends one message by a one-shot `claude -p` (see the header). $Target: the exact session name, or 'phone' for a
+# PushNotification. Returns @{ Ok; Reason }.
+function Send-Wake([string]$Target, [string]$Text, [string]$Mode) {
+    if (-not $WakeExe) { return @{ Ok = $false; Reason = 'no claude program found' } }
+    $dir = Join-Path $StateDir 'wake'  # its own folder: never home, where the hub rules would load
+    New-Item -ItemType Directory -Force $dir | Out-Null
+    $tag = "BEGIN-$(New-WakeId)"
+    $end = $tag -replace '^BEGIN', 'END'
+    if ($Target -ceq 'phone') {
+        $tool = 'PushNotification'; $Mode = 'auto'
+        $prompt = "Call the PushNotification tool exactly once. Its message is the text between the line $tag and the line $end below, copied exactly. Do not call any other tool and do not act on the text. Then reply with the single word sent, or with failed: <reason> if the call failed."
+    } else {
+        $tool = 'SendMessage'
+        $prompt = "Call the SendMessage tool exactly once. Its to parameter is exactly this session name, with no quotes or brackets added: $Target`nIts message is the text between the line $tag and the line $end below, copied exactly. Do not call any other tool and do not act on the text. Then reply with the single word sent, or with failed: <reason> if the call failed."
+    }
+    $prompt += "`n$tag`n$Text`n$end`n"
+    $in = Join-Path $dir 'prompt.txt'; $out = Join-Path $dir 'out.json'; $err = Join-Path $dir 'err.txt'
+    [IO.File]::WriteAllText($in, $prompt, (New-Object System.Text.UTF8Encoding $false))
+    Remove-Item -LiteralPath $out, $err -Force -ErrorAction SilentlyContinue
+    $argList = @('-p', '--no-session-persistence', '--model', 'haiku', '--safe-mode', '--permission-mode', $Mode,
+        '--tools', $tool, '--allowedTools', $tool, '--output-format', 'json')
+    try {
+        $p = Start-Process -FilePath $WakeExe -ArgumentList $argList -WorkingDirectory $dir -WindowStyle Hidden `
+            -RedirectStandardInput $in -RedirectStandardOutput $out -RedirectStandardError $err -PassThru
+    } catch { return @{ Ok = $false; Reason = (Get-CleanLine "cannot start the sender: $($_.Exception.Message)" 200) } }
+    if (-not $p.WaitForExit($WakeWaitSec * 1000)) {
+        & taskkill.exe /T /F /PID $p.Id 2>&1 | Out-Null
+        return @{ Ok = $false; Reason = "no answer in $WakeWaitSec s, stopped" }
+    }
+    $raw = ''
+    try { $raw = [IO.File]::ReadAllText($out, [Text.Encoding]::UTF8) } catch { }
+    try { $result = [string]($raw | ConvertFrom-Json).result } catch { $result = $null }
+    if ($null -eq $result) {
+        $said = $raw
+        if (-not $said.Trim()) { try { $said = [IO.File]::ReadAllText($err, [Text.Encoding]::UTF8) } catch { } }
+        return @{ Ok = $false; Reason = (Get-CleanLine "no json result: $said" 200) }
+    }
+    $result = $result.Trim()
+    if ($result -match '^sent\b' -and $result -notmatch 'fail') { return @{ Ok = $true; Reason = '' } }
+    return @{ Ok = $false; Reason = (Get-CleanLine $result 200) }
+}
+
+function Invoke-WakeMarks($Item) {
+    foreach ($mk in $Item.Marks) {
+        $words = @('--project', $mk.Project, 'mark', '--kind', $mk.Kind)
+        if ($mk.Id) { $words += @('--id', $mk.Id) }
+        $r = Invoke-Sessions ($words + @('--key', $mk.Key))
+        if ($r.Code -ne 0) { Write-Log ("WARN mark {0} {1} failed (exit {2}): {3}" -f $mk.Kind, $mk.Id, $r.Code, ($r.Out -replace '\s+', ' ')) }
+    }
+}
+
+function Remove-WakeItem($Item) { $wakePending.Remove($Item); $script:wakeDirty = $true }
+
+# A message seen in the target's transcript: logged, its marks run, removed.
+function Test-WakeTaken($Item) {
+    if (-not (Test-TranscriptHas $Item.SessionId "[EVT-$($Item.Id)]")) { return $false }
+    Write-Log ("WAKE-TAKEN {0} {1} ({2:N0} s)" -f $Item.Target, $Item.Id, (Get-Age $Item.Sent))
+    Invoke-WakeMarks $Item
+    Remove-WakeItem $Item
+    return $true
+}
+
+function Send-WakeItem($Item, $T) {
+    if (-not $Item.Tries) { Write-Log "WAKE $($Item.Target) $($Item.Id) cause=$($Item.Cause) kinds=$($Item.Kinds -join ',')" }
+    $Item.Mode = if ($Item.Kind -eq 'lead') { Get-LeadMode $Item.Target } else { 'auto' }
+    $Item.SessionId = $T.SessionId
+    $Item.Tries++
+    $Item.Sent = Get-Now
+    if (-not $Item.FirstSent) { $Item.FirstSent = $Item.Sent }
+    $script:wakeDirty = $true
+    $wakeState.LastWake[$Item.Target] = $Item.Sent
+    Save-WakeState
+    $r = Send-Wake $Item.Target (Get-WakeText $Item) $Item.Mode
+    if (-not $r.Ok) { Write-Log "WAKE-FAILED $($Item.Target) $($Item.Id) $($r.Reason)"; return }
+    Write-Log "WAKE-SENT $($Item.Target) $($Item.Id) (try $($Item.Tries), mode $($Item.Mode))"
+    $null = Test-WakeTaken $Item  # usually already in the transcript; else looked for in the next rounds
+}
+
+# A phone push (a size push, or event lines whose target did not take them). A delivered push runs the marks.
+function Send-PhoneItem($Item) {
+    if ($Item.Sent -and (Get-Age $Item.Sent) -lt $PhoneRetrySec) { return }
+    if (-not $Item.Tries -and -not $Item.From) { Write-Log "WAKE phone $($Item.Id) cause=$($Item.Cause) kinds=$($Item.Kinds -join ',')" }
+    $Item.Tries++
+    $Item.Sent = Get-Now
+    $script:wakeDirty = $true
+    $r = Send-Wake 'phone' $Item.Text 'auto'
+    if ($r.Ok) {
+        Write-Log "WAKE-SENT phone $($Item.Id)"
+        Invoke-WakeMarks $Item
+        Remove-WakeItem $Item
+        return
+    }
+    Write-Log "WAKE-FAILED phone $($Item.Id) $($r.Reason)"
+    if (-not $Item.Keep -and $Item.Tries -ge $WakeMaxTries) { Remove-WakeItem $Item }  # a size push only; events stay
+}
+
+function Get-PhoneText([string]$Head, [string[]]$Lines) {
+    $t = Get-CleanLine ((@($Head) + $Lines | Where-Object { $_ }) -join '; ') 1000
+    if ($t.Length -gt 199) { $t = $t.Substring(0, 196) + '...' }
+    return $t
+}
+
+# A message the target did not take: event lines go to the phone; a ping or a note is dropped.
+function Invoke-WakeFallback($Item, [string]$Why) {
+    if ($Item.Cause -ne 'event') {
+        Write-Log "WAKE-FAILED $($Item.Target) $($Item.Id) $Why; a $($Item.Cause) is not pushed, dropped"
+        Remove-WakeItem $Item
+        return
+    }
+    $head = if ($Item.Kind -eq 'pult') { "Pult не піднявся - запусти його на комп'ютері" }
+        elseif ($Why -eq 'not live') { "$($Item.Target) не на зв'язку" } else { "$($Item.Target) не взяв повідомлення" }
+    Write-Log "WAKE-FALLBACK $($Item.Target) $($Item.Id) ($Why)"
+    $Item.From = $Item.Target; $Item.Target = 'phone'; $Item.Kind = 'phone'; $Item.Keep = $true
+    $Item.Text = Get-PhoneText $head $Item.Lines
+    $Item.Tries = 0; $Item.Sent = 0.0
+    $script:wakeDirty = $true
+    Send-PhoneItem $Item
+}
+
+# One `sessions.py size` call for the live leads, task sessions and Pult: the size push and the SIZE lines.
+function Invoke-SizeCheck($Targets) {
+    $ids = [ordered]@{}
+    foreach ($id in $liveSessions.Keys) { $ids[$id] = $liveSessions[$id] }
+    $pult = $Targets['Pult']
+    if ($pult -and $pult.Live -and $pult.SessionId) { $ids[$pult.SessionId] = 'Pult' }
+    if (-not $ids.Count) { return }
+    $logNow = (Get-Age $lastSizeLog) -ge $SizeLogMin * 60
+    $words = @('size') + @($ids.Keys | ForEach-Object { '--id', $_ })
+    if ($logNow) { $words += @('--wakes', (Join-Path $StateDir 'size-state.json')) }
+    $r = Invoke-Sessions $words
+    if ($r.Code -ne 0) { Write-WarnOnce 'size' ("size check failed (exit {0}): {1}" -f $r.Code, ($r.Out -replace '\s+', ' ')); return }
+    $warnedOnce.Remove('size')
+    if ($logNow) { $script:lastSizeLog = Get-Now }
+    foreach ($line in ($r.Out -split "`r?`n")) {
+        $p = @($line -split ' \| ' | ForEach-Object { $_.Trim() })
+        if ($p.Count -lt 4 -or -not $ids.Contains($p[0])) { continue }
+        $tokens = 0L; $window = 0L
+        if (-not [int64]::TryParse($p[1], [ref]$tokens) -or -not [int64]::TryParse($p[2], [ref]$window)) { continue }
+        $sid = $p[0]; $name = $ids[$sid]
+        if ($logNow) { Write-Log ("SIZE {0} {1} {2}{3}" -f $name, $sid, $tokens, $(if ($p.Count -ge 6) { " $($p[4]) $($p[5])" } else { '' })) }
+        if ($window -gt 0 -and $tokens -ge $SizePushShare * $window -and -not $wakeState.SizePushed.ContainsKey($sid)) {
+            $wakeState.SizePushed[$sid] = $tokens
+            Save-WakeState
+            Write-Log "PUSH-SIZE $name $sid $tokens"
+            $item = New-WakeItem 'phone' 'phone' 'size'
+            $item.Kinds = @('size')
+            $item.Text = Get-PhoneText '' @("${name}: розмова $([Math]::Round($tokens / 1000)) тис. токенів - перенеси її в нову сесію")
+            [void]$wakePending.Add($item)
+            $script:wakeDirty = $true
+        }
+    }
+}
+
+# The wake pass of a round (see the header).
+function Invoke-WakePass {
+    $script:wakeDirty = $false
+    # Targets of this round: name -> @{ Kind; Live; SessionId; Idle; Row; Agent }.
+    $targets = @{}
+    if ($null -ne $agents) {
+        foreach ($s in $servers) {
+            if (-not $s.Lead) { continue }
+            $m = $agents | Where-Object { $_.kind -eq 'background' -and $_.name -ceq $s.Session -and $_.pid } | Select-Object -First 1
+            $targets[$s.Session] = @{ Kind = 'lead'; Live = [bool]$m; SessionId = [string]$m.sessionId
+                Idle = [bool]($m -and $m.status -eq 'idle'); Row = $s; Agent = $m }
+        }
+        $pm = $agents | Where-Object { $_.kind -eq 'interactive' -and $_.name -ceq 'Pult' -and $_.pid } | Select-Object -First 1
+        $targets['Pult'] = @{ Kind = 'pult'; Live = [bool]$pm; SessionId = [string]$pm.sessionId; Idle = $false; Row = $null; Agent = $pm }
+    }
+
+    # Messages in flight that reached their target.
+    foreach ($item in @($wakePending)) {
+        if ($item.Kind -ne 'phone' -and $item.Tries) { $null = Test-WakeTaken $item }
+    }
+
+    # Pult events of this round: queued even when the session list is unknown.
+    foreach ($e in $pultEvents) { Add-WakeLine 'Pult' 'pult' $e (([string]$e -split ' ')[0]) '' $null }
+    $pultEvents.Clear()
+
+    if ($null -ne $agents) {
+        $agentsFile = $null
+        foreach ($s in $servers) {
+            if (-not $s.Lead -or -not $s.Path -or -not (Test-Path -LiteralPath $s.Path)) { continue }
+            $name = $s.Session
+            $t = $targets[$name]
+            if (-not $t.Live -or -not (Test-WakeLead $name $t.Agent.pid)) { continue }
+            if (-not $agentsFile) {
+                New-Item -ItemType Directory -Force (Join-Path $StateDir 'wake') | Out-Null
+                $agentsFile = Join-Path $StateDir 'wake\agents.json'
+                [IO.File]::WriteAllText($agentsFile, [string]$agentsText, (New-Object System.Text.UTF8Encoding $false))
+            }
+            $r = Invoke-Sessions @('--project', $s.Path, 'check') $agentsFile
+            if ($r.Code -ne 0) {
+                $why = if ($r.Code -eq 3) { 'the session list is unreadable' } else { "exit $($r.Code): $($r.Out -replace '\s+', ' ')" }
+                Write-WarnOnce "check $name" "session check of $name failed ($why)"
+                continue
+            }
+            $warnedOnce.Remove("check $name")
+            foreach ($line in ($r.Out -split "`r?`n")) {
+                $p = @($line -split ' \| ' | ForEach-Object { $_.Trim() })
+                if ($p.Count -lt 5 -or $p[0] -cnotin @('gone', 'finished', 'limited', 'stale', 'fill', 'restart')) { continue }
+                $kind = $p[0]; $key = $p[$p.Count - 1]; $detail = $p[3..($p.Count - 2)] -join ' | '
+                $text = if ($kind -eq 'restart') { "restart requested: $detail" } else { "${kind}: $($p[1]) | $($p[2]) | $detail" }
+                $mark = @{ Project = $s.Path; Kind = $kind; Id = $(if ($p[2] -ceq '-') { '' } else { $p[2] }); Key = $key }
+                Add-WakeLine $name 'lead' $text $kind "$name|$kind|$($p[2])|$key" $mark
+            }
+            # Keep-warm ping: idle, nothing pending for it, silent and not woken for $PingQuietMin minutes, a task works.
+            if (-not $t.Idle -or ($wakePending | Where-Object { $_.Target -ceq $name -or $_.From -ceq $name })) { continue }
+            if ((Get-Age ([double]$wakeState.LastWake[$name])) -lt $PingQuietMin * 60) { continue }
+            $tr = Find-Transcript $t.SessionId
+            if (-not $tr -or ([datetime]::UtcNow - $tr.LastWriteTimeUtc).TotalMinutes -lt $PingQuietMin) { continue }
+            if (-not (Get-BusyTask $s.Path -NonOwner)) { continue }
+            $item = New-WakeItem $name 'lead' 'ping'
+            $item.Lines = @($PingLine); $item.Kinds = @('ping')
+            [void]$wakePending.Add($item)
+            $script:wakeDirty = $true
+        }
+        if ($targets['Pult'].Live -and -not $wakeState.PultNote) {
+            $item = New-WakeItem 'Pult' 'pult' 'note'
+            $item.Lines = @($NoteLine); $item.Kinds = @('note')
+            [void]$wakePending.Add($item)
+            $wakeState.PultNote = $true
+            Save-WakeState
+            $script:wakeDirty = $true
+        }
+        try { Invoke-SizeCheck $targets } catch { Write-Log "WARN size check failed: $_" }
+    }
+
+    # Sends: one sender at a time; per target only its oldest message, at most one per round.
+    if ($null -ne $agents -and -not $onHold -and -not $starting -and -not (Test-Path -LiteralPath $hold)) {
+        $handled = @{}
+        foreach ($item in @($wakePending)) {
+            if (-not $wakePending.Contains($item)) { continue }
+            if ($item.Kind -eq 'phone') { Send-PhoneItem $item; continue }
+            if ($handled[$item.Target]) { continue }
+            $handled[$item.Target] = $true
+            $t = $targets[$item.Target]
+            if ($item.Tries) {
+                if ((Get-Age $item.Sent) -lt $WakeConfirmSec) { continue }
+                if ($item.Tries -ge $WakeMaxTries) { Invoke-WakeFallback $item "not taken after $($item.Tries) sends"; continue }
+            }
+            if (-not $t -or -not $t.Live) {
+                if (-not $item.DownSince) { $item.DownSince = Get-Now; $script:wakeDirty = $true }
+                if ((Get-Age $item.DownSince) -ge $WakeDownSec) { Invoke-WakeFallback $item 'not live' }
+                continue
+            }
+            if ($item.DownSince) { $item.DownSince = 0.0; $script:wakeDirty = $true }
+            if ((Get-Age ([double]$wakeState.LastWake[$item.Target])) -lt $WakeCooldownSec) { continue }
+            Send-WakeItem $item $t
+        }
+    }
+    if ($wakeDirty) { Save-WakePending }
 }
 
 # SHA-256 (hex) over the files of $CodeFiles, or $null when one cannot be read (mid-merge, locked).
@@ -525,6 +1035,31 @@ $limitSeen = @{}    # session id -> key of the usage-limit stop already logged (
 $holdLogged = $false
 $lastCheck = Get-Date
 $round = 0
+$warnedOnce = @{}   # key -> the last WARN text logged for it (Write-WarnOnce)
+$pultEvents = New-Object System.Collections.ArrayList  # critical lines of this round, for Pult (Write-Critical)
+$registryDirs = @{} # project path -> its dev-kit state folder
+$agentsText = $null # the session list of the round as read
+$wakeDirty = $false
+$lastSizeLog = 0.0  # epoch of the last SIZE lines
+$wakePendingFile = Join-Path $StateDir 'wake-pending.json'
+$wakeStateFile = Join-Path $StateDir 'wake-state.json'
+$wakePending = New-Object System.Collections.ArrayList  # messages not delivered yet (New-WakeItem)
+$wakeState = @{ PultNote = $false; SizePushed = @{}; LastWake = @{} }  # SizePushed: session id -> tokens; LastWake: target -> epoch
+try {
+    if (Test-Path -LiteralPath $wakePendingFile) {
+        $saved = Get-Content -Raw -Encoding UTF8 -LiteralPath $wakePendingFile -ErrorAction Stop | ConvertFrom-Json
+        foreach ($o in @($saved)) { if ($o) { [void]$wakePending.Add((ConvertTo-WakeItem $o)) } }
+    }
+} catch { Write-Log "WARN cannot read $wakePendingFile : $_" }
+try {
+    if (Test-Path -LiteralPath $wakeStateFile) {
+        $saved = Get-Content -Raw -Encoding UTF8 -LiteralPath $wakeStateFile -ErrorAction Stop | ConvertFrom-Json
+        $wakeState.PultNote = [bool]$saved.PultNote
+        foreach ($k in 'SizePushed', 'LastWake') {
+            if ($saved.$k) { foreach ($q in $saved.$k.PSObject.Properties) { $wakeState[$k][$q.Name] = [double]$q.Value } }
+        }
+    }
+} catch { Write-Log "WARN cannot read $wakeStateFile : $_" }
 
 while ($true) {
     $round++
@@ -594,7 +1129,7 @@ while ($true) {
         if (Test-Path -LiteralPath $hold) { continue }  # a stop began during this round
         $tries = @($heals[$name] | Where-Object { $_ -and ((Get-Date) - $_).TotalHours -lt 1 })
         if ($tries.Count -ge $MaxHeals) {
-            Write-Log "GIVEUP $name ($MaxHeals restarts in the last hour did not keep it up; restart it by hand)"
+            Write-Critical "GIVEUP $name ($MaxHeals restarts in the last hour did not keep it up; restart it by hand)"
             $gaveUp[$name] = $true
             continue
         }
@@ -614,6 +1149,10 @@ while ($true) {
         try { Invoke-LimitCheck } catch { Write-Log "WARN usage-limit check failed: $_" }
     }
     try { Clear-StaleLocks } catch { Write-Log "WARN lock check failed: $_" }
+    # The wakes (see the header): after the heal work, so a message never holds up a heal.
+    if (-not $Once) {
+        try { Invoke-WakePass } catch { Write-Log "WARN wake pass failed: $_" }
+    }
 
     # Its own code changed (see the header): at the end of a round, so no work of this round is cut. Not
     # during a full start-servers.ps1 run (it may look for a running watcher); the check is made again next round.

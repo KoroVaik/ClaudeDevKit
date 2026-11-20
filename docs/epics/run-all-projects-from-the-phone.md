@@ -35,7 +35,9 @@ The lead's rules (queue, task sessions, merge) are in the epic
    the skill.
 7. Only urgent events reach your phone: a P pushes when a C crashed or cannot go on without you, a risk to
    data or money, and once when its first question waits on you; Pult pushes when the watcher gave up on a
-   server or session. Nothing is shown while the Claude app is open on screen.
+   server or session (the watcher tells Pult by message and pushes by itself when Pult is down). The
+   watcher also pushes once when a session's conversation grows past 0.7 of its window, so you move it to
+   a new session. Nothing is shown while the Claude app is open on screen.
 
 The commands behind steps 5 and 6 (`status-page.py`, `list-sessions.py`, `restart-leads.ps1`) are in the
 plugin README.

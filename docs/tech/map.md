@@ -21,14 +21,16 @@ is listed below.
 
 ## Processes
 
-- The Pult watcher (`plugins/pult/scripts/watch-servers.ps1`, started at logon) checks the leads every minute.
+- The Pult watcher (`plugins/pult/scripts/watch-servers.ps1`, started at logon) checks the leads every minute,
+  runs `dev-kit-sessions check` for each lead and wakes the leads and Pult by a cross-session message (a one-shot
+  `claude -p`) only on an event.
 - The Remote Control server "Pult", with cwd = the home folder, serves the phone.
-- The session watcher (`dev-kit-sessions watch`) runs in the background of a project lead.
+- The session watcher (`dev-kit-sessions watch`) runs in the background only of a project lead on dev-kit before 0.1.77.
 - The daily scan `dev-kit-retro check` runs from the project lead of this repo.
 - `dev-kit-app start` queues a project's app start between worktrees with a lock.
 
 ## Data stores
 
 - `.claude/dev-kit.md` in every project - its profile ([project profile](project-profile.md)).
-- The Pult state folder (pult under the user's .claude folder): logs (`servers.log`), `lead-versions.json`, the hold file, `status.html`.
-- The dev-kit state folder of a project: the session registry, locks, `restart.json`.
+- The Pult state folder (pult under the user's .claude folder): logs (`servers.log`), `lead-versions.json`, the hold file, `status.html`, the wake files (`wake-pending.json`: messages not delivered yet; `wake-state.json`: size pushes and last send per target; `size-state.json`: transcript offsets for the size log).
+- The dev-kit state folder of a project: the session registry, locks, `restart.json`, the delivered marks of `check` (`delivered.json`, `check-closed.json`, beside `limits.json` and `stale.json`).

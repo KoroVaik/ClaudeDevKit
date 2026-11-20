@@ -4,11 +4,12 @@
 # Normal path: watch-servers.ps1 does the restart by itself when it sees a lead on an older dev-kit version
 # (see its header): -Name for an idle lead, -Ready for a busy one that marked itself ready with
 # `dev-kit-sessions restart ready --version V`. The output lines (Busy, skipped / Resumed lead / Started
-# lead ...) are parsed there. -Ready restarts the named leads even when they show busy (a lead with a
-# background watcher always shows busy while it only waits).
+# lead ...) are parsed there. -Ready restarts the named leads even when they show busy (a lead on dev-kit
+# before 0.1.77 keeps a background watcher, so it always shows busy while it only waits).
 # By hand, on the owner's ask: -Ask restarts the idle leads now and, for each busy one, writes the request
 # `dev-kit-sessions restart request --version V` (V from <DevKitDir>\.claude-plugin\plugin.json) and prints
-# `Asked: <name>`; the watcher restarts that lead when it marks itself ready.
+# `Asked: <name>`; watch-servers.ps1 sends it to the lead as a `restart` event message (an older lead's own
+# session watcher reads it), and restarts that lead when it marks itself ready.
 # -Ask also counts the extension plugins a project uses (web-kit, unity-kit; see plugin-versions.ps1): a lead
 # stale only in an extension is restarted now when idle, and a busy one is not asked (the watcher restarts it
 # when it is idle: `Not asked, busy and only an extension changed: <name>`).

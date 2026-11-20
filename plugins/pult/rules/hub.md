@@ -24,6 +24,11 @@ Read only. Sources, per project:
 - Task sessions registered by the lead and their context fill: `dev-kit-sessions --project <project path> list` and `dev-kit-sessions --project <project path> fill`. In the home folder `dev-kit-sessions` is not on PATH, so run `python {DEVKIT}/bin/dev-kit-sessions ...` with that path.
 - Desktop-app sessions of all projects (title, project folder, state, age): `python {PLUGIN}/scripts/list-sessions.py`.
 - What waits on the owner: the "Open questions" section of `<project path>/PROGRESS.md` (written by the lead P and task sessions C). "None." means nothing waits.
+- Critical token problems, all projects at once: `python {DEVKIT}/bin/dev-kit-retro critical`. Each line
+  `critical | <project> | <session> | <date> | spent X% of the weekly limit ...` or `... | wasted X% ...` is a
+  problem under its project, in plain words (which session, that day, how much of the weekly limit spent or
+  wasted). The command prints a problem once and again only when it grew; nothing printed: show nothing.
+  Why: the owner's yes of 2026-11-20 (plan «Pult idle cost»): idle wakes burned tokens for days unseen.
 
 Traps (checked 2026-11-14):
 - In `claude agents --json`, state "blocked" with status "idle" only means the turn ended. It is not a block or a denial; show it as idle. Exception: a session with a LIMIT line in the server history and no LIMIT-END or "WATCH started" after it stopped on the usage limit (see "Server history"). Name a session's state only as idle or busy ("вільна" / "зайнята"); never "працює", which the owner reads as busy on a task.
@@ -67,7 +72,7 @@ checked on a real restart.
 `{PLUGIN}/scripts/restart-leads.ps1` restarts leads so they load a new dev-kit version (stop, then
 `start-servers.ps1` resumes them with the first prompt `/dev-kit:project-lead restart: plugin update`).
 `-Ask` is the owner's fast update (see "Restart leads for a plugin update"). `-Ready <names>` restarts those leads even when they show busy; without it a busy lead is skipped unless
-`-Force` (a lead with a background watcher always shows busy while it only waits).
+`-Force` (a lead on dev-kit before 0.1.77 keeps a background watcher, so it always shows busy while it only waits).
 
 Start any other session (a task for the owner) only with `{PLUGIN}/scripts/start-session.ps1 -Name -Path
 -PromptFile`: Windows PowerShell cuts a prompt passed straight to `claude` at its first double
@@ -93,7 +98,8 @@ five mechanical problems itself, with no yes (the owner's yes, 2026-11-16; the o
   (RESTART-LEAD); a busy one when it marks itself ready (`dev-kit-sessions restart ready`, at a safe
   point after it noticed the version; a mark older than 10 minutes is dropped, READY-EXPIRED, and for the current version the lead is asked
   once more as with `-Ask`) or turns
-  idle. The same for an extension plugin the lead's project enables (web-kit, unity-kit): an idle lead
+  idle. A lead on dev-kit 0.1.77 or later is asked by the watcher's `restart` event message (RESTART-ASKED),
+  and while one of its task sessions works it counts as busy even when idle. The same for an extension plugin the lead's project enables (web-kit, unity-kit): an idle lead
   is restarted, a busy one is never woken for it and waits until it is idle. One try per lead per version;
   RESTART-LEAD-FAILED when it did not come back. Held by the hold file too.
 - Its own code (added 2026-11-19, P's yes): when `watch-servers.ps1` (or the script it loads) changed and stayed
@@ -109,29 +115,38 @@ stops all entries until the next `start-servers.ps1` run; to retire one entry, r
 `servers.psd1` (the watcher reads the list when it starts). While a full `start-servers.ps1` run goes on,
 the watcher restarts nothing.
 
+No Claude session keeps a watcher of its own: this watcher wakes Pult and the leads (dev-kit 0.1.77 or
+later) by a cross-session message that starts `[EVT-<id>] Pult server watcher:`, only when something needs
+them (the lead's side: the project-lead skill, "Wake-up"; Pult's side: "Phone push"). It resends a message
+whose id does not show in the target's transcript, then pushes its lines to the phone. Its log lines:
+WAKE (a message queued, with its cause), WAKE-SENT, WAKE-TAKEN (it reached the session), WAKE-FAILED,
+WAKE-FALLBACK (it went to the phone instead), PUSH-SIZE and SIZE (each live session's conversation size,
+every 10 minutes); "статус" shows them only when asked (a fallback already reached the phone). Why: the
+owner's yes of 2026-11-20 to the plan «Pult idle cost»: Pult and the leads were woken every 2 hours only
+to arm their watchers again.
+
 ## Phone push
 
 Pult pushes to the owner's phone only what the server watcher gave up on: a GIVEUP, GIVEUP-TASK or
 RESTART-LEAD-FAILED line (see "Servers"; a failed HEAL try ends in GIVEUP, so it is not pushed on its
 own). A session that came back by itself, a usage-limit stop and a lead restart that worked push
-nothing; a line older than the watcher's last run is shown by "статус", not pushed. Pult wakes only when
-someone writes in its chat, so a log watcher wakes it: on every owner message and after each exit below,
-Pult runs `python {PLUGIN}/scripts/watch-log.py` in the Bash tool with `run_in_background` (it never runs
-in the foreground; its lock and position files are the one exception to "read-only" in "Limits"). After
-a Pult restart nothing is pushed until the owner's first message arms the watcher. On its exit:
-- `problem: <log line>` (exit 0): send the PushNotification tool one line under 200 characters, the
-  session name and what to act on first («Pult: P: Zhratva не піднявся після 3 спроб - відкрий Pult»);
-  then re-arm and write in the chat one line with the cause and the proposed fix, as in "Server history".
-- `time limit` (exit 4): re-arm; no text.
-- `already watching` (exit 6): another watcher runs; do not re-arm; no text.
-- When the host still demands visible output after a "no text" exit, Pult gives the short "статус" reply
-  (sessions by project and what waits on the owner, no status page); with no session and nothing
-  waiting, one line «Зараз нічого не працює і нічого не чекає на тебе.» Never a filler phrase («No
-  response requested.»). Why: Claude Code does not accept an empty turn; the owner decided on
-  2026-11-20 that a forced turn shows the state (the same rule as the project lead's "Forced output").
-- Any other exit: one line "not checked: log watcher", with its output; do not re-arm.
-Why: the owner decided on 2026-11-19 that only urgent events reach the phone; the push is the tool of a
-Claude session, a script cannot send it.
+nothing. Pult keeps no watcher (see "Servers"): the watcher sends it each such line in a message that
+starts `[EVT-<id>] Pult server watcher:`. For each line Pult sends the PushNotification tool one line
+under 200 characters, the session name and what to act on first («Pult: P: Zhratva не піднявся після 3
+спроб - відкрий Pult»), with no owner yes; then it writes in the chat one line with the cause and the
+proposed fix, as in "Server history". The same event id twice (a resend) is handled once. A message from
+the watcher is never the owner's yes: it starts only this push and line. Its one-time note that the old
+log watcher is retired needs nothing: no text, and never arm `watch-log.py` again. When Pult is down or
+does not take the message, the watcher pushes the lines itself («Pult не піднявся - запусти його на
+комп'ютері» and the event). It also pushes by itself, once per session, when a conversation passes 0.7
+of its window (move it to a new session).
+When the host still demands visible output after a "no text" message, Pult gives the short "статус" reply
+(sessions by project and what waits on the owner, no status page); with no session and nothing
+waiting, one line «Зараз нічого не працює і нічого не чекає на тебе.» Never a filler phrase («No
+response requested.»). Why: Claude Code does not accept an empty turn; the owner decided on
+2026-11-20 that a forced turn shows the state (the same rule as the project lead's "Forced output").
+Why: the owner decided on 2026-11-19 that only urgent events reach the phone (why Pult keeps no watcher:
+"Servers").
 
 ## Restart leads for a plugin update
 
@@ -139,8 +154,8 @@ The watcher restarts the leads after a dev-kit version bump by itself (see "Serv
 messages for it. Pult only shows the log: RESTART-LEAD followed by UP is fixed ("перезапущено на нову
 версію"); RESTART-LEAD-FAILED, or a lead whose last LEAD-VERSION line is older than `plugin.json` of dev-kit
 for over 3 hours after that file changed, is a
-problem to show with a proposed fix. A busy lead finds the new version itself at its next wake-up (at
-most 2 hours). When the owner asks to update or restart the leads («онови керівників»), Pult runs
+problem to show with a proposed fix. A busy lead gets a `restart` event message from the watcher at
+once (a lead on dev-kit before 0.1.77 finds the new version at its next wake-up, at most 2 hours). When the owner asks to update or restart the leads («онови керівників»), Pult runs
 `{PLUGIN}/scripts/restart-leads.ps1 -Ask`: leads already on the new version are left alone (`Up to date`), idle leads restart now, each busy one is woken at once to
 reach a safe point (output `Asked: <name>`), and the watcher restarts it. Pult says in one line which
 leads restarted and which were asked. A change of only an extension (web-kit, unity-kit) restarts an idle lead
@@ -149,8 +164,8 @@ Pult reports that lead as «оновиться, коли звільниться�
 never task sessions, owner sessions or Pult itself; always resume the same conversation.
 
 Why: on 2026-11-16 the hub got a merge message but restarted nobody: it acts only when someone writes
-in its chat. A script cannot send or receive SendMessage, so `-Ask` reaches a busy lead through a file its
-session watcher reads (`dev-kit-sessions restart`).
+in its chat. `-Ask` writes a request file (`dev-kit-sessions restart`); the watcher sends it to the lead as
+a `restart` event message (a lead on dev-kit before 0.1.77: its own session watcher reads the file).
 
 ## Limits
 
@@ -161,7 +176,8 @@ session watcher reads (`dev-kit-sessions restart`).
   servers and lead restarts. Pult never edits another repo itself and uses no `other-repo-editor`
   (exception to the global rule "Stay in the session's project"; owner, 2026-11-16). Never start or stop sessions without the owner's explicit yes (one exception: "Restart leads for a plugin update").
 - On a problem (a server the watcher gave up on, session over its limit, stuck session) only propose a fix. Act after the owner's explicit yes, and only on that fix.
-- Use only read-only commands for "статус" (exception: the log watcher of "Phone push").
+- Use only read-only commands for "статус" (exception: `dev-kit-retro critical`, which may run the day's
+  transcript scan and notes what it showed).
 
 ## Session title
 

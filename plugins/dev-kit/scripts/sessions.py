@@ -4,10 +4,13 @@ full their context is.
     dev-kit-sessions add --id <id> --name <name> --worktree <path> --task <file or text> [--parent <id>] [--predecessor <id>] [--owner]
     dev-kit-sessions end --id <id or 8+ char short id> [--status done|replaced|stopped]
     dev-kit-sessions list
-    dev-kit-sessions fill [--limit 0.5] [--window N]
+    dev-kit-sessions fill [--limit 0.5] [--window N] [--over-only]
     dev-kit-sessions others [--self <id>] [--json]
     dev-kit-sessions state [--id <id> ...]
     dev-kit-sessions watch [--id <id> ...] [--interval 60] [--max-minutes 120] [--stale-minutes 20]
+    dev-kit-sessions check [--id <id> ...] [--stale-minutes 20] [--fill-limit 0.5]
+    dev-kit-sessions mark --kind gone|finished|limited|stale|fill|restart [--id <id>] --key <key>
+    dev-kit-sessions size --id <id> [--id <id> ...] [--wakes <state file>]
     dev-kit-sessions limited --id <id> [--id <id> ...]
     dev-kit-sessions restart request --version <V> | ready [--version <V>] | status | clear
 
@@ -19,7 +22,8 @@ hooks/owner-session-note.py reads it). `fill` finds the transcript of every
 active record (`<projects>/*/<id>.jsonl`, projects folder = env DEV_KIT_PROJECTS_DIR, else ~/.claude/projects) and
 prints its context size: input + cache creation + cache read tokens of the last assistant message that has usage.
 The window comes from the transcript's model (see `window_for`) unless `--window` is given. A line ends with OVER when the
-percent reaches the limit.
+percent reaches the limit. `--over-only` prints only the OVER rows (nothing else, not even "no active sessions"). Lines
+of a side chain (`"isSidechain": true`, a subagent's) are not counted as the session's context.
 
 `others` lists the live sessions of this repository (any worktree) other than the caller, for the overlap check
 before a task starts. Source: `claude agents --json` (background sessions and running interactive ones, the desktop
@@ -71,6 +75,32 @@ the registry or the session list unreadable WATCH_FAILURES rounds in a row: exit
 `restart.json` holds an open request that is neither ready nor notified yet; the exit sets `"notified"`, so the
 re-armed watcher stays quiet, see the next paragraph).
 
+`check` is one round of `watch` for the Pult watcher (no lead keeps a watcher any more): it reads the session list
+once and prints one line per event not delivered yet, `<kind> | <name> | <id> | <detail> | <key>`, nothing when there is
+none; exit 0, exit 3 when the session list cannot be read, no lock. Watched: the `--id` sessions, else the registry's
+active records. Kinds (detection is the same code as `watch`): `gone` (detail = state; key = the timestamp of the
+last transcript entry, or `none`, so a session that came back and went again reports again; the CLOSED_GRACE of a
+closed session works across calls: `check-closed.json` next to the registry keeps the epoch each closed session was
+first seen, the one file `check` writes; a call with `--id` keeps the clocks of the other ids); `finished` (owner
+sessions; key = timestamp of the last assistant reply); `limited` (detail `resets <time or unknown>`; key = the limit
+key; delivered when LIMITS holds it); `stale` (detail `waiting <N> min`; key = wait start; delivered when STALE holds
+it); `fill` (an active registry record that is not an owner session and whose context reaches `--fill-limit` of its
+window; detail like `65% of 1000000`; key `fill`, so once per id); `restart` (an open, not ready, not notified
+request of `restart.json`: `restart | - | - | <version> | <version>`). `check` never writes LIMITS, STALE, the delivered
+marks or the restart file. `mark --kind K [--id X] --key KEY` records the delivery after the caller got the message:
+limited writes LIMITS and stale writes STALE (the same files `watch` keeps), restart sets `notified` on the open
+request when its version is KEY (else prints `not marked restart - ...`, exit 0), gone, finished and fill write
+`delivered.json` next to the registry (`{id: {kind: key}}`; ids of ended records are dropped); it prints `marked <kind>
+<id>` (`marked restart -`). `check` leaves out what is marked.
+
+`size --id <full session id> ...` prints `<id> | <tokens> | <window> | <model>` for each id that has a transcript (the
+tokens as `fill`; 0 and the default window when it has no usage), no registry and no session list. With `--wakes
+<state file>` (json id -> byte offset in the transcript) it reads each transcript from the stored offset and appends
+` | owner=N peer=N notify=N | units=U`: the turn starts since (owner: a user entry with text and no `origin`, or a
+human one; peer: `origin.kind` peer; notify: any other user entry with text, a task notification or a meta note) and the
+units (`retro.units_of`, each message id once) of the new assistant entries; the offsets are saved to the file, and the
+first call for an id stores the end and counts nothing.
+
 `limited` prints `<id> | <resets> | <key>` for each `--id` (a full session id) whose transcript ends with the
 usage-limit notice, nothing for the others; it reads transcripts only, no session list and no project state (the
 Pult watcher calls it once per round with the live leads and task sessions). Exit 0.
@@ -121,6 +151,9 @@ ID_KEYS = ("id", "parent", "predecessor")
 LIMITS = "limits.json"
 STALE = "stale.json"
 STALE_KEEP_DAYS = 7
+CLOSED = "check-closed.json"  # id -> epoch when `check` first saw the session closed (the grace spans calls)
+DELIVERED = "delivered.json"  # id -> {kind: key} of the gone, finished and fill events already delivered
+MARK_KINDS = ("gone", "finished", "limited", "stale", "fill", "restart")
 CLOSED_GRACE = 300  # seconds a session with no pid stays unreported: the Pult watcher may bring it back meanwhile
 # A reply line (trimmed, emphasis marks and trailing punctuation removed, case ignored) that says the session is done.
 FINISHED_MARKERS = ("Роботу завершено", "Work finished")
@@ -193,7 +226,8 @@ def find_transcript(session_id):
 
 def last_usage(path):
     """(tokens, model) of the last assistant message with non-zero usage, reading the file from the end; None if
-    none. Messages whose usage sums to 0 (synthetic or interrupted) are skipped."""
+    none. Messages whose usage sums to 0 (synthetic or interrupted) and side-chain messages (a subagent's, with its
+    own small context) are skipped."""
     size = path.stat().st_size
     window = CHUNK
     with open(path, "rb") as handle:
@@ -207,9 +241,12 @@ def last_usage(path):
                 if b'"usage"' not in line:
                     continue
                 try:
-                    message = json.loads(line.decode("utf-8")).get("message") or {}
+                    entry = json.loads(line.decode("utf-8"))
                 except ValueError:  # includes UnicodeDecodeError
                     continue
+                if not isinstance(entry, dict) or entry.get("isSidechain"):
+                    continue
+                message = entry.get("message") or {}
                 usage = message.get("usage")
                 if message.get("role", "assistant") == "assistant" and isinstance(usage, dict):
                     tokens = sum(int(usage.get(field) or 0) for field in USAGE_FIELDS)
@@ -291,14 +328,17 @@ def cmd_fill(args, path, records):
         transcript = find_transcript(record["id"])
         usage = last_usage(transcript) if transcript else None
         if usage is None:
-            print(f"{record['name']} | {record['id']} | no transcript")
+            if not args.over_only:
+                print(f"{record['name']} | {record['id']} | no transcript")
             continue
         tokens, model = usage
         window = args.window or window_for(model)
         percent = tokens / window
         flag = " OVER" if percent >= args.limit else ""
+        if args.over_only and not flag:
+            continue
         print(f"{record['name']} | {record['id']} | {tokens} tokens | window {window} | {percent:.0%}{flag}")
-    if not rows:
+    if not rows and not args.over_only:
         print("no active sessions")
     return 0
 
@@ -689,17 +729,26 @@ def limited_sessions(watched, agents):
     return found
 
 
+def read_map(target):
+    """The JSON object in a state file (LIMITS, STALE, ...), {} when the file is absent or not an object."""
+    try:
+        known = json.loads(target.read_text(encoding="utf-8-sig"))
+    except (OSError, ValueError):
+        return {}
+    return known if isinstance(known, dict) else {}
+
+
+def write_map(target, data):
+    target.parent.mkdir(parents=True, exist_ok=True)
+    save(target, data)
+
+
 def new_limits(limited, path, watched_ids):
     """The limited items not reported yet, and remember them: LIMITS in the registry folder maps a session id to the
     key of the limit stop last reported, so a re-armed watcher does not report the same stop again. Watched ids no
     longer limited are dropped from it; entries of other ids (another watcher's `--id` sessions) are kept."""
     target = path.with_name(LIMITS)
-    try:
-        known = json.loads(target.read_text(encoding="utf-8-sig"))
-    except (OSError, ValueError):
-        known = {}
-    if not isinstance(known, dict):
-        known = {}
+    known = read_map(target)
     report = [item for item in limited if known.get(item[1]) != item[2]]
     current = {key: value for key, value in known.items() if key not in watched_ids}
     current.update({item[1]: item[2] for item in limited})
@@ -761,21 +810,21 @@ def stale_sessions(watched, agents, minutes, at):
     return found
 
 
+def prune_stale(known):
+    """The STALE map without the entries whose wait started over STALE_KEEP_DAYS ago."""
+    cutoff = time.time() - STALE_KEEP_DAYS * 86400
+    return {key: value for key, value in known.items() if (parse_time(value) or 0) >= cutoff}
+
+
 def new_stale(stale, path):
     """The stale items not reported yet, and remember them: STALE in the registry folder maps a session id to the
     start of the wait last reported, so a re-armed or restarted watcher does not report the same wait again. An entry
     stays while its session is not stale (a round with no pid or a busy flicker must not let the same wait fire
     twice; a new wait has a new key anyway) and is dropped once its wait started over STALE_KEEP_DAYS ago."""
     target = path.with_name(STALE)
-    try:
-        known = json.loads(target.read_text(encoding="utf-8-sig"))
-    except (OSError, ValueError):
-        known = {}
-    if not isinstance(known, dict):
-        known = {}
+    known = read_map(target)
     report = [item for item in stale if known.get(item[1]) != item[2]]
-    cutoff = time.time() - STALE_KEEP_DAYS * 86400
-    current = {key: value for key, value in known.items() if (parse_time(value) or 0) >= cutoff}
+    current = prune_stale(known)
     current.update({item[1]: item[2] for item in stale})
     if current != known:
         target.parent.mkdir(parents=True, exist_ok=True)
@@ -926,6 +975,247 @@ def cmd_restart(args, path, records):
     return 0
 
 
+def transcript_of(agents, wanted):
+    """The transcript path of a registry id: by the sessionId of its list entry, else by the id itself."""
+    entries = agent_entries(agents, wanted)
+    return find_transcript(next((str(agent["sessionId"]) for agent in entries if agent.get("sessionId")), wanted))
+
+
+def last_timestamp(path):
+    """The `timestamp` of the last transcript entry that has one (any entry type), read from the end of the file;
+    None when there is none or the file cannot be read."""
+    try:
+        size = path.stat().st_size
+        window = CHUNK
+        with open(path, "rb") as handle:
+            while True:
+                start = max(0, size - window)
+                handle.seek(start)
+                lines = handle.read(size - start).split(b"\n")
+                if start > 0:
+                    lines = lines[1:]
+                for line in reversed(lines):
+                    if b'"timestamp"' not in line:
+                        continue
+                    try:
+                        entry = json.loads(line.decode("utf-8"))
+                    except ValueError:
+                        continue
+                    if isinstance(entry, dict) and isinstance(entry.get("timestamp"), str):
+                        return entry["timestamp"]
+                if start == 0:
+                    return None
+                window *= 4
+    except OSError:
+        return None
+
+
+def last_reply_timestamp(path):
+    """The `timestamp` of the last assistant text message of a transcript (see last_reply), else None."""
+    try:
+        for entry in tail_entries(path):
+            if entry.get("type") == "assistant" and assistant_text(entry):
+                stamp = entry.get("timestamp")
+                return stamp if isinstance(stamp, str) else None
+    except OSError:
+        return None
+    return None
+
+
+def event_line(kind, name, wanted, detail, key):
+    return f"{kind} | {name or '(no name)'} | {wanted} | {detail} | {key}"
+
+
+def cmd_check(args, path, records):
+    """One round of `watch` with no side effects but the closed-session clock: one line per event not delivered yet
+    (see `mark`): `<kind> | <name> | <id> | <detail> | <key>`."""
+    at = time.time()
+    if args.id:
+        found = [(resolve(records, given), given) for given in args.id]
+        watched = [(record.get("name"), str(record["id"])) if record else (None, given) for record, given in found]
+    else:
+        watched = [(record.get("name"), str(record.get("id"))) for record in active(records)]
+    watched_ids = {wanted for _, wanted in watched}
+    agents = []
+    if watched:
+        try:
+            agents = agents_list(include_ended=True)
+        except RuntimeError as exc:
+            print(f"dev-kit-sessions: the session list could not be read: {exc}", file=sys.stderr)
+            return 3
+    delivered = read_map(path.with_name(DELIVERED))
+    limits, waits = read_map(path.with_name(LIMITS)), read_map(path.with_name(STALE))
+
+    def fresh(kind, wanted, key):
+        marks = delivered.get(wanted)
+        return not (isinstance(marks, dict) and marks.get(kind) == key)
+
+    lines = []
+    request = read_restart(path)
+    if request is not None and not request.get("ready") and not request.get("notified"):
+        lines.append(f"restart | - | - | {request['version']} | {request['version']}")
+    finished = finished_sessions(watched, agents, records)
+    done = {wanted for _, wanted in finished}
+    gone = [item for item in gone_sessions(watched, agents) if item[1] not in done]
+    closed = read_map(path.with_name(CLOSED))
+    mine = {wanted: since for wanted, since in closed.items() if wanted in watched_ids}
+    gone = after_grace(gone, agents, mine, at)  # forgets the ids that are not closed any more
+    others = {wanted: since for wanted, since in closed.items() if wanted not in watched_ids} if args.id else {}
+    remembered = {**others, **mine}  # a call for some --id sessions keeps the clocks of the others
+    if remembered != closed:
+        write_map(path.with_name(CLOSED), remembered)
+    for name, wanted, state in gone:
+        transcript = transcript_of(agents, wanted)
+        key = (last_timestamp(transcript) if transcript else None) or "none"
+        if fresh("gone", wanted, key):
+            lines.append(event_line("gone", name, wanted, state, key))
+    for name, wanted in finished:
+        transcript = transcript_of(agents, wanted)
+        key = (last_reply_timestamp(transcript) if transcript else None) or "none"
+        if fresh("finished", wanted, key):
+            lines.append(event_line("finished", name, wanted, "finished", key))
+    ended = done | {item[1] for item in gone}
+    limited = [item for item in limited_sessions(watched, agents) if item[1] not in ended]
+    for name, wanted, key, resets in limited:
+        if limits.get(wanted) != key:
+            lines.append(event_line("limited", name, wanted, f"resets {reset_text(resets)}", key))
+    ended |= {item[1] for item in limited}
+    for name, wanted, key, waited in stale_sessions(watched, agents, args.stale_minutes, at):
+        if wanted not in ended and waits.get(wanted) != key:
+            lines.append(event_line("stale", name, wanted, f"waiting {waited} min", key))
+    for record in active(records):
+        wanted = str(record.get("id"))
+        if (args.id and wanted not in watched_ids) or record.get("owner") is True:
+            continue
+        transcript = find_transcript(wanted)
+        usage = last_usage(transcript) if transcript else None
+        if usage is None:
+            continue
+        window = window_for(usage[1])
+        if usage[0] / window >= args.fill_limit and fresh("fill", wanted, "fill"):
+            lines.append(event_line("fill", record.get("name"), wanted, f"{usage[0] / window:.0%} of {window}", "fill"))
+    for line in lines:
+        print(line)
+    return 0
+
+
+def cmd_mark(args, path, records):
+    """Record that an event line of `check` reached the lead, so `check` stops printing it."""
+    if args.kind == "restart":
+        request = read_restart(path)
+        if request is None or str(request["version"]) != args.key:
+            print(f"not marked restart - (no open request for {args.key})")
+            return 0
+        request["notified"] = time.time()
+        save(path.with_name(RESTART), request)
+        print("marked restart -")
+        return 0
+    if not args.id:
+        print("dev-kit-sessions: mark needs --id for this kind", file=sys.stderr)
+        return 1
+    wanted = args.id
+    if args.kind in ("limited", "stale"):
+        target = path.with_name(LIMITS if args.kind == "limited" else STALE)
+        known = read_map(target)
+        if args.kind == "stale":
+            known = prune_stale(known)
+        known[wanted] = args.key
+    else:
+        target = path.with_name(DELIVERED)
+        known = read_map(target)
+        ended = {str(record.get("id")) for record in records if record.get("status") != "active"}
+        known = {key: value for key, value in known.items() if key not in ended}
+        marks = known.get(wanted)
+        known[wanted] = {**(marks if isinstance(marks, dict) else {}), args.kind: args.key}
+    write_map(target, known)
+    print(f"marked {args.kind} {wanted}")
+    return 0
+
+
+def complete_end(path):
+    """The byte offset after the last complete line of a file (the whole size when its tail has no line end)."""
+    size = path.stat().st_size
+    start = max(0, size - CHUNK)
+    with open(path, "rb") as handle:
+        handle.seek(start)
+        found = handle.read(size - start).rfind(b"\n")
+    return start + found + 1 if found >= 0 else (0 if start == 0 else size)
+
+
+def turn_kind(entry):
+    """How a transcript entry starts a turn: owner (a user entry with text, no `origin` or a human one), peer
+    (`origin.kind` peer), notify (any other user entry with text: a task notification, a meta note); else None (an
+    assistant entry, a tool result, a side chain)."""
+    if entry.get("type") != "user" or entry.get("isSidechain"):
+        return None
+    origin = entry.get("origin") if isinstance(entry.get("origin"), dict) else {}
+    if origin.get("kind") == "peer":
+        return "peer"
+    content = (entry.get("message") or {}).get("content")
+    if isinstance(content, list):
+        content = "\n".join(part.get("text", "") for part in content
+                            if isinstance(part, dict) and part.get("type") == "text")
+    text = content.strip() if isinstance(content, str) else ""
+    if not text:
+        return None
+    if entry.get("isMeta") or origin.get("kind") not in (None, "human") or text.startswith("<task-notification"):
+        return "notify"
+    return "owner"
+
+
+def count_wakes(path, offset):
+    """(counts, units, new offset) of the transcript lines after `offset`: turn starts by kind (see turn_kind) and the
+    units (retro.units_of) of the assistant messages, each message id once."""
+    import retro
+    lines, end = retro.read_new_lines(path, offset)
+    counts, units, seen = {"owner": 0, "peer": 0, "notify": 0}, 0.0, set()
+    for raw in lines:
+        try:
+            entry = json.loads(raw)
+        except ValueError:
+            continue
+        if not isinstance(entry, dict):
+            continue
+        kind = turn_kind(entry)
+        if kind:
+            counts[kind] += 1
+        message = entry.get("message") or {}
+        usage, model, mid = message.get("usage"), message.get("model"), message.get("id")
+        if (entry.get("type") == "assistant" and not entry.get("isSidechain") and isinstance(usage, dict)
+                and model != "<synthetic>" and mid not in seen):
+            if mid:
+                seen.add(mid)
+            units += retro.units_of(usage, model)
+    return counts, units, end
+
+
+def cmd_size(args, path, records):
+    """`<id> | <tokens> | <window> | <model>` per --id session that has a transcript; with --wakes also the turn
+    starts and units since the last call (the offsets live in that file; the first call counts nothing)."""
+    offsets = read_map(Path(args.wakes)) if args.wakes else {}
+    saved = dict(offsets)
+    for wanted in args.id:
+        transcript = find_transcript(wanted)
+        if transcript is None:
+            continue
+        usage = last_usage(transcript)
+        tokens, model = usage if usage else (0, "")
+        line = f"{wanted} | {tokens} | {window_for(model)} | {model}"
+        if args.wakes:
+            offset = offsets.get(wanted)
+            if not isinstance(offset, int) or isinstance(offset, bool) or not 0 <= offset <= transcript.stat().st_size:
+                counts, units, end = {"owner": 0, "peer": 0, "notify": 0}, 0.0, complete_end(transcript)
+            else:
+                counts, units, end = count_wakes(transcript, offset)
+            saved[wanted] = end
+            line += (f" | owner={counts['owner']} peer={counts['peer']} notify={counts['notify']}"
+                     f" | units={round(units)}")
+        print(line)
+    if args.wakes and saved != offsets:
+        write_map(Path(args.wakes), saved)
+    return 0
+
+
 def cmd_watch(args, path, records):
     lock = None if args.id else path.with_name(WATCH_LOCK)
     deadline = time.monotonic() + args.max_minutes * 60
@@ -1027,6 +1317,7 @@ def main(argv=None):
     fill = sub.add_parser("fill")
     fill.add_argument("--limit", type=float, default=0.5)
     fill.add_argument("--window", type=int, default=0)
+    fill.add_argument("--over-only", action="store_true", help="print only the OVER rows, nothing else")
     others = sub.add_parser("others")
     others.add_argument("--self", default="", help="the caller's session id (default: env CLAUDE_CODE_SESSION_ID)")
     others.add_argument("--json", action="store_true")
@@ -1038,6 +1329,19 @@ def main(argv=None):
     watch.add_argument("--max-minutes", type=float, default=120, help="exit with the time-limit line after this")
     watch.add_argument("--stale-minutes", type=float, default=20,
                        help="report a session waiting this long since its last assistant entry")
+    check = sub.add_parser("check", help="one round of watch: the events not delivered yet, one line each; marks nothing")
+    check.add_argument("--id", action="append", default=[], help="a session to check (repeatable; default: the registry)")
+    check.add_argument("--stale-minutes", type=float, default=20,
+                       help="report a session waiting this long since its last assistant entry")
+    check.add_argument("--fill-limit", type=float, default=0.5,
+                       help="report an active C whose context reaches this share of its window")
+    mark = sub.add_parser("mark", help="record that an event line of check was delivered")
+    mark.add_argument("--kind", required=True, choices=MARK_KINDS)
+    mark.add_argument("--id", default="", help="the session id (not for restart)")
+    mark.add_argument("--key", required=True, help="the last field of the event line")
+    size = sub.add_parser("size", help="context size, and with --wakes the turn starts and units since the last call")
+    size.add_argument("--id", action="append", default=[], help="a full session id (repeatable)")
+    size.add_argument("--wakes", help="a state file (json id -> transcript offset) that the call reads and updates")
     limited = sub.add_parser("limited", help="which sessions stopped on the usage limit (transcripts only)")
     limited.add_argument("--id", action="append", default=[], help="a full session id (repeatable)")
     restart = sub.add_parser("restart", help="the restart request the Pult watcher leaves for a lead")
@@ -1054,11 +1358,12 @@ def main(argv=None):
         elif isinstance(value, list):
             setattr(args, key, [item.strip() for item in value])
     try:
-        path = registry_path(args.project, create=args.action != "limited")  # limited reads no project state
-        records = [] if args.action in ("restart", "limited") else load(path)  # the handshake works with a broken registry too
+        stateless = args.action in ("limited", "size")  # these read transcripts only, no project state
+        path = registry_path(args.project, create=not stateless)
+        records = [] if args.action == "restart" or stateless else load(path)  # the handshake works with a broken registry too
         return {"add": cmd_add, "end": cmd_end, "list": cmd_list, "fill": cmd_fill, "restart": cmd_restart,
-                "others": cmd_others, "state": cmd_state, "watch": cmd_watch,
-                "limited": cmd_limited}[args.action](args, path, records)
+                "others": cmd_others, "state": cmd_state, "watch": cmd_watch, "check": cmd_check, "mark": cmd_mark,
+                "size": cmd_size, "limited": cmd_limited}[args.action](args, path, records)
     except Unreadable as exc:
         print(f"dev-kit-sessions: {exc}", file=sys.stderr)
         return 2

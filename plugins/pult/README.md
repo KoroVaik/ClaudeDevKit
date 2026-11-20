@@ -22,12 +22,15 @@ problem it proposes a fix and acts after an explicit yes.
   usage limit is logged once per stop (LIMIT, with the reset time; LIMIT-END when it goes on). It also removes
   dev-kit lock files whose owner is gone (log UNLOCK). It restarts a lead that runs on an older dev-kit version
   than the installed `plugins/dev-kit/.claude-plugin/plugin.json`, with no message from the hub: an idle lead
-  at once (log RESTART-LEAD). A busy lead is not interrupted: on its ordinary wake-ups it notices the new
-  version, reaches a safe point and runs `dev-kit-sessions restart ready --version <V>` (a file `restart.json`
-  in the project's dev-kit state folder); the watcher then restarts it (RESTART-LEAD with `ready`) if the mark
-  is under 10 minutes old, else it clears it (READY-EXPIRED). `scripts/restart-leads.ps1 -Ask` is the fast
-  path on your ask: it restarts the idle leads now and writes a request for each busy one (`Asked: <name>`);
-  that lead's session watcher exits 7 once with `restart requested: <V>`. One try per lead per version; a
+  at once (log RESTART-LEAD). A busy lead (or, from dev-kit 0.1.77, an idle one while a task session of it
+  works) is not interrupted: the watcher writes a restart request (`restart.json` in the project's dev-kit
+  state folder, RESTART-ASKED) and sends it to the lead as a `restart requested: <V>` event message; the lead
+  reaches a safe point and runs `dev-kit-sessions restart ready --version <V>`; the watcher then restarts it
+  (RESTART-LEAD with `ready`) if the mark is under 10 minutes old, else it clears it (READY-EXPIRED). A lead on
+  dev-kit before 0.1.77 notices the version on its ordinary wake-ups instead. `scripts/restart-leads.ps1 -Ask`
+  is the fast path on your ask: it restarts the idle leads now and writes a request for each busy one
+  (`Asked: <name>`), which reaches the lead the same way (an older lead: its session watcher exits 7 once with
+  `restart requested: <V>`). One try per lead per version; a
   failure is logged as RESTART-LEAD-FAILED. A leftover `restart.json` of a lead already on the new version
   is cleared (RESTART-CLEARED). The versions the lead processes started on (by pid and start time) are kept
   in `~/.claude/pult/lead-versions.json` (log LEAD-VERSION). The same goes for the extension plugins a
@@ -40,6 +43,18 @@ problem it proposes a fix and acts after an explicit yes.
   copy keeps running). It never touches your own sessions, taken-over ones included. `stop-servers.ps1` and `restart-leads.ps1` pause it
   (a hold file) until the next `start-servers.ps1` run, so a stop on purpose stays stopped. A lead stopped
   only with `claude stop` comes back; to retire one project, remove its row from `servers.psd1`.
+- No Claude session keeps a watcher of its own. Each minute the watcher also runs `dev-kit-sessions check`
+  for every lead on dev-kit 0.1.77 or later and sends each new event (a task session gone, finished, on the
+  usage limit, waiting 20 minutes, past half its context, or a restart request) to the lead as a
+  cross-session message `[EVT-<id>] Pult server watcher: ...`, by a one-shot `claude -p` (haiku, safe mode,
+  only the SendMessage tool, the lead's permission mode). GIVEUP, GIVEUP-TASK and RESTART-LEAD-FAILED go to
+  the Pult session the same way; Pult pushes them to your phone. A lead silent 50 minutes while one of its
+  task sessions works gets a keep-warm ping. A message counts as delivered once its id shows in the
+  target's transcript; until then it is sent again, then pushed to your phone (for Pult: «Pult не піднявся -
+  запусти його на комп'ютері»). The watcher also pushes once per session when a conversation passes 0.7 of
+  its window, and logs each live session's size every 10 minutes (log WAKE, WAKE-SENT, WAKE-TAKEN,
+  WAKE-FAILED, WAKE-FALLBACK, PUSH-SIZE, SIZE). Its files in `~/.claude/pult`: `wake-pending.json`,
+  `wake-state.json`, `size-state.json`.
 - A lead row in `servers.psd1` may set `Prompt`, `Model` and `Effort` (defaults: `/dev-kit:project-lead`,
   Opus, medium); a throwaway test lead uses a cheap model this way.
 
@@ -61,4 +76,3 @@ The steps of a day with a project lead (P) from the phone and the rules behind t
 - Status page: `python scripts/status-page.py` writes `~/.claude/pult/status.html` (`--out` for another file).
 - All desktop-app sessions of all projects: `python scripts/list-sessions.py`.
 - After a dev-kit plugin update the watcher restarts each P by itself; to hurry it, run `scripts/restart-leads.ps1 -Ask`. By hand: `scripts/restart-leads.ps1`, or `scripts/stop-servers.ps1` (graceful stop) and then `scripts/start-servers.ps1`, or restart Windows.
-- Pult wakes for pushes on `scripts/watch-log.py`, armed by your first message to Pult after it restarts.

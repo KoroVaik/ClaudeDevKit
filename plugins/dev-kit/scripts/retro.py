@@ -2,8 +2,10 @@
 
     dev-kit-retro check [--days N]     scan if not yet scanned today, then print the count of unreviewed findings
     dev-kit-retro scan [--force] [--days N]
-    dev-kit-retro list                 print the unreviewed findings (scan lines, session notes, then the spend tables)
+    dev-kit-retro list                 print the unreviewed findings (token problems first, then scan lines, session
+                                       notes, then the spend tables)
     dev-kit-retro done                 mark what the last check or list showed as reviewed (after a retro, or a no)
+    dev-kit-retro critical [--days N]  scan if not yet scanned today, then print the critical token problems
 
 Findings folder: env DEV_KIT_RETRO_DIR, else `~/.claude/dev-kit/retro` (local, outside any repository, one for all
 projects). Transcripts: every `*.jsonl` under env DEV_KIT_PROJECTS_DIR, else `~/.claude/projects`, subagent ones in
@@ -18,7 +20,7 @@ file, up to the last complete line). On the first scan (no offsets yet) a file l
 
 Kinds, per transcript and per scan window (the subagents of one type in one session summed; thresholds below):
 - `repeated call`: the same tool with the same input, REPEAT_MIN or more times (`run_in_background` calls left out:
-  a watcher re-armed after each exit is by design);
+  a watcher a lead on dev-kit before 0.1.77 re-arms after each exit is by design);
 - `failed calls`: ERRORS_MIN or more tool results marked as an error;
 - `many calls`: MANY_CALLS or more tool calls;
 - `slow call`: a tool result that came SLOW_CALL_MIN or more minutes after its call (tools that wait on the owner
@@ -44,6 +46,31 @@ not findings; `list` prints the unreviewed ones, older ones stay in the scan fil
 subagent type on one model over the last RUNS_KEPT runs (`state.json`), shown only with USUAL_MIN or more runs.
 
 `check` runs `scan` when `state.json` has no scan for today, then prints `new findings: <N>` or `no new findings`.
+
+Token problems (owner, 2026-11-20, plans/pult-idle-cost.md point 9): `state.json` keeps, per local day (by message
+time, DAILY_KEPT days) and per session (its subagents summed), the units and the waste in them. Waste is counted once
+per message, in this order:
+- idle wake: the whole turn that a background task notification started (not a finished subagent) when it had at most
+  IDLE_TEXT_CHARS of text, a re-armed background Bash and only IDLE_TOOLS calls (up to IDLE_MAX_CALLS): it did
+  nothing but look and wait again;
+- cold restart: the cache write of the first message of any other turn not started by the owner (a task notification,
+  a peer or coordinator message) that came after the prompt cache lifetime (5 min after a 5-minute write, 60 min after
+  a 1-hour write, as the previous message wrote it) since the previous message of that file;
+- bloated context: the cache read above BLOAT_CONTEXT tokens of a message, at the cache read weight.
+A session's day is a problem when it spent NOTE_SPEND_PCT or wasted NOTE_WASTE_PCT of the weekly limit
+(WEEKLY_LIMIT_UNITS, calibrated on WEEKLY_LIMIT_DATE; one place to change), and critical from CRITICAL_SPEND_PCT or
+CRITICAL_WASTE_PCT. When a scan runs on a later day, each finished day's problems become scan lines
+`- <project folder> | <session> | token spend|token waste | <date>: <detail>[; critical (shown in Pult's status)]`
+(once per day); `list` prints them first, under "Priority". `critical` prints, for today and CRITICAL_DAYS days
+before, one line per critical problem not shown before, or grown to CRITICAL_GROWTH times the share shown (shown
+shares are kept in `state.json`; `list`, `check` and `done` do not touch them), biggest first, nothing when none:
+
+    critical | <project> | <session title (id8)> | <date> | spent 2.4% of the weekly limit (16.6M units)
+    critical | <project> | <session title (id8)> | <date> | wasted 0.6% of the weekly limit: idle wakes 0.60% (11),
+        cold restarts 0.00%, bloated context 0.00%[ (was 0.5% when last shown)]
+
+(each on one line.)
+
 New findings are the lines of scan files dated after the last `done` plus the lines of `notes.md` past the count
 recorded at that `done`. `check` and `list` record what they showed; `done` marks only that, so findings that came
 later stay new. Findings files are read as UTF-8 with a BOM allowed and bad bytes replaced. `notes.md` holds what only a session can see; sessions append one line per case (the
@@ -82,6 +109,21 @@ SHORT_TURNS = 50
 USUAL_MIN = 10
 RUNS_KEPT = 50
 SPEND_ROWS = 15
+WEEKLY_LIMIT_UNITS = 690e6  # the owner's weekly limit in units, fit at Opus weight 1.5 from `/usage` on 2026-11-20
+WEEKLY_LIMIT_DATE = "2026-11-20"  # (plans/retro-tokens.md, "Opus weight check"; about 30% uncertain): recalibrate here
+CRITICAL_SPEND_PCT = 2.0  # a session's day: spent this share of the weekly limit, or ...
+CRITICAL_WASTE_PCT = 0.5  # ... wasted this share (idle wakes, cold restarts, bloated context)
+NOTE_SPEND_PCT = 0.5  # below the critical shares but from these: a priority item for the retro
+NOTE_WASTE_PCT = 0.1
+CRITICAL_DAYS = 2  # `critical` looks at today and the days before it up to this many
+CRITICAL_GROWTH = 1.25  # a shown critical problem is shown again when it grew to this many times what was shown
+IDLE_TEXT_CHARS = 500  # a wake turn (task notification) with at most this much text, a re-arm and only look-up tools
+IDLE_MAX_CALLS = 8  # (IDLE_TOOLS) calls is idle: it re-armed a watcher and acted on nothing
+IDLE_TOOLS = {"Bash", "PowerShell", "ListAgents", "Read", "Grep", "Glob", "CronList"}
+WAKE_ORIGINS = {"task-notification", "agent-notification", "peer", "coordinator"}  # turn starts not by the owner
+BLOAT_CONTEXT = 300_000  # the cache read above this many tokens in one message counts as bloated context
+COLD_TTL_MIN = {"5m": 5, "1h": 60}  # the prompt cache lifetime by write kind
+DAILY_KEPT = 14  # days of per-session units kept in `state.json`
 
 
 def retro_dir():
@@ -164,26 +206,72 @@ def model_family(model):
     return next((family for family in MODEL_WEIGHTS if family in model), "other")
 
 
-def units_of(usage, model):
-    """The units of one message's usage."""
-    def number(value):
-        return value if isinstance(value, (int, float)) else 0
+def number(value):
+    return value if isinstance(value, (int, float)) else 0
+
+
+def cache_writes(usage):
+    """(5-minute, 1-hour) cache write tokens of one message's usage."""
     cache = usage.get("cache_creation") if isinstance(usage.get("cache_creation"), dict) else None
     if cache:
-        five, hour = number(cache.get("ephemeral_5m_input_tokens")), number(cache.get("ephemeral_1h_input_tokens"))
-    else:
-        five, hour = number(usage.get("cache_creation_input_tokens")), 0
+        return number(cache.get("ephemeral_5m_input_tokens")), number(cache.get("ephemeral_1h_input_tokens"))
+    return number(usage.get("cache_creation_input_tokens")), 0
+
+
+def units_of(usage, model):
+    """The units of one message's usage."""
+    five, hour = cache_writes(usage)
     raw = (number(usage.get("input_tokens")) * WEIGHTS["input"] + number(usage.get("output_tokens")) * WEIGHTS["output"]
            + number(usage.get("cache_read_input_tokens")) * WEIGHTS["cache_read"]
            + five * WEIGHTS["cache_5m"] + hour * WEIGHTS["cache_1h"])
     return raw * MODEL_WEIGHTS.get(model_family(model), 1)
 
 
-def analyse(lines, seen=None, since=None):
+def waste_of(usage, model):
+    """(cache write units, units of the cache read above BLOAT_CONTEXT) of one message."""
+    five, hour = cache_writes(usage)
+    weight = MODEL_WEIGHTS.get(model_family(model), 1)
+    over = max(0, number(usage.get("cache_read_input_tokens")) - BLOAT_CONTEXT)
+    return (five * WEIGHTS["cache_5m"] + hour * WEIGHTS["cache_1h"]) * weight, over * WEIGHTS["cache_read"] * weight
+
+
+def new_turn(origin):
+    return {"origin": origin, "msgs": [], "text": 0, "calls": 0, "rearms": 0, "acts": 0, "assistant": False}
+
+
+def day_row(days, stamp):
+    """The row of the local date of `stamp` in a per-day table of units."""
+    day = (stamp or datetime.datetime.now(datetime.timezone.utc)).astimezone().date().isoformat()
+    return days.setdefault(day, {"units": 0.0, "idle": 0.0, "cold": 0.0, "bloat": 0.0, "wakes": 0})
+
+
+def close_turn(turn, days):
+    """Add a finished turn's units to the per-day table, and the waste in them (see the module doc)."""
+    idle = (turn["origin"] == "task-notification" and turn["text"] <= IDLE_TEXT_CHARS
+            and turn["calls"] <= IDLE_MAX_CALLS and not turn["acts"] and (turn["rearms"] or not turn["calls"]))
+    for msg in turn["msgs"]:
+        row = day_row(days, msg["stamp"])
+        row["units"] += msg["units"]
+        if idle:
+            row["idle"] += msg["units"]
+            continue
+        row["bloat"] += msg["over"]
+        if msg["cold"] and turn["origin"] in WAKE_ORIGINS:
+            row["cold"] += msg["write"]
+    if idle and turn["msgs"]:
+        day_row(days, turn["msgs"][0]["stamp"])["wakes"] += 1
+
+
+def analyse(lines, seen=None, since=None, last=None):
     """Counters of one transcript window: calls, repeats, errors, slow calls, pauses, Bash commands, title, spend.
 
-    `seen` is the set of message ids already counted in this scan; lines dated before `since` are not counted."""
+    `seen` is the set of message ids already counted in this scan; lines dated before `since` are not counted.
+    `last` is `(time, cache lifetime in minutes)` of the previous assistant message of this file, from an earlier scan;
+    the result's `last` is the same for the next scan, and `days` the per-day units and waste (see the module doc)."""
     seen = set() if seen is None else seen
+    days = {}
+    turn = new_turn(None)
+    prev_assistant, ttl = last if last else (None, COLD_TTL_MIN["1h"])
     units = Counter()  # model family -> units
     turns = 0
     calls = {}
@@ -211,18 +299,45 @@ def analyse(lines, seen=None, since=None):
         message = entry.get("message") or {}
         content = message.get("content")
         fresh = not (since and stamp and stamp < since)
-        if kind == "user" and fresh and not entry.get("isMeta") and not (
+        if kind == "user" and not entry.get("isMeta") and not (
                 isinstance(content, list) and any(isinstance(b, dict) and b.get("type") == "tool_result"
                                                   for b in content)):
-            turns += 1
+            close_turn(turn, days)
+            origin = entry.get("origin")
+            turn = new_turn(origin.get("kind") if isinstance(origin, dict) else None)
+            if isinstance(content, str) and "<summary>Agent " in content:
+                turn["origin"] = "agent-notification"  # a finished subagent: real work follows, not an idle wake
+            if fresh:
+                turns += 1
         if not isinstance(content, list):
             content = []
         if kind == "assistant":
             usage, model, mid = message.get("usage"), message.get("model"), message.get("id")
+            cold = not turn["assistant"] and bool(stamp and prev_assistant
+                                                  and (stamp - prev_assistant).total_seconds() / 60 >= ttl)
+            turn["assistant"] = True
+            if stamp:
+                prev_assistant = stamp
+            if isinstance(usage, dict) and model != "<synthetic>":
+                five, hour = cache_writes(usage)
+                ttl = COLD_TTL_MIN["1h"] if hour else COLD_TTL_MIN["5m"] if five else ttl
             if isinstance(usage, dict) and model != "<synthetic>" and fresh and mid not in seen:
                 if mid:
                     seen.add(mid)
                 units[model_family(model)] += units_of(usage, model)
+                write, over = waste_of(usage, model)
+                turn["msgs"].append({"stamp": stamp, "units": units_of(usage, model), "write": write, "over": over,
+                                     "cold": cold})
+            for block in content:
+                if isinstance(block, dict) and block.get("type") == "text":
+                    turn["text"] += len(str(block.get("text") or "").strip())
+                elif isinstance(block, dict) and block.get("type") == "tool_use":
+                    turn["calls"] += 1
+                    given = block.get("input")
+                    if block.get("name") == "Bash" and isinstance(given, dict) and given.get("run_in_background"):
+                        turn["rearms"] += 1
+                    if block.get("name") not in IDLE_TOOLS:
+                        turn["acts"] += 1
             if last_result_time and stamp:
                 gap = (stamp - last_result_time).total_seconds() / 60
                 if gap >= SLOW_MODEL_MIN:
@@ -236,7 +351,7 @@ def analyse(lines, seen=None, since=None):
                 key = name + " " + json.dumps(tool_input, sort_keys=True, ensure_ascii=False)
                 own = name == "Bash" and isinstance(tool_input, dict) and OWN_COMMAND in str(tool_input.get("command"))
                 if not (isinstance(tool_input, dict) and tool_input.get("run_in_background")) and not own:
-                    repeats[key] += 1  # a re-armed background watcher and the plugin's own checks are by design
+                    repeats[key] += 1  # an older lead's re-armed background watcher and the plugin's own checks are by design
                 first_input.setdefault(key, (name, tool_input))
                 calls[block.get("id")] = (name, stamp)
                 if name == "Bash" and isinstance(tool_input, dict) and tool_input.get("command") and not own:
@@ -258,7 +373,9 @@ def analyse(lines, seen=None, since=None):
                     if minutes >= SLOW_CALL_MIN:
                         slow.append((name, minutes))
             last_result_time = stamp if got_result else None
+    close_turn(turn, days)
     return {
+        "days": days, "last": (prev_assistant, ttl) if prev_assistant else None,
         "title": title, "calls": len(calls), "repeats": repeats, "first_input": first_input, "errors": errors,
         "error_tools": error_tools, "slow": slow, "pauses": pauses, "bash": bash, "units": units, "turns": turns,
         "runs": 1 if units else 0, "run_units": [(units.most_common(1)[0][0], sum(units.values()))] if units else [],
@@ -267,7 +384,10 @@ def analyse(lines, seen=None, since=None):
 
 def merge(a, b):
     """The counters of two windows of one label added together."""
+    days = {day: {key: a["days"].get(day, {}).get(key, 0) + b["days"].get(day, {}).get(key, 0)
+                  for key in ("units", "idle", "cold", "bloat", "wakes")} for day in {*a["days"], *b["days"]}}
     return {
+        "days": days, "last": b["last"] or a["last"],
         "title": b["title"] or a["title"], "calls": a["calls"] + b["calls"], "repeats": a["repeats"] + b["repeats"],
         "first_input": {**b["first_input"], **a["first_input"]}, "errors": a["errors"] + b["errors"],
         "error_tools": a["error_tools"] + b["error_tools"], "slow": a["slow"] + b["slow"],
@@ -331,7 +451,15 @@ def scan(days=1, force=False, out=None):
         if not lines:
             continue
         project, session, sub = session_label(path, root)
-        result = analyse(lines, seen, since)
+        before = state.setdefault("last_assistant", {}).get(key)
+        result = analyse(lines, seen, since, (parse_time(before[0]), before[1]) if before else None)
+        if result["last"]:
+            state["last_assistant"][key] = [result["last"][0].isoformat(), result["last"][1]]
+        for date, row in result["days"].items():
+            total = state.setdefault("daily", {}).setdefault(date, {}).setdefault(
+                f"{project}/{session}", {"units": 0, "idle": 0, "cold": 0, "bloat": 0, "wakes": 0})
+            for field, value in row.items():
+                total[field] = round(total[field] + value)
         if result["title"] and not sub:
             known[f"{project}/{session}"] = result["title"]
         merged = windows.get((project, session, sub))
@@ -354,6 +482,7 @@ def scan(days=1, force=False, out=None):
                              f"script candidate | {short(command)}")
     spend_findings, table = spend(windows, titles, state)
     out_lines += spend_findings
+    out_lines += priority_lines(state, day)
     if out_lines or table:
         report = folder / f"scan-{day}.md"
         header = "" if report.exists() else f"# Scan {day}\n\n"
@@ -366,6 +495,67 @@ def scan(days=1, force=False, out=None):
     save_state(folder, state)
     print(f"scanned {len(windows)} transcript(s), {len(out_lines)} finding(s)", file=out)
     return 0
+
+
+def percent(units):
+    """Units as a share of the weekly limit, in per cent."""
+    return units * 100 / WEEKLY_LIMIT_UNITS
+
+
+def pct_text(value):
+    return f"{value:.1f}%" if value >= 1 else f"{value:.2f}%"
+
+
+def problems(row):
+    """The token problems of one session's day, from the note shares up: `(kind, share, detail, critical)`.
+
+    kind is `spend` (units spent) or `waste` (idle wakes, cold restarts, bloated context)."""
+    found = []
+    spend = percent(row["units"])
+    if spend >= NOTE_SPEND_PCT:
+        found.append(("spend", spend, f"spent {pct_text(spend)} of the weekly limit ({amount(row['units'])} units)",
+                      spend >= CRITICAL_SPEND_PCT))
+    waste = percent(row["idle"] + row["cold"] + row["bloat"])
+    if waste >= NOTE_WASTE_PCT:
+        found.append(("waste", waste, f"wasted {pct_text(waste)} of the weekly limit: idle wakes "
+                      f"{pct_text(percent(row['idle']))} ({row['wakes']}), cold restarts "
+                      f"{pct_text(percent(row['cold']))}, bloated context {pct_text(percent(row['bloat']))}",
+                      waste >= CRITICAL_WASTE_PCT))
+    return found
+
+
+def session_label_of(state, key):
+    """(project folder, `title (id8)` or the session id) of a `project/session` key of `state['daily']`."""
+    project, _, session = key.rpartition("/")
+    title = state.get("titles", {}).get(key)
+    return project, f"{title} ({session[:8]})" if title else session
+
+
+def priority_lines(state, day):
+    """Scan lines for the token problems of every finished day not written yet; the retro lists them first.
+
+    A day is finished once a scan runs on a later day. The days older than DAILY_KEPT are dropped from the state."""
+    keep = (datetime.date.fromisoformat(day) - datetime.timedelta(days=DAILY_KEPT)).isoformat()
+    daily = state.setdefault("daily", {})
+    for old in [date for date in daily if date < keep]:
+        del daily[old]
+    stale = (datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(days=3)).isoformat()
+    last = state.setdefault("last_assistant", {})
+    for old in [path for path, (stamp, _) in last.items() if parse_time(stamp) < parse_time(stale)]:
+        del last[old]
+    written = state.setdefault("noted_days", [])
+    lines = []
+    for date in sorted(date for date in daily if date < day and date not in written):
+        written.append(date)
+        found = []
+        for key, row in daily[date].items():
+            project, label = session_label_of(state, key)
+            found += [(share, f"- {project} | {label.replace('|', '/')} | token {kind} | {date}: {detail}"
+                       + ("; critical (shown in Pult's status)" if critical else ""))
+                      for kind, share, detail, critical in problems(row)]
+        lines += [line for _, line in sorted(found, key=lambda item: -item[0])]
+    state["noted_days"] = written[-DAILY_KEPT:]
+    return lines
 
 
 def amount(units):
@@ -534,14 +724,48 @@ def list_findings(out=None):
     scan_lines, note_lines = unreviewed(folder, state)
     state["shown"] = snapshot(folder)
     save_state(folder, state)
-    print("## Scan findings", file=out)
-    print("\n".join(scan_lines) or "(none)", file=out)
+    urgent = [line for line in scan_lines if " | token spend | " in line or " | token waste | " in line]
+    print("## Priority: token problems (read first; the retro asks them before the rest)", file=out)
+    print("\n".join(urgent) or "(none)", file=out)
+    print("\n## Scan findings", file=out)
+    print("\n".join(line for line in scan_lines if line not in urgent) or "(none)", file=out)
     print("\n## Session notes", file=out)
     print("\n".join(note_lines) or "(none)", file=out)
     tables = spend_tables(folder, state["reviewed"].get("scans_until", ""))
     if tables:
         print("\n## Spend (units; evidence for the findings above, not findings)", file=out)
         print("\n".join(tables).rstrip(), file=out)
+    return 0
+
+
+def critical(days=1, out=None):
+    """Print the critical token problems of today and the days before it not shown yet, or grown since shown."""
+    out = out or sys.stdout
+    folder = retro_dir()
+    if load_state(folder)["last_scan"] != today():
+        with open(os.devnull, "w", encoding="utf-8") as quiet:
+            scan(days=days, out=quiet)
+    state = load_state(folder)
+    first = (datetime.date.fromisoformat(today()) - datetime.timedelta(days=CRITICAL_DAYS)).isoformat()
+    shown = {key: value for key, value in state.setdefault("critical_shown", {}).items() if key.split("|")[0] >= first}
+    lines = []
+    for date, sessions in state.get("daily", {}).items():
+        if date < first:
+            continue
+        for key, row in sessions.items():
+            project, label = session_label_of(state, key)
+            for kind, share, detail, is_critical in problems(row):
+                before = shown.get(f"{date}|{key}|{kind}")
+                if not is_critical or (before is not None and share < before * CRITICAL_GROWTH):
+                    continue
+                shown[f"{date}|{key}|{kind}"] = share
+                grown = f" (was {pct_text(before)} when last shown)" if before is not None else ""
+                lines.append((share, f"critical | {project_name(project)} | {label.replace('|', '/')} | {date} | "
+                                     f"{detail}{grown}"))
+    state["critical_shown"] = shown
+    save_state(folder, state)
+    for _, line in sorted(lines, key=lambda item: -item[0]):
+        print(line, file=out)
     return 0
 
 
@@ -565,7 +789,7 @@ def main(argv=None):
             stream.reconfigure(encoding="utf-8", errors="replace")
     parser = argparse.ArgumentParser(prog="dev-kit-retro")
     sub = parser.add_subparsers(dest="command", required=True)
-    for name in ("check", "scan"):
+    for name in ("check", "scan", "critical"):
         command = sub.add_parser(name)
         command.add_argument("--days", type=float, default=1)
         if name == "scan":
@@ -575,6 +799,8 @@ def main(argv=None):
     args = parser.parse_args(argv)
     if args.command == "check":
         return check(days=args.days)
+    if args.command == "critical":
+        return critical(days=args.days)
     if args.command == "scan":
         return scan(days=args.days, force=args.force)
     if args.command == "list":

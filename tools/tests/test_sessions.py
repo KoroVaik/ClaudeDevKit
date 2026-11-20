@@ -826,5 +826,139 @@ class SessionsTestCase(unittest.TestCase):
         self.transcript("c2-session", [self.reply("x", timestamp=self.ago(30)), self.limit_notice(resets=None)])
         self.assertEqual([], sessions.stale_sessions(watched, agents, 20, time.time()))
 
+    def check_setup(self):
+        """Six registered sessions, one of each kind of event, and an open restart request. Returns the lines
+        `check` must print."""
+        self.add("o1-session", name="O: done", owner=True)
+        self.add("g1-session", name="C: gone")
+        self.add("l1-session", name="C: lim")
+        self.add("s1-session", name="C: wait")
+        self.add("f1-session", name="C: big")
+        self.listing([{"sessionId": "o1-session", "pid": 1, "state": "idle"},
+                      {"sessionId": "l1-session", "pid": 2, "state": "blocked"},
+                      {"sessionId": "s1-session", "pid": 3, "state": "idle"},
+                      {"sessionId": "f1-session", "pid": 4, "status": "busy"}])  # g1 is not in the list
+        self.transcript("o1-session", [self.human("go"), self.reply("Done.\nWork finished", timestamp="2026-11-20T10:00:00Z")])
+        self.transcript("g1-session", [self.reply("bye", timestamp="2026-11-20T09:00:00Z")])
+        self.transcript("l1-session", [self.reply("x"), self.limit_notice(resets=None)])
+        self.transcript("s1-session", [self.human("go"), self.reply("Question?", timestamp=self.ago(30))])
+        self.transcript("f1-session", [self.assistant(0, 0, 130000)])
+        self.run_main("restart", "request", "--version", "9.9.9")
+        return ["restart | - | - | 9.9.9 | 9.9.9",
+                "gone | C: gone | g1-session | not in the session list | 2026-11-20T09:00:00Z",
+                "finished | O: done | o1-session | finished | 2026-11-20T10:00:00Z",
+                "limited | C: lim | l1-session | resets unknown | lim-1",
+                "fill | C: big | f1-session | 65% of 200000 | fill"]
+
+    # protects: Flow
+    def test_check_prints_each_kind_of_event_and_writes_no_marks(self):
+        expected = self.check_setup()
+        code, out = self.run_main("check")
+        self.assertEqual(0, code)
+        lines = out.splitlines()
+        stale = [line for line in lines if line.startswith("stale | ")]
+        self.assertEqual(1, len(stale))
+        self.assertRegex(stale[0], r"^stale \| C: wait \| s1-session \| waiting 30 min \| \S+Z$")
+        self.assertEqual(expected, [line for line in lines if not line.startswith("stale | ")])
+        folder = dev_kit_state.project_state_dir(self.project)
+        for name in (sessions.LIMITS, sessions.STALE, sessions.DELIVERED):
+            self.assertFalse((folder / name).exists(), name)
+        self.assertNotIn("notified", json.loads((folder / sessions.RESTART).read_text()))
+        self.assertEqual(out, self.run_main("check")[1])  # nothing was marked: the same lines again
+
+    # protects: Flow
+    def test_check_leaves_out_what_mark_recorded_and_reports_a_new_key(self):
+        self.check_setup()
+        lines = [line.split(" | ") for line in self.run_main("check")[1].splitlines()]
+        self.assertEqual(6, len(lines))
+        for kind, _name, wanted, _detail, key in lines:
+            argv = ["mark", "--kind", kind, "--key", key] + ([] if kind == "restart" else ["--id", wanted])
+            self.assertEqual((0, f"marked {kind} {'-' if kind == 'restart' else wanted}\n"), self.run_main(*argv))
+        self.assertEqual((0, ""), self.run_main("check"))
+        folder = dev_kit_state.project_state_dir(self.project)
+        self.assertEqual({"g1-session": {"gone": "2026-11-20T09:00:00Z"}, "o1-session": {"finished": "2026-11-20T10:00:00Z"},
+                          "f1-session": {"fill": "fill"}}, json.loads((folder / sessions.DELIVERED).read_text()))
+        self.assertEqual("lim-1", json.loads((folder / sessions.LIMITS).read_text())["l1-session"])
+        self.assertIn("notified", json.loads((folder / sessions.RESTART).read_text()))
+        self.assertEqual("not marked", self.run_main("mark", "--kind", "restart", "--key", "1.0.0")[1][:10])
+        self.transcript("g1-session", [self.reply("back", timestamp="2026-11-20T11:00:00Z")])  # came back, went again
+        self.assertEqual((0, "gone | C: gone | g1-session | not in the session list | 2026-11-20T11:00:00Z\n"),
+                         self.run_main("check", "--id", "g1-session"))
+
+    # protects: Rule
+    def test_check_keeps_the_closed_grace_across_calls(self):
+        self.add("c1-session", name="C: x")
+        self.listing([{"sessionId": "c1-session", "state": "stopped"}])
+        closed = dev_kit_state.project_state_dir(self.project) / sessions.CLOSED
+        self.assertEqual((0, ""), self.run_main("check"))
+        first = json.loads(closed.read_text())["c1-session"]
+        self.assertEqual((0, ""), self.run_main("check"))
+        self.assertEqual(first, json.loads(closed.read_text())["c1-session"])  # the clock is not restarted
+        closed.write_text(json.dumps({"c1-session": first - sessions.CLOSED_GRACE - 1}), encoding="utf-8")
+        self.assertEqual((0, "gone | C: x | c1-session | stopped | none\n"), self.run_main("check"))
+        self.listing([{"sessionId": "c1-session", "pid": 7}])  # a pid again clears the clock
+        self.assertEqual((0, ""), self.run_main("check"))
+        self.assertEqual({}, json.loads(closed.read_text()))
+
+    # protects: Edge
+    def test_check_with_an_unreadable_session_list_exits_3(self):
+        self.add("c1-session")
+        with mock.patch.dict(os.environ, {sessions.AGENTS_ENV: str(self.tmp / "missing.json")}):
+            code, out = self.run_main("check")
+        self.assertEqual(3, code)
+        self.assertIn("could not be read", out)
+
+    # protects: Rule
+    def test_fill_over_only_prints_only_the_over_rows(self):
+        self.assertEqual((0, ""), self.run_main("fill", "--over-only"))
+        self.add("c1-session", name="C: big")
+        self.add("c2-session", name="C: small")
+        self.add("c3-session", name="C: none")
+        self.transcript("c1-session", [self.assistant(0, 0, 150000)])
+        self.transcript("c2-session", [self.assistant(0, 0, 1000)])
+        self.assertEqual((0, "C: big | c1-session | 150000 tokens | window 200000 | 75% OVER\n"),
+                         self.run_main("fill", "--over-only"))
+        self.assertIn("C: none | c3-session | no transcript", self.run_main("fill")[1])
+
+    # protects: Bug
+    def test_last_usage_skips_side_chain_lines(self):
+        path = self.projects / "p1" / "s1.jsonl"
+        side = dict(self.assistant(0, 0, 500), isSidechain=True)  # a subagent's small context, written last
+        self.transcript("s1", [self.assistant(0, 0, 150000), side])
+        self.assertEqual(150000, sessions.last_usage(path)[0])
+        self.transcript("s1", [side])
+        self.assertIsNone(sessions.last_usage(path))
+
+    # protects: Flow
+    def test_size_prints_the_context_and_counts_turn_starts_and_units_since_the_last_call(self):
+        import retro
+        path = self.projects / "p1" / "s1.jsonl"
+        state = self.tmp / "wakes.json"
+        first = self.assistant(100, 0, 5000)
+        first["message"]["id"] = "m1"
+        self.transcript("s1", [self.human("go"), first])
+        self.assertEqual((0, "s1 | 5100 | 200000 | claude-haiku-4-5-20251001\n"), self.run_main("size", "--id", "s1", "--id", "none"))
+        self.assertFalse(state.exists())
+        self.assertEqual((0, "s1 | 5100 | 200000 | claude-haiku-4-5-20251001 | owner=0 peer=0 notify=0 | units=0\n"),
+                         self.run_main("size", "--id", "s1", "--wakes", str(state)))  # the first call counts nothing
+        second = self.assistant(10, 0, 6000)
+        second["message"]["id"] = "m2"
+        entries = [{"type": "user", "message": {"role": "user", "content": "next"}},
+                   {"type": "user", "isMeta": True, "origin": {"kind": "peer", "body": "hi"},
+                    "message": {"role": "user", "content": "<cross-session>hi</cross-session>"}},
+                   {"type": "user", "origin": {"kind": "task-notification"},
+                    "message": {"role": "user", "content": "<task-notification>done</task-notification>"}},
+                   {"type": "user", "isMeta": True, "message": {"role": "user", "content": "<reminder>x</reminder>"}},
+                   {"type": "user", "message": {"role": "user", "content": [{"type": "tool_result", "content": "ok"}]}},
+                   dict(self.human("side question"), isSidechain=True),
+                   second, second, dict(self.assistant(0, 0, 9000), isSidechain=True)]
+        with open(path, "a", encoding="utf-8") as handle:
+            handle.write("\n".join(json.dumps(entry) for entry in entries) + "\n")
+        units = round(retro.units_of(second["message"]["usage"], second["message"]["model"]))  # the twin counts once
+        code, out = self.run_main("size", "--id", "s1", "--wakes", str(state))
+        self.assertEqual((0, f"s1 | 6010 | 200000 | claude-haiku-4-5-20251001 | owner=1 peer=1 notify=2 | units={units}\n"),
+                         (code, out))
+        self.assertIn("owner=0 peer=0 notify=0 | units=0", self.run_main("size", "--id", "s1", "--wakes", str(state))[1])
+
 if __name__ == "__main__":
     unittest.main()

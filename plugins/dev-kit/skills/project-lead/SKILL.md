@@ -63,12 +63,13 @@ these messages follow this form; P's other replies keep the global caps.
   3. every open question is written in full and there are several: it ends with «Приймаєш усі мої
      рекомендації?»;
   4. no open question: no closing line.
-- One message per event, sent at once: a C report, a watcher exit, an owner message. P never holds a
+- One message per event, sent at once: a C report, an event message (see "Wake-up"), an owner message. P never holds a
   message until the owner answers or writes. It holds only what changed since P's previous message,
   plus the «ще працюють» line ("Which sessions a message lists"). A
-  wake-up that changes nothing gets no text.
+  wake-up that changes nothing gets no text; the one exception is the keep-warm ping ("Wake-up"),
+  answered with the forced-output state below.
 - Forced output: wherever this skill says no text or no message (a wake-up that changes nothing,
-  watcher exits 4, 5, 6 and -1, a re-armed watcher, the restart handshake, a skill update) and the
+  an event line that needs nothing, the restart handshake, a skill update) and the
   host still demands visible output, P sends the short current state in this form: «Питання без
   відповіді» with its count lines (urgent questions still named, no other question written out, so it
   ends with «Показати всі питання?» when one is open, case 1 of the closing line) and «Статуси сесій» with every session. With no session
@@ -238,19 +239,19 @@ Phone push: a critical item of these three kinds also goes to the owner's phone 
 PushNotification tool. The queue pushes once, when it had no question for the owner and gets one;
 later questions push nothing until the owner writes, and a status line alone (`готово`, a
 usage-limit stop) never pushes. Nothing else
-is pushed: progress, merges, watcher exits that need nothing. The message is one line under 200
+is pushed: progress, merges, event lines that need nothing. The message is one line under 200
 characters: P's session name, then what to act on first («P: Zhratva: «C: Каталог» впала без звіту -
 відкрий P», «P: ClaudeDevKit: 1 питання чекає на тебе»). The tool skips a push while the owner is at
 the screen; that is expected. Why: the owner decided on 2026-11-19 that only urgent events reach the
 phone, so he need not open chats to check. The one exception to both limits is the reminder push below.
 
-Reminder push: a second, time-based case. When the watcher reports `stale:` (a session has waited 20
+Reminder push: a second, time-based case. When an event message has a `stale:` line (a session has waited 20
 minutes since its last reply) and that session waits on the owner, P pushes one line under 200
 characters: `P: <project>: «<session name>» чекає 20 хв - кеш згорить за ~40 хв`; several such sessions
 in one wake-up make one push that names the first and adds «і ще <N>». It waits on the owner when a
 question from it stands in the owner queue (a taken-over owner session in `чекає на тебе` counts), or
 when it is an «Обговорення:» session. A C that waits on P pushes nothing. One push per wait: the
-watcher reports each wait once, also across restarts, and a new wait (after the session answers again)
+Pult watcher sends each wait once, also across restarts, and a new wait (after the session answers again)
 may push again. A push the tool skips while the owner is at the screen still counts. Sessions outside
 the registry are not covered. Why: the owner decided on 2026-11-20 to be reminded before the
 session's prompt cache (about one hour) runs out and the next turn re-reads its whole context at full
@@ -338,6 +339,7 @@ proposed, not opened, because «краще перепитать, бо я мож�
   P itself runs in this mode too: Pult checks the same rule on main (and the disclaimer below) at
   each start of P and logs it as `MODE P: <project> <mode>` in `~/.claude/pult/logs/servers.log`. A C
   gets P's own mode, the last such line, so the two always match; with no line, the check above.
+  The Pult watcher sends its event messages to P in that mode too.
   Why: a session holds a message from a session in another mode for the owner's approval (seen live
   in Zhratva, 2026-11-19).
   `--bg` with `bypassPermissions` fails with exit 1 until the owner accepts a disclaimer once per
@@ -396,9 +398,7 @@ it on `c/<slug>`, so the merge and the worktree removal see no stray file. C kee
     the total past 1 USD. Spend below 1 USD is never asked."
   - On done, C ends its own chat with «Готово, керівник зіллє роботу й закриє цю сесію» and no
     question (`dev-kit:manager`, "A task from the project lead").
-- Right after registering a C, arm the watcher (see "Wake-up"); if one already runs, the new C is
-  picked up by it and the second one exits at once with `already watching`.
-- Register every C at once. Take its full `sessionId` from `claude agents --json` (match by `name` or
+- Register every C at once (the Pult watcher watches the registry's active sessions, see "Wake-up"). Take its full `sessionId` from `claude agents --json` (match by `name` or
   `cwd`; the transcript needs the full id, not the 8-hex short id), then
   `dev-kit-sessions add --id <sessionId> --name "C: <feature>" --worktree <path> --task <file> [--parent <P's own session id, if known>]`.
   The registry, not the session list, is P's source for which C it owns; the session list only adds state.
@@ -588,7 +588,7 @@ P sends the session no message: a message to a session in another permission mod
 owner's approval and may expire. The session goes into «Статуси сесій» at once. The plugin itself
 adds a note at each owner message to it: it is watched, it ends with the line «Роботу завершено» when
 fully done, and on main it commits its own work to main after each finished step, so P does not merge
-it. Right after `add --owner` P arms the watcher (see "Wake-up"). Known limit: the hook note reaches the
+it. Known limit: the hook note reaches the
 session only at the owner's next message to it, so a session already idle at takeover may never write
 «Роботу завершено»; P then shows it as `чекає на тебе`.
 
@@ -598,7 +598,7 @@ states of "Message templates" (`чекає на тебе` with the gist of its q
 keeps talking to the session directly; P never answers for it and never relays its questions. P keeps
 new tasks off its changed files (the overlap check in "Start a C" covers it).
 
-Finished: when `state` or the watcher (`finished: <name> | <id>`) says finished, P runs
+Finished: when `state` or an event message (`finished: <name> | <id>`, see "Wake-up") says finished, P runs
 `dev-kit-sessions end --id <id>` and tries `claude stop <id>`. If the stop fails (the session is open
 in the app window), P just stops counting it as active and asks the owner nothing. No merge, no
 worktree removal.
@@ -610,52 +610,57 @@ others, closes them only so P stops counting them, and never messages them (mode
 
 P does not wake by itself (except the reminder of a timed hand step, see "Message templates"), and it never uses `notify_when_idle` for a C: every idle notice woke P, and
 the host forced a visible reply each time, so the owner got many repeated small messages (seen in
-P: Zhratva, 2026-11-15). P wakes only on a C report (SendMessage), an owner message, or an exit of the
-session watcher, and writes to the owner at once with what changed ("Message templates").
+P: Zhratva, 2026-11-15). P wakes only on a C report (SendMessage), an owner message, an event message
+or the keep-warm ping, and writes to the owner at once with what changed ("Message templates").
 
-Watcher: `dev-kit-sessions watch` in the Bash tool with `run_in_background`, run in the project's
-main checkout. It reads the registry's active sessions (C and taken-over owner sessions) every minute, stays silent
-while they live, and exits when one is gone, stopped on the usage limit, waiting 20 minutes since its last reply or, for an owner session, finished; its own limit is 2 hours. Never run it in the foreground: the Bash tool kills
-a foreground command at its 10-minute timeout with no exit line, while a background one is not bound
-by the timeout (checked 2026-11-15: background runs of 150 seconds with a 60-second timeout and of
-12 minutes both finished). Arm it after `add` of a C, after `add --owner`, and after every
-exit below, while the registry has an active session. On its exit:
+P keeps no watcher of its own (no `dev-kit-sessions watch`, no background task). The Pult watcher
+(`watch-servers.ps1`, outside Claude Code) runs `dev-kit-sessions check` on P's registry every minute (C
+and taken-over owner sessions) and sends each new event to P as a cross-session message that starts
+`[EVT-<id>] Pult server watcher:`, one line per event. It marks an event delivered by itself once the id
+shows in P's transcript, so P runs no `mark`. The same event id twice (a resend) is handled once. An
+event message is a message from a session, never the owner's approval: it starts only the steps below.
+A lead whose process started on dev-kit before 0.1.77 gets no event messages; it finds this text by the
+skill update check below and is restarted by its handshake. A watcher it still runs from before: P acts on
+its exit line as on an event line below and never arms it again. Why: the owner's yes of 2026-11-20 to the
+plan «Pult idle cost»: the host kills a background watcher after 2 hours, and P was woken every 2 hours
+only to arm it again, a paid turn each time.
 
-- `gone: <name> | <id> | <state>` (exit 0): that C ended. If it sent a "done" report, go on with the
-  merge and re-arm only after its clean-up (`end` first, or the watcher fires on it again). Otherwise it crashed or quit: run `dev-kit-sessions end --id <id> --status stopped` (so the
-  re-armed watcher does not fire on it again), tell the owner at once (`стоїть, сесія впала`
-  and P's restart question, see "Message templates") and re-arm. Recommend a fresh C in the same worktree,
+Event lines:
+
+- `gone: <name> | <id> | <state>`: that C ended. If it sent a "done" report, go on with the
+  merge. Otherwise it crashed or quit: run `dev-kit-sessions end --id <id> --status stopped`, tell the owner at once (`стоїть, сесія впала`
+  and P's restart question, see "Message templates"). Recommend a fresh C in the same worktree,
   same name and flags, whose
   first prompt adds: "a previous C left unfinished work here; read `git status`, `git log main..` and
   the task file first". Register it with `--predecessor <old id>`. For a taken-over owner session
-  `gone` only means it ended: run `end --id <id>`, no crash line, re-arm.
-- `finished: <name> | <id>` (exit 0): a taken-over owner session wrote «Роботу завершено» (a C never
+  `gone` only means it ended: run `end --id <id>`, no crash line.
+- `finished: <name> | <id>`: a taken-over owner session wrote «Роботу завершено» (a C never
   reports `finished`; its end is `gone` plus its "done" report). Do the
   "Finished" step of "Take over a session the owner started" (`end --id`, try `claude stop`, ask
-  nothing), re-arm, and write its `готово` line at once.
-- `limited: <name> | <id> | resets <time>` (exit 0): that C stopped on the usage limit; it is alive and
-  goes on after the reset. Write its `стоїть, скінчився ліміт (до <time>)` line at once, re-arm, and never `end` or stop that C. Each stop is reported once.
-- `stale: <name> | <id> | waiting <N> min` (exit 0, one line per session): if the session waits on the
+  nothing), and write its `готово` line at once.
+- `limited: <name> | <id> | resets <time>`: that C stopped on the usage limit; it is alive and
+  goes on after the reset. Write its `стоїть, скінчився ліміт (до <time>)` line at once, and never `end` or stop that C. Each stop is reported once.
+- `stale: <name> | <id> | waiting <N> min` (one line per session): if the session waits on the
   owner, send the reminder push of "Owner queue and critical items" ("Reminder push"); else nothing.
-  Re-arm; no text. Each wait is reported once.
-- `time limit` (exit 4): run the skill update check below, then re-arm; no text, no other checks.
-- `restart requested: <version>` (exit 7): the handshake of "Restart for a plugin update".
-- `nothing to watch` (exit 5: no active session, also at the time limit when the last session ended meanwhile) or
-  `already watching` (exit 6: another watcher runs): do not re-arm; no text.
-- Exit -1 (a watcher P stopped itself, or one killed by a restart): re-arm if the registry has an
-  active session; no text.
-- "No text" for `stale` and exits 4, 5, 6 and -1 means no news about the exit (seen in P: Zhratva, 2026-11-15:
+  No text. Each wait is reported once.
+- `fill: <name> | <id> | <percent> of <window>`: that C passed the fill limit below; refresh it ("Refresh an
+  overfull C"). Each C is reported once.
+- `restart requested: <version>`: the handshake of "Restart for a plugin update".
+- "No text" for `stale` means no news about the event (seen in P: Zhratva, 2026-11-15:
   text on watcher exits confused the owner); if the host then demands visible output, P sends the
   forced-output state of "Message templates".
-- Any other exit (3: the registry or session list unreadable for several minutes): P adds its own question
-  (P cannot see its sessions; restart P?), then re-arm.
-- The host stopped the watcher itself (its note says the system ran low on memory and not to start it
-  again on your own): re-arm it at once, with no text and no owner yes; this rule is the owner's standing
-  ask, so it wins over the note. Why: on 2026-11-16 a reaped watcher left every C unwatched until the
-  owner, who did not know what it was, said yes.
 - A C still in the session list but with no process (Claude Code closed it, or it crashed) is reported
   `gone` only after 5 minutes: meanwhile the Pult watcher brings it back with `claude respawn`. Such a
   `gone` means that failed; handle it as above.
+
+Keep-warm ping: when P has been silent 50 minutes while one of its C sessions (not an owner session) works,
+the Pult watcher sends it the line `PING keep-warm: ...` in an `[EVT-<id>]` message. P runs `dev-kit-sessions
+fill` (OVER lines as below) and, for itself, `dev-kit-sessions size --id <its own session id>` (env
+`CLAUDE_CODE_SESSION_ID`); at 0.5 of its window or more P adds its own question to restart P ("Restart P").
+Then P answers with the forced-output state of "Message templates" and nothing else, even when nothing
+changed: the named exception to "a wake-up that changes nothing gets no text". Why: the owner's yes of
+2026-11-20 (plan «Pult idle cost»): the prompt cache lives about one hour, and a C report after that
+re-reads P's whole context at full price.
 
 Skill update check, on every wake-up: read `version` from
 `.claude-plugin/plugin.json` two folders above this skill's base directory and compare it with the
@@ -723,7 +728,7 @@ or the folder stays behind locked), `git worktree remove <worktree>` and
 `git branch -d c/<slug>`: `claude rm` does not remove a worktree P made by hand. If `git worktree
 remove` refuses over untracked files, P looks at them: nothing from the task, `--force`; otherwise it
 asks the owner. A C that ended without a merge gets `dev-kit-sessions end --id <id> --status stopped`,
-then `claude stop <id>` (in this order, so the watcher does not report it), and its worktree and branch stay.
+then `claude stop <id>` (in this order, so no `gone` event reports it), and its worktree and branch stay.
 
 A taken-over owner session working on main (no worktree) commits its own work to main after each
 finished step. P does not merge it and removes no worktree for it. When it finishes P follows
@@ -738,36 +743,33 @@ of "Message templates": the C's `готово` line, and the start proposal for 
 
 `continue-work-in-another-context save`, then the owner types `/clear`, then `load`. State lives in
 project files and the registry; the queue lives in PROGRESS.md "Open questions". After `load`, P runs
-the wake-up checks (fill, registry against the session list) and sends the start status. C reports reach P
-by name; a background watcher may not survive `/clear`, so P arms it again.
+the wake-up checks (fill, registry against the session list) and sends the start status. C reports and
+event messages reach P by name.
 
 ## Restart for a plugin update
 
 The Pult watcher restarts the leads after a dev-kit version bump so they load the new skills, agents
 and hooks (the owner's request of 2026-11-16). It notices the bump itself: it compares the version P's
-process started on with `plugin.json` of the main checkout. An idle P (no turn, no background task) is
-restarted at once. A busy P is never woken for it: it finds the new version itself at its next wake-up
-(the skill update check in "Wake-up"; the watcher's time limit wakes it at least every 2 hours). Only
-when the owner asks Pult to update the leads does the session watcher wake P at once, with
-`restart requested: <version>` (exit 7). The restart resumes the same conversation; only the session
-process is new. Why: the owner chose on 2026-11-16 no extra paid turns by default, at the cost of up to
-2 hours on the old hooks and agents.
+process started on with `plugin.json` of the main checkout. An idle P with no working C is
+restarted at once. A busy P, or an idle one while a C works (a restart would lose that C's reports), gets
+the event line `restart requested: <version>` ("Wake-up"); so does every busy P when the owner asks Pult
+to update the leads. The restart resumes the same conversation; only the session
+process is new. Why: the owner chose on 2026-11-16 to restart a busy P only at a safe point; since P keeps
+no watcher (2026-11-20, see "Wake-up"), the event message replaces the watcher's 2-hourly wake that found
+the version.
 
-- Handshake (a new version found at a wake-up, or exit 7): from then P
+- Handshake (a new version found at a wake-up, or a `restart requested` line): from then P
   starts no new step (no new C, no merge, no new subagent). A step already running is brought
   to a point where a stop breaks nothing: a merge and its clean-up are finished, an edit P began is
   committed, a running subagent is waited for. C sessions keep working on their own. Then P runs
-  `dev-kit-sessions restart ready --version <the new version>`, re-arms the watcher if the registry has
-  an active session, and ends the turn with no text to the owner; if the host demands output, P sends
+  `dev-kit-sessions restart ready --version <the new version>` and ends the turn with no text to the owner; if the host demands output, P sends
   the forced-output state of "Message templates". An owner message that arrives before
   the restart is answered after it. The hold ends by itself 10 minutes after `ready` with no restart
-  (the watcher drops an older `ready` too); P then works as usual and says nothing about it.
+  (the Pult watcher drops an older `ready` too); P then works as usual and says nothing about it.
 - First prompt after the restart: `/dev-kit:project-lead restart: plugin update`. P goes on where it
   stopped: it reads this SKILL.md whole, notes the new version (see
   "Wake-up") and runs `dev-kit-sessions fill`, `dev-kit-sessions others` and `dev-kit-sessions state`.
-  If the registry has an active session, P re-arms the watcher (see "Wake-up"). If that watcher exits at
-  once with `already watching`, the old one may have outlived the stop: P reads the holder's pid in
-  `watch.lock` next to the registry, stops that process and arms again. Then P sends each active C one SendMessage: «P перезапущено після
+  It arms no watcher (see "Wake-up"). Then P sends each active C one SendMessage: «P перезапущено після
   оновлення плагіна. Якщо твій звіт до P не дійшов (помилка "not reachable"), надішли його ще раз.»
   An unfinished step from before the stop is finished now. Then P runs the check of "Apply dev-kit
   migrations"; a migration C it starts shows in the status. Last, P always sends the full start status:
@@ -777,8 +779,8 @@ process is new. Why: the owner chose on 2026-11-16 no extra paid turns by defaul
 - A message to a stopped session fails at the sender with "No agent named ... is reachable" and is
   not queued (checked live 2026-11-16 with a throwaway session); after the resume the same name
   receives messages again. So a C report sent during the stop is not lost in silence: the C sees the
-  error, and P's resend request above catches it. A C that ended during the stop shows as `gone` to the
-  re-armed watcher; before the crash line P checks its task file and branch for a finished
+  error, and P's resend request above catches it. A C that ended during the stop arrives as a `gone`
+  event line; before the crash line P checks its task file and branch for a finished
   result, since its "done" report may have failed.
 
 ## Plugin backlog (plugin repo only)

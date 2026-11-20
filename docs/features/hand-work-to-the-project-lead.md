@@ -57,8 +57,10 @@ Before a task starts, P (and any session through the manager skill) checks that 
 the repository, one you started yourself included, already does it.
 
 ### P wakes only when needed
-P wakes only on a task session's report, your message, or when a session ends or writes the line
-"Роботу завершено".
+P wakes only on a task session's report, your message, or a message from the Pult watcher when a session
+ends, writes the line "Роботу завершено", stops on the usage limit, waits 20 minutes or passes half its
+context; P keeps no watcher of its own. While a task session works and P has been silent 50 minutes, the
+Pult watcher pings P; P then shows its short status.
 
 How P does it: [project lead tools](../tech/project-lead.md).
 
@@ -72,7 +74,7 @@ decided memory is enough and Windows was the problem, so no queue or memory gate
 pagefile was fixed instead (48 GB initial, 64 GB max).
 
 Known limits: the reminder push always says "20 хв ... ~40 хв", even for a longer wait found after a P
-restart. A wait whose question is not yet in your queue at the watcher's wake-up gets no reminder.
+restart. A wait whose question is not yet in your queue when the watcher's message arrives gets no reminder.
 
 Known limits: your global rules keep five lines that P messages override (no headings or bold labels,
 deferring a result mid-discussion, no relay of a started session, every question written out, the

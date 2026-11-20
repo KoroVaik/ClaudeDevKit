@@ -9,9 +9,12 @@ The session talks with the owner directly, like an «Обговорення:» s
 session problems"), and runs in a worktree of ClaudeDevKit. With 1-2 simple findings there is no session: P
 runs the retro in its own chat (its step 4 is only the commit and `dev-kit-retro done`); the flow is in
 `dev-kit:project-lead`, "Retro of session problems". Its input is the unreviewed findings of
-`dev-kit-retro list` (if the command is not found, `python <this plugin>/scripts/retro.py list`): the lines of the
+`dev-kit-retro list` (if the command is not found, `python <this plugin>/scripts/retro.py list`): first the section
+"Priority: token problems", read first, then the lines of the
 daily transcript scan and the lines sessions appended for what the scan cannot see (the owner's global
-`docs/process-mistakes.md`), then the scan's spend tables (tokens in units, by session and by subagent). The rules
+`docs/process-mistakes.md`), then the scan's spend tables (tokens in units, by session and by subagent). The
+reviewer puts the priority findings first in its list, and the owner is asked about them before any other item
+(why: the owner's yes of 2026-11-20 to the plan «Pult idle cost»: token waste went unseen for days). The rules
 and output are the owner's: nothing changes without the owner's «так» to it.
 
 ## Token spend
@@ -35,7 +38,7 @@ characters in brackets after a title are the start of the id, subagent files are
 folder and the owner's global rules folder (`C:/Users/korov/.claude/` with its `docs/`). Per finding it returns:
 
 - real, noise, already fixed (with the file and line of the fix) or handed over (another session or talk took it,
-  as P or the owner said in this session), with the transcript lines it read (a watcher
+  as P or the owner said in this session), with the transcript lines it read (a watcher an older lead
   re-armed by design, an expected failed test, an owner who was away, are noise);
 - the cause: which rule, skill or agent was missing, unclear or ignored, with `file:line`, or "no rule gap";
 - the fix kind: a wording edit (which file), a script, hook or new agent, or nothing;

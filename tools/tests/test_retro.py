@@ -27,6 +27,21 @@ def assistant(message_id, model, usage, stamp):
             "message": {"id": message_id, "model": model, "usage": usage, "content": []}}
 
 
+def wake(stamp, summary="Background command finished"):
+    return {"type": "user", "timestamp": stamp, "origin": {"kind": "task-notification"},
+            "message": {"content": f"<task-notification><summary>{summary}</summary></task-notification>"}}
+
+
+def reply(message_id, usage, stamp, *blocks):
+    """A Sonnet message; a block is `("text", "words")` or `(tool name, run in background)`."""
+    content = [{"type": "text", "text": arg} if name == "text" else
+               {"type": "tool_use", "id": f"{message_id}{n}", "name": name,
+                "input": {"command": "x", "run_in_background": True} if arg else {"command": "x"}}
+               for n, (name, arg) in enumerate(blocks)]
+    return {"type": "assistant", "timestamp": stamp,
+            "message": {"id": message_id, "model": "claude-sonnet-5-5", "usage": usage, "content": content}}
+
+
 class RetroTestCase(unittest.TestCase):
     def setUp(self):
         tmp = Path(tempfile.mkdtemp())
@@ -174,6 +189,87 @@ class RetroTestCase(unittest.TestCase):
             listing = self.run_cmd("list")
         self.assertIn("C: Long (long1234) | long session | 100 main turns so far; this scan 40 turns at 2.2k units per turn, x6.0 of a session "
                       "under 50 turns", listing)
+
+    def day_units(self, entries):
+        """The per-day table of units of some transcript lines, all days summed."""
+        days = retro.analyse([json.dumps(e) for e in entries])["days"]
+        return {key: sum(row[key] for row in days.values()) for key in ("units", "idle", "cold", "bloat", "wakes")}
+
+    # protects: Rule
+    def test_idle_wake_is_a_notification_turn_that_only_re_arms_and_looks_up(self):
+        quiet = [wake("2026-11-19T12:00:00Z"),
+                 reply("m1", {"output_tokens": 1000}, "2026-11-19T12:00:05Z", ("text", "ok"), ("Bash", True))]
+        busy = [wake("2026-11-19T13:00:00Z"),
+                reply("m2", {"output_tokens": 1000}, "2026-11-19T13:00:05Z", ("Bash", True), ("SendMessage", False))]
+        agent = [wake("2026-11-19T14:00:00Z", 'Agent "x" finished'),
+                 reply("m3", {"output_tokens": 1000}, "2026-11-19T14:00:05Z", ("Bash", True))]
+        owner = [{"type": "user", "timestamp": "2026-11-19T15:00:00Z", "origin": {"kind": "human"},
+                  "message": {"content": "hi"}},
+                 reply("m4", {"output_tokens": 1000}, "2026-11-19T15:00:05Z", ("Bash", True))]
+        self.assertEqual(self.day_units(quiet + busy + agent + owner),
+                         {"units": 20000, "idle": 5000, "cold": 0, "bloat": 0, "wakes": 1})
+
+    # protects: Edge
+    def test_cold_restart_is_the_cache_write_of_a_wake_after_a_gap_not_of_the_owner(self):
+        write = {"cache_creation": {"ephemeral_1h_input_tokens": 1000, "ephemeral_5m_input_tokens": 0}}
+        peer = {"type": "user", "timestamp": "2026-11-19T13:00:00Z", "origin": {"kind": "peer"},
+                "message": {"content": "C report"}}
+        soon = {**peer, "timestamp": "2026-11-19T13:10:00Z"}
+        owner = {"type": "user", "timestamp": "2026-11-19T16:00:00Z", "origin": {"kind": "human"},
+                 "message": {"content": "hi"}}
+        entries = [owner, reply("m1", write, "2026-11-19T10:00:00Z"),
+                   peer, reply("m2", write, "2026-11-19T13:00:05Z"),  # 3 h after m1: cold, 1000 * 2 units
+                   soon, reply("m3", write, "2026-11-19T13:10:05Z"),  # 10 min after m2: warm
+                   {**owner, "timestamp": "2026-11-19T16:30:00Z"}, reply("m4", write, "2026-11-19T16:30:05Z")]
+        self.assertEqual(self.day_units(entries)["cold"], 2000)
+
+    # protects: Rule
+    def test_bloated_context_is_the_cache_read_above_the_limit(self):
+        owner = {"type": "user", "timestamp": "2026-11-19T12:00:00Z", "message": {"content": "hi"}}
+        entries = [owner, reply("m1", {"cache_read_input_tokens": retro.BLOAT_CONTEXT + 50000},
+                                "2026-11-19T12:00:05Z"),
+                   reply("m2", {"cache_read_input_tokens": retro.BLOAT_CONTEXT}, "2026-11-19T12:00:10Z")]
+        self.assertAlmostEqual(self.day_units(entries)["bloat"], 5000)
+
+    def spending_session(self, stamp, output, mid):
+        return [assistant(mid, "claude-sonnet-5-5", {"output_tokens": output}, stamp)]
+
+    # protects: Flow
+    def test_critical_shows_a_problem_once_and_again_when_it_grew(self):
+        title = {"type": "custom-title", "customTitle": "C: Big"}
+        path = self.write("proj/big12345.jsonl", [title] + self.spending_session("2099-01-01T12:00:00Z", 500, "a"))
+        with mock.patch.object(retro, "WEEKLY_LIMIT_UNITS", 100000), mock.patch.object(retro, "today") as today:
+            today.return_value = "2099-01-01"
+            first = self.run_cmd("critical")
+            self.assertEqual(first, "critical | proj | C: Big (big12345) | 2099-01-01 | "
+                                    "spent 2.5% of the weekly limit (2.5k units)\n")
+            self.assertEqual(self.run_cmd("critical"), "")  # shown, not grown
+            today.return_value = "2099-01-02"
+            with open(path, "a", encoding="utf-8") as handle:  # 500 units more: 3.0%, under 1.25 x 2.5%
+                handle.write(json.dumps(self.spending_session("2099-01-01T13:00:00Z", 100, "b")[0]) + "\n")
+            self.assertEqual(self.run_cmd("critical"), "")
+            today.return_value = "2099-01-03"
+            with open(path, "a", encoding="utf-8") as handle:  # 3000 units more: 6.0%
+                handle.write(json.dumps(self.spending_session("2099-01-01T14:00:00Z", 600, "c")[0]) + "\n")
+            self.assertIn("spent 6.0% of the weekly limit (6.0k units) (was 2.5% when last shown)", self.run_cmd("critical"))
+
+    # protects: Rule
+    def test_problems_below_critical_go_first_in_the_retro_list_once_their_day_is_over(self):
+        title = {"type": "custom-title", "customTitle": "C: Mid"}
+        other = [call("r", "Read", {"file_path": "a"}, "2099-01-01T12:00:00Z")] * 3
+        self.write("proj/mid12345.jsonl", [title] + self.spending_session("2099-01-01T12:00:00Z", 150, "a") + other)
+        with mock.patch.object(retro, "WEEKLY_LIMIT_UNITS", 100000), mock.patch.object(retro, "today") as today:
+            today.return_value = "2099-01-01"
+            self.run_cmd("scan")
+            self.assertNotIn("token spend", self.run_cmd("list"))  # the day is not over
+            today.return_value = "2099-01-02"
+            self.run_cmd("scan")
+            listing = self.run_cmd("list")
+            self.assertEqual(self.run_cmd("critical"), "")  # 0.75% is under the critical 2%
+        self.assertLess(listing.index("## Priority"), listing.index("token spend"))
+        self.assertLess(listing.index("token spend"), listing.index("## Scan findings"))
+        self.assertIn("| C: Mid (mid12345) | token spend | 2099-01-01: spent 0.75% of the weekly limit (750 units)", listing)
+        self.assertLess(listing.index("## Scan findings"), listing.index("repeated call"))
 
     def test_first_scan_skips_old_files(self):
         path = self.write("proj/old.jsonl", self.session())
