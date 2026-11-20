@@ -39,3 +39,9 @@ Why: owner, 2026-11-19, discussion «global rules vs the new P format»: asked w
 Cheapest test: after one global rule edit through `dev-kit:edit-rules`, ask a fresh session why that line exists; it must find the date and the reason.
 Verdict (2026-11-20): build now: a local git repo in the owner's `.claude` folder tracking only `CLAUDE.md` and `docs/` (allow-list `.gitignore`), and one `dev-kit:edit-rules` line to commit each global-rule edit with its reason.
 Built (2026-11-20, owner's yes): the `dev-kit:edit-rules` line (step 6, dev-kit 0.1.67) and the local git repo in the owner's `.claude` folder.
+
+## Design-screen spot check leaks into the owner's chat
+
+What: in `web-kit:design-screen` (SKILL.md, "Roles"), the main session no longer opens a shot itself as the spot check of a set it sends; a cheap subagent (haiku) opens the shots and reports cut-off, empty or illegible ones, or the session relies on the size `web-kit-shot` prints. Only the numbered `SendUserFile` pictures reach the owner.
+Why: Zhratva, «Обговорення: Смаки партнера», 2026-11-20: in the phone app every image the main session reads with Read shows in the owner's chat, so a spot-check picture arrived unnumbered next to the numbered set and the owner asked why there were three pictures for two cases. Owner: «пофіксим ці картинки спочатку», «Запиши».
+Cheapest test: run one design-screen show from the phone app; the chat must show only the numbered pictures.
