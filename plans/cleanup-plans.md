@@ -12,3 +12,6 @@ Every plan left in `plans/` has open work; «In flight» lists only those; `dev-
 
 ## Paid spend
 Total: $0
+
+## Result
+Nine finished plans deleted (all steps confirmed built). Moved to `docs/features/hand-work-to-the-project-lead.md`: two Known limits (reminder push wording and missed waits; why the five global rules stay) and one Open defect (a chat-only P question is lost on restart). BACKLOG «Track changes to the owner's global rules» marked fully built. «In flight» now lists only retro-tokens. P's own queue line about this task in «Open questions» left for P to clear. `dev-kit-check-docs`: 0 errors.

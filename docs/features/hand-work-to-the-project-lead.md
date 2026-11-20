@@ -71,6 +71,15 @@ Why: on 2026-11-16 Claude Code stopped P's background watcher while Windows ran 
 decided memory is enough and Windows was the problem, so no queue or memory gate was added and the
 pagefile was fixed instead (48 GB initial, 64 GB max).
 
+Known limits: the reminder push always says "20 хв ... ~40 хв", even for a longer wait found after a P
+restart. A wait whose question is not yet in your queue at the watcher's wake-up gets no reminder.
+
+Known limits: your global rules keep five lines that P messages override (no headings or bold labels,
+deferring a result mid-discussion, no relay of a started session, every question written out, the
+closing next-step question); they still guard ordinary sessions, so a one-line exception names P's
+format instead of removing them. Those rules live outside this repo and change only through
+`dev-kit:edit-rules`.
+
 ## Acceptance criteria
 - You give P a task whose outcome is not agreed: P asks up to 3 questions through the queue, or proposes an «Обговорення:» session when there are more or a screen is involved.
 - A new question arrives: P writes it in full once; later messages only count it and ask «Показати всі питання?», and on «так» all are listed, numbered.
@@ -88,3 +97,6 @@ pagefile was fixed instead (48 GB initial, 64 GB max).
 - `plugins/dev-kit/scripts/sessions.py`
 - `plugins/dev-kit/bin/dev-kit-sessions`
 - `tools/tests/test_sessions.py`
+
+## Open
+- [ ] Defect: a question P shows only in chat, not in PROGRESS.md "Open questions", is lost when P restarts; `plugins/dev-kit/skills/project-lead/SKILL.md`

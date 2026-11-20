@@ -38,4 +38,4 @@ What: a manager or another agent that keeps a record of every change to the owne
 Why: owner, 2026-11-19, discussion «global rules vs the new P format»: asked why five global rules exist, and no reason was found anywhere (the folder has no history, no notes give a reason), so nobody can say whether a rule is still needed.
 Cheapest test: after one global rule edit through `dev-kit:edit-rules`, ask a fresh session why that line exists; it must find the date and the reason.
 Verdict (2026-11-20): build now: a local git repo in the owner's `.claude` folder tracking only `CLAUDE.md` and `docs/` (allow-list `.gitignore`), and one `dev-kit:edit-rules` line to commit each global-rule edit with its reason.
-Built (2026-11-20, owner's yes): the `dev-kit:edit-rules` line (step 6, dev-kit 0.1.67). Still to do, handed to P: create the local git repo in the owner's `.claude` folder (outside this repo).
+Built (2026-11-20, owner's yes): the `dev-kit:edit-rules` line (step 6, dev-kit 0.1.67) and the local git repo in the owner's `.claude` folder.

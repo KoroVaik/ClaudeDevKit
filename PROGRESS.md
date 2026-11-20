@@ -10,10 +10,7 @@
 
 ## In flight
 
-- [Docs migration](plans/docs-migration.md): this repo onto the docs standard; the plan is deleted when the work is done.
 - [Token spend in the retro](plans/retro-tokens.md): built; the Opus weight check waits on the owner (see Open questions).
-- [Unanswered owner questions](plans/open-questions.md): built; kept until the docs migration ends.
-- [Global rules vs the P format](plans/global-rules-p.md): agreed; next, «C: Новий формат повідомлень керівника» builds the P format with the changes in its «Owner's approval».
 
 Open work of the features: `dev-kit-check-docs --open`.
 
