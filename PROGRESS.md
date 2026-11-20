@@ -18,3 +18,4 @@ Open work of the features: `dev-kit-check-docs --open`.
 
 ## Open questions
 
+- 2026-11-20 · «P» (retro): показ дизайну питає одне питання зі своїми картинками, наступне лише після відповіді? Рекомендую: так - ти сам попросив «По черзі!!!!!!». (edit: plugins/web-kit/skills/design-screen/SKILL.md «The text» bullet, named exception to discovery-round 3 questions; gate review 2026-11-20)
