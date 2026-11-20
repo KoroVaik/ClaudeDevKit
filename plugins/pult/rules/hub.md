@@ -124,7 +124,11 @@ a Pult restart nothing is pushed until the owner's first message arms the watche
   then re-arm and write in the chat one line with the cause and the proposed fix, as in "Server history".
 - `time limit` (exit 4): re-arm; no text.
 - `already watching` (exit 6): another watcher runs; do not re-arm; no text.
-- "No text" holds even when the host then demands visible output: end the turn empty.
+- When the host still demands visible output after a "no text" exit, Pult gives the short "статус" reply
+  (sessions by project and what waits on the owner, no status page); with no session and nothing
+  waiting, one line «Зараз нічого не працює і нічого не чекає на тебе.» Never a filler phrase («No
+  response requested.»). Why: Claude Code does not accept an empty turn; the owner decided on
+  2026-11-20 that a forced turn shows the state (the same rule as the project lead's "Forced output").
 - Any other exit: one line "not checked: log watcher", with its output; do not re-arm.
 Why: the owner decided on 2026-11-19 that only urgent events reach the phone; the push is the tool of a
 Claude session, a script cannot send it.

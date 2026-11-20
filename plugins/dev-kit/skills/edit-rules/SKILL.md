@@ -72,6 +72,11 @@ checks for a duplicate, a conflict or a stale restatement left, a broken pointer
 more, less or other than the approved idea. Fix its confirmed findings; a change of the idea goes back to
 step 3.
 
+After the review, an edit of the owner's global rules (`CLAUDE.md` and `docs/` in the owner's `.claude`
+folder) is committed in that folder's local git repo, when it is one (no remote, no push), with the
+reason in the message: the incident or the owner's decision and its date. Why: owner, 2026-11-20 (plugin
+backlog): nobody could say why five global rules exist, since the folder kept no history.
+
 Why: on 2026-11-10 one commit wrote the stop-app rule into four skills, `slots.md` and `README.md`, although
 `slots.md` holds it for every skill; the next rewording missed the `README.md` copy, which then contradicted it. The owner asked on
 2026-11-16 for every rule edit to be checked this way as part of the dev-kit workflow.
