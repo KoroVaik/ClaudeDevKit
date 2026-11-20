@@ -25,7 +25,7 @@ is listed below.
   runs `dev-kit-sessions check` for each lead and wakes the leads and Pult by a cross-session message (a one-shot
   `claude -p`) only on an event.
 - The Remote Control server "Pult", with cwd = the home folder, serves the phone.
-- The session watcher (`dev-kit-sessions watch`) runs in the background only of a project lead on dev-kit before 0.1.77.
+- The session watcher (`dev-kit-sessions watch`) runs in the background only of a project lead on dev-kit before 0.1.78.
 - The daily scan `dev-kit-retro check` runs from the project lead of this repo.
 - `dev-kit-app start` queues a project's app start between worktrees with a lock.
 

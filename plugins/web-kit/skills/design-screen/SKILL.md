@@ -25,9 +25,11 @@ the defaults here.
 ## Roles
 
 The main session (the one the owner talks with) decides, writes briefs, makes small spec edits, commits and
-writes the message to the owner. It does not inspect every PNG: the designer's verdict is the evidence. It
-opens one shot of each set it sends as a spot check (a subagent's done is not evidence). Agents run one after
-another, with the full brief each time (they remember nothing).
+writes the message to the owner. It never opens a PNG itself: in the phone app every image it reads shows in
+the owner's chat, unnumbered next to the set. The evidence is the designer's verdict and the size `web-kit-shot`
+prints; a shot that may be cut off, empty or illegible goes to `web-kit:shot-taker`, which opens it and reports.
+Why: owner, Zhratva, 2026-11-20: a spot-check picture reached the chat beside a numbered set of two. Agents
+run one after another, with the full brief each time (they remember nothing).
 
 - `web-kit:user` (sonnet), «користувач»: a fresh ordinary user, mode mockup (PNGs only, no browser).
 - `web-kit:designer` (sonnet), «дизайнер»: the design standard, the feature's rules and the mockup; never
@@ -76,9 +78,12 @@ give the owner that result with the point. If no reason is found, the point goes
 question, not as a decision to keep. A fix that would change a feature rule (a column removed, a field
 renamed) is never applied in the loop: it is an "owner's call".
 
-While the owner tunes a look round by round (a shade, a size, a spacing), skip the loop and run it once when
-the series ends, before the commit. Run it again later only when a new element appears (a block, a tone or a
-button kind the board did not have).
+While the owner tunes a look round by round (a shade, a size, a spacing of elements the designer already
+passed), skip the loop and run it once when the series ends, before the commit. Anything new drawn mid-discussion
+(a screen, a popup, a state, a control, a block, a tone or a button kind the board did not have) goes to
+`web-kit:designer` before the owner sees it, even when the user walk is skipped. Why: owner, Zhratva,
+2026-11-20: new popups and a tab switcher went out without the designer and the switcher read «МоїОлі» («це
+має буть флоу де дизайнер апрувить а потім мені дається»).
 
 Once the screen is built, the live app is walked by `web-kit:user` in mode live (`web-kit:user-walk`); its
 remarks outrank the mockup walk.
@@ -103,12 +108,19 @@ remarks outrank the mockup walk.
   one click opens it in the built-in browser, and the page carries its styles inside, so send the file from
   the mockups folder as it is. Do not open the browser pane yourself. Shots go **one `SendUserFile` call
   per image**, each with its own numbered caption naming what differs on screen; never one call or one
-  shared caption over several images (close-ups and whole-page shots too). Sending and numbering follow
-  browser-checks.md, "Screenshots go to the owner".
+  shared caption over several images (close-ups and whole-page shots too). The one exception: a mockup and
+  its built result of one state are one picture (`web-kit-pair`) with its title drawn on it, and such
+  pictures go one call per block. Sending, blocks and numbering follow browser-checks.md,
+  "Screenshots go to the owner".
 - **The text** is exactly one line per variant or change, one recommendation line (at most 15 words) with
   its reason, and one question. Weak spots of the recommendation go into that line; a note that the pick
   changes a feature rule goes into the question's brackets. This is stricter than the global report list
   and wins over it: no other items, notes or arguments, no process words (built, sent, committed).
+  A show asks one question, with its own pictures, and opens with a counter «Питання N/M» (M may grow when
+  a new question comes up). When several visual questions are open, ask the first; ask the next only after
+  the owner answers. This wins over `dev-kit:discovery-round`'s «at most 3 numbered questions per round».
+  Why: owner, 2026-11-20: three questions with eight pictures in one message, so he could not tell which
+  picture went with which question («По черзі!!!!!!»); the counter shows how many are left.
 - Take no variant to the owner that the designer did not pass. The designer filters; it does not choose,
   and neither does the session: the recommendation is a reasoned line, the owner picks.
 - The reply follows the project's chat rules (language, length).

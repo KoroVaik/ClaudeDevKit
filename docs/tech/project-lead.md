@@ -16,7 +16,7 @@ Code: `plugins/dev-kit/scripts/sessions.py`, `plugins/dev-kit/scripts/migrations
   lines to the lead as a cross-session message and, once the message reached the lead, runs `mark` for each
   (`delivered.json`, `limits.json`, `stale.json` or the restart file beside the registry). P wakes only on a
   task session's report, the owner's message, such an event message, or a keep-warm ping.
-- `watch` is the older background watcher, kept for leads on dev-kit before 0.1.77: silent while its sessions
+- `watch` is the older background watcher, kept for leads on dev-kit before 0.1.78: silent while its sessions
   live, it exits when one ends, writes the line "Роботу завершено", stops on the usage limit, or has waited
   `--stale-minutes` (20) since its last reply.
 - `fill --over-only` prints only the sessions past the fill limit; `size --id ...` prints a session's

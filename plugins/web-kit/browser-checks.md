@@ -84,10 +84,12 @@ uses the board only to say where each fix belongs.
     caller writes the spec and runs `web-kit-shot --spec <spec.json> --out <screenshot folder>` (format
     at the top of `scripts/capture.mjs`). It renders the same URL in a throwaway headless Edge or Chrome at the
     profile's window size and device scale (the screen's OS display scaling; the window size is in CSS pixels, not the monitor's physical pixels) with no profile of the owner's, and stops it
-    afterwards. The caller may hand the capture and the PNG check to `web-kit:shot-taker`. The password is typed from its file (`"@<path>"`), never put in a spec or a message.
-    The command prints each PNG's path and pixel size; open the PNG and check that the section is not
+    afterwards. The caller may hand the capture to `web-kit:shot-taker`. The password is typed from its file (`"@<path>"`), never put in a spec or a message.
+    The command prints each PNG's path and pixel size. Someone opens each PNG and checks that the section is not
     cut off, that its text is legible at 100%, and that the content fills most of the image: a shot that
-    is mostly empty background gets a smaller selector and is captured again before sending. If it
+    is mostly empty background gets a smaller selector and is captured again before sending. That is
+    `web-kit:shot-taker` or the agent that judges the shots, never the session the owner talks with: in the
+    phone app every image that session opens shows in the owner's chat (owner, Zhratva, 2026-11-20). If it
     fails, or a state cannot be reached from a URL, say so and send the agent's in-app shot marked
     "low resolution", never as the proof.
   - **Mockup boards: `--board`, no spec.** The caller runs `web-kit-shot --board <board.html> [--screens d1,u3]
@@ -97,13 +99,21 @@ uses the board only to say where each fix belongs.
     caption. The caller never writes selectors for a board. It calls `web-kit:shot-taker` only when the command
     fails or a shot comes out wrong (cut off, illegible, empty); the shot-taker repairs it or reports why. Format:
     top of `scripts/capture.mjs`.
-  - **Send** every image so it can be told apart on its own (`display: render`). Images that are
-    alternatives of each other (variants A/B/C, today against a candidate, states of one screen) go one
-    `SendUserFile` call per image, each caption naming its variant or state ("Variant A: component on a
-    second line under the ingredient"), never one shared caption over several of them; a close-up also
-    names what it zooms on and its variant. Steps of one scenario may share one call, the caption naming
-    the scenario and the order. The chat reply stays one line per board or scenario; the screenshots
-    carry the detail.
+  - **Send** every image so it can be told apart on its own (`display: render`), in logical blocks (the
+    owner's global rule on pictures): a block is one item (a question, a scenario, a board branch, the states
+    of a check-look report). Images that are alternatives of each other (variants A/B/C, today against a
+    candidate, states of one screen) go one `SendUserFile` call per image, each caption naming its variant or
+    state ("Variant A: component on a second line under the ingredient"), never one shared caption over
+    several of them, unless each carries its own drawn title (next bullet); a close-up also names what it
+    zooms on and its variant. Steps of one scenario may share
+    one call, the caption naming the scenario and the order. The chat reply stays one line per board or
+    scenario; the screenshots carry the detail.
+  - **Mockup and result: one picture.** A mockup shot and the app's shot of the same state go as one image,
+    made with `web-kit-pair --left <mockup.png> --right <app.png> --title "<what the frame shows>" --out
+    <file.png>` (equal height, each half one whole window, a title line of at most 60 characters drawn on
+    top; format at the top of `scripts/pair.mjs`). The title says the state in the owner's words, never
+    "mockup" or "built". Pictures that carry such a title go in one `SendUserFile` call per block, with the
+    block's caption. Never write a one-off image script for this.
   - **More than two items: one message per item.** When a result has more than two separate items with
     screenshots (branches of a board, variants, defects, scenarios), each item is its own message: a
     short heading and its own lines, then its own `SendUserFile` call, then the next item. No text or
@@ -115,8 +125,9 @@ uses the board only to say where each fix belongs.
   - **One set per answer.** Every image has a caption. All images of one answer are sent in that
     answer's turn, after every one of them is ready (and reviewed, where the designer applies), never one now
     and another later. Captions are numbered in the order the reply names them ("1. Table close-up"), except
-    when items go one message per item: then the number sits only in the item's heading and its captions
-    carry none, so one item never reads as two (owner, 2026-11-13). Within
+    when items go one message per item or one call per block: then the number sits only in the item's heading
+    or the block's caption and the captions or titles inside carry no number, so one item never reads as two (owner,
+    2026-11-13). Within
     one answer the reply never points to an image from an earlier message: it sends that image again in
     the new set. This is about one answer, not about a later turn: the images of a finished result that the
     owner already has are not sent again unless the owner asks. A new question or proposal about a look is not

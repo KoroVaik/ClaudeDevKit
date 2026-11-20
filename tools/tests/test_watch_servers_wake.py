@@ -68,7 +68,7 @@ text = sys.stdin.buffer.read().decode("utf-8")
 plan = json.loads((d / "wake-plan.json").read_text(encoding="utf-8"))
 with open(d / "wakes.jsonl", "a", encoding="utf-8") as f:
     f.write(json.dumps({"args": sys.argv[1:], "stdin": text, "cwd": os.getcwd()}) + "\n")
-to = re.search(r"to: «([^»]+)»", text)
+to = re.search(r"no quotes or brackets added: (.+)", text)
 eid = re.search(r"\[EVT-[^\]]+\]", text)
 if to and eid and plan.get("deliver") and to.group(1) in plan["transcripts"]:
     entry = {"type": "user", "isMeta": True, "origin": {"kind": "peer"},
@@ -105,7 +105,7 @@ class WatchServersWakeTest(unittest.TestCase):
         self.scripts = self.plugins / "pult" / "scripts"
         (self.scripts / "restart-leads.ps1").write_text(STUB_RESTART, encoding="ascii")
         self.set_version("pult", "1.0.0")
-        self.set_version("dev-kit", "0.1.77")
+        self.set_version("dev-kit", "0.1.78")
         self.project = self.tmp / "project"
         self.project.mkdir()
         self.state = self.tmp / "devkit-state"
@@ -130,7 +130,7 @@ class WatchServersWakeTest(unittest.TestCase):
         self.wake_plan(deliver=True)
         self.config(lead=True)
         self.agents(lead="idle", task="busy")
-        self.lead_record("0.1.77")
+        self.lead_record("0.1.78")
         self.wake_state(PultNote=True)
 
     # ---- the environment ----
@@ -240,7 +240,7 @@ class WatchServersWakeTest(unittest.TestCase):
         for flag in ("-p", "--no-session-persistence", "--safe-mode"):
             self.assertIn(flag, w["args"])
         self.assertEqual(str(self.pult / "wake"), w["cwd"])
-        self.assertIn(f"to: «{LEAD}»", w["stdin"])
+        self.assertIn(f"brackets added: {LEAD}\n", w["stdin"])
         lines = self.message(w).split("\n")
         self.assertRegex(lines[0], r"^\[EVT-[0-9]{10}-[0-9a-f]{4}\] Pult server watcher:$")
         self.assertEqual([f"stale: C: task | {TASK} | waiting 25 min", "Act on these lines per your project-lead skill."],
@@ -278,7 +278,7 @@ class WatchServersWakeTest(unittest.TestCase):
         wakes = self.wakes()
         self.assertEqual(2, len(wakes), log)
         self.assertEqual(["auto", "auto"], [self.arg(w, "--permission-mode") for w in wakes])
-        self.assertIn("to: «Pult»", wakes[0]["stdin"])
+        self.assertIn("brackets added: Pult\n", wakes[0]["stdin"])
         self.assertIn("watch-log.py) is retired", self.message(wakes[0]))
         giveup = self.message(wakes[1]).split("\n")
         self.assertTrue(giveup[1].startswith(f"GIVEUP {SERVER} ("), giveup)
@@ -347,7 +347,7 @@ class WatchServersWakeTest(unittest.TestCase):
 
     # protects: Rule
     def test_lead_with_a_working_task_or_busy_is_asked_for_a_new_dev_kit_not_restarted(self):
-        self.set_version("dev-kit", "0.1.78")
+        self.set_version("dev-kit", "0.1.79")
         self.registry_task()
         for n, (case, lead, task, why) in enumerate((("idle, task working", "idle", "busy", "idle, C: task working"),
                                                      ("busy", "busy", "idle", "busy")), 1):
@@ -358,9 +358,9 @@ class WatchServersWakeTest(unittest.TestCase):
                 self.assertFalse((self.tmp / "restart-calls.txt").exists(), log)
                 asked = [line for line in log if line.startswith(f"RESTART-ASKED {LEAD} ")]
                 self.assertEqual(n, len(asked), "asked once per run of two rounds")
-                self.assertEqual(f"RESTART-ASKED {LEAD} (dev-kit 0.1.77 -> 0.1.78, {why})", asked[-1])
+                self.assertEqual(f"RESTART-ASKED {LEAD} (dev-kit 0.1.78 -> 0.1.79, {why})", asked[-1])
                 request = json.loads((self.registry / "restart.json").read_text(encoding="utf-8"))
-                self.assertEqual("0.1.78", request["version"])
+                self.assertEqual("0.1.79", request["version"])
                 self.assertNotIn("ready", request)
 
 

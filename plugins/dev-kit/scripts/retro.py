@@ -20,7 +20,7 @@ file, up to the last complete line). On the first scan (no offsets yet) a file l
 
 Kinds, per transcript and per scan window (the subagents of one type in one session summed; thresholds below):
 - `repeated call`: the same tool with the same input, REPEAT_MIN or more times (`run_in_background` calls left out:
-  a watcher a lead on dev-kit before 0.1.77 re-arms after each exit is by design);
+  a watcher a lead on dev-kit before 0.1.78 re-arms after each exit is by design);
 - `failed calls`: ERRORS_MIN or more tool results marked as an error;
 - `many calls`: MANY_CALLS or more tool calls;
 - `slow call`: a tool result that came SLOW_CALL_MIN or more minutes after its call (tools that wait on the owner

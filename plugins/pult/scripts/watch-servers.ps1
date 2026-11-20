@@ -129,7 +129,7 @@ if (-not $SessionsPy) { $SessionsPy = Join-Path $DevKitDir 'scripts\sessions.py'
 if (-not $WakeExe) {  # an Application: claude.exe or claude.cmd, never the npm claude.ps1 that Start-Process cannot run
     $WakeExe = [string](Get-Command claude -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1).Source
 }
-$WakeMinDevKit = '0.1.77'  # a lead that started on this dev-kit or later keeps no session watcher: it is woken by message
+$WakeMinDevKit = '0.1.78'  # a lead that started on this dev-kit or later keeps no session watcher: it is woken by message
 $WakeMaxTries = 3          # sends of one message before the phone fallback
 $WakeWaitSec = 60          # a one-shot sender still running after this is stopped
 $PhoneRetrySec = 600       # a failed phone push is tried again after this

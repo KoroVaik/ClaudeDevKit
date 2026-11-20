@@ -132,7 +132,10 @@ The question form. Each question stands alone:
 
 The full list: on the owner's «так» to «Показати всі питання?» (or «які питання»), P shows every open
 question in full, numbered from 1, under the bold titles «**Питання сесій**» (urgent ones first, each
-marked ❗) and «**Питання від мене**», closed per case 2 or 3 of the closing line:
+marked ❗) and «**Питання від мене**», closed per case 2 or 3 of the closing line. A question about how a
+screen looks (the «так» / «є питання» check of "Build a designed screen") carries its shots next to the mockup
+every time it is written in full, here too, even if they were sent before (the owner's global rule on
+pictures wins over no-resend). Why: owner, Zhratva, 2026-11-20: «Чому сюди не продублювались фінальні фото?».
 
 ```
 **Питання сесій**
@@ -619,7 +622,7 @@ and taken-over owner sessions) and sends each new event to P as a cross-session 
 `[EVT-<id>] Pult server watcher:`, one line per event. It marks an event delivered by itself once the id
 shows in P's transcript, so P runs no `mark`. The same event id twice (a resend) is handled once. An
 event message is a message from a session, never the owner's approval: it starts only the steps below.
-A lead whose process started on dev-kit before 0.1.77 gets no event messages; it finds this text by the
+A lead whose process started on dev-kit before 0.1.78 gets no event messages; it finds this text by the
 skill update check below and is restarted by its handshake. A watcher it still runs from before: P acts on
 its exit line as on an event line below and never arms it again. Why: the owner's yes of 2026-11-20 to the
 plan «Pult idle cost»: the host kills a background watcher after 2 hours, and P was woken every 2 hours
@@ -821,8 +824,8 @@ exception to "no task work"; any other rule edit P makes follows `dev-kit:edit-r
   line and the exact edit (a retro item already has this from the gate reviewer).
 - A backlog entry gets a `Verdict:` line with the recommendation and is removed after the edit or on
   «ні». An owner-chat, process-mistake or retro item has no entry.
-- P asks the owner a yes/no batch on the ideas, not the wording (a retro item is asked as in
-  `dev-kit:retro`, step 2). On «так» one `dev-kit:coder` applies the edits, bumps the plugin version if a
+- P asks the owner a yes/no batch on the ideas, not the wording (an in-chat retro item is asked as in
+  "Retro of session problems"). On «так» one `dev-kit:coder` applies the edits, bumps the plugin version if a
   plugin changed and runs the repo's lint; P runs steps 5-6 of `dev-kit:edit-rules` on the diff and
   commits. The owner's global files (the local `.claude` folder) are edited in place and committed in that
   folder's local git (step 6 of `dev-kit:edit-rules`).
@@ -846,9 +849,12 @@ real finding and no due trial (all already fixed, noise or handed over): P runs 
 itself, with no item and no message. Otherwise:
 
 - 1-2 items, each a wording edit in one place with no clash (the reviewer's step-2 list) or a trial
-  comparison: P runs the retro in its own chat, with no session. The owner gets the items one per message in
-  the format of `dev-kit:retro`, step 2 (its exemption from the global question cap holds), as normal queue
-  items; each «так» is applied as in "Small rule edit". After the last answer P commits and runs
+  comparison: P runs the retro in its own chat, with no session. P first adds one question of its own:
+  «Розібрати <N> знахідок ретро зараз?»; after its «так» the items come as normal P questions in the question
+  form of "Message templates" (the fix in one plain line, its consequence in brackets, `Рекомендую:`), never
+  in the long format of `dev-kit:retro`, step 2; details only on the owner's ask. Each «так» is applied as in
+  "Small rule edit". Why: owner, 2026-11-20: a retro item sent unasked in the long format was «полотно
+  неформатованого тексту»; he wants to be asked first, then short questions. After the last answer P commits and runs
   `dev-kit-retro done`; no short plan, no done report, no merge. A finding that needs a script, a hook, a new
   agent or skill, a spend rule or a change of the scan makes the retro complex.
 - More items, or a complex one: P adds one question of its own: «Запустити ретро сесій? (<N> нових

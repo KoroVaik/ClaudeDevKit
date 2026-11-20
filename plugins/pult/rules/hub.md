@@ -72,7 +72,7 @@ checked on a real restart.
 `{PLUGIN}/scripts/restart-leads.ps1` restarts leads so they load a new dev-kit version (stop, then
 `start-servers.ps1` resumes them with the first prompt `/dev-kit:project-lead restart: plugin update`).
 `-Ask` is the owner's fast update (see "Restart leads for a plugin update"). `-Ready <names>` restarts those leads even when they show busy; without it a busy lead is skipped unless
-`-Force` (a lead on dev-kit before 0.1.77 keeps a background watcher, so it always shows busy while it only waits).
+`-Force` (a lead on dev-kit before 0.1.78 keeps a background watcher, so it always shows busy while it only waits).
 
 Start any other session (a task for the owner) only with `{PLUGIN}/scripts/start-session.ps1 -Name -Path
 -PromptFile`: Windows PowerShell cuts a prompt passed straight to `claude` at its first double
@@ -98,7 +98,7 @@ five mechanical problems itself, with no yes (the owner's yes, 2026-11-16; the o
   (RESTART-LEAD); a busy one when it marks itself ready (`dev-kit-sessions restart ready`, at a safe
   point after it noticed the version; a mark older than 10 minutes is dropped, READY-EXPIRED, and for the current version the lead is asked
   once more as with `-Ask`) or turns
-  idle. A lead on dev-kit 0.1.77 or later is asked by the watcher's `restart` event message (RESTART-ASKED),
+  idle. A lead on dev-kit 0.1.78 or later is asked by the watcher's `restart` event message (RESTART-ASKED),
   and while one of its task sessions works it counts as busy even when idle. The same for an extension plugin the lead's project enables (web-kit, unity-kit): an idle lead
   is restarted, a busy one is never woken for it and waits until it is idle. One try per lead per version;
   RESTART-LEAD-FAILED when it did not come back. Held by the hold file too.
@@ -115,7 +115,7 @@ stops all entries until the next `start-servers.ps1` run; to retire one entry, r
 `servers.psd1` (the watcher reads the list when it starts). While a full `start-servers.ps1` run goes on,
 the watcher restarts nothing.
 
-No Claude session keeps a watcher of its own: this watcher wakes Pult and the leads (dev-kit 0.1.77 or
+No Claude session keeps a watcher of its own: this watcher wakes Pult and the leads (dev-kit 0.1.78 or
 later) by a cross-session message that starts `[EVT-<id>] Pult server watcher:`, only when something needs
 them (the lead's side: the project-lead skill, "Wake-up"; Pult's side: "Phone push"). It resends a message
 whose id does not show in the target's transcript, then pushes its lines to the phone. Its log lines:
@@ -155,7 +155,7 @@ messages for it. Pult only shows the log: RESTART-LEAD followed by UP is fixed (
 версію"); RESTART-LEAD-FAILED, or a lead whose last LEAD-VERSION line is older than `plugin.json` of dev-kit
 for over 3 hours after that file changed, is a
 problem to show with a proposed fix. A busy lead gets a `restart` event message from the watcher at
-once (a lead on dev-kit before 0.1.77 finds the new version at its next wake-up, at most 2 hours). When the owner asks to update or restart the leads («онови керівників»), Pult runs
+once (a lead on dev-kit before 0.1.78 finds the new version at its next wake-up, at most 2 hours). When the owner asks to update or restart the leads («онови керівників»), Pult runs
 `{PLUGIN}/scripts/restart-leads.ps1 -Ask`: leads already on the new version are left alone (`Up to date`), idle leads restart now, each busy one is woken at once to
 reach a safe point (output `Asked: <name>`), and the watcher restarts it. Pult says in one line which
 leads restarted and which were asked. A change of only an extension (web-kit, unity-kit) restarts an idle lead
@@ -165,7 +165,7 @@ never task sessions, owner sessions or Pult itself; always resume the same conve
 
 Why: on 2026-11-16 the hub got a merge message but restarted nobody: it acts only when someone writes
 in its chat. `-Ask` writes a request file (`dev-kit-sessions restart`); the watcher sends it to the lead as
-a `restart` event message (a lead on dev-kit before 0.1.77: its own session watcher reads the file).
+a `restart` event message (a lead on dev-kit before 0.1.78: its own session watcher reads the file).
 
 ## Limits
 
