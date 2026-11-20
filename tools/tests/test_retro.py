@@ -127,14 +127,14 @@ class RetroTestCase(unittest.TestCase):
         usage = {"input_tokens": 10, "output_tokens": 2, "cache_read_input_tokens": 100,
                  "cache_creation": {"ephemeral_5m_input_tokens": 4, "ephemeral_1h_input_tokens": 5}}
         self.assertAlmostEqual(retro.units_of(usage, "claude-sonnet-5-5"), 10 + 10 + 10 + 5 + 10)
-        self.assertAlmostEqual(retro.units_of(usage, "claude-opus-5-5"), 45 * 5)
+        self.assertAlmostEqual(retro.units_of(usage, "claude-opus-5-5"), 45 * 1.5)
         self.assertAlmostEqual(retro.units_of({"cache_creation_input_tokens": 8}, "claude-haiku-5-5"), 10 / 3)
         line = assistant("m1", "claude-opus-5-5", {"output_tokens": 10}, "2026-11-19T10:00:00Z")
         old = assistant("m0", "claude-opus-5-5", {"output_tokens": 999}, "2026-11-18T10:00:00Z")
         seen = set()
         result = retro.analyse([json.dumps(e) for e in (old, line, line)], seen,
                                retro.parse_time("2026-11-19T00:00:00Z"))
-        self.assertEqual(result["units"], {"opus": 250})
+        self.assertEqual(result["units"], {"opus": 75})
         self.assertEqual(retro.analyse([json.dumps(line)], seen)["units"], {})  # the same id in another file
 
     def test_long_session_and_opus_coder_are_findings_and_spend_is_listed_apart(self):
@@ -153,10 +153,10 @@ class RetroTestCase(unittest.TestCase):
         self.run_cmd("scan")
         listing = self.run_cmd("list")
         self.assertNotIn("long session", listing)  # 60 turns so far
-        self.assertIn("C: Long (long1234) / subagent dev-kit:coder | opus coder | 25k units\n", listing)  # under 10 Sonnet runs: no ratio
+        self.assertIn("C: Long (long1234) / subagent dev-kit:coder | opus coder | 7.5k units\n", listing)  # under 10 Sonnet runs: no ratio
         self.assertIn("## Spend", listing)
-        self.assertIn("| proj | C: Long (long1234) | opus 100% | 60 | 150k | 30k | 99% |", listing)
-        self.assertIn("| dev-kit:coder | opus | 1 | 25k |", listing)
+        self.assertIn("| proj | C: Long (long1234) | opus 100% | 60 | 45k | 12k | 99% |", listing)
+        self.assertIn("| dev-kit:coder | opus | 1 | 7.5k |", listing)
         self.run_cmd("done")
         with open(self.projects / "proj/long1234.jsonl", "a", encoding="utf-8") as handle:
             for n in range(40):
@@ -172,7 +172,7 @@ class RetroTestCase(unittest.TestCase):
         with mock.patch.object(retro, "today", return_value="2099-01-01"):
             self.assertIn("new findings: 1", self.run_cmd("check"))
             listing = self.run_cmd("list")
-        self.assertIn("C: Long (long1234) | long session | 100 main turns so far; this scan 40 turns at 7.5k units per turn, x6.0 of a session "
+        self.assertIn("C: Long (long1234) | long session | 100 main turns so far; this scan 40 turns at 2.2k units per turn, x6.0 of a session "
                       "under 50 turns", listing)
 
     def test_first_scan_skips_old_files(self):

@@ -1,4 +1,4 @@
-﻿# Token spend in the retro
+# Token spend in the retro
 
 Owner's words (2026-11-19): «Треба подумати над тим, як трекати кількість токенів які витрачаються на всі діяльності, щоб потім юзати це в ретро сесіях»; then «Запусти обговорення. Хочу деталі обговорить».
 
@@ -53,8 +53,17 @@ The owner's «так» to the approved idea, written in the section «Owner's ap
 - Rule edits (edit-rules steps 1-2): home of the spend-trial rule is `plugins/dev-kit/skills/retro/SKILL.md` (new section «Token spend»; trials logged in `trials.md` of the findings folder so the next retro can compare); restatement updated in `README.md` (scan description). No duplicates or conflicts found: `project-lead` counts only `new findings`, which the tables do not change; manager's retro line unaffected.
 - Review (sonnet reviewer): fixed - ratios in findings show only with 10+ runs (or 10+ short sessions) behind them; the weight comment no longer claims the meter check; the skill compares a trial after 7+ days from the `scan-*.md` files, not from `list`; a `|` in a title no longer breaks the table.
 - Left as is (reviewer doubts): dedupe across scans is by timestamp, so a resumed copy with fresh timestamps (6 of 18 cases in 4 days) is counted twice; a subagent run that spans two scans counts as two runs; a `long session` finding repeats on each later scan while the session goes on; `state.json` keeps one title and one turn total per session.
-- Open: the Opus weight check against the owner's `/usage` meter (asked via P).
+- Done: the Opus weight check against the owner's `/usage` meter, see «Opus weight check».
 
 ## Usage readings (owner, /usage)
 - 2026-11-19 19:15: week all models 23%, week Fable 0%, 5-hour session 22% (resets 22:39).
 - 2026-11-20 19:15: week all models 54%, week Fable 0%, 5-hour session 61% (resets 20:39). P session alone (7h41m): 11.54 USD API-equivalent, Opus 94% / Sonnet 6% / Haiku 0%; tokens Opus in 4.8k, out 37.6k, cache read 17M, cache write 827.2k; Sonnet 72 / 20.3k / 785.9k / 174.7k; Haiku 8.5k / 14.8k / 789.6k / 104.2k (owner screenshot).
+
+## Opus weight check (2026-11-20, session «opus-weight»)
+- Paid spend: $0.
+- Method: all transcripts under `~/.claude/projects` (subagents included), deduped by message id, units by `retro.units_of` with Opus at weight 1, summed per model inside each meter window. Times read as local UTC+1 (the machine's zone); UTC+2 gives a negative weight, so UTC+1 is the consistent reading.
+- Week window 11-19 19:15 -> 11-20 19:15 (23% -> 54%, 31 points): Opus 95.1M raw, Sonnet 73.7M, Haiku 0.5M. One equation with the unknown week limit: alone it cannot settle the weight.
+- 5-hour windows, assumed to have one fixed limit: #1 11-19 17:39-19:15 at 22%: Opus 10.68M, Sonnet 3.52M; #2 11-20 15:39-19:15 at 61%: Opus 23.57M, Sonnet 18.61M. Solving both: Opus weight 1.47; the meter's 1-point rounding gives 1.2-1.8. Weight 5 puts the two windows 16% apart (259M vs 224M limit), weight 3 10% apart, weight 1.5 agrees.
+- Cross-check: the P-session API-equivalent split (Opus 94% / Sonnet 6% of 11.54 USD) against its token counts gives about 2-2.3 (5-minute vs 1-hour cache writes), also far below 5.
+- Result: Opus weight set to 1.5 in `retro.py` (`MODEL_WEIGHTS`), tests in `tools/tests/test_retro.py` updated. Week limit at 1.5: about 690M units, about 8 five-hour limits (87M).
+- Weak spots: window #1 is short (1.6 h, 14M units); the per-kind weights (cache read 0.1, writes 1.25/2) are assumed, not checked, and a different meter weighting would shift the fit; Haiku 1/3 and Fable are untested (too little use).

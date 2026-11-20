@@ -31,7 +31,7 @@ The plugin's own commands (containing OWN_COMMAND) count for neither repeats nor
 
 Token spend, in units (owner, 2026-11-19: a subscription, so no dollars; raw tokens mislead, cache reads are most of
 them): 1 unit = one fresh Sonnet input token; per kind WEIGHTS (output 5, cache read 0.1, cache write 1.25 for 5 min
-and 2 for 1 h), times MODEL_WEIGHTS by the message's model (Opus 5, Haiku 1/3; any other model 1). One message id
+and 2 for 1 h), times MODEL_WEIGHTS by the message's model (Opus 1.5, Haiku 1/3; any other model 1). One message id
 repeats on several lines with the same usage: it counts once per scan, and a line dated before the previous scan
 started (a resumed session copies old lines) is not counted. Two more kinds:
 - `long session`: a main transcript with LONG_TURNS or more main turns so far (an owner or injected message that
@@ -75,8 +75,8 @@ OWN_COMMAND = "dev-kit-"  # the plugin's own commands, run by its rules at fixed
 SCRIPT_MIN_CHARS = 30  # shorter Bash commands (git status, ls) are not worth a script
 DETAIL_CHARS = 160
 WEIGHTS = {"input": 1, "output": 5, "cache_read": 0.1, "cache_5m": 1.25, "cache_1h": 2}
-MODEL_WEIGHTS = {"opus": 5, "sonnet": 1, "haiku": 1 / 3}  # matched as a part of the model id; the Opus one is
-# to be checked once against the owner's subscription meter (`/usage`), plans/retro-tokens.md
+MODEL_WEIGHTS = {"opus": 1.5, "sonnet": 1, "haiku": 1 / 3}  # matched as a part of the model id; Opus set from the
+# owner's subscription meter (`/usage`, two 5-hour windows on 2026-11-19/20, fit 1.2-1.8), plans/retro-tokens.md
 LONG_TURNS = 100
 SHORT_TURNS = 50
 USUAL_MIN = 10
