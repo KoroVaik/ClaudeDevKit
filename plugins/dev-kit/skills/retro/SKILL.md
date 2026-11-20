@@ -31,12 +31,14 @@ list, the transcripts folder (`~/.claude/projects/<project folder>/`, a session'
 characters in brackets after a title are the start of the id, subagent files are in `<id>/subagents/`), the plugin
 folder and the owner's global rules folder (`C:/Users/korov/.claude/` with its `docs/`). Per finding it returns:
 
-- real, noise or already fixed (with the file and line of the fix), with the transcript lines it read (a watcher
+- real, noise, already fixed (with the file and line of the fix) or handed over (another session or talk took it,
+  as P or the owner said in this session), with the transcript lines it read (a watcher
   re-armed by design, an expected failed test, an owner who was away, are noise);
 - the cause: which rule, skill or agent was missing, unclear or ignored, with `file:line`, or "no rule gap";
 - the fix kind: a wording edit (which file), a script, hook or new agent, or nothing;
 - one concrete example of what the agent did, in the owner's words (what he saw in the session), and what it led
-  to or would have led to for him; the fix in one plain line: what will behave differently;
+  to or would have led to for him, and why that is a problem; the fix: what changes in the rules, in one plain
+  line, and the same moment as it will look after the fix;
 - for a wording edit, steps 1-2 of `dev-kit:edit-rules` done on it: the read set swept and the duplicates,
   conflicts, restatements and home listed with `file:line`, so the owner's yes covers an edit with no clash.
 
@@ -46,26 +48,26 @@ sees it.
 ## 2. Ask the owner
 
 This step names itself as an exception to the owner's global "Question" cap (15 words plus a 6-word bracket
-example) and "Batches of questions" format, and to "Several questions in one message" for one form per block in the
-last block: a retro item needs its context. The last block does not count toward the 3 items. The rest of the global "Chat replies" rules
-hold: Ukrainian, plain words, no file or rule names, at most 3 items per message (the next 3 after the owner
-answers).
+example) and "Batches of questions" format: a retro item needs its context. The rest of the global "Chat replies"
+rules hold: Ukrainian, plain words, no file or rule names.
 
-Each real item is one block, in the order of the reviewer's list, plain labels with no bold:
+One real item per message, in the order of the reviewer's list; the next one only after the owner answers. Plain
+labels with no bold:
 
-    ### <plain topic, at most 6 words>
-    Було: <what the agent did in a session, one concrete example the owner can picture, and what it led to
-    or would have led to for him; at most 2 sentences>
-    Стане: <one sentence: what will behave differently after the fix>
+    Проблема: <plain name of the problem, at most 6 words>
+    Було: <one concrete moment from a session the owner can picture: what the agent did or wrote>
+    Це проблема, бо: <what it led to or would have led to for the owner, one sentence>
+    Виправлення: <what changes in the rules, in plain words, one sentence>
+    Стане: <the same moment as it will look after the fix, as an example>
     <the question, at most 15 words, worded so that «так» agrees with it>
     Рекомендую: так - <reason, at most 12 words>
 
-Було never leans on names or context the owner may not hold (another project, a session, a file): say in plain
-words what happened and why it was bad. A spend item gets its numbers in Було, and its Стане is worded as the
-trial «спробувати тиждень і порівняти» (see "Token spend"). Noise and findings the reviewer marks already fixed are
-not asked one by one: the last block, `### Шум і вже виправлене`, lists each in one line «<what happened> - <noise:
-why | fixed: what now holds>», then one question «Відкинути все це?» with its Рекомендую line. The owner answers
-«так» or «ні» to each block.
+Було and Стане never lean on names or context the owner may not hold (another project, a session, a file): say in
+plain words what happened. A spend item gets its numbers in Було, and its Виправлення is worded as the trial
+«спробувати тиждень і порівняти» (see "Token spend"). Noise, findings the reviewer marks already fixed and findings
+handed over are not asked: the message of the last real item opens with one line «Ще N знахідок - шум або вже
+виправлене» (and «M передано в окреме обговорення» when there are any) and «подробиці покажу, якщо попросиш»,
+so its question stays last; with no real item, the whole message is «Нових проблем у правилах немає.» and that line.
 
 ## 3. Apply the yeses
 
@@ -93,4 +95,6 @@ Why: the owner decided on 2026-11-19 that sessions' problems are logged and revi
 a rule or the backlog without the owner's «так» in a retro session; the same day, that token spend is counted in
 units with no dollars (a subscription) and serves only as evidence for trial rules (plans/retro-tokens.md). On the same
 day the retro questions became Було/Стане blocks under headings (owner: «питання в стилі було - стало»), because
-two-sentence batch items gave no context.
+two-sentence batch items gave no context. On 2026-11-20 the owner asked for one item per message with Проблема, Було,
+Це проблема, бо, Виправлення and Стане (an example), and for noise and fixed findings to be one line, not a question
+(owner: «А нащо мені вже виправлені?», «Я маю розуміти про що ця проблема»).
