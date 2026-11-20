@@ -67,3 +67,10 @@ Build notes:
 ## Success criterion
 The owner approves a short plan; the «Owner's approval» section here holds the exact rule for reading
 answers and any format change, in the detail a builder needs.
+
+## Build (C: p-answers-build, 2026-11-20)
+- Done: `project-lead` skill «Message templates» (closing line by four cases, «Reading the owner's answer»
+  paragraph with the bare «так»/«ні» rule and its Why), feature doc, dev-kit 0.1.65; one sentence added
+  to the project-lead exception in the owner's global `CLAUDE.md` (P's yes). Reviewer findings fixed; for
+  case 2 the status block goes first so the single question stays last.
+- Paid spend: $0.

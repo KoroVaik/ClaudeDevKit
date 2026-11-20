@@ -14,8 +14,11 @@ finished work into main and tells you the result. It does no task work itself.
 ### P's messages: session states and question counts
 Every status message from P has two short blocks: «Питання без відповіді» (a new question written in
 full once, older ones only counted, urgent ones always named) and «Статуси сесій» (each session's state
-and name). When some question is not written out, it ends with «Показати всі питання?»; on your «так» P
-lists every question in full, numbered, and you answer by number. P writes at once on each event, only
+and name). A message with an open question always ends with one question you can answer with a bare «так»:
+«Показати всі питання?» when some question is not written out (on «так» P lists every question in full,
+numbered), the question itself when it is the only one, or «Приймаєш усі мої рекомендації?» when several
+are written out. A bare «так» or «ні» answers that last line; P never asks back which one you meant.
+You can still answer by number («1 так, 3 ні»). P writes at once on each event, only
 what changed. After a plugin-update restart, or when Claude Code demands a reply where P has nothing new,
 P shows the current state in this form, never a filler phrase; with nothing running and nothing
 waiting, it is one line saying so.
@@ -69,6 +72,7 @@ pagefile was fixed instead (48 GB initial, 64 GB max).
 ## Acceptance criteria
 - You give P a task whose outcome is not agreed: P asks up to 3 questions through the queue, or proposes an «Обговорення:» session when there are more or a screen is involved.
 - A new question arrives: P writes it in full once; later messages only count it and ask «Показати всі питання?», and on «так» all are listed, numbered.
+- You answer a P message with a bare «так»: P takes it as the answer to the message's last line and acts, never asking «1 чи 2?».
 - A session finishes while you are away: P writes at once, and its message lists the session as «готово».
 - A task session crashes: you get it at once, also as a push to your phone.
 - A task is finished: P merges it into main and tells you the result; you did not start or watch the C.

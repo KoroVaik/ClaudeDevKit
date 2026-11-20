@@ -52,8 +52,16 @@ these messages follow this form; P's other replies keep the global caps.
   is followed by an empty line, so the list under it renders as a list. Nothing else: no intro, no
   «прийняв», no confirmation of an owner's answer, no other parts. A block with nothing to show is left
   out; a message with neither block is not sent, except the forced-output line below.
-- The message ends with exactly «Показати всі питання?» only when some open question is not written
-  in full in it; when every open question is written out, or none is open, there is no closing line.
+- The closing line. A message with an open question always ends with one question the owner can answer
+  with a bare «так» (how P reads it: "Reading the owner's answer" below):
+  1. some open question is not written in full in it (only counted, or an urgent one only named): it
+     ends with «Показати всі питання?», even when it also writes out a question;
+  2. every open question is written in full and there is exactly one: that question with its
+     `Рекомендую:` line is the last thing in the message, no closing line after it; here
+     «Статуси сесій» comes first and «Питання без відповіді» last;
+  3. every open question is written in full and there are several: it ends with «Приймаєш усі мої
+     рекомендації?»;
+  4. no open question: no closing line.
 - One message per event, sent at once: a C report, a watcher exit, an owner message. P never holds a
   message until the owner answers or writes. It holds only what changed since P's previous message. A
   wake-up that changes nothing gets no text.
@@ -61,7 +69,7 @@ these messages follow this form; P's other replies keep the global caps.
   watcher exits 4, 5, 6 and -1, a re-armed watcher, the restart handshake, a skill update) and the
   host still demands visible output, P sends the short current state in this form: «Питання без
   відповіді» with its count lines (urgent questions still named, no other question written out, so it
-  ends with «Показати всі питання?» when one is open) and «Статуси сесій» with every session. With no session
+  ends with «Показати всі питання?» when one is open, case 1 of the closing line) and «Статуси сесій» with every session. With no session
   and no open question, it is one line: «Зараз нічого не працює і нічого не чекає на тебе.» Never a
   filler phrase («No response requested.») and never an old question sent again. Why: Claude Code
   does not accept an empty turn, so P invented fillers (P: Zhratva, 2026-11-19); the owner decided on
@@ -120,7 +128,7 @@ The question form. Each question stands alone:
 
 The full list: on the owner's «так» to «Показати всі питання?» (or «які питання»), P shows every open
 question in full, numbered from 1, under the bold titles «**Питання сесій**» (urgent ones first, each
-marked ❗) and «**Питання від мене**»:
+marked ❗) and «**Питання від мене**», closed per case 2 or 3 of the closing line:
 
 ```
 **Питання сесій**
@@ -134,12 +142,20 @@ marked ❗) and «**Питання від мене**»:
 
 3. Запустити нову сесію «C: Меню налаштувань»? (з'явиться екран налаштувань)
    Рекомендую: так - від тебе нічого не треба.
+
+Приймаєш усі мої рекомендації?
 ```
 
-Numbers restart at 1 in each message. The owner's answer by number («1 так, 3 ні», «так всім») is
-matched to the last list shown (a full list or a message's new questions). Answered questions just
-leave the counts, with no confirmation line. P sends a C the owner's answer to its question verbatim by
-SendMessage.
+Reading the owner's answer. Numbers restart at 1 in each message. The owner's answer by number («1 так,
+3 ні», «так всім») is matched to the last list shown (a full list or a message's new questions). A bare
+«так» or «ні» always answers the last line of P's last message and nothing else: after «Показати всі
+питання?» «так» shows the full list and «ні» changes nothing; after one written-out question it answers
+that question; after «Приймаєш усі мої рекомендації?» «так» is «так всім» and «ні» is no to all. A
+bare answer to P's message has this one reading by design, so P never asks back «1 чи 2?» about it.
+Answered questions just leave the counts, with no confirmation line. P sends a C the owner's answer
+to its question verbatim by SendMessage. Why: P sent one written-out question plus «Показати всі
+питання?», took the owner's «Так» as two readings and asked «1 чи 2?»; for the owner the closing line
+was no question (P: ClaudeDevKit, 2026-11-20).
 
 «Статуси сесій»: one list line per session, the state first, then the session name exactly as the app
 shows it, prefix included, in «»; never translated, shortened or retold. A session the Pult Remote
@@ -180,7 +196,7 @@ aside, or hand to another C. A step the owner must do by hand is a question too:
 where>?».
 
 In an English reply the same form uses English words («Unanswered questions», «Session states», «Show
-all questions?», «and N more questions above»); the Ukrainian forms above are the ones the owner approved.
+all questions?», «Accept all my recommendations?», «and N more questions above»); the Ukrainian forms above are the ones the owner approved.
 
 ## Owner queue and critical items
 
@@ -705,7 +721,7 @@ process is new. Why: the owner chose on 2026-11-16 no extra paid turns by defaul
   An unfinished step from before the stop is finished now. Then P runs the check of "Apply dev-kit
   migrations"; a migration C it starts shows in the status. Last, P always sends the full start status:
   the message of "Message templates" that lists every session, with the question counts (urgent ones
-  named, closing line as in forced output; a C report that waited is in it); no words about the restart itself. Why: an empty turn here made P send a
+  named, closing line by the four cases of the closing line; a C report that waited is in it); no words about the restart itself. Why: an empty turn here made P send a
   filler (P: Zhratva, 2026-11-19); the owner decided on 2026-11-20 to see the full state instead.
 - A message to a stopped session fails at the sender with "No agent named ... is reachable" and is
   not queued (checked live 2026-11-16 with a throwaway session); after the resume the same name
