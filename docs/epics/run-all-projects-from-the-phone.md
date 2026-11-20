@@ -23,8 +23,9 @@ The lead's rules (queue, task sessions, merge) are in the epic
    ([Start leads at logon and heal them](../features/start-leads-at-logon-and-heal-them.md)).
 2. On the phone, open the Claude app and pick the session "P: <project>" from the session list. Give P work
    in your own words: "add X", "fix Y". P may show what it understood and ask "так".
-3. P starts a C named "C: <task>". It appears as its own session in the app. Talk to that C directly for
-   details; it reports to P when it is done, stuck or needs your decision.
+3. P starts a C named "C: <task>". It has no Remote Control, so it does not show in the phone app and
+   sends no push; it reports to P when it is done, stuck or needs your decision, and P tells you. For a
+   talk about the details P proposes an "Обговорення:" session, which does show in the app.
 4. P checks the finished work, merges it into main, removes the C and tells you the result.
 5. Ask the "Pult" session for "статус": it also sends you the status page, one HTML file with every
    project's sessions (free, busy or ended) and the open questions from its PROGRESS.md. The page is a

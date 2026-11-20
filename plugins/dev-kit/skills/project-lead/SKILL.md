@@ -319,7 +319,10 @@ proposed, not opened, because «краще перепитать, бо я мож�
   registry and every message use the same name.
 - Make the worktree yourself from the local main, then start C inside it:
   `git worktree add .claude/worktrees/<slug> -b c/<slug> main`, then in one PowerShell call
-  `Push-Location <worktree>; claude --bg --remote-control "C: <feature>" --name "C: <feature>" --permission-mode <mode> --model <model> --effort <level> -- "<first prompt>"; Pop-Location`.
+  `Push-Location <worktree>; claude --bg --name "C: <feature>" --permission-mode <mode> --model <model> --effort <level> -- "<first prompt>"; Pop-Location`.
+  A C gets no `--remote-control` (an «Обговорення:» session does, see below). Why: every
+  `--remote-control` launch pushes «Remote control enabled» to the owner's phone and no setting turns it
+  off; the owner does not talk with a C (owner, 2026-11-20).
   The `Pop-Location` returns P's shell to the main checkout: the PowerShell tool keeps its folder
   between calls, and a shell left inside the worktree locks the folder, so `git worktree remove`
   later leaves it behind with "Permission denied" (seen live in Zhratva, 2026-11-15).
@@ -432,7 +435,8 @@ each lead applies it under its own project's rules, with no agent editing other 
 For a task of branch 4 in "Before a task: triage", after the owner's «так» to the proposal. Start it as a C (overlap check, worktree, folder
 setup, registration) with these differences:
 
-- Name `Обговорення: <feature>` (no guillemets in the name) (flag `--name` and `--remote-control`), the
+- Name `Обговорення: <feature>` (no guillemets in the name) (add `--remote-control "Обговорення: <feature>"` to the command of "Start a C", unlike a C,
+  plus `--name`), the
   permission mode a C gets ("Start a C", "Permission mode"), `--model opus --effort medium` (the owner
   talks with it). Why: its done report to a P in another mode was held for the owner's approval (seen
   live, 2026-11-19); the owner does not want to relay between sessions.
@@ -662,7 +666,7 @@ line marked OVER, refresh that C.
 1. Message C: reach the nearest checkpoint between steps (never mid-step), run
    `continue-work-in-another-context save`, reply with the handoff file name.
 2. Start a fresh C from inside the SAME worktree folder (no `-w`), same name, model, effort and
-   permission mode; first prompt: `/continue-work-in-another-context load <file>`, then "once loaded,
+   permission mode (no `--remote-control` for a C); first prompt: `/continue-work-in-another-context load <file>`, then "once loaded,
    send P «picked up» by SendMessage".
 3. Only after the new C's «picked up» reaches P, register it with `dev-kit-sessions add ...
    --predecessor <old id>` (this ends the old record as `replaced`), then run `claude stop <old id>`.
