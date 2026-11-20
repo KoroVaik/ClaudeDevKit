@@ -19,7 +19,7 @@ and name). A message with an open question always ends with one question you can
 numbered), the question itself when it is the only one, or «Приймаєш усі мої рекомендації?» when several
 are written out. A bare «так» or «ні» answers that last line; P never asks back which one you meant.
 You can still answer by number («1 так, 3 ні»). P writes at once on each event, only
-what changed. After a plugin-update restart, or when Claude Code demands a reply where P has nothing new,
+what changed; the other sessions still at work share one last line «ще працюють: «A», «B»». After a plugin-update restart, or when Claude Code demands a reply where P has nothing new,
 P shows the current state in this form, never a filler phrase; with nothing running and nothing
 waiting, it is one line saying so.
 

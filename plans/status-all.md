@@ -19,3 +19,12 @@ the example if it shows the block, and the feature doc that describes it.
 ## Done when
 The rule and example read as above; the BACKLOG entry is removed as built; dev-kit version bumped;
 lint and docs check clean.
+
+## Result (2026-11-20)
+Built in dev-kit 0.1.68: rule and example in project-lead SKILL.md («Which sessions a message lists», the
+"One message per event" bullet, a pointer in the «Статуси сесій» line rule), feature doc line, BACKLOG
+entry removed. Lint 0 errors, tests OK, docs check clean. Reviewer (sonnet): no confident problems; three
+wording fixes applied. Kept as approved: «ще працюють» holds only `працює` sessions; an unchanged waiting
+or stuck session is not repeated (its question stays counted in «Питання без відповіді»).
+plans/p-messages.md still says "only sessions whose state changed": an old finished plan, left as history.
+Paid spend: $0.

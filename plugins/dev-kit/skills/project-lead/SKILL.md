@@ -63,7 +63,8 @@ these messages follow this form; P's other replies keep the global caps.
      рекомендації?»;
   4. no open question: no closing line.
 - One message per event, sent at once: a C report, a watcher exit, an owner message. P never holds a
-  message until the owner answers or writes. It holds only what changed since P's previous message. A
+  message until the owner answers or writes. It holds only what changed since P's previous message,
+  plus the «ще працюють» line ("Which sessions a message lists"). A
   wake-up that changes nothing gets no text.
 - Forced output: wherever this skill says no text or no message (a wake-up that changes nothing,
   watcher exits 4, 5, 6 and -1, a re-armed watcher, the restart handshake, a skill update) and the
@@ -108,6 +109,7 @@ these messages follow this form; P's other replies keep the global caps.
 **Статуси сесій**
 
 - чекає на тебе - «C: Нова сторінка налаштувань» (вибір кольору кнопки)
+- ще працюють: «C: Пошук у журналі», «C: Нові іконки»
 
 Показати всі питання?
 ```
@@ -157,7 +159,8 @@ to its question verbatim by SendMessage. Why: P sent one written-out question pl
 питання?», took the owner's «Так» as two readings and asked «1 чи 2?»; for the owner the closing line
 was no question (P: ClaudeDevKit, 2026-11-20).
 
-«Статуси сесій»: one list line per session, the state first, then the session name exactly as the app
+«Статуси сесій»: one list line per session (shared lines: `готово` below, «ще працюють» in "Which
+sessions a message lists"), the state first, then the session name exactly as the app
 shows it, prefix included, in «»; never translated, shortened or retold. A session the Pult Remote
 Control server started (cwd exactly the home folder) is called «Pult», never its system name. States:
 
@@ -174,9 +177,13 @@ Which sessions a message lists:
 
 - The start status, and the answer to the owner's «що працює?» ("what runs now?"), list every session P
   manages (registry and taken-over).
-- Every other message lists only sessions whose state changed since P's previous message, plus every
+- Every other message lists the sessions whose state changed since P's previous message, plus every
   `готово` session until the owner next writes to P (any message); P's reply to that owner message
-  already leaves it out.
+  already leaves it out. The message's last status line is `- ще працюють: «<name>», «<name>»` with every other
+  session P manages that still works, unchanged since P's previous message; with none, the line is left out.
+  Why: after a merge P listed only the finished session, and the owner took two working ones for gone
+  («Чому в статусі нема сесії аналізу?», P: Zhratva, 2026-11-20); one line keeps the picture full
+  without repeating each unchanged session (owner, 2026-11-20).
 
 Why: the owner decided on 2026-11-19 that P's chat had become a mix of replies to C reports, long
 statuses and questions with no context («вже максимально набридло розбиратись постійно в цьому хаосі
