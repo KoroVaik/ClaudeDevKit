@@ -819,8 +819,8 @@ exception to "no task work"; any other rule edit P makes follows `dev-kit:edit-r
   line and the exact edit (a retro item already has this from the gate reviewer).
 - A backlog entry gets a `Verdict:` line with the recommendation and is removed after the edit or on
   «ні». An owner-chat, process-mistake or retro item has no entry.
-- P asks the owner a yes/no batch on the ideas, not the wording (a retro item is asked as in
-  `dev-kit:retro`, step 2). On «так» one `dev-kit:coder` applies the edits, bumps the plugin version if a
+- P asks the owner a yes/no batch on the ideas, not the wording (an in-chat retro item is asked as in
+  "Retro of session problems"). On «так» one `dev-kit:coder` applies the edits, bumps the plugin version if a
   plugin changed and runs the repo's lint; P runs steps 5-6 of `dev-kit:edit-rules` on the diff and
   commits. The owner's global files (the local `.claude` folder) are edited in place and committed in that
   folder's local git (step 6 of `dev-kit:edit-rules`).
@@ -844,9 +844,12 @@ real finding and no due trial (all already fixed, noise or handed over): P runs 
 itself, with no item and no message. Otherwise:
 
 - 1-2 items, each a wording edit in one place with no clash (the reviewer's step-2 list) or a trial
-  comparison: P runs the retro in its own chat, with no session. The owner gets the items one per message in
-  the format of `dev-kit:retro`, step 2 (its exemption from the global question cap holds), as normal queue
-  items; each «так» is applied as in "Small rule edit". After the last answer P commits and runs
+  comparison: P runs the retro in its own chat, with no session. P first adds one question of its own:
+  «Розібрати <N> знахідок ретро зараз?»; after its «так» the items come as normal P questions in the question
+  form of "Message templates" (the fix in one plain line, its consequence in brackets, `Рекомендую:`), never
+  in the long format of `dev-kit:retro`, step 2; details only on the owner's ask. Each «так» is applied as in
+  "Small rule edit". Why: owner, 2026-11-20: a retro item sent unasked in the long format was «полотно
+  неформатованого тексту»; he wants to be asked first, then short questions. After the last answer P commits and runs
   `dev-kit-retro done`; no short plan, no done report, no merge. A finding that needs a script, a hook, a new
   agent or skill, a spend rule or a change of the scan makes the retro complex.
 - More items, or a complex one: P adds one question of its own: «Запустити ретро сесій? (<N> нових
