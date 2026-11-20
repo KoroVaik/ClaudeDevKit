@@ -138,3 +138,6 @@ How the parts fit (build plan):
 - Live check of the script's own `Send-Wake` (via `claude.cmd`, hidden, stdin from a file) to a throwaway session: the first prompt wrapped the name in «» and the send failed; fixed (the name on its own, no quotes); then 2 of 2 delivered in 5 s, about 0.0005 USD each.
 
 Paid spend (this build): about 0.14 USD.
+- Release: dev-kit 0.1.78 (main had used 0.1.77 meanwhile; `$WakeMinDevKit` = 0.1.78), pult 0.1.16.
+- Independent review (sonnet): no critical problem; fixed: python output read as UTF-8 (Ukrainian names were garbled), no message to a lead marked ready for a restart, all size pushes of a round merged and retried, a 3-minute send budget per round, the ping text matched to the skill. Left: an old lead that reads the new skill while its old watcher still runs has no line for `time limit` (it ends at its restart); `claude agents` output in the hidden watcher is decoded as before (names in event lines come from the registry first).
+- Still untested: a send to a bypassPermissions lead (first real P: Zhratva event); a real push to the phone (owner-away test).
