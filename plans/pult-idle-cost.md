@@ -37,5 +37,7 @@ Cause: a Claude session is woken only to re-arm a watcher the host kills every 2
 10. Problems that can wait (below those thresholds) go to the retro as priority items: first in the reviewer's list of the retro session (owner: «Всі проблеми які можуть почекать, потрібно виносить на ретро приорітетними»).
 11. Phone push for tokens only when a session's conversation grows past 700k tokens (input + cache read + cache write of its last call; checked readable: the Zhratva lead reached 703k), once per session; the push says to move it to a new session. Checked by `watch-servers.ps1` on the last call of each live session, not by the daily scan (owner: «пуш є сенс коли сесія виросла більш ніж 700к токенів... мені треба перенести її»). Other token problems wait for the status.
 12. Critical technical problems stay as today: GIVEUP, GIVEUP-TASK, RESTART-LEAD-FAILED; the rest the server watcher heals itself.
-
-Open (owner, «про це окремо поговорим»): leads often miss the moment their conversation has grown too big and should move to a new session.
+13. A lead's own conversation size (owner, 2026-11-20, «так»; the owner said leads often miss this moment). Cause checked: `project-lead/SKILL.md` checks only its C sessions' fill (limit 0.5, "Refresh an overfull C", lines 658-678); for P itself only "Restart P" (line 721) exists, with no trigger, and it needs the owner's `/clear`. Agreed:
+    - P checks its own fill too (same limit 0.5, half the context window) and at the nearest safe point saves a handoff (`continue-work-in-another-context save`).
+    - `watch-servers.ps1` starts the fresh lead session from that handoff by itself when the lead is idle (same name, model, effort, mode; first prompt `/continue-work-in-another-context load <file>`), then stops the old one; no owner action. A lead's state already lives in project files and the registry.
+    - The 700k push (point 11) stays as the backstop when the move did not happen.
