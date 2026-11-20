@@ -260,16 +260,16 @@ P decides alone everything within the approved criteria. An item enters the queu
 - it leaves the approved criteria (a product choice);
 - what the owner gets is not agreed yet (see "Before a task: triage", branch 3);
 - the step is hard to undo;
-- paid spend would pass $1 in total per task. Smaller spend is never asked.
+- paid spend would pass 1 USD in total per task. Smaller spend is never asked.
 
-The C keeps a running total of paid spend in its task file and asks P before a paid call that would take it past $1.
+The C keeps a running total of paid spend in its task file and asks P before a paid call that would take it past 1 USD.
 
 One more item always enters the queue: «Взяти «<name>» під керування?» for each session the owner
 started that P has not offered yet (see "Take over a session the owner started"). It is a normal
 item, never critical. The same holds for the retro item of "Retro of session problems".
 
 Why: the owner decided on 2026-11-15 that he is the CEO: six messages about three sessions in
-minutes were noise, and spend under $1 or a decision inside the criteria needs no owner.
+minutes were noise, and spend under 1 USD or a decision inside the criteria needs no owner.
 
 ## Before a task: triage
 
@@ -389,7 +389,7 @@ it on `c/<slug>`, so the merge and the worktree removal see no stray file. C kee
     project rule names, to P by SendMessage and wait for P's answer."
   - The ask-P list: actions C does only after P's yes (see "Ask-P list").
   - "Keep a running total of paid spend in the task file; ask P before a paid call that would take
-    the total past $1. Spend below $1 is never asked."
+    the total past 1 USD. Spend below 1 USD is never asked."
   - On done, C ends its own chat with «Готово, керівник зіллє роботу й закриє цю сесію» and no
     question (`dev-kit:manager`, "A task from the project lead").
 - Right after registering a C, arm the watcher (see "Wake-up"); if one already runs, the new C is
@@ -510,7 +510,7 @@ Actions a C does only after P's yes (the same list is in the first prompt and in
 - starting the owner's app in the main checkout;
 - loosening a validation or safety guard;
 - deleting tracked files;
-- a paid call that would take the task's total past $1 (spend below $1 is never asked);
+- a paid call that would take the task's total past 1 USD (spend below 1 USD is never asked);
 - any step a project rule says needs consent (check-ui, check-usability, check-look and similar),
   except the checks a screen's approved mockup already allows (`dev-kit:test-change`).
 

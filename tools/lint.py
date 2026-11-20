@@ -234,6 +234,17 @@ def check_marketplace(root, findings):
     return names
 
 
+ARG_PLACEHOLDER = re.compile(r"\$(?:\d|ARGUMENTS)")
+
+
+def check_placeholders(where, text, findings):
+    # Claude Code replaces $1, $ARGUMENTS and the like in a skill or agent body with the
+    # call's arguments, so "past $1" read "past plugin" after "/project-lead restart: plugin update".
+    for number, line in enumerate(text.splitlines(), 1):
+        if ARG_PLACEHOLDER.search(line):
+            findings.error(where, f"line {number}: argument placeholder ($<digit> or $ARGUMENTS) is replaced on a call; write money as '1 USD'")
+
+
 def check_skills(root, findings):
     for folder in sorted(p for p in root.glob("plugins/*/skills/*") if p.is_dir()):
         skill = folder / "SKILL.md"
@@ -244,6 +255,7 @@ def check_skills(root, findings):
         text = read_text(root, skill, findings)
         if text is None:
             continue
+        check_placeholders(where, text, findings)
         fields = parse_frontmatter(text)
         if fields is None:
             findings.error(where, "missing or unclosed frontmatter")
@@ -263,6 +275,7 @@ def check_agents(root, findings):
         text = read_text(root, agent, findings)
         if text is None:
             continue
+        check_placeholders(where, text, findings)
         fields = parse_frontmatter(text)
         if fields is None:
             findings.error(where, "missing or unclosed frontmatter")
