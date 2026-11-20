@@ -31,10 +31,12 @@ SERVER = "Srv-wake-test-7f3a"  # a server row no real process matches
 OLD_TIME = 946684800  # 2000-01-01: every plugin.json is older than the "lead" process
 STALE_KEY = "2026-11-20T09:00:00.000Z"
 STALE_LINE = f"stale | C: task | {TASK} | waiting 25 min | {STALE_KEY}"
-PING = "PING keep-warm: answer with your standard status only"
+PING = ("PING keep-warm: run dev-kit-sessions fill for your C sessions and dev-kit-sessions size --id "
+        "<your own session id> for yourself, then answer with your standard status only.")
 
 FAKE_SESSIONS = r'''import json, os, subprocess, sys
 from pathlib import Path
+sys.stdout.reconfigure(encoding="utf-8")  # as the real sessions.py
 d = Path(os.environ["TEST_DIR"])
 argv = sys.argv[1:]
 with open(d / "sessions-calls.txt", "a", encoding="utf-8") as f:
@@ -80,6 +82,7 @@ print(json.dumps({"type": "result", "subtype": "success", "is_error": False, "re
 
 STUB_RESTART = '''param($Name, $Ready, $ConfigFile, $StateDir)
 Add-Content -LiteralPath $env:TEST_CALLS_FILE -Value "Name=$Name Ready=$Ready"
+if ($env:TEST_RESTART_BUSY) { Write-Output "Busy, skipped: $($Ready -join ',')"; return }
 Write-Output "Resumed lead: $($Name -join ',')"
 '''
 
@@ -182,11 +185,14 @@ class WatchServersWakeTest(unittest.TestCase):
         when = time.time() - minutes * 60
         os.utime(self.lead_transcript, (when, when))
 
-    def run_watch(self, rounds, *extra):
+    def run_watch(self, rounds, *extra, restart_busy=False):
         env = dict(os.environ, PATH=str(self.bin) + os.pathsep + os.environ.get("PATH", ""),
                    DEV_KIT_PROJECTS_DIR=str(self.projects.parent), DEV_KIT_STATE_DIR=str(self.state),
                    TEST_DIR=str(self.bin), TEST_CALLS_FILE=str(self.tmp / "restart-calls.txt"),
                    TEST_REAL_SESSIONS=str(self.plugins / "dev-kit" / "scripts" / "sessions.py"))
+        env.pop("TEST_RESTART_BUSY", None)
+        if restart_busy:  # the stub restart-leads.ps1 answers "Busy, skipped": the ready mark stays
+            env["TEST_RESTART_BUSY"] = "1"
         subprocess.run([POWERSHELL, "-NoProfile", "-ExecutionPolicy", "Bypass", "-File",
                         str(self.scripts / "watch-servers.ps1"),
                         "-Rounds", str(rounds), "-IntervalSec", "0", "-ConfigFile", str(self.config_file),
@@ -319,8 +325,7 @@ class WatchServersWakeTest(unittest.TestCase):
         log = self.run_watch(1)
         wakes = self.wakes()
         self.assertEqual(1, len(wakes), log)
-        self.assertEqual(f"{PING}; first run dev-kit-sessions fill for your C sessions and yourself.",
-                         self.message(wakes[0]).split("\n")[1])
+        self.assertEqual(PING, self.message(wakes[0]).split("\n")[1])
         self.assertTrue(any(re.match(rf"WAKE {LEAD} \S+ cause=ping kinds=ping$", line) for line in log), log)
         self.age_transcript(60)  # the delivered ping wrote the transcript; a lead that stays silent is not pinged again
         self.run_watch(1)
@@ -330,14 +335,18 @@ class WatchServersWakeTest(unittest.TestCase):
     def test_conversation_past_0_7_of_its_window_gets_one_phone_push(self):
         (self.bin / "size.txt").write_text(
             f"{LEAD_SID} | 750000 | 1000000 | claude-opus-4-7 | owner=1 peer=2 notify=0 | units=12.5\n"
-            f"{TASK} | 600000 | 1000000 | claude-opus-4-7 | owner=0 peer=0 notify=1 | units=3\n", encoding="utf-8")
+            f"{TASK} | 600000 | 1000000 | claude-opus-4-7 | owner=0 peer=0 notify=1 | units=3\n"
+            f"{PULT_SID} | 900000 | 1000000 | claude-opus-4-7\n", encoding="utf-8")
         self.registry_task()
+        self.agents(pult=True)
         self.run_watch(3)
         log = self.run_watch(2)  # a new watcher run (as after WATCH-RESTART) pushes no second time; the log holds both
         pushes = [w for w in self.wakes() if self.arg(w, "--tools") == "PushNotification"]
-        self.assertEqual(1, len(pushes), log)
-        self.assertEqual(f"{LEAD}: розмова 750 тис. токенів - перенеси її в нову сесію", self.message(pushes[0]))
-        self.assertEqual([f"PUSH-SIZE {LEAD} {LEAD_SID} 750000"], [line for line in log if line.startswith("PUSH-SIZE")])
+        self.assertEqual(1, len(pushes), "the sessions that pass in one round share one push")
+        self.assertEqual(f"{LEAD}: 750 тис., Pult: 900 тис. токенів - перенеси ці розмови в нові сесії",
+                         self.message(pushes[0]))
+        self.assertEqual([f"PUSH-SIZE {LEAD} {LEAD_SID} 750000", f"PUSH-SIZE Pult {PULT_SID} 900000"],
+                         [line for line in log if line.startswith("PUSH-SIZE")])
         self.assertIn(f"SIZE {LEAD} {LEAD_SID} 750000 owner=1 peer=2 notify=0 units=12.5", log)
         self.assertIn(f"SIZE C: task {TASK} 600000 owner=0 peer=0 notify=1 units=3", log)
         wakes_args = [c for c in self.sessions_calls("size")]
@@ -362,6 +371,31 @@ class WatchServersWakeTest(unittest.TestCase):
                 request = json.loads((self.registry / "restart.json").read_text(encoding="utf-8"))
                 self.assertEqual("0.1.79", request["version"])
                 self.assertNotIn("ready", request)
+
+    # protects: Bug
+    def test_cyrillic_task_name_reaches_the_sender_intact(self):
+        (self.bin / "check.txt").write_text(STALE_LINE.replace("C: task", "C: Каталог страв") + "\n", encoding="utf-8")
+        log = self.run_watch(1)
+        wakes = self.wakes()
+        self.assertEqual(1, len(wakes), log)
+        self.assertEqual(f"stale: C: Каталог страв | {TASK} | waiting 25 min", self.message(wakes[0]).split("\n")[1])
+
+    # protects: Rule
+    def test_lead_marked_ready_gets_no_message_until_after_its_restart(self):
+        self.set_version("dev-kit", "0.1.79")
+        self.agents(lead="busy", task="idle")
+        subprocess.run([sys.executable, str(self.plugins / "dev-kit" / "scripts" / "sessions.py"), "--project",
+                        str(self.project), "restart", "ready", "--version", "0.1.79"],
+                       env=dict(os.environ, DEV_KIT_STATE_DIR=str(self.state)), check=True, capture_output=True,
+                       timeout=60)
+        (self.bin / "check.txt").write_text(STALE_LINE + "\n", encoding="utf-8")
+        log = self.run_watch(2, restart_busy=True)  # the -Ready restart finds it busy: the ready mark stays
+        self.assertEqual([], self.wakes(), log)
+        pending = json.loads((self.pult / "wake-pending.json").read_text(encoding="utf-8"))
+        self.assertEqual([f"stale: C: task | {TASK} | waiting 25 min"], [line for item in pending for line in item["Lines"]])
+        log = self.run_watch(1)  # restarted with -Ready, the mark cleared: the message goes out
+        self.assertIn(f"Name= Ready={LEAD}", (self.tmp / "restart-calls.txt").read_text(encoding="utf-8"))
+        self.assertEqual(1, len(self.wakes()), log)
 
 
 if __name__ == "__main__":
