@@ -452,9 +452,9 @@ setup, registration) with these differences:
   or for a discussion with no screen the «Owner's approval» section in the task file, with every
   agreed point in the detail the builders need, and a next-step line in PROGRESS.md; then show the
   owner the short plan (`dev-kit:project-lead`, "Start an «Обговорення:» session", "Short plan") and send P a done report by SendMessage
-  only after the owner's «так» to that plan; without that section and that «так» you may not report
+  only after the owner's «так» to that plan, and only if no owner message came after that «так»; without that section and that «так» you may not report
   done".
-- It ends with the owner's «так» to the short plan. P merges and closes it only after
+- It ends with the owner's «так» to the short plan, when no owner message follows it. P merges and closes it only after
   that done report, as in "Acceptance and merge", but never a screen's branch whose feature file lacks
   the «Approved design» section: P sends it back. Then P starts a C from that feature file (see "Build a designed screen").
 - After the launch P writes exactly one line and nothing else: `Відкрий сесію «Обговорення:
@@ -465,8 +465,12 @@ setup, registration) with these differences:
 Short plan: the discussion session's last message before the done report, in the owner's chat. A
 title line «План «<topic>»:», then 3-5 numbered points, each one plain sentence on what the owner
 gets, then the question «Погоджуєш цей план? (так - сесія закриється й піде будова)». The details
-stay in the written section for the builders. A change the owner asks for goes into that section
-first, then the plan is shown again. Example:
+stay in the written section for the builders. The question is always alone in its message: never an
+item of a batch or of a numbered list, never repeated in the replies after the plan message. A named
+exception to the owner's global "Batches of questions": a «так всім» or a «так» to a batch never
+approves the plan; only a «так» to a message whose one question is the plan does. Any owner message
+after the plan other than the «так» to it reopens the discussion: a change goes into the written section first, then the plan is
+shown again, alone. Example:
 
 ```
 План «Повідомлення керівника»:
@@ -480,7 +484,10 @@ Why: the owner decided on 2026-11-15 that what the owner approves must be writte
 build, so the C builds without him and what the lead accepts is what he accepted. On 2026-11-19 the
 owner objected that a discussion was closed before he approved its plan («Мені не подобається що ти
 закриваєш сесії раніше ніж я апрувлю план після обговорення») and asked for that plan short
-(«Стислий план!»).
+(«Стислий план!»). On 2026-11-20 a session put the plan question as item 2 of a batch beside an
+unrelated question; the owner's «Так всім» was taken as the plan «так», he went on talking, and P
+merged and ran `claude rm` while he was typing (owner: «я не закінчив обговорення, і не погодив
+список змін»).
 
 ## Build a designed screen
 
@@ -697,6 +704,13 @@ design state), it re-reads the file after each edit and checks that the edit ful
 committing it. This is a stopgap: the cause, the host's worktree guard that blocks such edits, is out
 of reach (seen in P: Zhratva, 2026-11-18: shell edits half-applied).
 
+For an «Обговорення:» session (a retro too), before the merge and before `claude rm`, P reads its
+transcript and finds the owner's «так» to the short plan. If an owner message follows it, P does not
+merge or close the session and sends it back: «Власник писав після «так»: дообговори і покажи план
+знову». An owner message is a plain-text user entry; tool results and messages from sessions or agents
+do not count. Why: owner, 2026-11-20: «я не закінчив обговорення, і не погодив список змін» (P merged
+and archived a session while he was typing).
+
 After a merge, without asking the owner, run `dev-kit-sessions end --id <id>` (the short id works),
 `dev-kit-app stop --project <that C's worktree>` (releases the app lock if C left the app running),
 `claude rm <id>` (the session's job state), then removes each `link` row's junction without following
@@ -843,7 +857,7 @@ even with no new findings, and the owner brings their own cases there.
 - «так»: P starts it as in "Start an «Обговорення:» session", with these differences: the name is
   `Обговорення: Ретро сесій <YYYY-MM-DD>`; the first prompt is the owner's words (if any), "run
   `dev-kit:retro`" and the gate reviewer's result (retro step 1 then checks only findings added since); with no feature file and no discovery, mockup or «Approved design» lines; the session may edit rule text after the owner's yes and ends, after
-  the owner's «так» to its short plan, with a done report and its branch, which P merges as in "Acceptance and merge" with no «Approved design»
+  the owner's «так» to its short plan with no owner message after it, with a done report and its branch, which P merges as in "Acceptance and merge" with no «Approved design»
   check and no follow-up C. The one line after the launch is the same, with this session's name.
 
 Why: the owner decided on 2026-11-19 that sessions' problems are found daily, but a retro starts
