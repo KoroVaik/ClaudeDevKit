@@ -28,3 +28,12 @@ requested.» twice: «Зараз такий статус. Це погано». T
 ## Success criterion
 No rule in the project-lead skill leaves P with nothing to write; the restart and forced-output cases
 name the exact form; the watcher exit -1 case is covered; dev-kit version bumped; lint and docs check clean.
+
+## Done (C, 2026-11-20)
+- `project-lead/SKILL.md`: a «Forced output» rule in "Message templates" (short current state, one line
+  when nothing runs and nothing waits, no filler, no re-sent question); exits 4/5/6/-1 and the handshake
+  point to it; watcher exit -1 added (re-arm, no text); the restart resume always ends with the full start status.
+- dev-kit 0.1.63; lint 0 errors, docs check clean.
+- Out of scope, left as is: `plugins/pult/rules/hub.md` (Pult hub role) also says «end the turn empty» on
+  watcher exits; the same filler can appear there. A candidate BACKLOG entry if the owner wants it.
+- Paid spend: $0.

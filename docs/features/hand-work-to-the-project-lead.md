@@ -16,7 +16,9 @@ Every status message from P has two short blocks: «Питання без від
 full once, older ones only counted, urgent ones always named) and «Статуси сесій» (each session's state
 and name). When some question is not written out, it ends with «Показати всі питання?»; on your «так» P
 lists every question in full, numbered, and you answer by number. P writes at once on each event, only
-what changed.
+what changed. After a plugin-update restart, or when Claude Code demands a reply where P has nothing new,
+P shows the current state in this form, never a filler phrase; with nothing running and nothing
+waiting, it is one line saying so.
 
 ### Critical items reach your phone
 A critical item (a session cannot go on without you, a session crashed, a risk to data or money) also

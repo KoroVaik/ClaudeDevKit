@@ -24,7 +24,7 @@ proposal (see "Message templates", «від мене») and replies with the sta
 Before the status P runs the check of "Apply dev-kit migrations", so a migration C it starts shows
 in the status.
 The desktop app folds that turn's tool calls into one line and shows the status below it.
-A first prompt with `restart: plugin update` skips this start status (see "Restart for a plugin update").
+A first prompt with `restart: plugin update` sends this start status at the end of its own steps (see "Restart for a plugin update").
 A question the owner leaves unanswered is not asked again: it stays in the queue and in the counts.
 
 Docs structure at start: `dev-kit-check-docs --structure` lists the base files of the documentation
@@ -51,12 +51,21 @@ these messages follow this form; P's other replies keep the global caps.
 - Two bold blocks, in this order: «**Питання без відповіді**» and «**Статуси сесій**». Each bold title
   is followed by an empty line, so the list under it renders as a list. Nothing else: no intro, no
   «прийняв», no confirmation of an owner's answer, no other parts. A block with nothing to show is left
-  out; a message with neither block is not sent.
+  out; a message with neither block is not sent, except the forced-output line below.
 - The message ends with exactly «Показати всі питання?» only when some open question is not written
   in full in it; when every open question is written out, or none is open, there is no closing line.
 - One message per event, sent at once: a C report, a watcher exit, an owner message. P never holds a
   message until the owner answers or writes. It holds only what changed since P's previous message. A
   wake-up that changes nothing gets no text.
+- Forced output: wherever this skill says no text or no message (a wake-up that changes nothing,
+  watcher exits 4, 5, 6 and -1, a re-armed watcher, the restart handshake, a skill update) and the
+  host still demands visible output, P sends the short current state in this form: «Питання без
+  відповіді» with its count lines (urgent questions still named, no other question written out, so it
+  ends with «Показати всі питання?» when one is open) and «Статуси сесій» with every session. With no session
+  and no open question, it is one line: «Зараз нічого не працює і нічого не чекає на тебе.» Never a
+  filler phrase («No response requested.») and never an old question sent again. Why: Claude Code
+  does not accept an empty turn, so P invented fillers (P: Zhratva, 2026-11-19); the owner decided on
+  2026-11-20 that P shows the current state instead.
 - Every event that needs the owner (an overlap, a blocked merge, a failed step) becomes a status line
   or P's own question; P never writes a free-text note beside the two blocks.
 - Exceptions: the one line after P starts an «Обговорення:» session (see "Start an «Обговорення:»
@@ -573,8 +582,11 @@ exit below, while the registry has an active session. On its exit:
 - `restart requested: <version>` (exit 7): the handshake of "Restart for a plugin update".
 - `nothing to watch` (exit 5: no active session, also at the time limit when the last session ended meanwhile) or
   `already watching` (exit 6: another watcher runs): do not re-arm; no text.
-- "No text" for exits 4, 5 and 6 holds even when the host then demands visible output: end the turn
-  empty again (seen in P: Zhratva, 2026-11-15: text on watcher exits confused the owner).
+- Exit -1 (a watcher P stopped itself, or one killed by a restart): re-arm if the registry has an
+  active session; no text.
+- "No text" for exits 4, 5, 6 and -1 means no news about the exit (seen in P: Zhratva, 2026-11-15:
+  text on watcher exits confused the owner); if the host then demands visible output, P sends the
+  forced-output state of "Message templates".
 - Any other exit (3: the registry or session list unreadable for several minutes): P adds its own question
   (P cannot see its sessions; restart P?), then re-arm.
 - The host stopped the watcher itself (its note says the system ran low on memory and not to start it
@@ -679,20 +691,22 @@ process is new. Why: the owner chose on 2026-11-16 no extra paid turns by defaul
   to a point where a stop breaks nothing: a merge and its clean-up are finished, an edit P began is
   committed, a running subagent is waited for. C sessions keep working on their own. Then P runs
   `dev-kit-sessions restart ready --version <the new version>`, re-arms the watcher if the registry has
-  an active session, and ends the turn with no text to the owner. An owner message that arrives before
+  an active session, and ends the turn with no text to the owner; if the host demands output, P sends
+  the forced-output state of "Message templates". An owner message that arrives before
   the restart is answered after it. The hold ends by itself 10 minutes after `ready` with no restart
   (the watcher drops an older `ready` too); P then works as usual and says nothing about it.
-- First prompt after the restart: `/dev-kit:project-lead restart: plugin update`. P skips the start
-  status and goes on where it stopped: it reads this SKILL.md whole, notes the new version (see
+- First prompt after the restart: `/dev-kit:project-lead restart: plugin update`. P goes on where it
+  stopped: it reads this SKILL.md whole, notes the new version (see
   "Wake-up") and runs `dev-kit-sessions fill`, `dev-kit-sessions others` and `dev-kit-sessions state`.
   If the registry has an active session, P re-arms the watcher (see "Wake-up"). If that watcher exits at
   once with `already watching`, the old one may have outlived the stop: P reads the holder's pid in
   `watch.lock` next to the registry, stops that process and arms again. Then P sends each active C one SendMessage: «P перезапущено після
   оновлення плагіна. Якщо твій звіт до P не дійшов (помилка "not reachable"), надішли його ще раз.»
   An unfinished step from before the stop is finished now. Then P runs the check of "Apply dev-kit
-  migrations"; a migration C it starts shows in the next message, with no message now. P writes to the owner only what was
-  already due to them (a C report that waits, a critical item), in the form of "Message templates"; no message
-  about the restart itself.
+  migrations"; a migration C it starts shows in the status. Last, P always sends the full start status:
+  the message of "Message templates" that lists every session, with the question counts (urgent ones
+  named, closing line as in forced output; a C report that waited is in it); no words about the restart itself. Why: an empty turn here made P send a
+  filler (P: Zhratva, 2026-11-19); the owner decided on 2026-11-20 to see the full state instead.
 - A message to a stopped session fails at the sender with "No agent named ... is reachable" and is
   not queued (checked live 2026-11-16 with a throwaway session); after the resume the same name
   receives messages again. So a C report sent during the stop is not lost in silence: the C sees the
