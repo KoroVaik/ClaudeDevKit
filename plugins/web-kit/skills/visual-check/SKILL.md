@@ -29,7 +29,8 @@ both are asked for, run the mockup comparison first.
    deliberate difference for the agent ("the back link sits on its own line, rule X").
 3. For each phone of the board, prepare the state through the API and shoot it headless with
    `web-kit-shot --spec` at the app's window size (the URL and read-only steps that reach it, the app
-   frame or the screen's section as selector; browser-checks.md, "Screenshots go to the owner"), named
+   frame or the screen's section as selector, at a phone width no selector and one window per PNG;
+   browser-checks.md, "Screenshots go to the owner"), named
    after the phone. Shoot the board with `web-kit-shot --board`. `web-kit:shot-taker` writes and runs the
    spec when that is quicker or a shot fails. A phone no URL and read-only steps reach goes into the
    report as not checked, with the reason.

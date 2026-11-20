@@ -13,8 +13,16 @@ Why: the in-app browser's screenshot tool returns at most about 800 px wide.
 
 The window size comes from the project's profile ([sections](../tech/project-profile.md)).
 
+### A phone shot is one window
+At a phone width (under 768 px) each PNG is exactly one window, emulated as a phone; a long page is
+several shots taken after scrolling (`scroll`, `scrollTo` steps or `"screens": true`), never one
+stitched image.
+Why: owner, Zhratva, 2026-11-20: a mobile page came out as one tall image with the tab bar in its middle.
+
 ## Acceptance criteria
 - A wide screen is shot with `web-kit-shot`: the picture has the full resolution of the window, not 800 px.
+- A spec at `"size":"375x812","scale":2` with two shots of one page, the second after `{"scroll":800}`,
+  gives two different 750x1624 PNGs.
 
 ## Built in
 - `plugins/web-kit/scripts/capture.mjs`

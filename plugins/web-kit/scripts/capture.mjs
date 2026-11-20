@@ -30,14 +30,21 @@
 //         "margin": 24,                     with a selector: CSS px of the page around the element, all sides
 //         "fitHeight": false,               with a selector: true shrinks the window height so the page ends where its
 //                                           content ends (panes sized to the window stop stretching); never grows it
-//         "fullPage": false }               true: the whole page height instead of the viewport
+//         "fullPage": false,                true: the whole page height instead of the viewport (not for a phone screen)
+//         "screens": false }                true: no selector or fullPage; one PNG per window height, scrolled from the
+//                                           top: <name>-1.png ... <name>-n.png (a long page at a phone width)
 //     ]
 //   }
+// With no selector and no fullPage the PNG is exactly one window, at the current scroll. A window up to
+// 767 px wide (spec mode) is emulated as a phone (mobile viewport, overlay scrollbars), so fixed bars sit at its edge.
 // Steps (one key each):
 //   {"goto": "http://localhost:5174/"}      open a URL and wait for the load
 //   {"fill": ["css selector", "text"]}      type text; "@C:/path/file.txt" types that file's first line
 //                                           (use it for a password, so it never appears in a spec)
-//   {"click": "css selector"}               click an element
+//   {"click": "css selector"}               scroll an element into view and click it
+//   {"scroll": 800}                         scroll down by CSS px (negative: up); the page, or the app's own
+//                                           scroll container when the page itself does not scroll
+//   {"scrollTo": "css selector"}            scroll the element to the top edge of the window
 //   {"press": "Enter"}                      press a key
 //   {"waitFor": "css selector"}             wait up to 15 s for an element
 //   {"wait": 1000}                          wait milliseconds (animations, fades)
@@ -180,12 +187,15 @@ async function connect(port) {
   return { send, once, close: () => ws.close() };
 }
 
+// A window under 768 px wide (not a mockup board) is a phone: mobile viewport, overlay scrollbars that take no width.
+const mobile = !boardMode && vw < 768;
+
 async function main() {
   const cdp = await connect(await debuggerPort());
   const { send, once } = cdp;
   await send('Page.enable');
   await send('Runtime.enable');
-  await send('Emulation.setDeviceMetricsOverride', { width: vw, height: vh, deviceScaleFactor: dsf, mobile: false });
+  await send('Emulation.setDeviceMetricsOverride', { width: vw, height: vh, deviceScaleFactor: dsf, mobile });
 
   const evalJs = async (expression) => {
     const r = await send('Runtime.evaluate', { expression, returnByValue: true, awaitPromise: true });
@@ -199,6 +209,25 @@ async function main() {
       await sleep(150);
     }
     throw new Error(`Element not found: ${selector}`);
+  };
+  // What scrolls: the page, or else the largest visible inner container that can (an app shell with 100dvh).
+  const SCROLLER = `(() => {
+    const d = document.scrollingElement || document.documentElement;
+    if (d.scrollHeight > d.clientHeight + 1) return d;
+    let best = null, area = 0;
+    for (const e of document.querySelectorAll('*')) {
+      const o = getComputedStyle(e).overflowY;
+      if ((o !== 'auto' && o !== 'scroll') || e.scrollHeight <= e.clientHeight + 1) continue;
+      const b = e.getBoundingClientRect();
+      if (b.width * b.height > area) [best, area] = [e, b.width * b.height];
+    }
+    return best || d;
+  })()`;
+  const scrollBy = async (dy) => {
+    const r = await evalJs(`(() => { const s = ${SCROLLER}; const before = s.scrollTop; s.scrollTo({ top: before + ${Number(dy)}, behavior: 'instant' });
+      return { moved: s.scrollTop !== before, page: s.clientHeight }; })()`);
+    await sleep(300);
+    return r;
   };
   const valueOf = (v) => (typeof v === 'string' && v.startsWith('@') ? readFileSync(v.slice(1), 'utf8').split(/\r?\n/)[0] : v);
 
@@ -233,7 +262,7 @@ async function main() {
     let height = content + 16;
     if (height >= vh) return;
     for (let i = 0; i < 8; i++) {
-      await send('Emulation.setDeviceMetricsOverride', { width: vw, height, deviceScaleFactor: dsf, mobile: false });
+      await send('Emulation.setDeviceMetricsOverride', { width: vw, height, deviceScaleFactor: dsf, mobile });
       await sleep(300);
       const over = await clipped();
       if (over <= 1 || height + over >= vh) break;
@@ -254,12 +283,19 @@ async function main() {
       await send('Input.insertText', { text: valueOf(value) });
     } else if (step.click) {
       await waitFor(step.click);
-      await evalJs(`document.querySelector(${JSON.stringify(step.click)}).click()`);
+      await evalJs(`(() => { const e = document.querySelector(${JSON.stringify(step.click)}); e.scrollIntoView({block:'center', behavior:'instant'}); e.click(); })()`);
       await sleep(500);
     } else if (step.press) {
       await send('Input.dispatchKeyEvent', { type: 'keyDown', key: step.press, code: step.press, text: step.press === 'Enter' ? '\r' : undefined });
       await send('Input.dispatchKeyEvent', { type: 'keyUp', key: step.press, code: step.press });
       await sleep(500);
+    } else if (step.scroll !== undefined) {
+      if (!Number.isFinite(Number(step.scroll))) throw new Error(`Bad scroll: ${step.scroll}`);
+      await scrollBy(step.scroll);
+    } else if (step.scrollTo) {
+      await waitFor(step.scrollTo);
+      await evalJs(`document.querySelector(${JSON.stringify(step.scrollTo)}).scrollIntoView({block:'start', behavior:'instant'})`);
+      await sleep(300);
     } else if (step.waitFor) {
       await waitFor(step.waitFor);
     } else if (step.wait) {
@@ -324,8 +360,26 @@ async function main() {
   for (const shot of spec.shots || []) {
     for (const step of shot.steps || []) await run(step);
     await sleep(300);
-    const params = { format: 'png', captureBeyondViewport: true };
-    await send('Emulation.setDeviceMetricsOverride', { width: vw, height: vh, deviceScaleFactor: dsf, mobile: false });
+    // Only a clip that reaches past the window may render beyond it; a plain shot is exactly one window.
+    const params = { format: 'png', captureBeyondViewport: !!(shot.selector || shot.fullPage) };
+    await send('Emulation.setDeviceMetricsOverride', { width: vw, height: vh, deviceScaleFactor: dsf, mobile });
+    if (shot.screens && (shot.selector || shot.fullPage)) throw new Error(`Shot ${shot.name}: "screens" takes no selector or fullPage.`);
+    const save = (data, name) => {
+      const buf = Buffer.from(data, 'base64');
+      const file = join(outDir, `${name}.png`);
+      writeFileSync(file, buf);
+      console.log(`${file} ${buf.readUInt32BE(16)}x${buf.readUInt32BE(20)}`);
+    };
+    if (shot.screens) {
+      await evalJs(`(() => { ${SCROLLER}.scrollTo({ top: 0, behavior: 'instant' }); })()`);
+      await sleep(300);
+      for (let i = 1; i <= 30; i++) {
+        save((await send('Page.captureScreenshot', params)).data, `${shot.name}-${i}`);
+        const page = await evalJs(`${SCROLLER}.clientHeight`);
+        if (!(await scrollBy(page)).moved) break;
+      }
+      continue;
+    }
     if (shot.selector) {
       await waitFor(shot.selector);
       if (shot.fitHeight) await fitWindowToContent(shot.selector);
@@ -339,11 +393,7 @@ async function main() {
       const r = await evalJs('({width: document.documentElement.scrollWidth, height: document.documentElement.scrollHeight})');
       params.clip = { x: 0, y: 0, width: r.width, height: r.height, scale: 1 };
     }
-    const { data } = await send('Page.captureScreenshot', params);
-    const buf = Buffer.from(data, 'base64');
-    const file = join(outDir, `${shot.name}.png`);
-    writeFileSync(file, buf);
-    console.log(`${file} ${buf.readUInt32BE(16)}x${buf.readUInt32BE(20)}`);
+    save((await send('Page.captureScreenshot', params)).data, shot.name);
   }
   cdp.close();
 }

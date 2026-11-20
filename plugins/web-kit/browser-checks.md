@@ -73,6 +73,13 @@ uses the board only to say where each fix belongs.
     spec sets `"fitHeight": true`, so a page shorter than the window ends where its content ends instead of
     showing tall empty panes. The Shots line says "whole page: layout differs". This holds for every spec,
     the caller's own included. If the profile has no sign-in steps, the agent lists the sign-in form's selectors too.
+  - **Phone widths (under 768 px): one window per PNG.** A headless shot of a whole phone screen (not a piece or
+    its parent block) has no selector, no `fullPage`
+    and no `fitHeight`: each PNG is exactly the window (for example 375x812), as a phone shows it, fixed bars
+    at its edge. A long page is several shots, each after a `scroll` or `scrollTo` step, or one shot with
+    `"screens": true`; never a stitched page and never the app frame as selector. Why: owner, Zhratva,
+    2026-11-20: a mobile recipe page came out as one tall image with the tab bar in its middle («Нащо знімати
+    таку довгу сторінку?»).
   - **The caller captures** (headless only, never the in-app browser). The agents have no shell, so the
     caller writes the spec and runs `web-kit-shot --spec <spec.json> --out <screenshot folder>` (format
     at the top of `scripts/capture.mjs`). It renders the same URL in a throwaway headless Edge or Chrome at the

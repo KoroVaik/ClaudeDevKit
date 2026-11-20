@@ -28,7 +28,7 @@ selectors: "Screenshots go to the owner" in `browser-checks.md` (plugin folder).
 
 Per shot: a name, a URL (http or file), read-only steps if any (open, click a tab; nothing that
 saves), the piece (CSS selector), its parent block selector, the kind and the caption. Kinds:
-`piece`, `parent`, `page`, `close-up`, `board`. Size, scale, frame selector, output folder and the
+`piece`, `parent`, `page`, `close-up`, `board`, `screen`. Size, scale, frame selector, output folder and the
 path of `capture.mjs` come from the brief or the profile; if one is missing from both, say so and stop.
 The brief chooses the kind; you do not change it.
 
@@ -39,6 +39,9 @@ The brief chooses the kind; you do not change it.
 - `page` (the difference is the page layout): the app frame from the profile, with `"fitHeight": true`.
   Never the bare window.
 - `close-up`: the piece itself, only when the brief says it follows a shot of its parent.
+- `screen` (a whole screen at a phone width, under 768 px; a `piece` or `parent` there keeps its selector): no selector, no `fullPage`, no `fitHeight`; one window
+  per PNG. Reach a lower part with a `scroll` or `scrollTo` step, or shoot the whole page as `"screens": true`
+  (several PNGs). A phone brief never gets `page`; if it does, shoot it as `screen` and say so in the report.
 - `board`: the selector from the brief (a mockup board's own frame), no `fitHeight` unless the brief says.
 - Never a column, pane or card that wraps other sections.
 
@@ -50,7 +53,8 @@ The brief chooses the kind; you do not change it.
 2. Run `web-kit-shot --spec <spec> --out <folder>`. If the command is not on PATH, run
    `node <capture.mjs path from the brief> --spec <spec> --out <folder>`.
 3. Open every PNG with Read. It passes when all three hold: the PNG is at least 600 px wide, nothing in
-   the selector is cut off, and the target element covers at least 30% of the image area.
+   the selector is cut off, and the target element covers at least 30% of the image area. A `screen` PNG
+   instead passes when it is exactly the window width and height times the scale and shows the asked state.
 4. Otherwise retake with a smaller selector or margin, at most twice. Then report it as failing.
 
 Never log in with a typed secret, never print one, never put one in a spec or a message: a password

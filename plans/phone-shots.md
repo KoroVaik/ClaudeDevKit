@@ -10,3 +10,9 @@ The entry's cheapest test passes: a spec with `"size":"375x812","scale":2` and t
 
 ## Paid spend
 Total: 0 USD
+
+## Result (2026-11-20)
+Built: capture.mjs (`scroll`, `scrollTo`, `"screens": true`, one-window plain shots, `click` scrolls into view, windows under 768 px emulated as a phone in spec mode, scrolling falls back to the app's inner scroll container), browser-checks.md bullet, shot-taker kind `screen` (with its own PNG check), restatements in visual-check and design-screen stage 2, feature doc rule and criterion, web-kit 0.2.1, backlog entry removed.
+Decisions: phone means under 768 px (768 stays tablet, as layout-checker and browser-checks already say); a `piece` or `parent` shot at a phone width keeps its selector (small, not a stitched page); `mobile: true` (checked: overlay scrollbars no longer take width, 750 px wide PNGs).
+Checks: cheapest test passes (two 750x1624 PNGs that differ); screens on a long page and on an inner-scroll app correct; lint and 553 tests pass; reviewer findings fixed.
+Follow-up for P: the Zhratva stopgap (its `.claude/dev-kit.md`, "Phone app shots") can shrink to a link to browser-checks.md; not edited here.
