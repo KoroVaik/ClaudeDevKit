@@ -10,7 +10,7 @@
 
 ## In flight
 
-- [Token spend in the retro](plans/retro-tokens.md): built; the Opus weight check waits on the owner's second /usage reading (owner agreed 2026-11-20; P reminds at about 19:13, re-create the reminder after a P restart).
+- [Token spend in the retro](plans/retro-tokens.md): built; both /usage readings are in; next, a C corrects the Opus weight in `retro.py` (plan, «Usage readings»).
 
 Open work of the features: `dev-kit-check-docs --open`.
 

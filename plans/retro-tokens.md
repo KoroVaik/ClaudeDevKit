@@ -57,3 +57,4 @@ The owner's «так» to the approved idea, written in the section «Owner's ap
 
 ## Usage readings (owner, /usage)
 - 2026-11-19 19:15: week all models 23%, week Fable 0%, 5-hour session 22% (resets 22:39).
+- 2026-11-20 19:15: week all models 54%, week Fable 0%, 5-hour session 61% (resets 20:39). P session alone (7h41m): 11.54 USD API-equivalent, Opus 94% / Sonnet 6% / Haiku 0%; tokens Opus in 4.8k, out 37.6k, cache read 17M, cache write 827.2k; Sonnet 72 / 20.3k / 785.9k / 174.7k; Haiku 8.5k / 14.8k / 789.6k / 104.2k (owner screenshot).
