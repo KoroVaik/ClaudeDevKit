@@ -16,6 +16,7 @@ Owner's words (to Pult): «Пропналізуй доцільність пул�
 - The 2 h is the host's cap on a background Bash run (a 125-min run was killed at 120 min); the hub then re-armed itself with `--max-minutes 110`, written nowhere in the plugin. The Monitor tool caps at 30 min, so no in-session watcher avoids the wakes.
 - Leads cost more: Zhratva lead about 18M tokens a day on 11-19 and 11-20 (contexts 340k-540k, cold wakes every 2 h), 1 push in 33 wakes; Prishch lead 7 idle wakes on 11-19.
 - No way found for a script to wake a running session (`claude` CLI has no send; `restart-leads.ps1 -Ask` writes a file the lead's own watcher reads). Paid spend of this task: about 0.013 USD (two Haiku push tests).
+- Total of idle wakes 2026-11-15..20 (retro units, Opus 1.5): 23.6M units, about 3.4% of a weekly limit; Pult hub 87% of its own usage, Zhratva lead 20%, Prishch lead 11%; about 85% of it is cache writes.
 
 ## Goal
 Find with the owner the cause-level fix: what must wake a model at all, and what the owner gets on the phone. Measure before deciding where cheap (tokens per wake, wakes per day). Write the agreed design in «Owner's approval» here.
