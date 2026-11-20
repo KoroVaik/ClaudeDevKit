@@ -45,3 +45,9 @@ Built (2026-11-20, owner's yes): the `dev-kit:edit-rules` line (step 6, dev-kit 
 What: in `web-kit:design-screen` (SKILL.md, "Roles"), the main session no longer opens a shot itself as the spot check of a set it sends; a cheap subagent (haiku) opens the shots and reports cut-off, empty or illegible ones, or the session relies on the size `web-kit-shot` prints. Only the numbered `SendUserFile` pictures reach the owner.
 Why: Zhratva, «Обговорення: Смаки партнера», 2026-11-20: in the phone app every image the main session reads with Read shows in the owner's chat, so a spot-check picture arrived unnumbered next to the numbered set and the owner asked why there were three pictures for two cases. Owner: «пофіксим ці картинки спочатку», «Запиши».
 Cheapest test: run one design-screen show from the phone app; the chat must show only the numbered pictures.
+
+## Design-screen: no new picture reaches the owner without the designer
+
+What: in `web-kit:design-screen` (SKILL.md, "The loop before each show"), the skip clause «While the owner tunes a look round by round (a shade, a size, a spacing), skip the loop» covers only shades, sizes and spacing of elements the designer already passed. Any new screen, popup, state or control drawn mid-discussion goes to `web-kit:designer` before the owner sees it, even when the loop's user walk is skipped.
+Why: Zhratva, «Обговорення: Смаки партнера», 2026-11-20: mid-discussion the session sent new popups, an empty state and a tab switcher without the designer; the switcher rendered as one word «МоїОлі». Owner: «це має буть флоу де дизайнер апрувить а потім мені дається».
+Cheapest test: in a design discussion, ask for a new control mid-round; the session must run the designer before sending the picture.
