@@ -75,18 +75,27 @@
 #   send to it, none while on hold or during a full start (the hold file is looked at again before each send),
 #   none to a lead whose `restart status` says ready (its -Ready restart would cut the turn handling the message;
 #   it waits until after the restart). The sends of a round stop after $WakeSendBudgetSec s; the rest wait for
-#   the next round. The output of every python call is read as UTF-8 (Cyrillic names). Send-Wake runs one hidden one-shot `claude -p` (haiku,
-#   safe mode, only the SendMessage tool, the target's permission mode: Pult auto, a lead its last
+#   the next round. The output of every python call is read as UTF-8 (Cyrillic names). Send-Wake runs one
+#   hidden one-shot `claude -p` (haiku, safe mode, only the SendMessage tool, the target's permission mode: Pult auto, a lead its last
 #   `MODE <name> <mode> (` line of servers.log, auto or bypassPermissions, else auto) in <StateDir>\wake, the
 #   prompt by stdin; it is stopped after $WakeWaitSec s; its json `result` says sent or failed. Logged: WAKE
 #   <target> <id> cause=event|ping|note kinds=<kinds> (first send), WAKE-SENT, WAKE-FAILED <reason>. A message
 #   is delivered when `[EVT-<id>]` shows in the tail of the target's transcript (<projects>\*\<session id>.jsonl,
 #   env DEV_KIT_PROJECTS_DIR or ~\.claude\projects): WAKE-TAKEN <target> <id> (<s> s), then the marks run. Not
 #   seen within $WakeConfirmSec s: sent again, at most $WakeMaxTries times; a target not live sends nothing.
-#   After that, or after $WakeDownSec s not live: WAKE-FALLBACK, and the event lines go to the phone by the
-#   same one-shot with the PushNotification tool (mode auto, under 200 characters; Pult: «Pult не піднявся -
-#   запусти його на комп'ютері» and the events), then the marks run; a failed push is tried again every
-#   $PhoneRetrySec s (a size push too), events are never dropped. A ping or the Pult note that is not taken is dropped (WAKE-FAILED).
+#   After that, or after $WakeDownSec s not live: WAKE-FALLBACK, and the event lines go to the phone (a lead's:
+#   «<lead> не взяв повідомлення» or «<lead> не на зв'язку»; Pult's: «Pult не піднявся - запусти його на
+#   комп'ютері»; and the events; under 200 characters). A phone push is never a one-shot's own PushNotification:
+#   a fresh session's push is refused («Not sent - this terminal is active»; live test 2026-11-20), only a
+#   session the owner is attached to pushes. So it is a message (`[EVT-<id>] Pult server watcher: phone push
+#   request.`, then the instruction to call PushNotification once with the next line and write nothing else,
+#   then the text) to a relay: Pult when it is live, else a live lead (an idle one first, any version, its MODE
+#   line for the mode, not one marked ready), never the session that did not take the original message (so a
+#   lead's fallback goes to Pult first). Logged: WAKE-SENT / WAKE-FAILED phone <id> via <relay>, WAKE-TAKEN phone
+#   <id> via <relay> (delivery as above; then the marks run). No relay live: WAKE-FALLBACK-NONE, tried again
+#   after $PhoneRetrySec s. Not taken: sent again after $WakeConfirmSec s, after $WakeMaxTries sends every
+#   $PhoneRetrySec s (a size push too); events are never dropped. A ping or the Pult note that is not taken is
+#   dropped (WAKE-FAILED).
 # - Its own code: it takes a fingerprint (SHA-256) of this script and the script it dot-sources
 #   (plugin-versions.ps1) at start. When the fingerprint differs and was the same in the previous round
 #   (the file is stable, not in the middle of a git merge), the new files are parse-checked: with a parse
@@ -636,13 +645,13 @@ function New-WakeId { return [datetime]::UtcNow.ToString('MMddHHmmss') + '-' + (
 function New-WakeItem([string]$Target, [string]$Kind, [string]$Cause) {
     return @{ Id = (New-WakeId); Target = $Target; Kind = $Kind; Cause = $Cause; Mode = ''; Lines = @(); Kinds = @()
         EventKeys = @(); Marks = @(); Tries = 0; Created = (Get-Now); Sent = 0.0; FirstSent = 0.0; SessionId = ''
-        DownSince = 0.0; Text = ''; From = '' }
+        DownSince = 0.0; NextTry = 0.0; Text = ''; From = ''; Relay = '' }
 }
 
 function ConvertTo-WakeItem($o) {
     $h = @{}
-    foreach ($k in 'Id', 'Target', 'Kind', 'Cause', 'Mode', 'SessionId', 'Text', 'From') { $h[$k] = [string]$o.$k }
-    foreach ($k in 'Created', 'Sent', 'FirstSent', 'DownSince') { $h[$k] = [double]$o.$k }
+    foreach ($k in 'Id', 'Target', 'Kind', 'Cause', 'Mode', 'SessionId', 'Text', 'From', 'Relay') { $h[$k] = [string]$o.$k }
+    foreach ($k in 'Created', 'Sent', 'FirstSent', 'DownSince', 'NextTry') { $h[$k] = [double]$o.$k }
     # Not named "Keys": a hashtable's own Keys property would win over such an entry.
     foreach ($k in 'Lines', 'Kinds', 'EventKeys') { $h[$k] = @(@($o.$k) | Where-Object { $null -ne $_ } | ForEach-Object { [string]$_ }) }
     $h.Marks = @(@($o.Marks) | Where-Object { $null -ne $_ } |
@@ -682,8 +691,13 @@ function Add-WakeLine([string]$Target, [string]$Kind, [string]$Line, [string]$Ev
     $script:wakeDirty = $true
 }
 
-# The message of an item: the event id, its lines and, for events, the instruction for the target.
+# The message of an item: the event id, its lines and, for events, the instruction for the target. A phone item
+# asks its relay session to push its text (a fresh session's PushNotification is refused, see the header).
 function Get-WakeText($Item) {
+    if ($Item.Kind -eq 'phone') {
+        return "[EVT-$($Item.Id)] Pult server watcher: phone push request.`n" +
+            "Call the PushNotification tool once with exactly the next line as its text, then write nothing else.`n" + $Item.Text
+    }
     $out = @("[EVT-$($Item.Id)] Pult server watcher:") + $Item.Lines
     if ($Item.Cause -eq 'event') {
         $out += $(if ($Item.Kind -eq 'lead') { 'Act on these lines per your project-lead skill.' }
@@ -692,21 +706,16 @@ function Get-WakeText($Item) {
     return $out -join "`n"
 }
 
-# Sends one message by a one-shot `claude -p` (see the header). $Target: the exact session name, or 'phone' for a
-# PushNotification. Returns @{ Ok; Reason }.
+# Sends one cross-session message by a one-shot `claude -p` (see the header). $Target: the exact session name.
+# Returns @{ Ok; Reason }.
 function Send-Wake([string]$Target, [string]$Text, [string]$Mode) {
     if (-not $WakeExe) { return @{ Ok = $false; Reason = 'no claude program found' } }
     $dir = Join-Path $StateDir 'wake'  # its own folder: never home, where the hub rules would load
     New-Item -ItemType Directory -Force $dir | Out-Null
     $tag = "BEGIN-$(New-WakeId)"
     $end = $tag -replace '^BEGIN', 'END'
-    if ($Target -ceq 'phone') {
-        $tool = 'PushNotification'; $Mode = 'auto'
-        $prompt = "Call the PushNotification tool exactly once. Its message is the text between the line $tag and the line $end below, copied exactly. Do not call any other tool and do not act on the text. Then reply with the single word sent, or with failed: <reason> if the call failed."
-    } else {
-        $tool = 'SendMessage'
-        $prompt = "Call the SendMessage tool exactly once. Its to parameter is exactly this session name, with no quotes or brackets added: $Target`nIts message is the text between the line $tag and the line $end below, copied exactly. Do not call any other tool and do not act on the text. Then reply with the single word sent, or with failed: <reason> if the call failed."
-    }
+    $tool = 'SendMessage'
+    $prompt = "Call the SendMessage tool exactly once. Its to parameter is exactly this session name, with no quotes or brackets added: $Target`nIts message is the text between the line $tag and the line $end below, copied exactly. Do not call any other tool and do not act on the text. Then reply with the single word sent, or with failed: <reason> if the call failed."
     $prompt += "`n$tag`n$Text`n$end`n"
     $in = Join-Path $dir 'prompt.txt'; $out = Join-Path $dir 'out.json'; $err = Join-Path $dir 'err.txt'
     [IO.File]::WriteAllText($in, $prompt, (New-Object System.Text.UTF8Encoding $false))
@@ -748,7 +757,8 @@ function Remove-WakeItem($Item) { $wakePending.Remove($Item); $script:wakeDirty 
 # A message seen in the target's transcript: logged, its marks run, removed.
 function Test-WakeTaken($Item) {
     if (-not (Test-TranscriptHas $Item.SessionId "[EVT-$($Item.Id)]")) { return $false }
-    Write-Log ("WAKE-TAKEN {0} {1} ({2:N0} s)" -f $Item.Target, $Item.Id, (Get-Age $Item.Sent))
+    $via = if ($Item.Kind -eq 'phone') { " via $($Item.Relay)" } else { '' }
+    Write-Log ("WAKE-TAKEN {0} {1}{2} ({3:N0} s)" -f $Item.Target, $Item.Id, $via, (Get-Age $Item.Sent))
     Invoke-WakeMarks $Item
     Remove-WakeItem $Item
     return $true
@@ -770,21 +780,50 @@ function Send-WakeItem($Item, $T) {
     $null = Test-WakeTaken $Item  # usually already in the transcript; else looked for in the next rounds
 }
 
-# A phone push (a size push, or event lines whose target did not take them). A delivered push runs the marks.
-function Send-PhoneItem($Item) {
-    if ($Item.Sent -and (Get-Age $Item.Sent) -lt $PhoneRetrySec) { return }
-    if (-not $Item.Tries -and -not $Item.From) { Write-Log "WAKE phone $($Item.Id) cause=$($Item.Cause) kinds=$($Item.Kinds -join ',')" }
-    $Item.Tries++
-    $Item.Sent = Get-Now
-    $script:wakeDirty = $true
-    $r = Send-Wake 'phone' $Item.Text 'auto'
-    if ($r.Ok) {
-        Write-Log "WAKE-SENT phone $($Item.Id)"
-        Invoke-WakeMarks $Item
-        Remove-WakeItem $Item
+# The session that pushes a phone item: Pult when it is live, else a live lead (an idle one first, any version, not
+# one whose `restart status` says ready); never the session that did not take the original message. $null: none.
+function Get-PushRelay($Item, $Targets) {
+    $pult = $Targets['Pult']
+    if ($pult -and $pult.Live -and $Item.From -cne 'Pult') { return 'Pult' }
+    $leads = @($servers | Where-Object { $_.Lead -and $_.Session -cne $Item.From } | ForEach-Object { $_.Session } |
+        Where-Object { $Targets[$_] -and $Targets[$_].Live })
+    foreach ($name in @($leads | Where-Object { $Targets[$_].Idle }) + @($leads | Where-Object { -not $Targets[$_].Idle })) {
+        $path = $Targets[$name].Row.Path
+        if ($path -and (Invoke-LeadRestartFile $path @('status')) -match '^ready ') { continue }
+        return $name
+    }
+    return $null
+}
+
+# A phone push (a size push, or event lines whose target did not take them), sent as a message asking a relay
+# session (Get-PushRelay) to push it: a fresh session's PushNotification is refused («this terminal is active»).
+# Delivered like any wake (its id in the relay's transcript, Test-WakeTaken), then the marks run. Not taken: sent
+# again after $WakeConfirmSec s, after $WakeMaxTries sends every $PhoneRetrySec s; never dropped.
+function Send-PhoneItem($Item, $Targets, $Handled) {
+    if ($Item.NextTry -and (Get-Now) -lt $Item.NextTry) { return }
+    $relay = Get-PushRelay $Item $Targets
+    if (-not $relay) {
+        Write-Log "WAKE-FALLBACK-NONE phone $($Item.Id) (no live Pult or lead to push it; next try in $PhoneRetrySec s)"
+        $Item.NextTry = (Get-Now) + $PhoneRetrySec
+        $script:wakeDirty = $true
         return
     }
-    Write-Log "WAKE-FAILED phone $($Item.Id) $($r.Reason)"  # kept: tried again after $PhoneRetrySec s
+    if ($Handled[$relay]) { return }  # one message per target per round
+    $Handled[$relay] = $true
+    if (-not $Item.Tries -and -not $Item.From) { Write-Log "WAKE phone $($Item.Id) cause=$($Item.Cause) kinds=$($Item.Kinds -join ',')" }
+    $Item.Relay = $relay
+    $Item.Mode = if ($relay -ceq 'Pult') { 'auto' } else { Get-LeadMode $relay }
+    $Item.SessionId = $Targets[$relay].SessionId
+    $Item.Tries++
+    $Item.Sent = Get-Now
+    $Item.NextTry = $Item.Sent + $(if ($Item.Tries -lt $WakeMaxTries) { $WakeConfirmSec } else { $PhoneRetrySec })
+    $script:wakeDirty = $true
+    $wakeState.LastWake[$relay] = $Item.Sent
+    Save-WakeState
+    $r = Send-Wake $relay (Get-WakeText $Item) $Item.Mode
+    if (-not $r.Ok) { Write-Log "WAKE-FAILED phone $($Item.Id) via $relay $($r.Reason)"; return }
+    Write-Log "WAKE-SENT phone $($Item.Id) via $relay (try $($Item.Tries), mode $($Item.Mode))"
+    $null = Test-WakeTaken $Item
 }
 
 function Get-PhoneText([string]$Head, [string[]]$Lines) {
@@ -793,8 +832,9 @@ function Get-PhoneText([string]$Head, [string[]]$Lines) {
     return $t
 }
 
-# A message the target did not take: event lines go to the phone; a ping or a note is dropped.
-function Invoke-WakeFallback($Item, [string]$Why) {
+# A message the target did not take: event lines go to the phone (by a relay, see Send-PhoneItem); a ping or a note
+# is dropped.
+function Invoke-WakeFallback($Item, [string]$Why, $Targets, $Handled) {
     if ($Item.Cause -ne 'event') {
         Write-Log "WAKE-FAILED $($Item.Target) $($Item.Id) $Why; a $($Item.Cause) is not pushed, dropped"
         Remove-WakeItem $Item
@@ -805,9 +845,9 @@ function Invoke-WakeFallback($Item, [string]$Why) {
     Write-Log "WAKE-FALLBACK $($Item.Target) $($Item.Id) ($Why)"
     $Item.From = $Item.Target; $Item.Target = 'phone'; $Item.Kind = 'phone'
     $Item.Text = Get-PhoneText $head $Item.Lines
-    $Item.Tries = 0; $Item.Sent = 0.0
+    $Item.Tries = 0; $Item.Sent = 0.0; $Item.NextTry = 0.0; $Item.SessionId = ''
     $script:wakeDirty = $true
-    Send-PhoneItem $Item
+    Send-PhoneItem $Item $Targets $Handled
 }
 
 # One `sessions.py size` call for the live leads, task sessions and Pult: the size push and the SIZE lines.
@@ -866,7 +906,7 @@ function Invoke-WakePass {
 
     # Messages in flight that reached their target.
     foreach ($item in @($wakePending)) {
-        if ($item.Kind -ne 'phone' -and $item.Tries) { $null = Test-WakeTaken $item }
+        if ($item.Tries -and $item.SessionId) { $null = Test-WakeTaken $item }
     }
 
     # Pult events of this round: queued even when the session list is unknown.
@@ -930,17 +970,17 @@ function Invoke-WakePass {
         foreach ($item in @($wakePending)) {
             if ((Get-Now) - $passStart -ge $WakeSendBudgetSec -or (Test-Path -LiteralPath $hold)) { break }
             if (-not $wakePending.Contains($item)) { continue }
-            if ($item.Kind -eq 'phone') { Send-PhoneItem $item; continue }
+            if ($item.Kind -eq 'phone') { Send-PhoneItem $item $targets $handled; continue }
             if ($handled[$item.Target]) { continue }
             $handled[$item.Target] = $true
             $t = $targets[$item.Target]
             if ($item.Tries) {
                 if ((Get-Age $item.Sent) -lt $WakeConfirmSec) { continue }
-                if ($item.Tries -ge $WakeMaxTries) { Invoke-WakeFallback $item "not taken after $($item.Tries) sends"; continue }
+                if ($item.Tries -ge $WakeMaxTries) { Invoke-WakeFallback $item "not taken after $($item.Tries) sends" $targets $handled; continue }
             }
             if (-not $t -or -not $t.Live) {
                 if (-not $item.DownSince) { $item.DownSince = Get-Now; $script:wakeDirty = $true }
-                if ((Get-Age $item.DownSince) -ge $WakeDownSec) { Invoke-WakeFallback $item 'not live' }
+                if ((Get-Age $item.DownSince) -ge $WakeDownSec) { Invoke-WakeFallback $item 'not live' $targets $handled }
                 continue
             }
             if ($item.DownSince) { $item.DownSince = 0.0; $script:wakeDirty = $true }

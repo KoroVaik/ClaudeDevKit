@@ -1,7 +1,8 @@
 """The Pult watcher (plugins/pult/scripts/watch-servers.ps1) wakes Pult and the project leads by a cross-session message
 only when something needs them (the wakes in its header). Runs a copy of the pult and dev-kit scripts in a temp folder
 with a fake `claude` on PATH (the session list), a fake one-shot sender (-WakeExe: records its stdin and arguments,
-prints a json result and, when told to, writes the event id into the target's transcript as a delivered message), a
+prints a json result and, when told to, writes the event id into the target's transcript as a delivered message; a
+phone push is such a message to a relay session too), a
 fake sessions.py (-SessionsPy: `check` prints a file's lines not marked yet, `mark` records, `size` prints a file; the
 rest goes to the real one) and a stub restart-leads.ps1, so no real session, watcher or `claude` is touched. The "lead"
 is this test process (its pid is alive)."""
@@ -72,7 +73,8 @@ with open(d / "wakes.jsonl", "a", encoding="utf-8") as f:
     f.write(json.dumps({"args": sys.argv[1:], "stdin": text, "cwd": os.getcwd()}) + "\n")
 to = re.search(r"no quotes or brackets added: (.+)", text)
 eid = re.search(r"\[EVT-[^\]]+\]", text)
-if to and eid and plan.get("deliver") and to.group(1) in plan["transcripts"]:
+deliver = plan.get("deliver")  # true: every target takes it; a list: only those
+if to and eid and deliver and (deliver is True or to.group(1) in deliver) and to.group(1) in plan["transcripts"]:
     entry = {"type": "user", "isMeta": True, "origin": {"kind": "peer"},
              "message": {"role": "user", "content": eid.group(0) + " Pult server watcher: ..."}}
     with open(plan["transcripts"][to.group(1)], "a", encoding="utf-8") as f:
@@ -226,6 +228,20 @@ class WatchServersWakeTest(unittest.TestCase):
     def arg(wake, flag):
         return wake["args"][wake["args"].index(flag) + 1]
 
+    @staticmethod
+    def to(wake):
+        return re.search(r"no quotes or brackets added: (.+)", wake["stdin"]).group(1)
+
+    def push(self, wake):
+        """The text a phone push request asks its relay to push, or None for another message."""
+        lines = self.message(wake).split("\n")
+        if not lines[0].endswith("] Pult server watcher: phone push request."):
+            return None
+        self.assertEqual("Call the PushNotification tool once with exactly the next line as its text, then write "
+                         "nothing else.", lines[1])
+        self.assertEqual(3, len(lines))
+        return lines[2]
+
     # ---- the tests ----
 
     # protects: Flow
@@ -259,20 +275,45 @@ class WatchServersWakeTest(unittest.TestCase):
         self.assertEqual([], json.loads((self.pult / "wake-pending.json").read_text(encoding="utf-8")))
 
     # protects: Flow
-    def test_message_not_taken_is_sent_again_then_pushed_to_the_phone(self):
-        self.wake_plan(deliver=False)
+    def test_message_not_taken_is_sent_again_then_pushed_through_pult(self):
+        self.wake_plan(deliver=["Pult"])  # the lead takes nothing
+        self.agents(pult=True)
         (self.bin / "check.txt").write_text(STALE_LINE + "\n", encoding="utf-8")
         log = self.run_watch(5, "-WakeConfirmSec", "0")
         wakes = self.wakes()
-        self.assertEqual(["SendMessage"] * 3 + ["PushNotification"], [self.arg(w, "--tools") for w in wakes], log)
+        self.assertEqual([LEAD] * 3 + ["Pult"], [self.to(w) for w in wakes], log)
+        self.assertEqual(["SendMessage"] * 4, [self.arg(w, "--tools") for w in wakes], "no one-shot push of its own")
         self.assertEqual(1, len({self.message(w).split("\n")[0] for w in wakes[:3]}), "a retry keeps the event id")
         self.assertEqual("auto", self.arg(wakes[3], "--permission-mode"))
-        push = self.message(wakes[3])
+        push = self.push(wakes[3])
         self.assertLess(len(push), 200)
         self.assertTrue(push.startswith(f"{LEAD} не взяв повідомлення; stale: C: task | {TASK}"), push)
         self.assertTrue(any(line.startswith(f"WAKE-FALLBACK {LEAD} ") and "not taken after 3 sends" in line
                             for line in log), log)
-        self.assertEqual([f"stale|{TASK}|{STALE_KEY}"], self.marks(), "marked once, after the push")
+        self.assertTrue(any(re.match(r"WAKE-TAKEN phone \S+ via Pult \(", line) for line in log), log)
+        self.assertEqual([f"stale|{TASK}|{STALE_KEY}"], self.marks(), "marked once, after Pult took the push")
+
+    # protects: Flow
+    def test_pult_down_its_giveup_is_pushed_through_a_live_lead_in_its_mode(self):
+        self.config(lead=True, server=True)
+        (self.pult / "logs" / "servers.log").write_text(
+            f"2026-11-20T09:00:00 MODE {LEAD} bypassPermissions (hard bans on main)\n", encoding="utf-8")
+        log = self.run_watch(2, "-MaxHeals", "0", "-WakeDownSec", "0")
+        wakes = self.wakes()
+        self.assertEqual([LEAD], [self.to(w) for w in wakes], log)
+        self.assertEqual("bypassPermissions", self.arg(wakes[0], "--permission-mode"))
+        self.assertTrue(self.push(wakes[0]).startswith(f"Pult не піднявся - запусти його на комп'ютері; GIVEUP {SERVER} ("))
+        self.assertTrue(any(re.match(rf"WAKE-TAKEN phone \S+ via {LEAD} \(", line) for line in log), log)
+
+    # protects: Rule
+    def test_push_with_no_live_relay_waits_and_is_kept(self):
+        self.config(lead=False, server=True)
+        log = self.run_watch(3, "-MaxHeals", "0", "-WakeDownSec", "0")
+        self.assertEqual([], self.wakes(), log)
+        self.assertEqual(1, len([line for line in log if line.startswith("WAKE-FALLBACK-NONE phone ")]),
+                         "tried again only after the retry time")
+        pending = json.loads((self.pult / "wake-pending.json").read_text(encoding="utf-8"))
+        self.assertEqual(["phone"], [item["Kind"] for item in pending])
 
     # protects: Flow
     def test_pult_gets_giveup_lines_and_the_one_time_note(self):
@@ -341,10 +382,11 @@ class WatchServersWakeTest(unittest.TestCase):
         self.agents(pult=True)
         self.run_watch(3)
         log = self.run_watch(2)  # a new watcher run (as after WATCH-RESTART) pushes no second time; the log holds both
-        pushes = [w for w in self.wakes() if self.arg(w, "--tools") == "PushNotification"]
+        pushes = [w for w in self.wakes() if self.push(w) is not None]
         self.assertEqual(1, len(pushes), "the sessions that pass in one round share one push")
+        self.assertEqual("Pult", self.to(pushes[0]), "Pult relays the push while it is live")
         self.assertEqual(f"{LEAD}: 750 тис., Pult: 900 тис. токенів - перенеси ці розмови в нові сесії",
-                         self.message(pushes[0]))
+                         self.push(pushes[0]))
         self.assertEqual([f"PUSH-SIZE {LEAD} {LEAD_SID} 750000", f"PUSH-SIZE Pult {PULT_SID} 900000"],
                          [line for line in log if line.startswith("PUSH-SIZE")])
         self.assertIn(f"SIZE {LEAD} {LEAD_SID} 750000 owner=1 peer=2 notify=0 units=12.5", log)

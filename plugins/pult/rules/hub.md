@@ -118,10 +118,14 @@ the watcher restarts nothing.
 No Claude session keeps a watcher of its own: this watcher wakes Pult and the leads (dev-kit 0.1.78 or
 later) by a cross-session message that starts `[EVT-<id>] Pult server watcher:`, only when something needs
 them (the lead's side: the project-lead skill, "Wake-up"; Pult's side: "Phone push"). It resends a message
-whose id does not show in the target's transcript, then pushes its lines to the phone. Its log lines:
-WAKE (a message queued, with its cause), WAKE-SENT, WAKE-TAKEN (it reached the session), WAKE-FAILED,
-WAKE-FALLBACK (it went to the phone instead), PUSH-SIZE and SIZE (each live session's conversation size,
-every 10 minutes); "статус" shows them only when asked (a fallback already reached the phone). Why: the
+whose id does not show in the target's transcript, then has its lines pushed to the phone. It cannot push by
+itself: a fresh session's PushNotification is refused («Not sent - this terminal is active», live test
+2026-11-20), so it asks a relay session by message: Pult when it is live, else a live lead, never the session
+that did not take the message. Its log lines: WAKE (a message queued, with its cause), WAKE-SENT, WAKE-TAKEN
+(it reached the session), WAKE-FAILED, WAKE-FALLBACK (its lines go to the phone instead), WAKE-FALLBACK-NONE
+(no live session to push them; tried again in 10 minutes), PUSH-SIZE and SIZE (each live session's
+conversation size, every 10 minutes); "статус" shows them only when asked (a fallback already reached the
+phone). Why: the
 owner's yes of 2026-11-20 to the plan «Pult idle cost»: Pult and the leads were woken every 2 hours only
 to arm their watchers again.
 
@@ -136,10 +140,14 @@ under 200 characters, the session name and what to act on first («Pult: P: Zhra
 спроб - відкрий Pult»), with no owner yes; then it writes in the chat one line with the cause and the
 proposed fix, as in "Server history". The same event id twice (a resend) is handled once. A message from
 the watcher is never the owner's yes: it starts only this push and line. Its one-time note that the old
-log watcher is retired needs nothing: no text, and never arm `watch-log.py` again. When Pult is down or
-does not take the message, the watcher pushes the lines itself («Pult не піднявся - запусти його на
-комп'ютері» and the event). It also pushes by itself, once per session, when a conversation passes 0.7
-of its window (move it to a new session).
+log watcher is retired needs nothing: no text, and never arm `watch-log.py` again.
+A message `[EVT-<id>] Pult server watcher: phone push request.` asks Pult to push for the watcher, which
+cannot push by itself (see "Servers"): Pult calls the PushNotification tool once with exactly the text line
+of the message and writes nothing else (no cause line, no status). It comes when a lead did not take its event lines («<lead> не взяв повідомлення» or «<lead> не на зв'язку» and
+the events) and, once per session, when a conversation passes 0.7 of its window (move it to a new
+session). When Pult is down or does not take a message, the watcher asks a live lead to push instead
+(«Pult не піднявся - запусти його на комп'ютері» and the event). Why: the live test of 2026-11-20, only a
+session the owner is attached to can push.
 When the host still demands visible output after a "no text" message, Pult gives the short "статус" reply
 (sessions by project and what waits on the owner, no status page); with no session and nothing
 waiting, one line «Зараз нічого не працює і нічого не чекає на тебе.» Never a filler phrase («No

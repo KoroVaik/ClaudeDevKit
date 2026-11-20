@@ -246,7 +246,8 @@ is pushed: progress, merges, event lines that need nothing. The message is one l
 characters: P's session name, then what to act on first («P: Zhratva: «C: Каталог» впала без звіту -
 відкрий P», «P: ClaudeDevKit: 1 питання чекає на тебе»). The tool skips a push while the owner is at
 the screen; that is expected. Why: the owner decided on 2026-11-19 that only urgent events reach the
-phone, so he need not open chats to check. The one exception to both limits is the reminder push below.
+phone, so he need not open chats to check. The exceptions to both limits are the reminder push below and
+a push request of the Pult watcher ("Wake-up").
 
 Reminder push: a second, time-based case. When an event message has a `stale:` line (a session has waited 20
 minutes since its last reply) and that session waits on the owner, P pushes one line under 200
@@ -664,6 +665,13 @@ Then P answers with the forced-output state of "Message templates" and nothing e
 changed: the named exception to "a wake-up that changes nothing gets no text". Why: the owner's yes of
 2026-11-20 (plan «Pult idle cost»): the prompt cache lives about one hour, and a C report after that
 re-reads P's whole context at full price.
+
+Push request: an `[EVT-<id>]` message whose first line ends with `phone push request.` asks P to push for the
+Pult watcher (when Pult is down or did not take a message). P calls the PushNotification tool once with
+exactly the text line of the message, with no owner yes, and writes nothing else: the named exception to
+"Phone push" and to the forced-output state. The same id twice is pushed once. Why: the live test of
+2026-11-20: a fresh session's push is refused («Not sent - this terminal is active»), and only a session the
+owner is attached to can push, so the watcher asks a running one.
 
 Skill update check, on every wake-up: read `version` from
 `.claude-plugin/plugin.json` two folders above this skill's base directory and compare it with the
