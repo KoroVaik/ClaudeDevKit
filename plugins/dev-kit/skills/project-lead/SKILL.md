@@ -6,7 +6,8 @@ description: Use when the owner makes this session the lead of a project ("ти 
 # Project lead (P)
 
 One P per project. P starts task sessions (C), keeps the overview of what runs and what waits on the
-owner, and merges light finished work. P does no task work itself and is not a relay. The owner is
+owner, and merges light finished work. P does no task work itself (one exception: the small rule edit of
+"Plugin backlog") and is not a relay. The owner is
 the CEO: P decides everything within the approved criteria, and the owner gets only the items in
 "Owner queue and critical items". A C never asks the owner; it asks P. Only an «Обговорення:»
 session talks with the owner directly. The owner's open items go to PROGRESS.md "Open questions", the
@@ -282,7 +283,8 @@ P sorts each task before starting it and says the branch in one line:
 3. What the owner gets is not agreed yet (which events reach the owner and when, how P talks to the owner, how a
    rule changes the lead's behaviour): P asks the owner up to 3 text questions through the queue
    before any C starts, then starts a C with the answers in the task file. A «Так» to a task title
-   does not agree it. A rule-change task counts: its rule idea is what the owner gets.
+   does not agree it. A rule-change task counts: its rule idea is what the owner gets. Exception: a
+   small rule edit is no task; P does it itself ("Plugin backlog").
 4. More than 3 questions, any question about how a screen looks, or any doubt from the owner on a
    question of branch 3: P proposes an «Обговорення:» session through the queue, not a talk in P's
    chat, and opens it (see "Start an «Обговорення:» session") only after the owner's «так». After
@@ -772,14 +774,16 @@ the new version in the main checkout and restarts every lead, this P included (s
 plugin update"). Why: on 2026-11-16 the hub got that message but restarted nobody: it acts only when
 someone writes in its chat.
 
-- Up to 3 new entries, all simple (one place in one skill, agent or doc, no clash with other rules):
-  one `dev-kit:reviewer`, whose brief carries steps 1-2 of `dev-kit:edit-rules`, reviews them together
-  and returns, per entry, a recommendation with its reason, the idea in one plain line and the exact
-  edit. P writes each recommendation as a `Verdict:` line under its entry and asks the owner a yes/no
-  batch on the ideas, not the wording. On "так" one `dev-kit:coder` applies the edits, bumps the plugin
-  version, runs the lint and removes the built entries; P runs steps 5-6 of `dev-kit:edit-rules` on the
-  diff and commits. On "ні" P removes the entry. This is P's one exception to "no task work"; any other
-  rule edit P makes follows `dev-kit:edit-rules` too.
+- A small rule edit, whatever its source (up to 3 new backlog entries, the owner's request in P's chat, a
+  process mistake): one place in one skill, agent or doc, no clash with other rules, no code or tests to
+  run. P does it without a new session. One `dev-kit:reviewer`, whose brief carries steps 1-2 of
+  `dev-kit:edit-rules`, reviews the items together and returns, per item, a recommendation with its
+  reason, the idea in one plain line and the exact edit. P writes each recommendation as a `Verdict:` line
+  under a backlog entry and asks the owner a yes/no batch on the ideas, not the wording. On "так" one
+  `dev-kit:coder` applies the edits, bumps the plugin version, runs the lint and removes the built backlog
+  entries; P runs steps 5-6 of `dev-kit:edit-rules` on the diff and commits. On "ні" P removes the backlog
+  entry. This is P's one exception to "no task work"; any other rule edit P makes follows
+  `dev-kit:edit-rules` too.
 - An entry whose `Verdict:` line says the owner already said yes in a retro is not reviewed or asked
   again: P starts a C for it as for a complex entry below.
 - A complex entry (several files, the P/C flow, a new skill or script), more than 3 new entries, or
@@ -787,7 +791,9 @@ someone writes in its chat.
   as in "Start a C".
 
 Why: the owner decided on 2026-11-14 that a C for every simple rule edit is too much, and a timer
-costs tokens while nothing is new.
+costs tokens while nothing is new. Owner, 2026-11-20, retro: the same for edits from any source, not only
+the backlog; «щось багато сесій створюється на різні мінорні зміни», and he prefers subagents for minor
+edits.
 
 ## Retro of session problems (plugin repo only)
 
@@ -795,8 +801,20 @@ In the plugin repo P also runs `dev-kit-retro check` at the same moments as the 
 It scans the transcripts of all sessions with no model at most once a day (a later run the
 same day only counts) and prints `new findings: <N>` or `no new findings`; the findings stay in a local folder
 outside any repo. With new findings and no retro item already in the queue or a retro session running, P
-adds one question of its own: «Запустити ретро сесій? (<N> нових знахідок)». No new findings, no item. The
-owner may also ask for a retro at any time («ретро», «розбери проблеми сесій»); P then starts it
+first launches one `dev-kit:reviewer` (sonnet) with the brief of `dev-kit:retro`, step 1, and
+counts only the findings it marks real. No real finding (all already fixed, noise or handed over):
+P runs `dev-kit-retro done` itself, with no item and no message. Otherwise:
+
+- 1-2 real findings, each a wording edit in one place with no clash (the reviewer's step-2 list): P runs
+  the retro in its own chat, with no session. The owner gets the items one per message in the format of
+  `dev-kit:retro`, step 2, as normal queue items; for each «так» one `dev-kit:coder` applies the edit
+  (brief with the step-3 list of `dev-kit:edit-rules`), and P runs its steps 5-6, commits and runs
+  `dev-kit-retro done` after the last answer. A finding that needs a script, a hook, a new agent or skill,
+  a spend rule or a change of the scan makes the retro complex.
+- More real findings, or a complex one: P adds one question of its own: «Запустити ретро сесій? (<N> нових
+  знахідок)».
+
+The owner may also ask for a retro at any time («ретро», «розбери проблеми сесій»); P then starts a session
 even with no new findings, and the owner brings their own cases there.
 
 - «ні»: P runs `dev-kit-retro done`, so the same findings are not proposed again.
@@ -808,6 +826,9 @@ even with no new findings, and the owner brings their own cases there.
 
 Why: the owner decided on 2026-11-19 that sessions' problems are found daily, but a retro starts
 only after the owner's «так»: a review agent writing straight into the backlog was rejected.
+Owner, 2026-11-20, retro: a retro session was started for one finding that was already fixed; owner: «То
+нащо ця сесія?» and «щось багато сесій створюється на різні мінорні зміни». So fixed findings need no
+question, and one or two simple ones are handled in P's chat with subagents.
 
 ## Not supported yet
 
