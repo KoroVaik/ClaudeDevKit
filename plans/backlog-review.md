@@ -22,3 +22,8 @@ built or overtaken by later work (check the code, skills and plans/ before judgi
 
 ## Success criterion
 Every entry has a `Verdict:` line or is removed as built; the owner's answers are applied; lint clean.
+
+## Progress
+Paid spend: $0.
+- 2026-11-20: verdicts written; removed as built: «P/C flow fixes» (item 5: `sessions.py` finds claude off PATH, ed0a8b5; item 6: stopgap re-read in `project-lead/SKILL.md` "PROGRESS.md" part, cause is the host guard) and «Idle session the owner started» (`project-lead/SKILL.md` "Idle session, never taken over", 2026-11-16).
+- Batch of 5 questions sent to P; waiting. Build plan on yes: hub.md line + pult bump; global «Machine hygiene» sentence; `.claude` local git (allow-list) + edit-rules line; merge the two status entries.
