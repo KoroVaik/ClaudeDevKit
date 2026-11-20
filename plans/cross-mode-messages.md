@@ -12,3 +12,5 @@ Put the hard-ban deny lines on ClaudeDevKit main (dev-kit migration entry 3, plu
 
 ## Goal
 Agree with the owner a fix so a message between any two sessions on this machine is delivered; write it in «Owner's approval» here.
+
+- Fact: ClaudeDevKit profile `.claude/dev-kit.md` says «hard bans | accepted 2026-11-19», yet Pult logs no hard-ban deny lines on main: the owner may never have added them by hand (project-lead «Hard bans»: the owner adds the lines himself).
