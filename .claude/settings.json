@@ -9,7 +9,10 @@
       "Bash(rm -rf .git*)",
       "PowerShell(Remove-Item*.git*)",
       "Bash(rm -rf plugins*)",
-      "PowerShell(Remove-Item*plugins*)"
+      "PowerShell(Remove-Item*plugins*)",
+      "Bash(*api.anthropic.com*)",
+      "PowerShell(*api.anthropic.com*)",
+      "WebFetch(domain:api.anthropic.com)"
     ]
   }
 }

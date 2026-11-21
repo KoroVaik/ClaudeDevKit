@@ -1,0 +1,1 @@
+{"deny": ["Bash(*api.anthropic.com*)", "PowerShell(*api.anthropic.com*)", "WebFetch(domain:api.anthropic.com)"]}
