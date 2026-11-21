@@ -54,17 +54,23 @@ sees it.
 ## 2. Ask the owner
 
 This step names itself as an exception to the owner's global "Question" cap (15 words plus a 6-word bracket
-example) and "Batches of questions" format: a retro item needs its context. The rest of the global "Chat replies"
-rules hold: Ukrainian, plain words, no file or rule names.
+example), "Batches of questions" format and its bans on headings and bold labels: a retro item needs its context
+and must read easily on the phone. The rest of the global "Chat replies" rules hold: Ukrainian, plain words, no
+file or rule names.
 
-One real item per message, in the order of the reviewer's list; the next one only after the owner answers. Plain
-labels with no bold:
+One real item per message, in the order of the reviewer's list; the next one only after the owner answers. A
+heading with the problem's name, then bold labels, a blank line between the parts:
 
-    Проблема: <plain name of the problem, at most 6 words>
-    Було: <one concrete moment from a session the owner can picture: what the agent did or wrote>
-    Це проблема, бо: <what it led to or would have led to for the owner, one sentence>
-    Виправлення: <what changes in the rules, in plain words, one sentence>
-    Стане: <the same moment as it will look after the fix, as an example>
+    ### <plain name of the problem, at most 6 words>
+
+    **Було:** <one concrete moment from a session the owner can picture: what the agent did or wrote>
+
+    **Це проблема, бо:** <what it led to or would have led to for the owner, one sentence>
+
+    **Виправлення:** <what changes in the rules, in plain words, one sentence>
+
+    **Стане:** <the same moment as it will look after the fix, as an example>
+
     <the question, at most 15 words, worded so that «так» agrees with it>
     Рекомендую: так - <reason, at most 12 words>
 
@@ -103,5 +109,7 @@ units with no dollars (a subscription) and serves only as evidence for trial rul
 day the retro questions became Було/Стане blocks under headings (owner: «питання в стилі було - стало»), because
 two-sentence batch items gave no context. On 2026-11-20 the owner asked for one item per message with Проблема, Було,
 Це проблема, бо, Виправлення and Стане (an example), and for noise and fixed findings to be one line, not a question
-(owner: «А нащо мені вже виправлені?», «Я маю розуміти про що ця проблема»). The in-chat variant for 1-2
+(owner: «А нащо мені вже виправлені?», «Я маю розуміти про що ця проблема»). On 2026-11-21 the owner asked for the
+problem name as a heading and bold labels (owner: «Мітки жирними і заголовок назва айтема»): plain labels read as one
+block of text. The in-chat variant for 1-2
 simple findings (2026-11-20): `dev-kit:project-lead`, "Retro of session problems".

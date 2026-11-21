@@ -59,3 +59,10 @@ What: one small client (or wrapper) that every project and script uses for Claud
 Why: owner, 2026-11-20: API credit (the monthly Max credit, $89.95 left of $100, expiring Dec 5) is spent almost wholly by the Zhratva «Zhratva test» keys ($81.63 in 30 days, about $43 on Nov 4, about $7 on Nov 20), seen only in the Console; owner: «Клієнт має буть спільний для всього, помісти в беклог». The weekly Console check (project-lead, «API credit check») is the stopgap.
 Cheapest test: one Zhratva call through the client writes one log line whose cost matches the Console's for that minute.
 Verdict (2026-11-20): keep as an idea; owner put it in the backlog himself. Needs a design talk (where the client lives, how projects use it).
+
+## Hook: stop the three known Windows Python and shell traps
+
+What: a PreToolUse hook on Bash in dev-kit (next to `hooks/narrow-agents.py`) that refuses a command with one of the three traps of the owner's `docs/tools.md` (Python section) and names the working form in one line: (a) `python`/`python3` without `-X utf8` or `PYTHONUTF8` in the same command, (b) a heredoc or `-c` body with non-ASCII text, (c) `/tmp/` as a scratch path. It must not block read-only inline Python that already has `-X utf8`. `docs/tools.md` stays the home of the rule.
+Why: retro 2026-11-21: in 14 sessions with their subagents, about 225 of 380 failed calls were these traps (encoding 141, heredoc quote 45, /tmp 38); Zhratva next-categories-2 (04d7121c) alone had 268 failed calls, mostly these, in the day's biggest token spender. The 2026-11-19 retro fixed it by wording; agents reach the rule only through "read tools.md first" and mostly do not (9 of 78 catalogue-judge runs opened it).
+Cheapest test: replay the ~225 failed commands through the hook (it must block most, and none of the commands that worked); then a 20-call catalogue-judge batch counts failed calls.
+Verdict: owner yes in retro 2026-11-21
