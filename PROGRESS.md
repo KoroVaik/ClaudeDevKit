@@ -22,8 +22,9 @@
 
 - [Shared Claude API client](plans/api-client.md): dev-kit side built (dev-kit 0.1.87); next: the deny lines for the owner and the Zhratva handoff (both in the plan).
 
+- [Cost as a share of the subscription limit](plans/cost-share.md): discussion; agreed (2026-11-21): share of the weekly limit marked «оцінка», API money stays USD, a retro command for one session's share, the status line logs the weekly % to refit the limit, plans' spend lines in %, P's $1 threshold for API money only; next: the short plan.
+
 Open work of the features: `dev-kit-check-docs --open`.
 
 ## Open questions
 
-- 2026-11-21 · «P»: Правило: вартість роботи агенти пишуть у відсотках тижневого ліміту підписки (оцінка, похибка до третини), не в доларах? (замість «$149» буде «~2% тижневого ліміту») Рекомендую: так - підрахунок ретро вже це вміє.
