@@ -32,3 +32,4 @@ Agree with the owner a fix so a message between any two sessions on this machine
 - Texts: project-lead SKILL.md 337-354, 445-447, 537-571, 591; manager SKILL.md 244-247; pult hub.md 59-60, README:50; watch-servers.ps1 79-80; resume-lib.ps1 105-110.
 - Unchecked: bypass->bypass delivery across projects, `claude -p` wake in bypass, hub start in bypass; one live send each after the change.
 - 2026-11-21: owner's «так» to the short plan; discussion closed; owner asked to start the build at once.
+- 2026-11-21, owner's «так» (after the plan): a script the owner runs himself with one command (`! <command>` in chat) writes a project's hard-ban lines into `.claude/settings.json` on main; P picks the set, the script only inserts it. Agents never run it (rule in the skills). Used first for ClaudeDevKit and Prishch, then once per new project.
