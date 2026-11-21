@@ -45,12 +45,15 @@ ends with an «Approved design» section (acceptance criteria, the approved mock
 Then P starts a C that builds the screen and shows you its shots next to the mockup.
 
 ### A C asks only P
-A C never asks you in its own chat; it asks P.
+A C never asks you in its own chat; it asks P, and it messages no other session unless P's brief for it
+names one.
 
-### No permission prompts when hard bans hold
-C and P run with no permission prompts when the project's committed settings hold the hard-ban deny rules
-(push to main where it deploys, deleting data, and the like). You accept the Claude Code disclaimer once
-per machine.
+### No permission prompts in any session
+Every session a project starts, P included, runs with no permission prompts, so a message between two
+sessions is never held for your approval. A project whose committed main has no hard-ban deny rules (push
+to main where it deploys, deleting data, and the like) starts no sessions. P shows you the exact lines
+and adds them on your «так»; you cannot decline them. P can undo only the latest addition, on your «так»;
+only you remove an older ban. You accept the Claude Code disclaimer once per machine.
 
 ### No two sessions on the same task
 Before a task starts, P (and any session through the manager skill) checks that no other live session of
@@ -99,6 +102,9 @@ format instead of removing them. Those rules live outside this repo and change o
 - `plugins/dev-kit/scripts/sessions.py`
 - `plugins/dev-kit/bin/dev-kit-sessions`
 - `tools/tests/test_sessions.py`
+- `plugins/dev-kit/scripts/hard_bans.py`
+- `plugins/dev-kit/bin/dev-kit-bans`
+- `tools/tests/test_hard_bans.py`
 
 ## Open
 - [ ] Defect: a question P shows only in chat, not in PROGRESS.md "Open questions", is lost when P restarts; `plugins/dev-kit/skills/project-lead/SKILL.md`

@@ -325,7 +325,7 @@ proposed, not opened, because «краще перепитать, бо я мож�
   registry and every message use the same name.
 - Make the worktree yourself from the local main, then start C inside it:
   `git worktree add .claude/worktrees/<slug> -b c/<slug> main`, then in one PowerShell call
-  `Push-Location <worktree>; claude --bg --name "C: <feature>" --permission-mode <mode> --model <model> --effort <level> -- "<first prompt>"; Pop-Location`.
+  `Push-Location <worktree>; claude --bg --name "C: <feature>" --permission-mode bypassPermissions --model <model> --effort <level> -- "<first prompt>"; Pop-Location`.
   A C gets no `--remote-control` (an «Обговорення:» session does, see below). Why: every
   `--remote-control` launch pushes «Remote control enabled» to the owner's phone and no setting turns it
   off; the owner does not talk with a C (owner, 2026-11-20).
@@ -334,24 +334,22 @@ proposed, not opened, because «краще перепитать, бо я мож�
   later leaves it behind with "Permission denied" (seen live in Zhratva, 2026-11-15).
   Never `claude -w`: it cuts the worktree from the remote's default branch, which can be far behind
   the local main (seen live: 6 weeks old, without `.claude/dev-kit.md`).
-- Permission mode: `bypassPermissions` (no prompts) only when the deny rules of "Hard bans" (the
-  Bash and the PowerShell lines) are in a settings file committed on main and P has checked that C's
-  fresh worktree holds them; otherwise `auto` (the one-time proposal of the hard bans is a dev-kit
-  migration, see "Hard bans"). A refresh or a restart uses the same mode. Checked live 2026-11-15: after the owner
+- Permission mode: every session P starts runs in `bypassPermissions` (no prompts), never `auto`.
+  With no Bash and PowerShell hard-ban deny lines on main (`dev-kit-bans check <main checkout>`
+  fails) P starts no session and first gets the bans added (see "Hard bans"). P also checks that C's
+  fresh worktree holds them. A refresh or a restart uses the same mode. Checked live 2026-11-15: after the owner
   accepted the disclaimer below, a bg session with `bypassPermissions` ran a shell command with no
   prompt.
-  P itself runs in this mode too: Pult checks the same rule on main (and the disclaimer below) at
-  each start of P and logs it as `MODE P: <project> <mode>` in `~/.claude/pult/logs/servers.log`. A C
-  gets P's own mode, the last such line, so the two always match; with no line, the check above.
-  The Pult watcher sends its event messages to P in that mode too.
+  P itself runs in this mode too: Pult starts no lead without the bans on main (and the disclaimer
+  below) and logs the mode as `MODE P: <project> <mode>` in `~/.claude/pult/logs/servers.log`, a
+  record only. The Pult watcher sends its event messages to P in that mode too.
   Why: a session holds a message from a session in another mode for the owner's approval (seen live
-  in Zhratva, 2026-11-19).
+  in Zhratva, 2026-11-19, and between two projects, 2026-11-20), so all sessions run in one mode
+  (owner, 2026-11-20).
   `--bg` with `bypassPermissions` fails with exit 1 until the owner accepts a disclaimer once per
-  machine (seen live, 2026-11-15). On that error P starts the C with `auto` and asks the owner once,
-  as a hand action, to run `claude --dangerously-skip-permissions` interactively and accept.
-  Why: C's `auto` check never counts a yes P relays by SendMessage (by design), so C stalled on
-  actions the owner had approved (seen live in Zhratva, 2026-11-15). With no prompts, the deny rules
-  are the lock and the ask-P list is the discipline.
+  machine (seen live, 2026-11-15). On that error P starts nothing and asks the owner once, as a hand
+  action, to run `claude --dangerously-skip-permissions` interactively and accept. With no prompts,
+  the deny rules are the lock and the ask-P list is the discipline.
 - `--model` and `--effort` are always given. C runs on `--model opus --effort medium` (it decides
   without the owner, so judgment matters). `sonnet` or `haiku` only for a mechanical batch with no
   decisions; a Fable model only after the owner's yes. Without the flags C inherits the default
@@ -394,7 +392,10 @@ it on `c/<slug>`, so the merge and the worktree removal see no stray file. C kee
   file); "before handing in, pull main and resolve conflicts yourself". The report rule names the
   channel: "send each report with the SendMessage tool to `<P's own session name>`; text in your own
   chat never reaches P". Seen live: without it both C wrote their reports only in their own chat and
-  P waited forever. Also in the prompt:
+  P waited forever. A C messages only its own P (sessions, not its subagents); it messages another
+  session only when the first prompt names it in a separate line «May message: <sessions>», not in
+  the ask-P list (that list holds actions needing P's yes). Why: only leads and «Обговорення:»
+  sessions message other sessions freely (owner, 2026-11-21). Also in the prompt:
   - "You never ask the owner, not in your own chat either. Send every question, and every consent a
     project rule names, to P by SendMessage and wait for P's answer."
   - The ask-P list: actions C does only after P's yes (see "Ask-P list").
@@ -422,8 +423,8 @@ the pending entries and the list's path. Exit 2 (a broken list or level): P adds
   under this project's rules, check its `Done when`, then run `dev-kit-migrations record <n>` in the
   worktree. An entry with an `Owner choice` goes to P as a question before it is applied, and the C
   waits for the answer (it never records past an entry it has not applied). P puts that choice in the
-  owner queue and passes the answer back; a hand action the entry gives the owner on a yes, P puts
-  in the queue too. With a migration C registered, P starts no second one.
+  owner queue and passes the answer back; a step the entry leaves to P after the yes (entry 4: P runs
+  `dev-kit-bans add`), P does itself, and the C does not wait for it. With a migration C registered, P starts no second one.
 - The C's edits of rule text run steps 1-2 and 5-6 of `dev-kit:edit-rules`: the owner's yes to the
   entry, given when it was added to the list, is their approval (as in `dev-kit:migrate-docs`). P does
   not apply entries itself.
@@ -441,10 +442,11 @@ For a task of branch 4 in "Before a task: triage", after the owner's «так» 
 setup, registration) with these differences:
 
 - Name `Обговорення: <feature>` (no guillemets in the name) (add `--remote-control "Обговорення: <feature>"` to the command of "Start a C", unlike a C,
-  plus `--name`), the
-  permission mode a C gets ("Start a C", "Permission mode"), `--model opus --effort medium` (the owner
+  plus `--name`), `--permission-mode bypassPermissions` ("Permission mode"), `--model opus --effort medium` (the owner
   talks with it). Why: its done report to a P in another mode was held for the owner's approval (seen
-  live, 2026-11-19); the owner does not want to relay between sessions.
+  live, 2026-11-19); the owner does not want to relay between sessions. It may message other sessions
+  (a C only its own P, see "Start a C"); a message to a session the owner started stays banned (see
+  "Take over a session the owner started").
 - The owner's «сабсесія», «саб-сесія», «сесія для обговорення», or «саб» to talk something over,
   means this session, never a helper agent. When the owner's words point at a log, file or session
   («нехай прочитає лог тієї сесії»), P adds its path to the first prompt.
@@ -531,18 +533,26 @@ Actions a C does only after P's yes (the same list is in the first prompt and in
 - any step a project rule says needs consent (check-ui, check-usability, check-look and similar),
   except the checks a screen's approved mockup already allows (`dev-kit:test-change`).
 
-P answers these itself. It asks the owner only for money over the threshold, a hard-to-undo step or
-a product choice (see "Owner queue and critical items").
+P answers these itself. It asks the owner only for money over the threshold, a hard-to-undo step,
+a product choice, or adding or undoing a hard ban (see "Hard bans" and "Owner queue and critical items").
 
 ## Hard bans
 
 Hard bans are deny rules in a settings file committed on main (`.claude/settings.json`), so every
-fresh worktree has them. Neither P nor C may add, change or lift them; the owner adds the lines by
-hand after his yes, and neither P nor C writes them. The set is proposed once per project, as one
-yes/no with the exact lines, by entry 3 of the plugin's `migrations.md` (see "Apply dev-kit
-migrations"); the profile's `hard bans` row records the answer, so P does not ask again. The set: push to
+fresh worktree has them. A C never adds, changes or lifts them. P only adds: it runs
+`dev-kit-bans add <main checkout> <deny-line>...` after the owner's «так» to the exact lines (the
+command adds lines only and makes one commit on main per run; it never pushes). Nobody but the owner
+removes or edits a ban. On the owner's «так» P may run `dev-kit-bans undo <main checkout>`, which
+reverts only the latest ban-adding commit and refuses a second step. The set is first proposed, as
+one question with the exact lines, by entry 4 of the plugin's `migrations.md` (see "Apply dev-kit
+migrations"; entry 3 is replaced by it); a new project gets it the same way, and it cannot be
+declined: a project without the lines starts no sessions. The profile's `hard bans` row records
+the answer, so P does not ask again. The set: push to
 main where main deploys; deleting data folders or the owner's database; stopping the owner's
-containers; editing permission settings.
+containers; editing permission settings. The check (`dev-kit-bans check`) passes with one Bash and
+one PowerShell line of the push, delete or docker kind.
+Why: adding bans only tightens what agents may do; removing or editing them stays the owner's (owner,
+2026-11-21).
 Every Bash line has a PowerShell twin of the same shape (Claude Code docs: PowerShell rules use the
 same shape as Bash rules), because C may run either shell.
 

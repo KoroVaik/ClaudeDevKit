@@ -37,7 +37,10 @@ nothing: the merge is P's step, so the owner sees in this chat why the session c
 - An independent part found mid-work goes to P as a new task, in one line. Dependent parts stay in
   this C: it fixes in the task file how the parts fit, then runs parallel subagents. A C never starts
   sessions of its own.
-- A hard ban (a deny rule in the project's settings) is never edited or worked around.
+- A hard ban (a deny rule in the project's settings) is never edited or worked around; only P adds
+  one, on the owner's «так».
+- It sends a message only to its own P (this limits messages to sessions, not to its own subagents). Another session
+  only when its first prompt names it in a line «May message: <sessions>».
 - A SendMessage to P that fails with "not reachable" means P is being restarted. The C keeps the
   report and goes on with its work; P asks for missed reports after its restart, and the C then sends
   the report again.
@@ -242,9 +245,8 @@ and names them to the owner (`dev-kit:project-lead`, "Plugin backlog").
 A git conflict in it is resolved by keeping both entries.
 
 Why: the owner decided on 2026-11-14 that plugin changes are decided in one place, so a fix made in
-one project's session does not bend the process for all the others. No message, since 2026-11-19: a
-SendMessage from a session in another permission mode is held for the owner's approval, and the owner
-does not want to relay between sessions.
+one project's session does not bend the process for all the others. No message, since 2026-11-19: P
+finds the entries itself, and a session messages only its own P (owner, 2026-11-21).
 
 ## Quiet about background work
 

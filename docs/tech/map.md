@@ -6,8 +6,8 @@ is listed below.
 ## Code folders
 
 - `plugins/dev-kit/skills`, `plugins/dev-kit/agents` - the process as Markdown: skills and generic agents (coder, reviewer, investigator).
-- `plugins/dev-kit/scripts` - Python: `check_docs.py` checks a project's docs (every epic and feature has its sections, links, anchors and "Built in" paths resolve), finds the feature that owns a code file, lists open tasks and defects and the base docs files a project lacks; `check_tests.py` is the tests check; `run_app.py` starts and stops a project's app from the commands in its profile; `sessions.py`, `migrations.py`, `retro.py` serve the project lead.
-- `plugins/dev-kit/bin` - the commands on the Bash tool PATH while dev-kit is enabled: `dev-kit-check-docs`, `dev-kit-check-tests`, `dev-kit-app`, `dev-kit-sessions`, `dev-kit-migrations`, `dev-kit-retro`.
+- `plugins/dev-kit/scripts` - Python: `check_docs.py` checks a project's docs (every epic and feature has its sections, links, anchors and "Built in" paths resolve), finds the feature that owns a code file, lists open tasks and defects and the base docs files a project lacks; `check_tests.py` is the tests check; `run_app.py` starts and stops a project's app from the commands in its profile; `sessions.py`, `migrations.py`, `retro.py`, `hard_bans.py` serve the project lead.
+- `plugins/dev-kit/bin` - the commands on the Bash tool PATH while dev-kit is enabled: `dev-kit-check-docs`, `dev-kit-check-tests`, `dev-kit-app`, `dev-kit-sessions`, `dev-kit-migrations`, `dev-kit-retro`, `dev-kit-bans`.
 - `plugins/dev-kit/hooks` - the hook that lets a project launch only its own agents, and the hook that tells an owner-started session the lead watches it ([hooks](hooks.md)).
 - `plugins/dev-kit/slots.md`, `plugins/dev-kit/migrations.md` - the process steps (slots) and the changes every project must make after an update.
 - `plugins/web-kit` - browser checks: skills and agents, `slots.md`, `browser-checks.md`; `scripts` holds `build-mockups.mjs` (mockup pages from JSON specs) and `capture.mjs` (headless full-resolution screenshots); `bin` holds `web-kit-mockups` and `web-kit-shot`.
