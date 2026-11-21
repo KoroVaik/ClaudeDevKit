@@ -18,6 +18,8 @@
 
 - [Lead sees sessions](plans/lead-sees-sessions.md): discussion; agreed: standard message kinds between all sessions; P re-reads a session before asking or a status, drops items the owner answered there; plan approved, discussion closed (2026-11-21); next: build.
 
+- [Windows traps hook](plans/windows-traps-hook.md): built (dev-kit 0.1.86); still open: the 20-call catalogue-judge batch in Zhratva to count failed calls.
+
 Open work of the features: `dev-kit-check-docs --open`.
 
 ## Open questions
