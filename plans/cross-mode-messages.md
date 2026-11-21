@@ -80,3 +80,11 @@ Done: one mode in Pult and the skills, `dev-kit-bans` (add, add-approved, undo, 
 On merge: the version bump makes the Pult watcher restart the leads (into bypass; leads without bans are not stopped). The watcher also sends its wakes in bypass at once.
 Unchecked, need one live run each after the restart: bypass-to-bypass message across projects, the `claude -p` wake in bypass, the hub start with `--permission-mode bypassPermissions`.
 Paid spend: 0 USD.
+
+### Live checks (C «Живі перевірки одного режиму», 2026-11-21)
+All three pass; nothing to fix in code.
+- Bypass-to-bypass across projects: this C (ClaudeDevKit, bypass) sent one test message each to «P: Zhratva» and «P: Prishch» (both started with `--permission-mode bypassPermissions` after the 0.1.84 restart). No hold notice; both transcripts show the message enqueued with `from-mode="bypass"` and taken as a turn within a second.
+- `claude -p` wake in bypass: the watcher's wake after the restart, servers.log «WAKE-SENT P: Zhratva 1121163937-ad05 (try 1, mode bypassPermissions)», «WAKE-TAKEN (3 s)»; Zhratva's transcript has the message from `wake-1d` with `from-mode="bypass"` taken as a turn.
+- Hub start in bypass: a throwaway `claude remote-control --name 'TEST hub bypass' --permission-mode bypassPermissions --spawn same-dir` (in this worktree, stopped after 25 s) connected and spawned its session with `--permission-mode bypassPermissions` on the child's command line. So `remote-control` passes the mode on.
+- Still open (not a code defect): the running Pult hub was started 2026-11-19, before the change, and still runs `--permission-mode auto` (its process command line); messages between it and bypass sessions stay held until it restarts. «Обговорення: Спільний клієнт API» is also still in auto and waits on a permission prompt. Restarting Pult is on the Ask-P list.
+Paid spend: 0 USD (the hub test session got no turn).
