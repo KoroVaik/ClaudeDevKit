@@ -2,10 +2,10 @@
 
 ## Built
 
-- `dev-kit` 0.1.85 - the process skills, generic agents, the documentation standard and its checker, the project lead and its session tools.
+- `dev-kit` 0.1.86 - the process skills, generic agents, the documentation standard and its checker, the project lead and its session tools, the Windows shell-traps hook.
 - `web-kit` 0.2.2 - browser checks and the two-stage screen design.
 - `unity-kit` 0.2.1 - the Unity bridge, user check, scene sketch, GIFs.
-- `pult` 0.1.18 - the hub: leads started at logon, the watcher, the status page.
+- `pult` 0.1.19 - the hub: leads started at logon, the watcher, the status page.
 - Docs moved onto the documentation standard: [the docs index](docs/README.md).
 
 ## In flight
