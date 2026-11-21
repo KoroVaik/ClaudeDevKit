@@ -12,7 +12,7 @@
 
 - [Token spend in the retro](plans/retro-tokens.md): built; Opus weight set to 1.5 from the /usage readings (plan, «Opus weight check»); the spend trial is compared in a later retro.
 
-- [Pult idle cost](plans/pult-idle-cost.md): design in «Owner's approval», owner's «так» to the plan (2026-11-20); phase 1 build: «C: Пробудження лише на події». Phase 2 (lead self-handoff by the server watcher, plan point 12): owner's «так» 2026-11-21 to start it right after «C: Один режим для всіх сесій» merges.
+- [Pult idle cost](plans/pult-idle-cost.md): design in «Owner's approval», owner's «так» to the plan (2026-11-20); phase 1 build: «C: Пробудження лише на події». Phase 2 (lead self-handoff by the server watcher, plan point 12): owner's «так» 2026-11-21 to start it right after «C: Один режим для всіх сесій» merges. Live check 2026-11-21: P moved itself to a fresh session and the owner's phone chat followed it.
 
 - [Messages between modes](plans/cross-mode-messages.md): plan approved, discussion closed (2026-11-21), owner wants the build started at once; one mode `bypassPermissions` for all dev-kit sessions (2026-11-20); ClaudeDevKit bans: `rm -rf` only; Prishch's lines added by the owner from a ready list; Pult and its sessions bypass too; bans cannot be declined; a C messages only its own P unless its brief allows more.
 
@@ -22,4 +22,5 @@ Open work of the features: `dev-kit-check-docs --open`.
 
 ## Open questions
 
-- 2026-11-21 · «P»: Ти зараз пишеш мені з телефона? (так перевіряю, чи телефон знайшов мене після перезапуску) Рекомендую: немає - відповідь знаєш лише ти.
+- 2026-11-21 · «P»: Запустити нову сесію «C: Живі перевірки одного режиму»? (повідомлення між проєктами, пробудження від Pult, старт Pult) Рекомендую: так - від тебе нічого не треба.
+
