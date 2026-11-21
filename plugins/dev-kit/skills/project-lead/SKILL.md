@@ -172,7 +172,11 @@ was no question (P: ClaudeDevKit, 2026-11-20).
 «Статуси сесій»: one list line per session (shared lines: `готово` below, «ще працюють» in "Which
 sessions a message lists"), the state first, then the session name exactly as the app
 shows it, prefix included, in «»; never translated, shortened or retold. A session the Pult Remote
-Control server started (cwd exactly the home folder) is called «Pult», never its system name. States:
+Control server started (cwd exactly the home folder) is called «Pult», never its system name; this
+only names it where P already lists it (a taken-over session). The Pult hub itself is not a session
+P manages: P never lists it, not even after restarting it for the owner, and never in «ще працюють».
+Why: P listed «Pult» in 18 status messages after restarting it; owner: «?» (P: ClaudeDevKit,
+2026-11-21). States:
 
 - `працює` - the session works;
 - `чекає на тебе` - always with the reason in the owner's words in brackets after the name:
