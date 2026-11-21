@@ -286,9 +286,11 @@ P decides alone everything within the approved criteria. An item enters the queu
 - it leaves the approved criteria (a product choice);
 - what the owner gets is not agreed yet (see "Before a task: triage", branch 3);
 - the step is hard to undo;
-- paid spend would pass 1 USD in total per task. Smaller spend is never asked.
+- API spend through `dev-kit-api` would pass 1 USD in total per task. Smaller API spend and
+  subscription use (sessions, subagents, `claude -p`) are never asked.
 
-The C keeps a running total of paid spend in its task file and asks P before a paid call that would take it past 1 USD.
+The C keeps the task's spend line in its task file (`dev-kit:manager`, "Stating the cost of work") and asks P
+before a paid API call that would take its API total past 1 USD.
 
 One more item always enters the queue: «Взяти «<name>» під керування?» for each session the owner
 started that P has not offered yet (see "Take over a session the owner started"). It is a normal
@@ -420,8 +422,9 @@ it on `c/<slug>`, so the merge and the worktree removal see no stray file. C kee
   - "You never ask the owner, not in your own chat either. Send every question, and every consent a
     project rule names, to P by SendMessage and wait for P's answer."
   - The ask-P list: actions C does only after P's yes (see "Ask-P list").
-  - "Keep a running total of paid spend in the task file; ask P before a paid call that would take
-    the total past 1 USD. Spend below 1 USD is never asked."
+  - "Keep the task's spend line in the task file (`dev-kit:manager`, «Stating the cost of work»); ask P
+    before a paid API call (`dev-kit-api`) that would take the task's API total past 1 USD. Subscription
+    use and API spend below 1 USD are never asked."
   - On done, C ends its own chat with «Готово, керівник зіллє роботу й закриє цю сесію» and no
     question (`dev-kit:manager`, "A task from the project lead").
 - Register every C at once (the Pult watcher watches the registry's active sessions, see "Wake-up"). Take its full `sessionId` from `claude agents --json` (match by `name` or
@@ -557,7 +560,8 @@ Actions a C does only after P's yes (the same list is in the first prompt and in
 - starting the owner's app in the main checkout;
 - loosening a validation or safety guard;
 - deleting tracked files;
-- a paid call that would take the task's total past 1 USD (spend below 1 USD is never asked);
+- a paid API call (`dev-kit-api`) that would take the task's API total past 1 USD (smaller API spend and
+  subscription use are never asked);
 - any step a project rule says needs consent (check-ui, check-usability, check-look and similar),
   except the checks a screen's approved mockup already allows (`dev-kit:test-change`).
 

@@ -106,7 +106,8 @@ session's work.
 
 Why: the owner decided on 2026-11-19 that sessions' problems are logged and reviewed daily, and that nothing reaches
 a rule or the backlog without the owner's «так» in a retro session; the same day, that token spend is counted in
-units with no dollars (a subscription) and serves only as evidence for trial rules (plans/retro-tokens.md). On the same
+units with no dollars (a subscription) and serves as evidence for trial rules (plans/retro-tokens.md); since
+2026-11-21 the same units also state the cost of work (`dev-kit:manager`, «Stating the cost of work»). On the same
 day the retro questions became Було/Стане blocks under headings (owner: «питання в стилі було - стало»), because
 two-sentence batch items gave no context. On 2026-11-20 the owner asked for one item per message with Проблема, Було,
 Це проблема, бо, Виправлення and Стане (an example), and for noise and fixed findings to be one line, not a question

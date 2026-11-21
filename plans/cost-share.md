@@ -17,7 +17,7 @@ Source: BACKLOG.md, «Rule: how agents state cost on a subscription» (with its 
 The owner approves, in an «Owner's approval» section of this file, how agents state the cost of work (unit, label, where it applies, how an agent gets the number for its own session), and the short plan.
 
 ## Owner's approval
-Owner's «так» on 2026-11-21 to points 1-6; the short plan is not approved yet.
+Owner's «так» on 2026-11-21 to points 1-6; the short plan approved by the owner's «+» the same day.
 
 1. Unit and label. Agents state the cost of their own work (sessions, subagents, `claude -p` runs on
    the subscription login) as a share of the owner's weekly subscription limit, marked as an estimate,
@@ -49,3 +49,17 @@ Owner's «так» on 2026-11-21 to points 1-6; the short plan is not approved y
 6. P's threshold. «Paid spend over $1 in total per task» in
    `docs/features/hand-work-to-the-project-lead.md` (and its rule in `dev-kit:project-lead`) covers only
    real API money through `dev-kit-api`; subscription use does not trigger a question to the owner.
+
+## Build (2026-11-21, session «cost-share-build»)
+- Spend: ~0.3% of the weekly limit, estimate (`dev-kit-retro session`); API: 0 USD.
+- Rule text: `dev-kit:manager` gets «Stating the cost of work» (points 1, 2, 3 use, 5); the C's spend line, P's threshold
+  and ask-P item in `dev-kit:project-lead` and `docs/features/hand-work-to-the-project-lead.md` now count only API money (point 6).
+- Code (dev-kit:coder, sonnet): `dev-kit-retro session`, `dev-kit-statusline` with the usage log, refit of the weekly limit.
+- Code details: the refit uses windows of the last 28 days (`FIT_DAYS`), needs 10+ points (`FIT_MIN_POINTS`), caches closed
+  windows in `state.json` and rereads only the current one; the status line logs only a higher % in a window or a new window.
+- Owner's local settings: `statusLine` added to the user settings (`~/.claude/settings.json`), after P's yes; it points to
+  `plugins/dev-kit/scripts/statusline.py` in the main checkout, so it shows nothing until this branch is merged.
+- Review (sonnet reviewer): fixed - old windows and deleted transcripts no longer drag the limit, reset jitter and stale
+  readings from idle sessions, the calibrate/scan race, tests for the fitted limit. Left for P on merge: the BACKLOG entry's
+  Verdict names «Claude API calls» (the rule now lives in «Stating the cost of work»); `PROGRESS.md` line on the short plan.
+- Checks: full tests and lint pass.
