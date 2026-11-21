@@ -2,7 +2,7 @@
 
 ## Built
 
-- `dev-kit` 0.1.83 - the process skills, generic agents, the documentation standard and its checker, the project lead and its session tools.
+- `dev-kit` 0.1.85 - the process skills, generic agents, the documentation standard and its checker, the project lead and its session tools.
 - `web-kit` 0.2.2 - browser checks and the two-stage screen design.
 - `unity-kit` 0.2.1 - the Unity bridge, user check, scene sketch, GIFs.
 - `pult` 0.1.18 - the hub: leads started at logon, the watcher, the status page.
@@ -21,6 +21,4 @@
 Open work of the features: `dev-kit-check-docs --open`.
 
 ## Open questions
-
-- 2026-11-21 · «P»: Запустити нову сесію «C: Живі перевірки одного режиму»? (повідомлення між проєктами, пробудження від Pult, старт Pult) Рекомендую: так - від тебе нічого не треба.
 
