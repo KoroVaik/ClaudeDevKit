@@ -2,7 +2,7 @@
 
 ## Built
 
-- `dev-kit` 0.1.79 - the process skills, generic agents, the documentation standard and its checker, the project lead and its session tools.
+- `dev-kit` 0.1.80 - the process skills, generic agents, the documentation standard and its checker, the project lead and its session tools.
 - `web-kit` 0.2.2 - browser checks and the two-stage screen design.
 - `unity-kit` 0.2.1 - the Unity bridge, user check, scene sketch, GIFs.
 - `pult` 0.1.16 - the hub: leads started at logon, the watcher, the status page.
@@ -22,4 +22,3 @@ Open work of the features: `dev-kit-check-docs --open`.
 
 ## Open questions
 
-- 2026-11-21 · «C: Один режим для всіх сесій» · ❗: Ставимо заборони? ClaudeDevKit: агентам не можна стирати папки .git і plugins. Prishch: не можна примусово переписувати чи видаляти гілки на GitHub, стирати архів логів і правити налаштування дозволів. Рекомендую: так - лише незворотні дії, звичайна робота не зачеплена.

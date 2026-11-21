@@ -489,7 +489,11 @@ item of a batch or of a numbered list, never repeated in the replies after the p
 exception to the owner's global "Batches of questions": a «так всім» or a «так» to a batch never
 approves the plan; only a «так» to a message whose one question is the plan does. Any owner message
 after the plan other than the «так» to it reopens the discussion: a change goes into the written section first, then the plan is
-shown again, alone. Example:
+shown again, alone. After the owner's «так» to that question the session sends P its done report and
+its last message to the owner is exactly one line, «Обговорення закрите, будову запускає керівник.», with no
+question: a named exception to the owner's global rule to end every reply with a next-step question, since P
+closes the session right after and an answer there is lost. Why: owner, 2026-11-21: «обговорення пише
+питання після того як я підтверджую завершення. Я відповідаю, а сесія тим часом завершується». Example:
 
 ```
 План «Повідомлення керівника»:
