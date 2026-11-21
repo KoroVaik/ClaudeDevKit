@@ -54,3 +54,22 @@ Prishch now: no `permissions` block on main. `Push: ask` (an agent pushes main a
 - `Edit(.claude/settings.json)`, `Edit(.claude/settings.local.json)`
 
 Side effect to know: `Remove-Item*plugins*` also blocks deleting a single file under `plugins/` by PowerShell; agents use `git rm` for tracked files (which needs P's yes anyway).
+
+### Step 2: rule edits (edit-rules step 3 list; ideas approved in «Owner's approval»)
+Decisions made by C within the approved ideas:
+- Migration: entry 3 text points to a new entry 4 «Hard bans on main pass Pult's check» (entries are never removed). Entry 4 catches projects that declined or whose profile says accepted with no lines on main (ClaudeDevKit). Its check is `dev-kit-bans check`.
+- BACKLOG rule (manager «A change to the plugins themselves»): still no message to `P: ClaudeDevKit`; new reason: P finds entries itself, and a session messages only its own P.
+- A project with no lead running (Pult's no-bans notice): the Pult hub prepares the set and runs `dev-kit-bans add` on the owner's «так».
+- Owner-started sessions stay outside: P still sends them no message.
+Changes of behaviour:
+1. Every session a dev-kit project starts runs in bypassPermissions; no bans on main means no session starts (project-lead «Permission mode», «Обговорення:» launch; feature doc).
+2. On the `--bg` disclaimer error P starts nothing and asks the owner for the one-time hand action.
+3. Bans can no longer be declined; P adds them with `dev-kit-bans add` on the owner's «так»; only the latest add can be undone, by P on a «так»; nobody but the owner removes older ones.
+4. A C messages only its own P (sessions, not subagents), unless its brief names another session; «Обговорення:» and P message freely (not owner-started sessions).
+5. Pult starts no lead without bans and asks the owner's «так»; the hub adds the set (hub.md, README, by the Pult coder).
+
+### Step 3: design change, the owner runs the add (P, 2026-11-21)
+The auto-mode guard refused P running `dev-kit-bans add` («Undermining Oversight»): no agent may write permission settings, even after the owner's yes. So agents never run `add` or `undo`; the owner runs one short command. P asked for `dev-kit-bans add-approved [<repo>]`, reading the approved set from a file in the repo; Pult's notice gives that command. Design:
+- The approved set lives in `.claude/hard-bans.json` (`{"deny": [...]}`) in the project; P (or the hub for a project with no lead) writes it after the owner's «так» to the exact lines. It is not a settings file, so agents may write it.
+- `dev-kit-bans add-approved [<repo>]` (repo defaults to the current git top folder): adds the missing lines of that file to `.claude/settings.json` on main, one commit with both files; prints what it added. `undo` is owner-only too.
+- The owner types it with `! ` in P's chat (or the hub's); the command is what P or Pult gives.
