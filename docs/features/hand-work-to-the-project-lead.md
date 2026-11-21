@@ -23,6 +23,13 @@ what changed; the other sessions still at work share one last line «ще пра
 P shows the current state in this form, never a filler phrase; with nothing running and nothing
 waiting, it is one line saying so.
 
+### P never asks what you already answered in a session
+Before P asks you about a session or shows its status, it reads what you wrote in that session since
+its last report. If you already answered there (for example «так» to closing a discussion), P drops its
+own question silently and acts on your answer. Sessions also tell P such answers in a message that
+starts with a fixed kind word: every message between sessions starts with one word from a short fixed
+list (`plugins/dev-kit/messages.md`), such as «ГОТОВО», «ПИТАННЯ» or «ВЛАСНИК ВІДПОВІВ».
+
 ### Critical items reach your phone
 A critical item (a session cannot go on without you, a session crashed, a risk to data or money) also
 comes as a push to your phone. A session that has waited on you 20 minutes (a question from it in P's
@@ -45,12 +52,18 @@ ends with an «Approved design» section (acceptance criteria, the approved mock
 Then P starts a C that builds the screen and shows you its shots next to the mockup.
 
 ### A C asks only P
-A C never asks you in its own chat; it asks P.
+A C never asks you in its own chat; it asks P, and it messages no other session unless P's brief for it
+names one.
 
-### No permission prompts when hard bans hold
-C and P run with no permission prompts when the project's committed settings hold the hard-ban deny rules
-(push to main where it deploys, deleting data, and the like). You accept the Claude Code disclaimer once
-per machine.
+### No permission prompts in any session
+Every session a project starts, P included, runs with no permission prompts, so a message between two
+sessions is never held for your approval. A project whose committed main has no hard-ban deny rules (push
+to main where it deploys, deleting data, and the like) starts no sessions. P shows you the exact lines
+and, on your «так», writes them to `.claude/hard-bans.json`; you cannot decline them. You then type
+`! dev-kit-bans add-approved` in P's chat yourself: no agent runs the add, because the auto-mode guard
+refused P writing permission settings even after your yes (2026-11-21). You also type the undo
+(`! dev-kit-bans undo`, only the latest addition); only you remove an older ban. You accept the Claude
+Code disclaimer once per machine.
 
 ### No two sessions on the same task
 Before a task starts, P (and any session through the manager skill) checks that no other live session of
@@ -61,6 +74,11 @@ P wakes only on a task session's report, your message, or a message from the Pul
 ends, writes the line "Роботу завершено", stops on the usage limit, waits 20 minutes or passes half its
 context; P keeps no watcher of its own. While a task session works and P has been silent 50 minutes, the
 Pult watcher pings P; P then shows its short status.
+
+### P moves itself to a fresh session
+When P's own context is half full, P saves its notes and asks you «Перезапустити мене зараз?» (a phone
+push). The Pult watcher moves P to a fresh session of the same name after 5 quiet minutes, or at once when
+you answer «так» or write «перезапускай»; you type nothing else.
 
 How P does it: [project lead tools](../tech/project-lead.md).
 
@@ -89,6 +107,7 @@ format instead of removing them. Those rules live outside this repo and change o
 - A session finishes while you are away: P writes at once, and its message lists the session as «готово».
 - A task session crashes: you get it at once, also as a push to your phone.
 - A session waits on your answer for 20 minutes: you get one reminder push for that wait; a session waiting on P pushes nothing.
+- You answer a session's question inside that session: P never asks you the same thing in its own chat.
 - A task is finished: P merges it into main and tells you the result; you did not start or watch the C.
 - A second session already works on the same task: P does not start another one.
 
@@ -96,9 +115,13 @@ format instead of removing them. Those rules live outside this repo and change o
 - `plugins/dev-kit/skills/project-lead/SKILL.md`
 - `plugins/dev-kit/skills/manager/SKILL.md`
 - `plugins/dev-kit/agents/overlap-checker.md`
+- `plugins/dev-kit/messages.md`
 - `plugins/dev-kit/scripts/sessions.py`
 - `plugins/dev-kit/bin/dev-kit-sessions`
 - `tools/tests/test_sessions.py`
+- `plugins/dev-kit/scripts/hard_bans.py`
+- `plugins/dev-kit/bin/dev-kit-bans`
+- `tools/tests/test_hard_bans.py`
 
 ## Open
 - [ ] Defect: a question P shows only in chat, not in PROGRESS.md "Open questions", is lost when P restarts; `plugins/dev-kit/skills/project-lead/SKILL.md`

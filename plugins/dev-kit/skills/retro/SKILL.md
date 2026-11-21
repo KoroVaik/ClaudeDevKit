@@ -7,9 +7,10 @@ description: Use when the session was started by the ClaudeDevKit project lead a
 
 The session talks with the owner directly, like an «Обговорення:» session (`dev-kit:project-lead`, "Retro of
 session problems"), and runs in a worktree of ClaudeDevKit. With 1-2 simple findings there is no session: P
-runs the retro in its own chat (its step 4 is only the commit and `dev-kit-retro done`); the flow is in
+runs the retro in its own chat (its step 3 is "Small rule edit" of `dev-kit:project-lead`, its step 4 only
+`dev-kit-retro done`); the flow is in
 `dev-kit:project-lead`, "Retro of session problems". Its input is the unreviewed findings of
-`dev-kit-retro list` (if the command is not found, `python <this plugin>/scripts/retro.py list`): first the section
+`dev-kit-retro list` (if the command is not found, `python -X utf8 <this plugin>/scripts/retro.py list`): first the section
 "Priority: token problems", read first, then the lines of the
 daily transcript scan and the lines sessions appended for what the scan cannot see (the owner's global
 `docs/process-mistakes.md`), then the scan's spend tables (tokens in units, by session and by subagent). The
@@ -54,17 +55,23 @@ sees it.
 ## 2. Ask the owner
 
 This step names itself as an exception to the owner's global "Question" cap (15 words plus a 6-word bracket
-example) and "Batches of questions" format: a retro item needs its context. The rest of the global "Chat replies"
-rules hold: Ukrainian, plain words, no file or rule names.
+example), "Batches of questions" format and its bans on headings and bold labels: a retro item needs its context
+and must read easily on the phone. The rest of the global "Chat replies" rules hold: Ukrainian, plain words, no
+file or rule names.
 
-One real item per message, in the order of the reviewer's list; the next one only after the owner answers. Plain
-labels with no bold:
+One real item per message, in the order of the reviewer's list; the next one only after the owner answers. A
+heading with the problem's name, then bold labels, a blank line between the parts:
 
-    Проблема: <plain name of the problem, at most 6 words>
-    Було: <one concrete moment from a session the owner can picture: what the agent did or wrote>
-    Це проблема, бо: <what it led to or would have led to for the owner, one sentence>
-    Виправлення: <what changes in the rules, in plain words, one sentence>
-    Стане: <the same moment as it will look after the fix, as an example>
+    ### <plain name of the problem, at most 6 words>
+
+    **Було:** <one concrete moment from a session the owner can picture: what the agent did or wrote>
+
+    **Це проблема, бо:** <what it led to or would have led to for the owner, one sentence>
+
+    **Виправлення:** <what changes in the rules, in plain words, one sentence>
+
+    **Стане:** <the same moment as it will look after the fix, as an example>
+
     <the question, at most 15 words, worded so that «так» agrees with it>
     Рекомендую: так - <reason, at most 12 words>
 
@@ -78,7 +85,7 @@ so its question stays last; with no real item, the whole message is «Нових
 ## 3. Apply the yeses
 
 - A wording edit of a plugin skill, agent or rule doc, the repo's `CLAUDE.md`, or the owner's global rules and docs:
-  edit it in this session through `dev-kit:edit-rules`, steps 4-6 (the reviewer did steps 1-2, the owner's «так»
+  edit it in this session (P in its own chat: as in "Small rule edit") through `dev-kit:edit-rules`, steps 4-6 (the reviewer did steps 1-2, the owner's «так»
   here is step 3). The owner's
   global files are local, outside the repo, and are edited in place. Bump the plugin version once if a plugin
   changed.
@@ -94,7 +101,7 @@ so its question stays last; with no real item, the whole message is «Нових
 Run `dev-kit-retro done`, so the findings `list` showed are not proposed again, even when the owner said «ні» to
 all; findings added during the retro stay new. Commit, show the owner the short plan of what this retro
 changed and added (`dev-kit:project-lead`, "Start an «Обговорення:» session", "Short plan"), and only after the
-owner's «так» to it, and only if no owner message came after that «так», send P a done report by SendMessage (what was edited, the backlog entries added); P merges the branch as any
+owner's «так» to it, and only if no owner message came after that «так», send P its done report, a `ЗАКРИТО` message (`${CLAUDE_PLUGIN_ROOT}/messages.md`), by SendMessage (what was edited, the backlog entries added); P merges the branch as any
 session's work.
 
 Why: the owner decided on 2026-11-19 that sessions' problems are logged and reviewed daily, and that nothing reaches
@@ -103,5 +110,7 @@ units with no dollars (a subscription) and serves only as evidence for trial rul
 day the retro questions became Було/Стане blocks under headings (owner: «питання в стилі було - стало»), because
 two-sentence batch items gave no context. On 2026-11-20 the owner asked for one item per message with Проблема, Було,
 Це проблема, бо, Виправлення and Стане (an example), and for noise and fixed findings to be one line, not a question
-(owner: «А нащо мені вже виправлені?», «Я маю розуміти про що ця проблема»). The in-chat variant for 1-2
+(owner: «А нащо мені вже виправлені?», «Я маю розуміти про що ця проблема»). On 2026-11-21 the owner asked for the
+problem name as a heading and bold labels (owner: «Мітки жирними і заголовок назва айтема»): plain labels read as one
+block of text. The in-chat variant for 1-2
 simple findings (2026-11-20): `dev-kit:project-lead`, "Retro of session problems".

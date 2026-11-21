@@ -7,12 +7,15 @@ full their context is.
     dev-kit-sessions fill [--limit 0.5] [--window N] [--over-only]
     dev-kit-sessions others [--self <id>] [--json]
     dev-kit-sessions state [--id <id> ...]
+    dev-kit-sessions answers [--id <id> ...]
     dev-kit-sessions watch [--id <id> ...] [--interval 60] [--max-minutes 120] [--stale-minutes 20]
     dev-kit-sessions check [--id <id> ...] [--stale-minutes 20] [--fill-limit 0.5]
     dev-kit-sessions mark --kind gone|finished|limited|stale|fill|restart [--id <id>] --key <key>
     dev-kit-sessions size --id <id> [--id <id> ...] [--wakes <state file>]
     dev-kit-sessions limited --id <id> [--id <id> ...]
     dev-kit-sessions restart request --version <V> | ready [--version <V>] | status | clear
+    dev-kit-sessions handoff save --file <name.md> [--go] | go | status | clear
+    dev-kit-sessions fill --self [<id>] [--limit 0.5] [--window N] [--over-only]
 
 The registry is `sessions.json` in the project state folder (see dev_kit_state.py; the same folder for all worktrees
 of one repository). Ids (`--id`, `--parent`, `--predecessor`, `--self`) and the registry's ids are trimmed of spaces and
@@ -44,6 +47,14 @@ matching entry has a `pid` (a session with none is closed, see `watch`); `limite
 Claude Code's usage-limit notice (see `usage_limit`; the gist then starts with `resets <YYYY-MM-DD HH:MM>;`, local
 time, or `resets unknown;`): such a session keeps its process and is listed as blocked, so the list cannot tell;
 `working` when the status is busy; else `waiting`. Exit 3 when the list cannot be read.
+
+`answers` shows, per active registry record (or per `--id`, as in `state`), what the owner wrote in that session
+since its last question or report to a peer: the owner's own messages (peer messages left out) after the session's
+last SendMessage call, oldest first, each cut to ANSWER_CHARS, then the gist of the session's last text after them.
+Head line: `name | id | after report <YYYY-MM-DD HH:MM> | N owner messages` (local time); a session that never
+called SendMessage (an owner session taken over) shows its last ANSWER_FALLBACK owner messages instead. The lead
+reads it before it asks the owner about a session or writes its status, so it never asks what the owner already
+answered there. Exit 3 when the list cannot be read.
 
 `watch` waits in silence while the watched sessions live and exits with one line when one is gone, finished (the
 last reply has the finished marker, see `state`), limited (stopped on the usage limit, see `state`) or stale (waiting
@@ -116,6 +127,17 @@ the open one ready when it is for V (one for another version is replaced); `stat
 <seconds>` or `ready <V> <seconds>` (the seconds since the request was asked or marked ready); `clear` removes the
 file (fine when absent). A ready, notified or absent request does not stop `watch`.
 
+`fill --self [<id>]` reports the caller's own context instead of the registry rows (the id defaults to env
+CLAUDE_CODE_SESSION_ID; none: stderr, exit 1; the registry is not read): `self | <id> | N tokens | window W | P%` (with
+OVER at the limit) or `self | <id> | no transcript`; `--over-only` prints only the OVER line.
+
+`handoff` is the file handshake for a full lead (the Pult watcher stops it and starts a fresh lead that loads the
+handoff file; works with an unreadable registry). `handoff.json` next to the registry holds `{"file": NAME, "saved":
+<epoch>, "go": bool}`. `save --file NAME [--go]` writes it (NAME is a bare file name ending in .md of letters,
+digits, dot, underscore, hyphen, starting with a letter or digit, else exit 1; a re-save keeps `go` true); `go` sets
+`go` (exit 1 when nothing is saved); `status` prints `none`, `saved NAME <seconds>` or `go NAME <seconds>` (the
+seconds since the save); `clear` removes the file (fine when absent).
+
 Exit code: 0 done (fill too, whatever the transcripts), 1 unknown or duplicate id (restart: `ready` with no
 request), 2 registry unreadable, 3 the session list could not be read.
 """
@@ -135,6 +157,8 @@ import dev_kit_state  # noqa: E402
 
 REGISTRY = "sessions.json"
 RESTART = "restart.json"
+HANDOFF = "handoff.json"
+HANDOFF_NAME = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]*\.md")  # a bare file name: the watcher puts it on a command line
 PROJECTS_ENV = "DEV_KIT_PROJECTS_DIR"
 DEFAULT_WINDOW = 200000
 NATIVE_1M_WINDOW = 1000000
@@ -158,6 +182,11 @@ CLOSED_GRACE = 300  # seconds a session with no pid stays unreported: the Pult w
 # A reply line (trimmed, emphasis marks and trailing punctuation removed, case ignored) that says the session is done.
 FINISHED_MARKERS = ("Роботу завершено", "Work finished")
 GIST_CHARS = 120
+ANSWER_CHARS = 400  # an owner message in `answers` is cut to this
+ANSWER_FALLBACK = 3  # owner messages `answers` shows for a session that never sent a SendMessage
+ANSWER_SCAN = 50  # owner messages read back while looking for that SendMessage
+ANSWER_ENTRIES = 2000  # transcript entries read back at most (a long C transcript is not read whole)
+SUBAGENT_ID = re.compile(r"^a?[0-9a-f]{16,}$")  # a SendMessage `to` that names a subagent, not a session
 
 class Unreadable(Exception):
     """The registry cannot be read: exit code 2."""
@@ -322,7 +351,29 @@ def window_for(model):
     return DEFAULT_WINDOW
 
 
+def cmd_fill_self(args):
+    own = args.self or os.environ.get("CLAUDE_CODE_SESSION_ID") or ""
+    if not own:
+        print("dev-kit-sessions: no session id: pass --self <id> or set CLAUDE_CODE_SESSION_ID", file=sys.stderr)
+        return 1
+    transcript = find_transcript(own)
+    usage = last_usage(transcript) if transcript else None
+    if usage is None:
+        if not args.over_only:
+            print(f"self | {own} | no transcript")
+        return 0
+    tokens, model = usage
+    window = args.window or window_for(model)
+    percent = tokens / window
+    flag = " OVER" if percent >= args.limit else ""
+    if flag or not args.over_only:
+        print(f"self | {own} | {tokens} tokens | window {window} | {percent:.0%}{flag}")
+    return 0
+
+
 def cmd_fill(args, path, records):
+    if args.self is not None:
+        return cmd_fill_self(args)
     rows = active(records)
     for record in rows:
         transcript = find_transcript(record["id"])
@@ -713,6 +764,82 @@ def cmd_state(args, path, records):
     return 0
 
 
+def sent_report(entry):
+    """Whether an assistant transcript entry calls the SendMessage tool to a peer session (the session's question or
+    report). A message to its own subagent (`to` is an agent id such as `a` + 16 hex digits) does not count."""
+    content = (entry.get("message") or {}).get("content")
+    return (entry.get("type") == "assistant" and not entry.get("isSidechain") and isinstance(content, list)
+            and any(isinstance(part, dict) and part.get("type") == "tool_use" and part.get("name") == "SendMessage"
+                    and not SUBAGENT_ID.match(str((part.get("input") or {}).get("to") or "").strip())
+                    for part in content))
+
+
+def clock(value):
+    """Local `YYYY-MM-DD HH:MM` of a transcript timestamp, else '?'."""
+    epoch = parse_time(value)
+    return datetime.fromtimestamp(epoch).strftime("%Y-%m-%d %H:%M") if epoch is not None else "?"
+
+
+def owner_after_report(path):
+    """(report_time, owner, reply) of a transcript: report_time is the timestamp of the session's last SendMessage
+    call (None when it sent none); owner lists (timestamp, text) of the owner's own messages after it, oldest first
+    (peer messages, the lead's own included, are left out; with no SendMessage, the last ANSWER_FALLBACK; at most
+    ANSWER_ENTRIES entries are read back); reply is
+    the session's last assistant text after the owner's last message, '' when none."""
+    owner, reply, report_time = [], "", None
+    for scanned, entry in enumerate(tail_entries(path)):
+        if scanned >= ANSWER_ENTRIES:
+            break
+        if entry.get("isSidechain"):
+            continue
+        if sent_report(entry):
+            report_time = entry.get("timestamp")
+            break
+        if entry.get("type") == "assistant":
+            if not owner and not reply:
+                reply = assistant_text(entry)
+        elif (entry.get("origin") or {}).get("kind") != "peer":
+            text = message_text(entry)
+            if text:
+                owner.append((entry.get("timestamp"), text))
+                if report_time is None and len(owner) >= ANSWER_SCAN:
+                    break
+    if report_time is None:
+        owner = owner[:ANSWER_FALLBACK]
+    return report_time, owner[::-1], reply
+
+
+def cmd_answers(args, path, records):
+    try:
+        agents = agents_list(include_ended=True)
+    except RuntimeError as exc:
+        print(f"dev-kit-sessions: the session list could not be read: {exc}", file=sys.stderr)
+        return 3
+    if args.id:
+        wanted = [(record.get("name") if record else None, str(record["id"]) if record else given)
+                  for given in args.id for record in [resolve(records, given)]]
+    else:
+        wanted = [(record.get("name"), str(record.get("id"))) for record in active(records)]
+    for name, session_id in wanted:
+        name = name or next((str(agent.get("name") or "") for agent in agent_entries(agents, session_id)), "")
+        transcript = transcript_of(agents, session_id)
+        try:
+            report_time, owner, reply = owner_after_report(transcript) if transcript else (None, [], "")
+        except OSError:
+            report_time, owner, reply = None, [], ""
+        since = f"after report {clock(report_time)}" if report_time else f"last {ANSWER_FALLBACK}, no report sent"
+        count = f"{len(owner)} owner message{'s' if len(owner) != 1 else ''}" if owner else "no owner message"
+        print(f"{name or '(no name)'} | {session_id} | {since} | {count}")
+        for stamp, text in owner:
+            flat = " ".join(text.split())
+            print(f"  {clock(stamp)} owner: {flat if len(flat) <= ANSWER_CHARS else flat[:ANSWER_CHARS] + '...'}")
+        if owner and reply:
+            print(f"  session after it: {gist_of(reply)}")
+    if not wanted:
+        print("no active sessions")
+    return 0
+
+
 def limited_sessions(watched, agents):
     """(name, id, key, resets_at) of each watched (name, id) that is live in the session list (has a pid) but whose
     transcript ends with the usage-limit notice (see usage_limit)."""
@@ -972,6 +1099,50 @@ def cmd_restart(args, path, records):
         except FileNotFoundError:
             pass
         print("restart cleared")
+    return 0
+
+
+def read_handoff(path):
+    """The saved handoff (dict with a valid `file`) of the project, else None; an unreadable file counts as none."""
+    try:
+        data = json.loads(path.with_name(HANDOFF).read_text(encoding="utf-8-sig"))
+    except (OSError, ValueError):
+        return None
+    if isinstance(data, dict) and isinstance(data.get("file"), str) and HANDOFF_NAME.fullmatch(data["file"]):
+        return data
+    return None
+
+
+def cmd_handoff(args, path, records):
+    target = path.with_name(HANDOFF)
+    saved = read_handoff(path)
+    if args.handoff_action == "save":
+        if not HANDOFF_NAME.fullmatch(args.file):
+            print(f"dev-kit-sessions: {args.file!r} is not a bare file name like handoff-1.md", file=sys.stderr)
+            return 1
+        go = bool(args.go or (saved and saved.get("go")))
+        save(target, {"file": args.file, "saved": time.time(), "go": go})
+        print(f"handoff saved: {args.file}")
+    elif args.handoff_action == "go":
+        if saved is None:
+            print("dev-kit-sessions: no handoff is saved", file=sys.stderr)
+            return 1
+        saved["go"] = True
+        save(target, saved)
+        print(f"handoff go: {saved['file']}")
+    elif args.handoff_action == "status":
+        if saved is None:
+            print("none")
+        else:
+            since = saved.get("saved")
+            age = int(max(0, time.time() - float(since))) if isinstance(since, (int, float)) else 0
+            print(f"{'go' if saved.get('go') else 'saved'} {saved['file']} {age}")
+    else:
+        try:
+            target.unlink()
+        except FileNotFoundError:
+            pass
+        print("handoff cleared")
     return 0
 
 
@@ -1318,11 +1489,15 @@ def main(argv=None):
     fill.add_argument("--limit", type=float, default=0.5)
     fill.add_argument("--window", type=int, default=0)
     fill.add_argument("--over-only", action="store_true", help="print only the OVER rows, nothing else")
+    fill.add_argument("--self", nargs="?", const="", default=None,
+                      help="the caller's own context instead of the registry rows (id default: env CLAUDE_CODE_SESSION_ID)")
     others = sub.add_parser("others")
     others.add_argument("--self", default="", help="the caller's session id (default: env CLAUDE_CODE_SESSION_ID)")
     others.add_argument("--json", action="store_true")
     state = sub.add_parser("state")
     state.add_argument("--id", action="append", default=[], help="a session to show (repeatable; default: the registry)")
+    answers = sub.add_parser("answers", help="what the owner wrote in a session after its last SendMessage")
+    answers.add_argument("--id", action="append", default=[], help="a session to show (repeatable; default: the registry)")
     watch = sub.add_parser("watch")
     watch.add_argument("--id", action="append", default=[], help="a session to watch (repeatable; default: the registry)")
     watch.add_argument("--interval", type=float, default=60, help="seconds between reads of the session list")
@@ -1350,6 +1525,13 @@ def main(argv=None):
     restart_sub.add_parser("ready").add_argument("--version", help="mark ready even with no open request")
     for action in ("status", "clear"):
         restart_sub.add_parser(action)
+    handoff = sub.add_parser("handoff", help="the handoff a full lead leaves for the Pult watcher, which starts a fresh lead")
+    handoff_sub = handoff.add_subparsers(dest="handoff_action", required=True)
+    handoff_save = handoff_sub.add_parser("save")
+    handoff_save.add_argument("--file", required=True, help="the handoff file name (bare, ends in .md)")
+    handoff_save.add_argument("--go", action="store_true", help="move now: skip the quiet wait")
+    for action in ("go", "status", "clear"):
+        handoff_sub.add_parser(action)
     args = parser.parse_args(argv)
     for key in ("id", "parent", "predecessor", "self", "name", "worktree", "task"):  # ids pasted with a CR or spaces
         value = getattr(args, key, None)
@@ -1360,9 +1542,10 @@ def main(argv=None):
     try:
         stateless = args.action in ("limited", "size")  # these read transcripts only, no project state
         path = registry_path(args.project, create=not stateless)
-        records = [] if args.action == "restart" or stateless else load(path)  # the handshake works with a broken registry too
-        return {"add": cmd_add, "end": cmd_end, "list": cmd_list, "fill": cmd_fill, "restart": cmd_restart,
-                "others": cmd_others, "state": cmd_state, "watch": cmd_watch, "check": cmd_check, "mark": cmd_mark,
+        no_rows = args.action in ("restart", "handoff") or (args.action == "fill" and args.self is not None)
+        records = [] if no_rows or stateless else load(path)  # the handshakes and `fill --self` work with a broken registry too
+        return {"add": cmd_add, "end": cmd_end, "list": cmd_list, "fill": cmd_fill, "restart": cmd_restart, "handoff": cmd_handoff,
+                "others": cmd_others, "state": cmd_state, "answers": cmd_answers, "watch": cmd_watch, "check": cmd_check, "mark": cmd_mark,
                 "size": cmd_size, "limited": cmd_limited}[args.action](args, path, records)
     except Unreadable as exc:
         print(f"dev-kit-sessions: {exc}", file=sys.stderr)

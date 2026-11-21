@@ -109,6 +109,11 @@ Phase 1:
 
 Phase 2 (after phase 1 proves delivery):
 12. A lead checks its own fill (`fill --self`) and at 0.5 saves a handoff and writes a «handoff saved» marker; the script stops the old lead, waits until it is gone, starts a fresh one (same name, model, effort, mode; first prompt `/dev-kit:project-lead` plus the handoff, with the resend request to every C); no sends during a handoff; edit hub.md:149 and SKILL.md:721. Check first that the owner's phone chat follows the new session.
+    - Additions (owner, 2026-11-21, «так»): (a) the handoff restart also waits for the lead's 5 minutes of silence
+      (point 3), re-checked right before the stop; (b) when the lead reaches 0.5 it adds a ❗ question to its status,
+      «Перезапустити мене зараз?» (critical, so one phone push per the queue rule); (c) the owner's «так» to it, or his
+      «перезапускай», makes the lead write a marker that lets the script restart it at once, without the 5 minutes;
+      the marker covers only the next handoff.
 
 Tests first: mode matrix (auto to bypass, bypass to auto); target mid-turn (owner writing to Pult; busy lead); target down (error, exit code); `-p` needing approval (hang?); Ukrainian by stdin; one-shot cwd; owner away 10 minutes (one-shot push and Pult's push reach the phone); lead with no watcher shows idle; ping answer on the phone; `watch --max-minutes 0` as a single round.
 Success check: from the logs and transcripts, Pult and a lead with no events show no wakes for a day; one forced GIVEUP gives one push and the fix line in Pult; a C past 0.5 wakes its lead within a few minutes.
@@ -146,3 +151,13 @@ Paid spend (this build) after the tests: about 0.15 USD.
 - Fallback rebuilt (P, 2026-11-20): every phone push is a message asking a relay session to push: Pult if live, else a live lead (idle first). Live: P: Prishch pushed on such a message («Terminal notification sent. Mobile push requested.»).
 - Phone side open: the owner got neither test push (Pult 22:13 UTC, Prishch 22:18 UTC), although both tools said «Mobile push requested». No push in the transcripts is known to have reached the phone (all results end at «requested»; nothing local records delivery). Hypotheses: (1) the Android notification categories the owner turned off on 2026-11-19 (P asks the owner); (2) the app was in the foreground, since the owner was writing to P from the phone during the tests. Cheapest test: the owner locks the phone, a lead pushes once, the owner looks at the lock screen.
 - Re-test with the phone app closed (22:27 UTC): «Тест 7» from Pult reached the phone (owner: «Пуш 7 тіки»), so the earlier loss was the open phone app. «Тест 8» from P: Prishch was never sent: the lead refused it (its skill pushes only urgent things; a second request from an unknown session). Its earlier «Тест 6» call ran («Mobile push requested») while the app was open. So a lead push is not disproven; it needs the new skill's «Push request» exception (dev-kit 0.1.78), and its delivery stays untested until then. Fallback kept: Pult first, a live lead when Pult is down.
+
+## Phase 2 build (C: lead handoff, 2026-11-21)
+- `sessions.py`: `fill --self [ID]` (the caller's own fill, env CLAUDE_CODE_SESSION_ID); `handoff save --file <name.md> [--go] | go | status | clear` (handoff.json next to the registry; a bare ASCII file name, it ends up in a command line).
+- `start-servers.ps1 -Only <name> -Handoff <file>`: a fresh lead (never a resume), first prompt `/dev-kit:project-lead handoff: <file>`.
+- `watch-servers.ps1` Invoke-HandoffCheck after the version check: idle, no message sent to it for 120 s, transcript quiet 5 min (skipped with `go`), hard-ban gate, session list re-read right before the stop, `claude stop`, wait until gone (60 s), fresh start, `handoff clear`, HANDOFF logged. Failure: HANDOFF-FAILED (critical: Pult and the phone), one try per handoff file, the next round's HEAL resumes the old lead. No keep-warm ping to a lead with a marker; the move is synchronous in the round, so no message is sent mid-move.
+- Rule text: project-lead SKILL.md "Restart P" rewritten (save, ❗ «Перезапустити мене зараз?», `handoff go` on «так»/«перезапускай», fresh P loads the file and resends to every C; a failed move is retried only on the owner's word); hub.md exception to «always resume the same conversation»; HANDOFF-FAILED added to Pult's lists; docs (features, tech, pult README).
+- Tests: 630 OK (29 new), lint and docs check clean. Independent review (sonnet): no critical; fixed: a failed move could loop (now one try per file, P re-tries only on the owner's word), the "three kinds" push line, a wrong section name, HANDOFF-FAILED missing from Pult's lists, docs, a failed status call that silenced the ping, the tried mark dropped on success.
+- Not checked live: the phone chat following the new session (plan point 12 «check first»), real `claude stop` timing and the real fresh start. The first live move is P: ClaudeDevKit itself.
+- Release: dev-kit 0.1.83, pult 0.1.18.
+- Paid spend (this build): 0 USD.

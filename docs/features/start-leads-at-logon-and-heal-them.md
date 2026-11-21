@@ -21,6 +21,11 @@ A lead that runs on an older dev-kit version than the installed one, or whose ex
 unity-kit) changed version, is restarted when it is idle. A busy lead is not interrupted: it is restarted
 at a safe point it marks itself.
 
+### A lead past half its context moves to a fresh session
+A lead that saved its notes at half its context is stopped and started fresh under the same name, once it
+has been idle and quiet for 5 minutes, or at once after your «так» or «перезапускай». A failed move is
+shown in Pult and pushed to your phone; the old lead comes back.
+
 ### Your own sessions are never touched
 The watcher never touches your own sessions, taken-over ones included.
 
@@ -43,6 +48,8 @@ start.
 - `plugins/pult/scripts/resume-lib.ps1`
 - `tools/tests/test_watch_servers_restart.py`
 - `tools/tests/test_watch_servers_limit.py`
+- `tools/tests/test_watch_servers_handoff.py`
+- `tools/tests/test_start_servers_handoff.py`
 
 ## Open
 - [ ] Defect: a HEAL has no timeout, so a hung `claude --bg` stalls the watcher loop; `plugins/pult/scripts/watch-servers.ps1`

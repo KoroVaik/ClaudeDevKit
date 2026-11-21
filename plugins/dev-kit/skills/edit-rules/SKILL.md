@@ -63,7 +63,7 @@ language, no em dash). A typo or broken link with no change of meaning skips ste
 - Every path, skill, agent and section the edit names exists (Grep).
 - Grep the old wording again: no restatement is left behind.
 - A note and its index line say the same thing.
-- Run the repo's lint or docs check if it has one (`python tools/lint.py` in the plugin repo).
+- Run the repo's lint or docs check if it has one (`python -X utf8 tools/lint.py` in the plugin repo).
 
 ## 6. Review
 

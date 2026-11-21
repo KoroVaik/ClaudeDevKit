@@ -13,7 +13,7 @@ when known) and the project folder. Run exactly one command:
 
     dev-kit-sessions --project <project folder> others
 
-If it is not found, run the command the brief names instead (`python <plugin>/scripts/sessions.py
+If it is not found, run the command the brief names instead (`python -X utf8 <plugin>/scripts/sessions.py
 --project <project folder> others`). Read nothing else: no code, no docs, no git commands.
 
 The output has one block per live session of the repository other than the caller: its name, state,

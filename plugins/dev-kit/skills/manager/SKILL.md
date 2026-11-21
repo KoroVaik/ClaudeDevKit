@@ -37,7 +37,13 @@ nothing: the merge is P's step, so the owner sees in this chat why the session c
 - An independent part found mid-work goes to P as a new task, in one line. Dependent parts stay in
   this C: it fixes in the task file how the parts fit, then runs parallel subagents. A C never starts
   sessions of its own.
-- A hard ban (a deny rule in the project's settings) is never edited or worked around.
+- A hard ban (a deny rule in the project's settings) is never edited or worked around. A C never writes
+  a ban or `.claude/hard-bans.json`; P (or the Pult hub when no P runs) prepares that file on the owner's «так»
+  and the owner types the command that adds it.
+- It sends a message only to its own P (this limits messages to sessions, not to its own subagents). Another session
+  only when its first prompt names it in a line «May message: <sessions>».
+- Every message to P starts with its kind word (`ГОТОВО`, `ПИТАННЯ`, `ЗАСТРЯГ`, `ВІДПОВІДЬ`), as
+  `${CLAUDE_PLUGIN_ROOT}/messages.md` sets.
 - A SendMessage to P that fails with "not reachable" means P is being restarted. The C keeps the
   report and goes on with its work; P asks for missed reports after its restart, and the C then sends
   the report again.
@@ -61,7 +67,7 @@ Before any work on a new task, small ones included, check that no other live ses
 repository already does it: the owner may start sessions without the project lead. Skip it when the
 task came from the project lead with "P ran the overlap check", and when the session goes on with a
 task it already started. Run `dev-kit-sessions others` (Bash tool; if the command is not found,
-`python <this plugin>/scripts/sessions.py others`). On `no other sessions` go on. Otherwise launch a
+`python -X utf8 <this plugin>/scripts/sessions.py others`). On `no other sessions` go on. Otherwise launch a
 `dev-kit:overlap-checker` subagent (model haiku) with the task in the owner's words, the files or
 area it will touch if known, and the project folder. On "no overlap" go on. On an overlap do not
 start: tell the owner which session does the same task or touches the same files, and ask whether
@@ -242,9 +248,8 @@ and names them to the owner (`dev-kit:project-lead`, "Plugin backlog").
 A git conflict in it is resolved by keeping both entries.
 
 Why: the owner decided on 2026-11-14 that plugin changes are decided in one place, so a fix made in
-one project's session does not bend the process for all the others. No message, since 2026-11-19: a
-SendMessage from a session in another permission mode is held for the owner's approval, and the owner
-does not want to relay between sessions.
+one project's session does not bend the process for all the others. No message, since 2026-11-19: P
+finds the entries itself, and a session messages only its own P (owner, 2026-11-21).
 
 ## Quiet about background work
 

@@ -22,19 +22,32 @@ function Get-ResumeSessionId([string]$Name, [string]$Path, $Sessions) {
 # PowerShell cuts an argument passed to a native command at its first double quote.
 $RestartNote = 'restart: plugin update'
 
+# The word that, followed by the handoff file name, ends the first prompt of a lead started for a handoff (the
+# project-lead skill, "Restart P"; the watcher does this, watch-servers.ps1 Invoke-HandoffCheck).
+# Same rule as sessions.py HANDOFF_NAME: a bare file name that goes on a command line, so no space or quote.
+$HandoffNote = 'handoff:'
+$HandoffNamePattern = '^[A-Za-z0-9][A-Za-z0-9._-]*\.md\z'
+
 # The command line (as an argument array for `claude`) that continues a lead, or starts it fresh.
 # -Restarted adds $RestartNote to the first prompt of a resumed lead. -Prompt, -Model and -Effort
 # come from the lead's servers.psd1 row when it has them (a throwaway test lead uses a cheap model).
+# -Handoff <file>: always a fresh start, even with a SessionId (a resume would bring back the full context), and
+# the prompt ends with `handoff: <file>`; a name that is not a bare .md file name throws.
 function Get-LeadStartArgs([string]$SessionName, [string]$SessionId, [switch]$Restarted,
         [string]$Prompt = '/dev-kit:project-lead', [string]$Model = $LeadModel, [string]$Effort = $LeadEffort,
-        [string]$Mode = 'auto') {
+        [string]$Handoff) {
+    if ($Handoff) {
+        if ($Handoff -cnotmatch $HandoffNamePattern) { throw "the handoff file name is not a bare .md file name: $Handoff" }
+        $Prompt += ' ' + $HandoffNote + ' ' + $Handoff
+        $SessionId = $null
+    }
     if ($SessionId) {
         if ($Restarted) { $Prompt += ' ' + $RestartNote }
         # No flags besides the prompt: any flag makes claude start a copy instead of waking this one.
         return @('--bg', '--resume', $SessionId, '--', $Prompt)
     }
     return @('--bg', '--remote-control', $SessionName, '--name', $SessionName,
-        '--permission-mode', $Mode, '--model', $Model, '--effort', $Effort, '--', $Prompt)
+        '--permission-mode', $LeadPermissionMode, '--model', $Model, '--effort', $Effort, '--', $Prompt)
 }
 
 # Process ids of a background session that still runs: its pty host and its worker. Both command lines
@@ -72,13 +85,15 @@ function Get-ResumeCopyId([string]$Output) {
 # Leads run on this model and reasoning level (the owner's rule: sessions he talks with use Opus, medium).
 $LeadModel = 'opus'
 $LeadEffort = 'medium'
+# The one permission mode of every session the plugin starts (owner, 2026-11-20): no fallback to another mode.
+$LeadPermissionMode = 'bypassPermissions'
 
 # A resumed session takes its model and permission mode from the saved options of its job
 # (~/.claude/jobs/<short id>/state.json, "respawnFlags"). Set --model, --effort and --permission-mode
 # there before resuming, so the lead wakes on $LeadModel / $LeadEffort (or -Model / -Effort) and in
-# -Mode. Returns $true when the file was changed.
+# $LeadPermissionMode. Returns $true when the file was changed.
 function Set-LeadRespawnModel([string]$SessionName, [string]$SessionId, [string]$JobsDir,
-        [string]$Model = $LeadModel, [string]$Effort = $LeadEffort, [string]$Mode = 'auto') {
+        [string]$Model = $LeadModel, [string]$Effort = $LeadEffort) {
     if (-not $JobsDir) { $JobsDir = Join-Path $env:USERPROFILE '.claude\jobs' }
     $utf8 = New-Object System.Text.UTF8Encoding $false
     foreach ($f in Get-ChildItem $JobsDir -Filter state.json -Recurse -Depth 1 -ErrorAction SilentlyContinue) {
@@ -93,7 +108,7 @@ function Set-LeadRespawnModel([string]$SessionName, [string]$SessionId, [string]
             if ($flags[$i] -like '--permission-mode=*' -or $flags[$i] -eq '--dangerously-skip-permissions') { continue }
             $keep += $flags[$i]
         }
-        $keep += @('--model', $Model, '--effort', $Effort, '--permission-mode', $Mode)
+        $keep += @('--model', $Model, '--effort', $Effort, '--permission-mode', $LeadPermissionMode)
         $arr = '[' + (($keep | ForEach-Object { ConvertTo-Json ([string]$_) }) -join ', ') + ']'
         $new = [regex]::Replace($text, '"respawnFlags"\s*:\s*\[[^\]]*\]', { param($m) '"respawnFlags": ' + $arr })
         if ($new -ne $text) { [IO.File]::WriteAllText($f.FullName, $new, $utf8); return $true }
@@ -102,25 +117,35 @@ function Set-LeadRespawnModel([string]$SessionName, [string]$SessionId, [string]
     return $false
 }
 
-# A lead runs in the permission mode its C sessions get (the project-lead skill, "Permission mode"),
-# so P -> C messages are not held for the owner's approval: bypassPermissions when the settings
-# committed on main of the project hold the hard-ban deny rules for both shells (a Bash and a
-# PowerShell deny line of the hard-ban set: git push, rm -rf / Remove-Item, docker) and the owner has accepted the bypass disclaimer on this machine
+# The command the owner types himself (no agent runs it) once the hub has written .claude/hard-bans.json in the
+# project's main checkout; the dev-kit folder is the one next to this plugin (as in the other Pult scripts).
+function Get-AddBansCommand([string]$ProjectPath) {
+    $bin = ([IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..\..\dev-kit\bin\dev-kit-bans')) -replace '\\', '/')
+    return "! python `"$bin`" add-approved `"$($ProjectPath -replace '\\', '/')`""
+}
+
+# Every session the plugin starts runs in $LeadPermissionMode (bypassPermissions); there is no other mode
+# and no fallback. A lead starts only when the settings committed on main of its project hold the
+# hard-ban deny rules for both shells (a Bash and a PowerShell deny line of the hard-ban set: git push,
+# rm -rf / Remove-Item, docker) and the owner has accepted the bypass disclaimer on this machine
 # (skipDangerousModePermissionPrompt in the user settings; without it `claude --bg` with
-# bypassPermissions exits 1). Otherwise auto. Returns @{ Mode; Reason }.
+# bypassPermissions exits 1). Returns @{ Start; Mode; Reason }: Start $true and Mode bypassPermissions when
+# the gate passes, else Start $false, Mode empty and the reason: the lead is then not started and the owner is
+# told (start-servers.ps1: NO-BANS).
 function Get-LeadPermissionMode([string]$Path, [string]$UserSettings) {
     if (-not $UserSettings) { $UserSettings = Join-Path $env:USERPROFILE '.claude\settings.json' }
+    $no = { param($why) @{ Start = $false; Mode = ''; Reason = $why } }
     $text = $null
     try { $text = (git -C $Path show 'main:.claude/settings.json' 2>$null) -join "`n" } catch { }
-    if (-not $text) { return @{ Mode = 'auto'; Reason = 'no .claude/settings.json committed on main' } }
-    try { $deny = @(($text | ConvertFrom-Json).permissions.deny) } catch { return @{ Mode = 'auto'; Reason = 'settings on main do not parse' } }
+    if (-not $text) { return (& $no 'no .claude/settings.json committed on main') }
+    try { $deny = @(($text | ConvertFrom-Json).permissions.deny) } catch { return (& $no 'settings on main do not parse') }
     $bash = @($deny | Where-Object { $_ -like 'Bash(git push*' -or $_ -like 'Bash(rm -rf*' -or $_ -like 'Bash(docker*' })
     $pwsh = @($deny | Where-Object { $_ -like 'PowerShell(git push*' -or $_ -like 'PowerShell(Remove-Item*' -or $_ -like 'PowerShell(docker*' })
     if (-not $bash.Count -or -not $pwsh.Count) {
-        return @{ Mode = 'auto'; Reason = 'no Bash and PowerShell hard-ban deny lines on main' }
+        return (& $no 'no Bash and PowerShell hard-ban deny lines on main')
     }
     $accepted = $false
     try { $accepted = [bool]((Get-Content -Raw -Encoding UTF8 $UserSettings | ConvertFrom-Json).skipDangerousModePermissionPrompt) } catch { }
-    if (-not $accepted) { return @{ Mode = 'auto'; Reason = 'bypass disclaimer not accepted on this machine' } }
-    return @{ Mode = 'bypassPermissions'; Reason = 'hard bans on main' }
+    if (-not $accepted) { return (& $no 'bypass disclaimer not accepted on this machine') }
+    return @{ Start = $true; Mode = $LeadPermissionMode; Reason = 'hard bans on main' }
 }

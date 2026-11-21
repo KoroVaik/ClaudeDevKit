@@ -21,10 +21,10 @@ All use the dev-kit plugin. Each has a project lead "P: <project>": a background
 
 Read only. Sources, per project:
 - Sessions and state: `claude agents --json --cwd <project path>` (add `--all` to include finished ones). Worktrees of the project sit under that path or next to it; group by project.
-- Task sessions registered by the lead and their context fill: `dev-kit-sessions --project <project path> list` and `dev-kit-sessions --project <project path> fill`. In the home folder `dev-kit-sessions` is not on PATH, so run `python {DEVKIT}/bin/dev-kit-sessions ...` with that path.
-- Desktop-app sessions of all projects (title, project folder, state, age): `python {PLUGIN}/scripts/list-sessions.py`.
+- Task sessions registered by the lead and their context fill: `dev-kit-sessions --project <project path> list` and `dev-kit-sessions --project <project path> fill`. In the home folder `dev-kit-sessions` is not on PATH, so run `python -X utf8 {DEVKIT}/bin/dev-kit-sessions ...` with that path.
+- Desktop-app sessions of all projects (title, project folder, state, age): `python -X utf8 {PLUGIN}/scripts/list-sessions.py`.
 - What waits on the owner: the "Open questions" section of `<project path>/PROGRESS.md` (written by the lead P and task sessions C). "None." means nothing waits.
-- Critical token problems, all projects at once: `python {DEVKIT}/bin/dev-kit-retro critical`. Each line
+- Critical token problems, all projects at once: `python -X utf8 {DEVKIT}/bin/dev-kit-retro critical`. Each line
   `critical | <project> | <session> | <date> | spent X% of the weekly limit ...` or `... | wasted X% ...` is a
   problem under its project, in plain words (which session, that day, how much of the weekly limit spent or
   wasted). The command prints a problem once and again only when it grew; nothing printed: show nothing.
@@ -36,13 +36,13 @@ Traps (checked 2026-11-14):
 - Pult server alive: a running `claude.exe` process whose command line has ` remote-control ` and "Pult" (PowerShell `Get-CimInstance Win32_Process -Filter "Name='claude.exe'"`).
 
 - Names shown to the owner: the hub's own session (cwd = the home folder) has a system name like «<user>-f1» in `claude agents --json`. Never show that name to the owner; sessions in the home folder are «Pult».
-- Server history: the last lines of `~/.claude/pult/logs/servers.log` (the health log, written by the watcher, see "Servers"). A HEAL line followed by UP, or a HEAL-TASK line with no HEAL-TASK-FAILED after it, is fixed: show it in one line as "впав о <time>, піднявся сам". A GIVEUP, GIVEUP-TASK, HEAL-FAILED or HEAL-TASK-FAILED line with no UP after it is a problem: show when it happened and the cause the log gives, and propose the fix. A LIMIT line with no LIMIT-END and no "WATCH started" line after it means that session stopped on the usage limit: show it as "стоїть на ліміті до <reset time>" and propose no fix (a restart hits the same limit). UNLOCK lines (a stale lock removed) are shown only when asked. A WATCH-RESTART line means the watcher took new code and started a fresh copy of itself (the new copy's "WATCH started" line comes just before it; nothing to do); WATCH-RESTART-SKIPPED means its new code did not parse or the new copy did not start, so it still runs the old code: show the reason in one line and propose the fix. HOLD on means a stop on purpose: the watcher restarts nothing until `start-servers.ps1` runs.
+- Server history: the last lines of `~/.claude/pult/logs/servers.log` (the health log, written by the watcher, see "Servers"). A HEAL line followed by UP, or a HEAL-TASK line with no HEAL-TASK-FAILED after it, is fixed: show it in one line as "впав о <time>, піднявся сам". A GIVEUP, GIVEUP-TASK, HEAL-FAILED or HEAL-TASK-FAILED line with no UP after it is a problem: show when it happened and the cause the log gives, and propose the fix. A LIMIT line with no LIMIT-END and no "WATCH started" line after it means that session stopped on the usage limit: show it as "стоїть на ліміті до <reset time>" and propose no fix (a restart hits the same limit). UNLOCK lines (a stale lock removed) are shown only when asked. A WATCH-RESTART line means the watcher took new code and started a fresh copy of itself (the new copy's "WATCH started" line comes just before it; nothing to do); WATCH-RESTART-SKIPPED means its new code did not parse or the new copy did not start, so it still runs the old code: show the reason in one line and propose the fix. HOLD on means a stop on purpose: the watcher restarts nothing until `start-servers.ps1` runs. A NO-BANS line with no later MODE line for that project means its lead is blocked (see "Missing hard bans"): show it as «не стартує: немає жорстких заборон», not as a crash.
 
-Status page: run `python {PLUGIN}/scripts/status-page.py` (read only; writes `~/.claude/pult/status.html`, all projects' sessions and open questions on one page) and send that file with SendUserFile, then give the reply below.
+Status page: run `python -X utf8 {PLUGIN}/scripts/status-page.py` (read only; writes `~/.claude/pult/status.html`, all projects' sessions and open questions on one page) and send that file with SendUserFile, then give the reply below.
 
 Reply grouped by project. For each session show name, state and context fill when available (mark OVER as a problem). Under each project list what waits on the owner. Unreadable source: say "not checked: <what>", never guess.
 
-Pult only informs. A project's open question is only shown, never asked here: Pult cannot pass the answer on. A Pult reply ends with no question, except when a server or session is broken and a fix needs the owner's yes. This wins over the global "end every reply with the next-step question".
+Pult only informs. A project's open question is only shown, never asked here: Pult cannot pass the answer on. A Pult reply ends with no question, except when a server or session is broken, or a project has no hard-ban lines ("Missing hard bans"), and the fix needs the owner's yes. This wins over the global "end every reply with the next-step question".
 
 ## Servers
 
@@ -56,9 +56,10 @@ session with the lead's name and folder (`claude agents --json --all`) and runs
 the log gets RESUMED instead of STARTED). No other flag may be added to that command: a flag makes
 claude start a copy, so before resuming it rewrites `--model` / `--effort` / `--permission-mode` in the job's saved
 options (`~/.claude/jobs/<short id>/state.json`, "respawnFlags"; log MODEL): leads run on Opus,
-medium reasoning (`$LeadModel` / `$LeadEffort` in `resume-lib.ps1`), in the permission mode their C sessions get
-(`Get-LeadPermissionMode`, log MODE; the project-lead skill, "Permission mode"). Without an earlier session
-it starts fresh with the same model and mode. A lead stopped a moment ago keeps its processes about a
+medium reasoning (`$LeadModel` / `$LeadEffort` in `resume-lib.ps1`), in `bypassPermissions`, the one mode of every
+session the plugin starts (the hub, leads, `start-session.ps1`); there is no fallback to `auto`. A lead starts only when
+its project has hard-ban deny lines on main (`Get-LeadPermissionMode`, log MODE; "Missing hard bans"). Without an earlier session
+it starts fresh with the same model and mode. `claude` exiting non-zero is logged START-FAILED, not STARTED. A lead stopped a moment ago keeps its processes about a
 second after `claude agents` drops its pid, and a resume then starts a copy without the saved options;
 so `start-servers.ps1` first waits until they are gone (up to 60 s, else log STILL-RUNNING and no
 resume), and if claude still reports a copy it stops and removes it and retries once (log COPY-REMOVED,
@@ -76,7 +77,8 @@ checked on a real restart.
 
 Start any other session (a task for the owner) only with `{PLUGIN}/scripts/start-session.ps1 -Name -Path
 -PromptFile`: Windows PowerShell cuts a prompt passed straight to `claude` at its first double
-quote; the script escapes it and uses Opus, medium.
+quote; the script escapes it and uses Opus, medium, `bypassPermissions` (not in a project with no hard-ban lines on
+main: `NO-BANS`, exit 2). The prompt names whom the session reports to: Pult (the hub) or the project's P.
 
 `{PLUGIN}/scripts/watch-servers.ps1` (started by `start-servers.ps1`, hidden) checks every minute and
 writes to `~/.claude/pult/logs/servers.log` (outside any repository): STATE, DOWN with the session's last state and any
@@ -86,7 +88,8 @@ five mechanical problems itself, with no yes (the owner's yes, 2026-11-16; the o
 - An entry of `servers.psd1` down for two checks in a row: it runs `start-servers.ps1 -Only <name>`
   (the same resume as at logon) and logs HEAL (HEAL-FAILED with the script's words when it did not
   start it); at most 3 tries per hour per entry, then GIVEUP until
-  the entry is up again. Other sessions it never restarts, except the next item. `stop-servers.ps1` and `restart-leads.ps1` leave a hold file (`~/.claude/pult/hold`);
+  the entry is up again. A lead whose project has no hard-ban lines on main is not HEAL'd: it is blocked, not
+  broken (log NO-BANS, no HEAL-FAILED, no GIVEUP; see "Missing hard bans"). Other sessions it never restarts, except the next item. `stop-servers.ps1` and `restart-leads.ps1` leave a hold file (`~/.claude/pult/hold`);
   while it exists the watcher restarts nothing (HOLD on); a full `start-servers.ps1` run removes it.
 - A task session a project lead registered as active (dev-kit `sessions.json`; not a taken-over owner session) that Claude Code
   closed (no process, and not stopped on purpose: a `stopped` one counts only after a `bg retire` line
@@ -109,8 +112,8 @@ five mechanical problems itself, with no yes (the owner's yes, 2026-11-16; the o
   so a merged change never ran before.
 - A dev-kit lock file whose owner is gone (`~/.claude/dev-kit/*/watch.lock`, `app.lock` of a removed
   worktree, leftover `app.lock.takeover` and `*.tmp`): removed, log UNLOCK.
-Everything else (GIVEUP, GIVEUP-TASK, HEAL-FAILED, HEAL-TASK-FAILED, RESTART-LEAD-FAILED, WATCH-RESTART-SKIPPED, a lead that comes back and falls again) stays a problem Pult
-shows and proposes a fix for. A stop with only `claude stop` is undone by the watcher: `stop-servers.ps1`
+Everything else (GIVEUP, GIVEUP-TASK, HEAL-FAILED, HEAL-TASK-FAILED, RESTART-LEAD-FAILED, HANDOFF-FAILED, START-FAILED, WATCH-RESTART-SKIPPED, a lead that comes back and falls again) stays a problem Pult
+shows and proposes a fix for. A project with no hard-ban lines (NO-BANS) is shown too, as blocked, with the question of "Missing hard bans". A stop with only `claude stop` is undone by the watcher: `stop-servers.ps1`
 stops all entries until the next `start-servers.ps1` run; to retire one entry, remove its row from
 `servers.psd1` (the watcher reads the list when it starts). While a full `start-servers.ps1` run goes on,
 the watcher restarts nothing.
@@ -129,11 +132,31 @@ phone). Why: the
 owner's yes of 2026-11-20 to the plan «Pult idle cost»: Pult and the leads were woken every 2 hours only
 to arm their watchers again.
 
+## Missing hard bans
+
+A project with no hard-ban deny lines on main starts no sessions (its lead is not started; a running lead is not
+restarted). The state reaches the owner three ways: the NO-BANS line in `servers.log` ("Server history"), a message
+from the watcher once per lead (`NO-BANS <project> (<reason>)`, handled as in "Phone push"), and "статус". The hub
+prepares the set; the owner types the one command himself:
+- Prepare the set from the template in the project-lead skill, section "Hard bans" (`{DEVKIT}/skills/project-lead/SKILL.md`,
+  entry 4 of `migrations.md`): fill the project-specific placeholders from the project or drop them; no push-to-main
+  ban where P pushes main. Show the owner the exact lines and the reason, one question.
+- On «так»: write `.claude/hard-bans.json` (`{"deny": [...]}`, exactly those lines) in that project's main checkout
+  (when a P of that project runs, P writes it instead), then give the owner the command to type with `! `:
+  `! python -X utf8 {DEVKIT}/bin/dev-kit-bans add-approved <project path>`. The watcher starts the lead on its next look
+  (within 10 minutes); the hub starts nothing itself.
+- The hub never runs `dev-kit-bans add`, `add-approved` or `undo`, and never removes or edits bans. A wrong set:
+  the owner types `! python -X utf8 {DEVKIT}/bin/dev-kit-bans undo <project path>` (reverts only the latest ban-adding
+  commit); older bans only the owner removes by hand.
+Why: 2026-11-21, the auto-mode guard refused an agent writing permission settings even after the owner's yes; the
+owner typing the command himself is allowed.
+
 ## Phone push
 
-Pult pushes to the owner's phone only what the server watcher gave up on: a GIVEUP, GIVEUP-TASK or
-RESTART-LEAD-FAILED line (see "Servers"; a failed HEAL try ends in GIVEUP, so it is not pushed on its
-own). A session that came back by itself, a usage-limit stop and a lead restart that worked push
+Pult pushes to the owner's phone only what the server watcher gave up on: a GIVEUP, GIVEUP-TASK,
+RESTART-LEAD-FAILED or HANDOFF-FAILED line (see "Servers"; a failed HEAL try ends in GIVEUP, so it is not pushed on its
+own), and the one-time NO-BANS line of a blocked lead («Pult: P: X не стартує - немає жорстких заборон, відкрий Pult»),
+after which Pult writes the question of "Missing hard bans". A session that came back by itself, a usage-limit stop and a lead restart that worked push
 nothing. Pult keeps no watcher (see "Servers"): the watcher sends it each such line in a message that
 starts `[EVT-<id>] Pult server watcher:`. For each line Pult sends the PushNotification tool one line
 under 200 characters, the session name and what to act on first («Pult: P: Zhratva не піднявся після 3
@@ -169,7 +192,11 @@ reach a safe point (output `Asked: <name>`), and the watcher restarts it. Pult s
 leads restarted and which were asked. A change of only an extension (web-kit, unity-kit) restarts an idle lead
 the same way; `-Ask` does not wake a busy lead for it and prints `Not asked, busy and only an extension changed: <name>`:
 Pult reports that lead as «оновиться, коли звільниться» (the watcher restarts it once it is idle). Bounds (owner, 2026-11-16): lead sessions (`P: ...`) only,
-never task sessions, owner sessions or Pult itself; always resume the same conversation.
+never task sessions, owner sessions or Pult itself; always resume the same conversation. The one exception
+is a lead's move to a fresh session (dev-kit project-lead skill, "Restart P"): a lead at half its context saves
+a handoff, and the watcher stops it and starts a fresh conversation of the same name that loads it. Pult only
+shows the log: HANDOFF is fixed («перенесено в нову сесію»); HANDOFF-FAILED is a problem to show with a
+proposed fix (the watcher brings the old lead back).
 
 Why: on 2026-11-16 the hub got a merge message but restarted nobody: it acts only when someone writes
 in its chat. `-Ask` writes a request file (`dev-kit-sessions restart`); the watcher sends it to the lead as
@@ -182,7 +209,9 @@ a `restart` event message (a lead on dev-kit before 0.1.78: its own session watc
   check, anything) is delegated, after the owner's yes, to a session started in that project with
   `start-session.ps1` (see "Servers"), so that project's own rules apply. Pult's own job is status,
   servers and lead restarts. Pult never edits another repo itself and uses no `other-repo-editor`
-  (exception to the global rule "Stay in the session's project"; owner, 2026-11-16). Never start or stop sessions without the owner's explicit yes (one exception: "Restart leads for a plugin update").
+  (exception to the global rule "Stay in the session's project"; owner, 2026-11-16). The one exception to
+  that: on the owner's «так», for a project whose lead is not started, the hub writes `.claude/hard-bans.json` in
+  its main checkout and nothing else in that repo ("Missing hard bans"; the owner types the command). Never start or stop sessions without the owner's explicit yes (one exception: "Restart leads for a plugin update").
 - On a problem (a server the watcher gave up on, session over its limit, stuck session) only propose a fix. Act after the owner's explicit yes, and only on that fix.
 - Use only read-only commands for "статус" (exception: `dev-kit-retro critical`, which may run the day's
   transcript scan and notes what it showed).

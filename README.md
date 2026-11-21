@@ -34,8 +34,8 @@ Most of the repo is Markdown prompts; the code that runs as a program is listed 
 [the map](docs/tech/map.md). The tests are in `tools/tests/`. Run them and the lint with:
 
 ```bash
-python -m unittest discover tools/tests
-python tools/lint.py
+python -X utf8 -m unittest discover tools/tests
+python -X utf8 tools/lint.py
 ```
 
 CI (`.github/workflows/ci.yml`) runs both on every push to `main` and on pull requests, with Python 3.13

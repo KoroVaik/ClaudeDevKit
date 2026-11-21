@@ -13,6 +13,12 @@ problem it proposes a fix and acts after an explicit yes.
   home) the hook prints nothing.
 - The Remote Control server "Pult" runs with cwd = the home folder, so its sessions get these rules.
 - The project list is the lead entries of `scripts/servers.psd1`. To add a project, add one row there.
+- One permission mode: every session the plugin starts (leads, the hub, `start-session.ps1`) runs in
+  `bypassPermissions`, never `auto`. A project with no hard-ban deny lines on main starts no sessions: its
+  lead is not started (log NO-BANS), Pult tells you which project lacks them and asks your «так» to the exact
+  lines; on it the hub writes `.claude/hard-bans.json` in the project and gives you one command to type
+  yourself: `! python -X utf8 <dev-kit folder>/bin/dev-kit-bans add-approved <project path>`. No agent runs
+  `dev-kit-bans add`, `add-approved` or `undo`; `undo` (the latest add only) is typed by you too.
 - Logs: `~/.claude/pult/logs/servers.log` (written by `start-servers.ps1` and `watch-servers.ps1`; nothing is
   written inside the plugin folder).
 - The watcher (`scripts/watch-servers.ps1`, started at logon) checks every minute. A lead or server of
@@ -47,9 +53,11 @@ problem it proposes a fix and acts after an explicit yes.
   for every lead on dev-kit 0.1.78 or later and sends each new event (a task session gone, finished, on the
   usage limit, waiting 20 minutes, past half its context, or a restart request) to the lead as a
   cross-session message `[EVT-<id>] Pult server watcher: ...`, by a one-shot `claude -p` (haiku, safe mode,
-  only the SendMessage tool, the lead's permission mode). GIVEUP, GIVEUP-TASK and RESTART-LEAD-FAILED go to
+  only the SendMessage tool, `bypassPermissions`). GIVEUP, GIVEUP-TASK, RESTART-LEAD-FAILED and HANDOFF-FAILED go to
   the Pult session the same way; Pult pushes them to your phone. A lead silent 50 minutes while one of its
-  task sessions works gets a keep-warm ping. A message counts as delivered once its id shows in the
+  task sessions works gets a keep-warm ping. A lead past half its own context that saved a handoff
+  (`dev-kit-sessions handoff save`) is moved to a fresh session of the same name once it has been idle and
+  quiet for 5 minutes, or at once after `handoff go`; HANDOFF in the log. A message counts as delivered once its id shows in the
   target's transcript; until then it is sent again, then pushed to your phone (for Pult: «Pult не піднявся -
   запусти його на комп'ютері»). A push also goes once per session when a conversation passes 0.7 of its
   window. The watcher cannot push by itself (a fresh session's push is refused: «Not sent - this terminal
@@ -75,6 +83,6 @@ The steps of a day with a project lead (P) from the phone and the rules behind t
 [Run all projects from the phone](../../docs/epics/run-all-projects-from-the-phone.md) and the feature
 [Hand work to the project lead](../../docs/features/hand-work-to-the-project-lead.md). The commands:
 
-- Status page: `python scripts/status-page.py` writes `~/.claude/pult/status.html` (`--out` for another file).
-- All desktop-app sessions of all projects: `python scripts/list-sessions.py`.
+- Status page: `python -X utf8 scripts/status-page.py` writes `~/.claude/pult/status.html` (`--out` for another file).
+- All desktop-app sessions of all projects: `python -X utf8 scripts/list-sessions.py`.
 - After a dev-kit plugin update the watcher restarts each P by itself; to hurry it, run `scripts/restart-leads.ps1 -Ask`. By hand: `scripts/restart-leads.ps1`, or `scripts/stop-servers.ps1` (graceful stop) and then `scripts/start-servers.ps1`, or restart Windows.
