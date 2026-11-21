@@ -160,7 +160,7 @@ Reading the owner's answer. Numbers restart at 1 in each message. The owner's an
 that question; after «Приймаєш усі мої рекомендації?» «так» is «так всім» and «ні» is no to all. A
 bare answer to P's message has this one reading by design, so P never asks back «1 чи 2?» about it.
 Answered questions just leave the counts, with no confirmation line. P sends a C the owner's answer
-to its question verbatim by SendMessage. Why: P sent one written-out question plus «Показати всі
+to its question verbatim by SendMessage, as a `ВІДПОВІДЬ` (`${CLAUDE_PLUGIN_ROOT}/messages.md`). Why: P sent one written-out question plus «Показати всі
 питання?», took the owner's «Так» as two readings and asked «1 чи 2?»; for the owner the closing line
 was no question (P: ClaudeDevKit, 2026-11-20).
 
@@ -226,6 +226,16 @@ question) and `❗` when it is urgent, then the question as it is shown in the f
 `- 2026-11-19 · «C: Чистка гілок» · ❗: видалити 12 гілок, вже влитих у main? (...) Рекомендую: так - ...`.
 The counts, the questions written in full and the full list of "Message templates" are built from these items. An item stays urgent
 only while its session stands waiting on it; once the session goes on or closes, P drops the `❗`.
+
+Read the session first: before every message to the owner that writes out a question about a session
+or shows its status line, P runs `dev-kit-sessions answers` for those sessions (repeatable `--id`; it
+prints what the owner wrote in each after its last report or question to a peer, without messaging
+it). When the owner already answered there what an item asks (a closing «так», a decision), P drops
+that item silently, never asks it again, and acts on the answer; the status line follows what he
+said. A `ВЛАСНИК ВІДПОВІВ` message (`${CLAUDE_PLUGIN_ROOT}/messages.md`) does the same at once. Why: on
+2026-11-21 the owner said «Так» in «Обговорення: Повідомлення між сесіями» to its closing question;
+P showed its older queue item «закриваємо обговорення і запускаємо будову?» without re-reading the
+session (owner: «Чому ти питаєш? Я ж закрив обговорення вже»).
 
 Stale items: at each start status and each wake-up, a question a C put to the owner, unanswered since
 before today, whose answer lies within P's own rights (an Ask-P list step, or a choice inside the
@@ -389,7 +399,8 @@ it on `c/<slug>`, so the merge and the worktree removal see no stray file. C kee
   «Обговорення:» session wrote its «Approved design»; see "Build a designed screen"); the main checkout
   path; "run the dev-kit manager skill; P ran the overlap check"; the report rule (C messages P only
   on done, decision needed, stuck - 3 lines: state, result, what is needed; details in the task
-  file); "before handing in, pull main and resolve conflicts yourself". The report rule names the
+  file; each message starts with its kind word `ГОТОВО`, `ПИТАННЯ`, `ЗАСТРЯГ` or `ВІДПОВІДЬ`, see
+  `${CLAUDE_PLUGIN_ROOT}/messages.md`); "before handing in, pull main and resolve conflicts yourself". The report rule names the
   channel: "send each report with the SendMessage tool to `<P's own session name>`; text in your own
   chat never reaches P". Seen live: without it both C wrote their reports only in their own chat and
   P waited forever. A C messages only its own P (sessions, not its subagents); it messages another
@@ -458,12 +469,15 @@ setup, registration) with these differences:
   write the «Approved design» section in the feature file (`dev-kit:documentation`, "Feature file"),
   or for a discussion with no screen the «Owner's approval» section in the task file, with every
   agreed point in the detail the builders need, and a next-step line in PROGRESS.md; once the owner
-  says the talk is done, show the short plan (`dev-kit:project-lead`, "Start an «Обговорення:» session", "Short plan") and send P a done report by SendMessage
+  says the talk is done, show the short plan (`dev-kit:project-lead`, "Start an «Обговорення:» session", "Short plan") and send P
+  your done report, a `ЗАКРИТО` message (`${CLAUDE_PLUGIN_ROOT}/messages.md`), by SendMessage
   only after the owner's «так» to that plan, and only if no owner message came after that «так»; without that section and that «так» you may not report
-  done".
+  done. When the owner answers here something P may ask him (a question P put to him, a change
+  of scope), send P a `ВЛАСНИК ВІДПОВІВ` message with his words; the closing «так» is the `ЗАКРИТО`
+  message instead".
 - It ends with the owner's «так» to the short plan, when no owner message follows it. P merges and closes it only after
   that done report, as in "Acceptance and merge", but never a screen's branch whose feature file lacks
-  the «Approved design» section: P sends it back. Then P starts a C from that feature file (see "Build a designed screen").
+  the «Approved design» section: P sends it back (a `ВКАЗІВКА`). Then P starts a C from that feature file (see "Build a designed screen").
 - After the launch P writes exactly one line and nothing else: `Відкрий сесію «Обговорення:
   <feature>» - там обговориш усе по задачі.`, with the exact name from the launch. No question, no
   button, no status, no recommendation; the owner's global rules name this exception. When the owner
@@ -478,7 +492,11 @@ item of a batch or of a numbered list, never repeated in the replies after the p
 exception to the owner's global "Batches of questions": a «так всім» or a «так» to a batch never
 approves the plan; only a «так» to a message whose one question is the plan does. Any owner message
 after the plan other than the «так» to it reopens the discussion: a change goes into the written section first, then the plan is
-shown again, alone. Example:
+shown again, alone. After the owner's «так» to that question the session sends P its done report (`ЗАКРИТО`) and
+its last message to the owner is exactly one line, «Обговорення закрите, будову запускає керівник.», with no
+question: a named exception to the owner's global rule to end every reply with a next-step question, since P
+closes the session right after and an answer there is lost. Why: owner, 2026-11-21: «обговорення пише
+питання після того як я підтверджую завершення. Я відповідаю, а сесія тим часом завершується». Example:
 
 ```
 План «Повідомлення керівника»:
@@ -702,11 +720,11 @@ line marked OVER, refresh that C.
 
 ## Refresh an overfull C
 
-1. Message C: reach the nearest checkpoint between steps (never mid-step), run
+1. Message C (a `ВКАЗІВКА`, `${CLAUDE_PLUGIN_ROOT}/messages.md`): reach the nearest checkpoint between steps (never mid-step), run
    `continue-work-in-another-context save`, reply with the handoff file name.
 2. Start a fresh C from inside the SAME worktree folder (no `-w`), same name, model, effort and
    permission mode (no `--remote-control` for a C); first prompt: `/continue-work-in-another-context load <file>`, then "once loaded,
-   send P «picked up» by SendMessage".
+   send P «ВІДПОВІДЬ - picked up» by SendMessage".
 3. Only after the new C's «picked up» reaches P, register it with `dev-kit-sessions add ...
    --predecessor <old id>` (this ends the old record as `replaced`), then run `claude stop <old id>`.
 
@@ -729,7 +747,7 @@ there are many). Then, in the main checkout: if it is not on `main` or `git stat
 empty, P does not merge and adds its own question (merge after the owner tidies the main checkout). P commits its own edits in the main checkout (PROGRESS.md,
 BACKLOG.md `Verdict:` lines) right after making them, so a dirty checkout is never P's own (that is the owner's work in progress, not C's conflict).
 Otherwise `git merge --ff-only c/<slug>`. If it refuses (main moved since C pulled it), P sends it back
-("main moved, pull main") and does not resolve anything itself.
+(«ВКАЗІВКА - main moved, pull main») and does not resolve anything itself.
 
 When P edits a file in the main checkout from outside its own worktree (PROGRESS.md, a feature's
 design state), it re-reads the file after each edit and checks that the edit fully applied before
@@ -738,7 +756,7 @@ of reach (seen in P: Zhratva, 2026-11-18: shell edits half-applied).
 
 For an «Обговорення:» session (a retro too), before the merge and before `claude rm`, P reads its
 transcript and finds the owner's «так» to the short plan. If an owner message follows it, P does not
-merge or close the session and sends it back: «Власник писав після «так»: дообговори і покажи план
+merge or close the session and sends it back: «ВКАЗІВКА - Власник писав після «так»: дообговори і покажи план
 знову». An owner message is a plain-text user entry; tool results and messages from sessions or agents
 do not count. Why: owner, 2026-11-20: «я не закінчив обговорення, і не погодив список змін» (P merged
 and archived a session while he was typing).
@@ -794,7 +812,7 @@ the version.
 - First prompt after the restart: `/dev-kit:project-lead restart: plugin update`. P goes on where it
   stopped: it reads this SKILL.md whole, notes the new version (see
   "Wake-up") and runs `dev-kit-sessions fill`, `dev-kit-sessions others` and `dev-kit-sessions state`.
-  It arms no watcher (see "Wake-up"). Then P sends each active C one SendMessage: «P перезапущено після
+  It arms no watcher (see "Wake-up"). Then P sends each active C one SendMessage: «ВКАЗІВКА - P перезапущено після
   оновлення плагіна. Якщо твій звіт до P не дійшов (помилка "not reachable"), надішли його ще раз.»
   An unfinished step from before the stop is finished now. Then P runs the check of "Apply dev-kit
   migrations"; a migration C it starts shows in the status. Last, P always sends the full start status:

@@ -7,6 +7,7 @@ full their context is.
     dev-kit-sessions fill [--limit 0.5] [--window N] [--over-only]
     dev-kit-sessions others [--self <id>] [--json]
     dev-kit-sessions state [--id <id> ...]
+    dev-kit-sessions answers [--id <id> ...]
     dev-kit-sessions watch [--id <id> ...] [--interval 60] [--max-minutes 120] [--stale-minutes 20]
     dev-kit-sessions check [--id <id> ...] [--stale-minutes 20] [--fill-limit 0.5]
     dev-kit-sessions mark --kind gone|finished|limited|stale|fill|restart [--id <id>] --key <key>
@@ -44,6 +45,14 @@ matching entry has a `pid` (a session with none is closed, see `watch`); `limite
 Claude Code's usage-limit notice (see `usage_limit`; the gist then starts with `resets <YYYY-MM-DD HH:MM>;`, local
 time, or `resets unknown;`): such a session keeps its process and is listed as blocked, so the list cannot tell;
 `working` when the status is busy; else `waiting`. Exit 3 when the list cannot be read.
+
+`answers` shows, per active registry record (or per `--id`, as in `state`), what the owner wrote in that session
+since its last question or report to a peer: the owner's own messages (peer messages left out) after the session's
+last SendMessage call, oldest first, each cut to ANSWER_CHARS, then the gist of the session's last text after them.
+Head line: `name | id | after report <YYYY-MM-DD HH:MM> | N owner messages` (local time); a session that never
+called SendMessage (an owner session taken over) shows its last ANSWER_FALLBACK owner messages instead. The lead
+reads it before it asks the owner about a session or writes its status, so it never asks what the owner already
+answered there. Exit 3 when the list cannot be read.
 
 `watch` waits in silence while the watched sessions live and exits with one line when one is gone, finished (the
 last reply has the finished marker, see `state`), limited (stopped on the usage limit, see `state`) or stale (waiting
@@ -158,6 +167,11 @@ CLOSED_GRACE = 300  # seconds a session with no pid stays unreported: the Pult w
 # A reply line (trimmed, emphasis marks and trailing punctuation removed, case ignored) that says the session is done.
 FINISHED_MARKERS = ("Роботу завершено", "Work finished")
 GIST_CHARS = 120
+ANSWER_CHARS = 400  # an owner message in `answers` is cut to this
+ANSWER_FALLBACK = 3  # owner messages `answers` shows for a session that never sent a SendMessage
+ANSWER_SCAN = 50  # owner messages read back while looking for that SendMessage
+ANSWER_ENTRIES = 2000  # transcript entries read back at most (a long C transcript is not read whole)
+SUBAGENT_ID = re.compile(r"^a?[0-9a-f]{16,}$")  # a SendMessage `to` that names a subagent, not a session
 
 class Unreadable(Exception):
     """The registry cannot be read: exit code 2."""
@@ -708,6 +722,82 @@ def cmd_state(args, path, records):
         name = name or next((str(agent.get("name") or "") for agent in agent_entries(agents, session_id)), "")
         state, gist = session_state(agents, session_id, is_owner(records, session_id))
         print(f"{name or '(no name)'} | {session_id} | {state} | {gist}")
+    if not wanted:
+        print("no active sessions")
+    return 0
+
+
+def sent_report(entry):
+    """Whether an assistant transcript entry calls the SendMessage tool to a peer session (the session's question or
+    report). A message to its own subagent (`to` is an agent id such as `a` + 16 hex digits) does not count."""
+    content = (entry.get("message") or {}).get("content")
+    return (entry.get("type") == "assistant" and not entry.get("isSidechain") and isinstance(content, list)
+            and any(isinstance(part, dict) and part.get("type") == "tool_use" and part.get("name") == "SendMessage"
+                    and not SUBAGENT_ID.match(str((part.get("input") or {}).get("to") or "").strip())
+                    for part in content))
+
+
+def clock(value):
+    """Local `YYYY-MM-DD HH:MM` of a transcript timestamp, else '?'."""
+    epoch = parse_time(value)
+    return datetime.fromtimestamp(epoch).strftime("%Y-%m-%d %H:%M") if epoch is not None else "?"
+
+
+def owner_after_report(path):
+    """(report_time, owner, reply) of a transcript: report_time is the timestamp of the session's last SendMessage
+    call (None when it sent none); owner lists (timestamp, text) of the owner's own messages after it, oldest first
+    (peer messages, the lead's own included, are left out; with no SendMessage, the last ANSWER_FALLBACK; at most
+    ANSWER_ENTRIES entries are read back); reply is
+    the session's last assistant text after the owner's last message, '' when none."""
+    owner, reply, report_time = [], "", None
+    for scanned, entry in enumerate(tail_entries(path)):
+        if scanned >= ANSWER_ENTRIES:
+            break
+        if entry.get("isSidechain"):
+            continue
+        if sent_report(entry):
+            report_time = entry.get("timestamp")
+            break
+        if entry.get("type") == "assistant":
+            if not owner and not reply:
+                reply = assistant_text(entry)
+        elif (entry.get("origin") or {}).get("kind") != "peer":
+            text = message_text(entry)
+            if text:
+                owner.append((entry.get("timestamp"), text))
+                if report_time is None and len(owner) >= ANSWER_SCAN:
+                    break
+    if report_time is None:
+        owner = owner[:ANSWER_FALLBACK]
+    return report_time, owner[::-1], reply
+
+
+def cmd_answers(args, path, records):
+    try:
+        agents = agents_list(include_ended=True)
+    except RuntimeError as exc:
+        print(f"dev-kit-sessions: the session list could not be read: {exc}", file=sys.stderr)
+        return 3
+    if args.id:
+        wanted = [(record.get("name") if record else None, str(record["id"]) if record else given)
+                  for given in args.id for record in [resolve(records, given)]]
+    else:
+        wanted = [(record.get("name"), str(record.get("id"))) for record in active(records)]
+    for name, session_id in wanted:
+        name = name or next((str(agent.get("name") or "") for agent in agent_entries(agents, session_id)), "")
+        transcript = transcript_of(agents, session_id)
+        try:
+            report_time, owner, reply = owner_after_report(transcript) if transcript else (None, [], "")
+        except OSError:
+            report_time, owner, reply = None, [], ""
+        since = f"after report {clock(report_time)}" if report_time else f"last {ANSWER_FALLBACK}, no report sent"
+        count = f"{len(owner)} owner message{'s' if len(owner) != 1 else ''}" if owner else "no owner message"
+        print(f"{name or '(no name)'} | {session_id} | {since} | {count}")
+        for stamp, text in owner:
+            flat = " ".join(text.split())
+            print(f"  {clock(stamp)} owner: {flat if len(flat) <= ANSWER_CHARS else flat[:ANSWER_CHARS] + '...'}")
+        if owner and reply:
+            print(f"  session after it: {gist_of(reply)}")
     if not wanted:
         print("no active sessions")
     return 0
@@ -1323,6 +1413,8 @@ def main(argv=None):
     others.add_argument("--json", action="store_true")
     state = sub.add_parser("state")
     state.add_argument("--id", action="append", default=[], help="a session to show (repeatable; default: the registry)")
+    answers = sub.add_parser("answers", help="what the owner wrote in a session after its last SendMessage")
+    answers.add_argument("--id", action="append", default=[], help="a session to show (repeatable; default: the registry)")
     watch = sub.add_parser("watch")
     watch.add_argument("--id", action="append", default=[], help="a session to watch (repeatable; default: the registry)")
     watch.add_argument("--interval", type=float, default=60, help="seconds between reads of the session list")
@@ -1362,7 +1454,7 @@ def main(argv=None):
         path = registry_path(args.project, create=not stateless)
         records = [] if args.action == "restart" or stateless else load(path)  # the handshake works with a broken registry too
         return {"add": cmd_add, "end": cmd_end, "list": cmd_list, "fill": cmd_fill, "restart": cmd_restart,
-                "others": cmd_others, "state": cmd_state, "watch": cmd_watch, "check": cmd_check, "mark": cmd_mark,
+                "others": cmd_others, "state": cmd_state, "answers": cmd_answers, "watch": cmd_watch, "check": cmd_check, "mark": cmd_mark,
                 "size": cmd_size, "limited": cmd_limited}[args.action](args, path, records)
     except Unreadable as exc:
         print(f"dev-kit-sessions: {exc}", file=sys.stderr)

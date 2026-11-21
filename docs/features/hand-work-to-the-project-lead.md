@@ -23,6 +23,13 @@ what changed; the other sessions still at work share one last line «ще пра
 P shows the current state in this form, never a filler phrase; with nothing running and nothing
 waiting, it is one line saying so.
 
+### P never asks what you already answered in a session
+Before P asks you about a session or shows its status, it reads what you wrote in that session since
+its last report. If you already answered there (for example «так» to closing a discussion), P drops its
+own question silently and acts on your answer. Sessions also tell P such answers in a message that
+starts with a fixed kind word: every message between sessions starts with one word from a short fixed
+list (`plugins/dev-kit/messages.md`), such as «ГОТОВО», «ПИТАННЯ» or «ВЛАСНИК ВІДПОВІВ».
+
 ### Critical items reach your phone
 A critical item (a session cannot go on without you, a session crashed, a risk to data or money) also
 comes as a push to your phone. A session that has waited on you 20 minutes (a question from it in P's
@@ -95,6 +102,7 @@ format instead of removing them. Those rules live outside this repo and change o
 - A session finishes while you are away: P writes at once, and its message lists the session as «готово».
 - A task session crashes: you get it at once, also as a push to your phone.
 - A session waits on your answer for 20 minutes: you get one reminder push for that wait; a session waiting on P pushes nothing.
+- You answer a session's question inside that session: P never asks you the same thing in its own chat.
 - A task is finished: P merges it into main and tells you the result; you did not start or watch the C.
 - A second session already works on the same task: P does not start another one.
 
@@ -102,6 +110,7 @@ format instead of removing them. Those rules live outside this repo and change o
 - `plugins/dev-kit/skills/project-lead/SKILL.md`
 - `plugins/dev-kit/skills/manager/SKILL.md`
 - `plugins/dev-kit/agents/overlap-checker.md`
+- `plugins/dev-kit/messages.md`
 - `plugins/dev-kit/scripts/sessions.py`
 - `plugins/dev-kit/bin/dev-kit-sessions`
 - `tools/tests/test_sessions.py`

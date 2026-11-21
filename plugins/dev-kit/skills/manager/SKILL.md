@@ -42,6 +42,8 @@ nothing: the merge is P's step, so the owner sees in this chat why the session c
   and the owner types the command that adds it.
 - It sends a message only to its own P (this limits messages to sessions, not to its own subagents). Another session
   only when its first prompt names it in a line «May message: <sessions>».
+- Every message to P starts with its kind word (`ГОТОВО`, `ПИТАННЯ`, `ЗАСТРЯГ`, `ВІДПОВІДЬ`), as
+  `${CLAUDE_PLUGIN_ROOT}/messages.md` sets.
 - A SendMessage to P that fails with "not reachable" means P is being restarted. The C keeps the
   report and goes on with its work; P asks for missed reports after its restart, and the C then sends
   the report again.
