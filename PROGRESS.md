@@ -2,7 +2,7 @@
 
 ## Built
 
-- `dev-kit` 0.1.86 - the process skills, generic agents, the documentation standard and its checker, the project lead and its session tools, the Windows shell-traps hook.
+- `dev-kit` 0.1.87 - the process skills, generic agents, the documentation standard and its checker, the project lead and its session tools, the Windows shell-traps hook, the shared Claude API client with its spend log (`dev-kit-api`).
 - `web-kit` 0.2.2 - browser checks and the two-stage screen design.
 - `unity-kit` 0.2.1 - the Unity bridge, user check, scene sketch, GIFs.
 - `pult` 0.1.19 - the hub: leads started at logon, the watcher, the status page.
@@ -20,7 +20,7 @@
 
 - [Windows traps hook](plans/windows-traps-hook.md): built (dev-kit 0.1.86); still open: the 20-call catalogue-judge batch in Zhratva to count failed calls.
 
-- [Shared Claude API client](plans/api-client.md): discussion with the owner; log format, cost, Python client, keys and Zhratva's part agreed (2026-11-21); next: the short plan for the owner's yes.
+- [Shared Claude API client](plans/api-client.md): dev-kit side built (dev-kit 0.1.87); next: the deny lines for the owner and the Zhratva handoff (both in the plan).
 
 Open work of the features: `dev-kit-check-docs --open`.
 

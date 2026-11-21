@@ -17,6 +17,7 @@ all your sessions belong to [Run all projects from the phone](run-all-projects-f
 
 - [Hand work to the project lead](../features/hand-work-to-the-project-lead.md)
 - [Take over a session I started](../features/take-over-a-session-i-started.md)
+- [Log and reconcile API spend](../features/log-and-reconcile-api-spend.md)
 
 ## Not written yet
 

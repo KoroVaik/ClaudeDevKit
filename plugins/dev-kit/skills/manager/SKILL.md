@@ -251,6 +251,18 @@ Why: the owner decided on 2026-11-14 that plugin changes are decided in one plac
 one project's session does not bend the process for all the others. No message, since 2026-11-19: P
 finds the entries itself, and a session messages only its own P (owner, 2026-11-21).
 
+## Claude API calls
+
+An agent (main session or subagent) calls the paid Claude API only through `dev-kit-api call`, never by
+`curl`, a fetch tool or its own script, so each call leaves a spend line in the one local log
+(`dev-kit-api report` sums it). A project's own program that calls the API from its single call point
+appends the same line itself (format: `docs/features/log-and-reconcile-api-spend.md` in the plugin repo).
+The call needs the project's own API key in env `DEV_KIT_API_KEY` and its Console name (`--key-name` or env
+`DEV_KIT_API_KEY_NAME`). Never set `ANTHROPIC_API_KEY` in an agent's environment: a headless `claude -p` would
+then bill that key with no log line; without it, `claude -p` runs on the subscription and is not such a call.
+Deny rules back this where the owner added them. Why: owner, 2026-11-21 (`plans/api-client.md` in the plugin
+repo): the API credit was spent unseen by one project's keys; every call is to be logged and reconciled weekly.
+
 ## Quiet about background work
 
 Subagent and session notices are for the manager, not the owner. Never relay an intermediate status

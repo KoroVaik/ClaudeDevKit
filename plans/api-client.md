@@ -22,5 +22,36 @@ Agree with the owner where the client lives, what it logs, how every project use
 - 2026-11-21, «так»: the dev-kit client is Python, like the other dev-kit tools.
 - 2026-11-21, «так»: each project has its own API key, and the log line carries the key's Console name, so the weekly check reconciles per key.
 
+## Built (dev-kit side, 2026-11-21)
+- `dev-kit-api` (`plugins/dev-kit/scripts/api_client.py`, stdlib only, raw HTTP to /v1/messages with `anthropic-version: 2026-10-21`, retries on 408/409/429/5xx): `call` (sends, writes the line, prints the answer), `report` (sums by key, project, model or day), `reconcile` (Console sums per key against the log), `prices`.
+- Log: `C:/Users/korov/.claude/dev-kit/api-calls.jsonl` (env `DEV_KIT_API_LOG` overrides). Line format and cost rules: `docs/features/log-and-reconcile-api-spend.md` (the one home; the handoff below repeats only what Zhratva needs).
+- Price table: `plugins/dev-kit/api-prices.json`, from the claude-api skill's model table (cached 2026-11-03). Assumed, not on that table: Haiku 5.5 cache read at 0.1x input (0.01 / 0.05 USD). Not priced: fast mode (Opus 5.5 `speed: fast`, 2x), server tools (web search fees); nobody uses them now.
+- Keys: the client reads the key from env `DEV_KIT_API_KEY` (not `ANTHROPIC_API_KEY`, which a headless `claude -p` would bill unlogged; reviewer, 2026-11-21) and its Console name from `--key-name` or env `DEV_KIT_API_KEY_NAME`; the project name defaults to the repository folder (the main repo for a worktree).
+- Rules: `dev-kit:manager` "Claude API calls" (agents only through `dev-kit-api call`); `dev-kit:project-lead` "API credit check" now runs `dev-kit-api reconcile` per key and adds its `line:` text to `credits.md`.
+- Not tested: a live paid call (no API key on this machine for ClaudeDevKit); the HTTP path is tested with a fake opener. Paid spend stays 0 USD.
+
+## Deny lines for P (not written by this C)
+Exact lines, for the owner's user-level `C:/Users/korov/.claude/settings.json` `permissions.deny` (all projects at once, Zhratva included; per-project `.claude/hard-bans.json` works too but needs every project):
+
+```json
+"Bash(*api.anthropic.com*)",
+"PowerShell(*api.anthropic.com*)",
+"WebFetch(domain:api.anthropic.com)"
+```
+
+They stop an agent's direct `curl`/`Invoke-RestMethod`/fetch to the API; `dev-kit-api call` and Zhratva's `tools/ai-api` commands do not name the host, so they still run. Best-effort: a script file that calls the API is not caught (the rule covers that). Not checked: a leading `*` in Bash and PowerShell rules (the existing hard bans use a middle `*`, `Bash(git push*main*)`).
+
+## Handoff to «P: Zhratva» (after the merge)
+Task: append one spend line per paid API call to the shared log, from Zhratva's own call points (AiProviderClient for runtime calls, tools/ai-api for `run` and `batch-collect`); no switch to another client, no dollars computed in Zhratva. The prod worker (home Docker) stays out for now (owner, 2026-11-21).
+- File: `%USERPROFILE%/.claude/dev-kit/api-calls.jsonl`, or the path in env `DEV_KIT_API_LOG` when set. Create the folder when missing.
+- Write: open for append, write the whole line plus `\n` in one write (UTF-8, no BOM), close. Never rewrite or truncate the file. A failed write is logged as a warning and never fails the job (the money is spent).
+- One line per response that has `usage`; for `batch-collect`, one line per succeeded request, `batch: true`, `ts` = collection time, `request_id` = the custom id.
+- Line (keys in this order is nice, not required; compact JSON is fine):
+  `{"v": 1, "ts": "2026-11-21T14:03:05Z", "project": "Zhratva", "key": "<the key's Console name>", "model": "<response model>", "batch": false, "input": <usage.input_tokens>, "output": <usage.output_tokens>, "cache_write_5m": <usage.cache_creation.ephemeral_5m_input_tokens>, "cache_write_1h": <usage.cache_creation.ephemeral_1h_input_tokens>, "cache_read": <usage.cache_read_input_tokens>, "cost_usd": null, "source": "AiProviderClient" or "ai-api <command>", "request_id": "<message id or custom id>"}`
+- `ts` UTC `yyyy-MM-ddTHH:mm:ssZ`. With no `usage.cache_creation` breakdown, all of `cache_creation_input_tokens` goes to `cache_write_5m`. A missing number is 0.
+- Key name: from config next to the key (user-secrets locally), e.g. `Ai:KeyName`; the value is the key's name in the Console. The owner's choice: each project has its own key, so the Zhratva keys stay Zhratva's.
+- Keep the API key out of `ANTHROPIC_API_KEY` in any shell where `claude -p` runs (catalogue, reuse-court): `claude -p` bills a set `ANTHROPIC_API_KEY` with no log line.
+- Check: one cheap call (Haiku, a few tokens) writes one line; `dev-kit-api report --days 1 --by project` shows Zhratva with that call.
+
 ## Paid spend
 Total so far: 0 USD.
