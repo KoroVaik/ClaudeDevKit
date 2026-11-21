@@ -255,6 +255,18 @@ class WatchServersRestartTest(WatcherEnv, unittest.TestCase):
         self.assertIn(f"NO-BANS {LEAD} (no Bash and PowerShell hard-ban deny lines on main)", notices[0])
         self.assertFalse([line for line in log if "RESTART-LEAD-FAILED" in line], log)
 
+    # protects: Bug
+    def test_no_bans_line_of_another_lead_does_not_block_a_restarted_lead(self):
+        (self.scripts / "restart-leads.ps1").write_text(
+            STUB_RESTART + 'Write-Output "NO-BANS P: Other (no Bash and PowerShell hard-ban deny lines on main): not restarted"\n',
+            encoding="ascii")
+        self.plan({2: [{"path": str(self.plugins / "web-kit" / ".claude-plugin" / "plugin.json"),
+                        "write": plugin_json("1.1.0")}]})
+        log = self.run_watch(4)
+        self.assertEqual([f"Name={LEAD} Ready= call=2"], self.restart_calls())
+        self.assertFalse([line for line in log if " NO-BANS " in line], log)
+        self.assertFalse([line for line in log if "RESTART-LEAD-FAILED" in line], log)
+
     # protects: Rule
     def test_down_lead_without_hard_bans_is_not_healed_in_a_loop(self):
         (self.scripts / "start-servers.ps1").write_text(STUB_START_NO_BANS, encoding="ascii")

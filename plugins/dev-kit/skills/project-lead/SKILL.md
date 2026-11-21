@@ -336,7 +336,7 @@ proposed, not opened, because «краще перепитать, бо я мож�
   the local main (seen live: 6 weeks old, without `.claude/dev-kit.md`).
 - Permission mode: every session P starts runs in `bypassPermissions` (no prompts), never `auto`.
   With no Bash and PowerShell hard-ban deny lines on main (`dev-kit-bans check <main checkout>`
-  fails) P starts no session and first gets the bans added (see "Hard bans"). P also checks that C's
+  fails) P starts no session and first prepares the bans; the owner adds them with one typed command (see "Hard bans"). P also checks that C's
   fresh worktree holds them. A refresh or a restart uses the same mode. Checked live 2026-11-15: after the owner
   accepted the disclaimer below, a bg session with `bypassPermissions` ran a shell command with no
   prompt.
@@ -423,8 +423,8 @@ the pending entries and the list's path. Exit 2 (a broken list or level): P adds
   under this project's rules, check its `Done when`, then run `dev-kit-migrations record <n>` in the
   worktree. An entry with an `Owner choice` goes to P as a question before it is applied, and the C
   waits for the answer (it never records past an entry it has not applied). P puts that choice in the
-  owner queue and passes the answer back; a step the entry leaves to P after the yes (entry 4: P runs
-  `dev-kit-bans add`), P does itself, and the C does not wait for it. With a migration C registered, P starts no second one.
+  owner queue and passes the answer back; a step the entry leaves to P after the yes (entry 4: P writes
+  `.claude/hard-bans.json` and asks the owner to type `! dev-kit-bans add-approved`), P does itself, and the C does not wait for it. With a migration C registered, P starts no second one.
 - The C's edits of rule text run steps 1-2 and 5-6 of `dev-kit:edit-rules`: the owner's yes to the
   entry, given when it was added to the list, is their approval (as in `dev-kit:migrate-docs`). P does
   not apply entries itself.
@@ -539,11 +539,15 @@ a product choice, or adding or undoing a hard ban (see "Hard bans" and "Owner qu
 ## Hard bans
 
 Hard bans are deny rules in a settings file committed on main (`.claude/settings.json`), so every
-fresh worktree has them. A C never adds, changes or lifts them. P only adds: it runs
-`dev-kit-bans add <main checkout> <deny-line>...` after the owner's «так» to the exact lines (the
-command adds lines only and makes one commit on main per run; it never pushes). Nobody but the owner
-removes or edits a ban. On the owner's «так» P may run `dev-kit-bans undo <main checkout>`, which
-reverts only the latest ban-adding commit and refuses a second step. The set is first proposed, as
+fresh worktree has them. A C never adds, changes or lifts them, and never writes `.claude/hard-bans.json`.
+No agent runs `dev-kit-bans add`, `add-approved` or `undo`. P only prepares: after the owner's «так» to the
+exact lines it writes them to `.claude/hard-bans.json` (`{"deny": [...]}`) in the main checkout (no commit
+needed: the file is read from that working tree), then asks the owner to type `! dev-kit-bans add-approved`
+in P's chat (the command adds lines only and makes one commit on main per run, with both files; it never
+pushes). Nobody but the owner removes or edits a ban. To take back a wrong set the owner types
+`! dev-kit-bans undo` (only the latest add; a second step is refused). When no P runs, the Pult hub prepares
+the file the same way. Why: 2026-11-21, the auto-mode guard refused P writing permission settings even after
+the owner's yes; the owner typing the command himself is allowed. The set is first proposed, as
 one question with the exact lines, by entry 4 of the plugin's `migrations.md` (see "Apply dev-kit
 migrations"; entry 3 is replaced by it); a new project gets it the same way, and it cannot be
 declined: a project without the lines starts no sessions. The profile's `hard bans` row records

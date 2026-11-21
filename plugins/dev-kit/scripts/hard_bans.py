@@ -1,8 +1,13 @@
 """Add hard-ban deny lines to a project's `.claude/settings.json` on main, one commit per run, and undo the latest add.
 
     dev-kit-bans add <repo-path> <deny-line> [<deny-line> ...]
+    dev-kit-bans add-approved [<repo-path>]
     dev-kit-bans undo <repo-path>
     dev-kit-bans check <repo-path>
+
+No agent runs `add`, `add-approved` or `undo`: the owner types the command himself (`! dev-kit-bans add-approved` in
+the lead's chat). Why: 2026-11-21, the auto-mode guard refused an agent writing permission settings even after the
+owner's yes; the owner typing the command is allowed. The agent only prepares `.claude/hard-bans.json`.
 
 `add` only appends deny lines (`Tool(...)`) to `permissions.deny`: it never removes or changes a line or a key. The
 repo must be on branch `main` and `.claude/settings.json` must have no uncommitted change (other dirty files stay
@@ -11,11 +16,19 @@ lines is one commit of that file alone, subject `hard bans: add <N> deny lines`,
 rewritten with a 2-space indent (its line endings and BOM are kept), so a file formatted otherwise changes in format
 too. Nothing is pushed.
 
+`add-approved` takes the lines from `<repo>/.claude/hard-bans.json` in the working tree (`{"deny": [...]}`; refused
+when absent or invalid; the repo defaults to the git top folder of the current directory) and adds the missing ones
+exactly like `add` (same checks), printing each added line. One commit holds `.claude/settings.json` and
+`.claude/hard-bans.json` (the latter when it is untracked, staged or changed), trailer `Hard-Bans: add`. With nothing to
+add and `hard-bans.json` unchanged it prints "nothing to add" and commits nothing. Other dirty or staged files stay out.
+
 `undo` reverts only the latest ban-adding commit, one step back: the newest commit on main with a `Hard-Bans:`
-trailer must be an `add` and the newest commit of the settings file at all, and it must have touched that file only.
-The revert is checked before it is committed: the result must equal the file as it is now minus exactly the lines that
-commit added. The revert commit has the trailer `Hard-Bans: undo <sha>`. A second undo is refused: older bans are
-removed by the owner by hand. Nothing is pushed.
+trailer must be an `add` and the newest commit of the settings file at all, and it must have touched only the settings
+file and `.claude/hard-bans.json` (that one too must not have changed since). The revert is checked before it is
+committed: the parent's settings must equal the file as it is now minus exactly the lines that commit added. Both
+files are set back to the parent's content and committed alone (staged work on other files stays staged and out of the
+commit). The revert commit has the trailer `Hard-Bans: undo <sha>`. A second undo is refused: older bans are removed by
+the owner by hand. Nothing is pushed.
 
 `check` tells whether the committed `main:.claude/settings.json` passes Pult's gate (same rule as
 `Get-LeadPermissionMode` in plugins/pult/scripts/resume-lib.ps1): a deny line starting with `Bash(git push`,
@@ -32,6 +45,7 @@ import subprocess
 import sys
 
 SETTINGS = ".claude/settings.json"
+HARD_BANS = ".claude/hard-bans.json"
 BRANCH = "main"
 TRAILER = "Hard-Bans"
 LINE = re.compile(r"[A-Za-z]+\(.+\)")
@@ -131,41 +145,102 @@ def write_settings(path, data, newline, bom):
         f.write((b"\xef\xbb\xbf" if bom else b"") + text.encode("utf-8"))
 
 
-def commit_settings(root, message, stage=True):
-    if stage:  # an undo has staged its revert already (it may be the deletion of the file)
-        git(root, "add", "--", SETTINGS)
-    git(root, "commit", "--only", "-q", "-F", "-", "--", SETTINGS, input_text=message)
+def commit_files(root, message, paths, stage=True):
+    """Commit exactly these files (the index may hold other staged work, which stays staged)."""
+    if stage:  # an undo has staged its revert already (it may be the deletion of a file)
+        git(root, "add", "--", *paths)
+    git(root, "commit", "--only", "-q", "-F", "-", "--", *paths, input_text=message)
     return git(root, "rev-parse", "HEAD")[1]
 
 
-def cmd_add(path, lines):
+def clean_lines(lines):
+    """The deny lines stripped, checked and without duplicates."""
     clean, seen = [], set()
     for line in lines:
+        if not isinstance(line, str):
+            raise Refused(f"not a deny line of the form Tool(...): {line!r}")
         line = line.strip()
         if not LINE.fullmatch(line):
             raise Refused(f"not a deny line of the form Tool(...): {line!r}")
         if line not in seen:
             seen.add(line)
             clean.append(line)
-    if not clean:
-        raise GitError("no deny lines given")
-    root = repo_root(path)
-    require_main(root)
-    require_clean_settings(root)
+    return clean
+
+
+def append_lines(root, clean):
+    """Write the lines that settings.json lacks (nothing else changes); return the new ones."""
     file_path = os.path.join(root, *SETTINGS.split("/"))
     text, newline, bom = read_text(file_path)
     data = parse(text, SETTINGS)
     deny = deny_list(data, SETTINGS, create=True)
     new = [line for line in clean if line not in deny]
+    if new:
+        deny.extend(new)
+        write_settings(file_path, data, newline, bom)
+    return new
+
+
+def add_message(new):
+    body = "\n".join(f"- {line}" for line in new)
+    return f"hard bans: add {len(new)} deny lines\n\n{body}\n\n{TRAILER}: add\n"
+
+
+def cmd_add(path, lines):
+    clean = clean_lines(lines)
+    if not clean:
+        raise GitError("no deny lines given")
+    root = repo_root(path)
+    require_main(root)
+    require_clean_settings(root)
+    new = append_lines(root, clean)
     if not new:
         print("nothing to add")
         return 0
-    deny.extend(new)
-    write_settings(file_path, data, newline, bom)
-    count = len(new)
-    body = "\n".join(f"- {line}" for line in new)
-    message = f"hard bans: add {count} deny lines\n\n{body}\n\n{TRAILER}: add\n"
-    print(commit_settings(root, message))
+    print(commit_files(root, add_message(new), [SETTINGS]))
+    return 0
+
+
+def default_repo():
+    """The git top folder of the current directory."""
+    cwd = os.getcwd()
+    code, top = git(cwd, "rev-parse", "--show-toplevel", check=False)
+    if code != 0 or not top:
+        raise GitError(f"not a git repository: {cwd}")
+    return top
+
+
+def read_approved(root):
+    """The deny lines of the working tree's .claude/hard-bans.json (the set the owner approved)."""
+    file_path = os.path.join(root, *HARD_BANS.split("/"))
+    if not os.path.isfile(file_path):
+        raise Refused(f"{HARD_BANS} is absent in {root}: the lead writes it after the owner's yes")
+    data = parse(read_text(file_path)[0], HARD_BANS)
+    deny = data.get("deny")
+    if not isinstance(deny, list) or not deny:
+        raise Refused(f'{HARD_BANS} must be an object with a non-empty list "deny"')
+    return clean_lines(deny)
+
+
+def cmd_add_approved(path):
+    root = repo_root(path) if path else default_repo()
+    require_main(root)
+    require_clean_settings(root)
+    clean = read_approved(root)
+    new = append_lines(root, clean)
+    _, status = git(root, "status", "--porcelain", "--", HARD_BANS)
+    bans_changed = bool(status.strip())  # untracked, staged or edited: it goes into the commit
+    if not new and not bans_changed:
+        print("nothing to add")
+        return 0
+    paths = ([SETTINGS] if new else []) + ([HARD_BANS] if bans_changed else [])
+    if new:
+        message = add_message(new)
+    else:
+        message = f"hard bans: record approved set\n\n- {HARD_BANS}\n\n{TRAILER}: add\n"
+    for line in new:
+        print(f"added: {line}")
+    print(commit_files(root, message, paths))
     return 0
 
 
@@ -212,8 +287,14 @@ def cmd_undo(path):
     if index != 0:
         raise Refused(f"{commits[0][:10]} changed {SETTINGS} after the hard-bans commit {sha[:10]}; not undoing")
     _, files = git(root, "show", "--no-renames", "--name-only", "--format=", sha)
-    if files.split() != [SETTINGS]:
-        raise Refused(f"commit {sha[:10]} touched more than {SETTINGS}; not undoing")
+    touched = files.split()
+    if SETTINGS not in touched or not set(touched) <= {SETTINGS, HARD_BANS}:
+        raise Refused(f"commit {sha[:10]} touched more than {SETTINGS} and {HARD_BANS}; not undoing")
+    if HARD_BANS in touched:
+        _, bans_log = git(root, "log", BRANCH, "-1", "--format=%H", "--", HARD_BANS)
+        _, bans_status = git(root, "status", "--porcelain", "--", HARD_BANS)
+        if bans_log != sha or bans_status.strip():
+            raise Refused(f"{HARD_BANS} changed after the hard-bans commit {sha[:10]}; not undoing")
 
     file_path = os.path.join(root, *SETTINGS.split("/"))
     before = parse(read_text(file_path)[0], SETTINGS)
@@ -227,19 +308,22 @@ def cmd_undo(path):
     if expected_deny:
         expected["permissions"]["deny"] = [line for line in expected_deny if line not in added]
 
-    code, _ = git(root, "revert", "--no-commit", sha, check=False)
-    ok = code == 0
-    if ok:
-        actual = parse(read_text(file_path)[0], SETTINGS)
-        ok = normalized(actual) == normalized(expected)
-    if not ok:
-        if git(root, "rev-parse", "-q", "--verify", "REVERT_HEAD", check=False)[0] == 0:  # a conflict left it half-done
-            git(root, "revert", "--abort", check=False)
-        git(root, "checkout", "HEAD", "--", SETTINGS, check=False)  # the file was clean, so nothing is lost
+    if normalized(parent_data) != normalized(expected):
         raise Refused("the revert would not only remove the lines that commit added; nothing changed")
+    # Restore the parent's content of the touched files: only these paths of the index change, so other staged work stays.
+    paths = [SETTINGS] + ([HARD_BANS] if HARD_BANS in touched else [])
+    for name in paths:
+        if git(root, "cat-file", "-e", f"{sha}^:{name}", check=False)[0] == 0:
+            git(root, "checkout", f"{sha}^", "--", name)
+        else:
+            git(root, "rm", "-q", "-f", "--", name)
     _, subject = git(root, "log", "-1", "--format=%s", sha)
     message = f'Revert "{subject}"\n\nThis reverts commit {sha}.\n\n{TRAILER}: undo {sha}\n'
-    print(commit_settings(root, message, stage=False))
+    try:
+        print(commit_files(root, message, paths, stage=False))
+    except GitError:
+        git(root, "checkout", "HEAD", "--", *paths, check=False)  # both files were clean, so nothing is lost
+        raise
     return 0
 
 
@@ -279,6 +363,8 @@ def main(argv=None):
     add = sub.add_parser("add", help="add deny lines and commit them on main")
     add.add_argument("repo")
     add.add_argument("lines", nargs="+", metavar="deny-line")
+    approved = sub.add_parser("add-approved", help="add the lines of .claude/hard-bans.json and commit both files on main")
+    approved.add_argument("repo", nargs="?", default=None, help="default: the git top folder of the current directory")
     undo = sub.add_parser("undo", help="revert the latest ban-adding commit (one step back)")
     undo.add_argument("repo")
     check = sub.add_parser("check", help="tell whether committed main passes Pult's gate")
@@ -287,6 +373,8 @@ def main(argv=None):
     try:
         if args.command == "add":
             return cmd_add(args.repo, args.lines)
+        if args.command == "add-approved":
+            return cmd_add_approved(args.repo)
         if args.command == "undo":
             return cmd_undo(args.repo)
         return cmd_check(args.repo)

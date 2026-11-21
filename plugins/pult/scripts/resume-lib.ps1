@@ -103,6 +103,13 @@ function Set-LeadRespawnModel([string]$SessionName, [string]$SessionId, [string]
     return $false
 }
 
+# The command the owner types himself (no agent runs it) once the hub has written .claude/hard-bans.json in the
+# project's main checkout; the dev-kit folder is the one next to this plugin (as in the other Pult scripts).
+function Get-AddBansCommand([string]$ProjectPath) {
+    $bin = ([IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..\..\dev-kit\bin\dev-kit-bans')) -replace '\\', '/')
+    return "! python `"$bin`" add-approved `"$($ProjectPath -replace '\\', '/')`""
+}
+
 # Every session the plugin starts runs in $LeadPermissionMode (bypassPermissions); there is no other mode
 # and no fallback. A lead starts only when the settings committed on main of its project hold the
 # hard-ban deny rules for both shells (a Bash and a PowerShell deny line of the hard-ban set: git push,

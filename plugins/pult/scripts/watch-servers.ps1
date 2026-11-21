@@ -8,7 +8,7 @@
 #   Other sessions it touches only as the next item says; never an owner session.
 #   A lead whose project has no hard-ban lines on main is never started (start-servers.ps1 prints NO-BANS): no
 #   HEAL try is counted, no HEAL-FAILED or GIVEUP; the watcher logs NO-BANS <name> (<reason>) once and sends it to
-#   Pult (the owner's yes is needed to add the bans), looks again every $NoBansRetryMin minutes, and starts the
+#   Pult (the hub prepares .claude/hard-bans.json on the owner's yes; he types `dev-kit-bans add-approved`), looks again every $NoBansRetryMin minutes, and starts the
 #   lead once the bans are on main. A version restart of a running lead (restart-leads.ps1) is skipped the same
 #   way and the lead keeps running.
 # - A task session that a project lead registered as active (<DevKitStateDir>\<repo>-<hash>\sessions.json,
@@ -208,11 +208,16 @@ function Write-Critical([string]$Msg) {
 # $NoBansRetryMin minutes (then the gate runs again, so bans added meanwhile let it start). The owner is told once
 # (Write-Critical: log line and a message to Pult), until the lead is started or restarted again.
 function Register-NoBans([string]$Name, [string]$Said) {
-    $reason = if ($Said -match 'NO-BANS [^(]*\(([^)]*)\)') { $Matches[1] } else { 'no hard-ban lines on main' }
+    $reason = if ($Said -cmatch ('NO-BANS ' + [regex]::Escape($Name) + ' \(([^)]*)\)')) { $Matches[1] } else { 'no hard-ban lines on main' }
     $noBansUntil[$Name] = (Get-Date).AddMinutes($NoBansRetryMin)
     if (-not $noBansTold[$Name]) {
         $noBansTold[$Name] = $true
-        Write-Critical "NO-BANS $Name ($reason): not started, the owner's yes is needed to add the hard bans"
+        # The hub prepares the set and shows it; on the owner's yes it writes .claude/hard-bans.json in the project's
+        # main checkout and gives the owner this command to type himself (no agent runs it).
+        $path = [string](@($servers | Where-Object { $_.Session -ceq $Name } | Select-Object -First 1).Path)
+        $bin = ($DevKitDir -replace '\\', '/') + '/bin/dev-kit-bans'
+        $cmd = if ($path) { "! python `"$bin`" add-approved `"$($path -replace '\\', '/')`"" } else { "! python `"$bin`" add-approved <project path>" }
+        Write-Critical "NO-BANS $Name ($reason): not started. Hub: show the owner the exact lines, on his yes write .claude/hard-bans.json in the project's main checkout and give him this command to type: $cmd"
     }
 }
 
@@ -450,8 +455,10 @@ function Invoke-LeadRestart([string]$LeadName, [switch]$IsReady) {
     $out = & powershell.exe @cmd 2>&1 | Out-String
     $said = ($out.Trim() -replace '\s+', ' ')
     if ($said -match 'Busy, skipped') { return 'busy' }
-    if ($said -match 'NO-BANS ') { Register-NoBans $LeadName $said; return 'nobans' }
+    # The success line is checked first and every match is scoped to this lead: the output of a run may also hold
+    # the NO-BANS line of another lead.
     if ($said -match ('(Resumed|Started) lead: ' + [regex]::Escape($LeadName))) { $noBansTold.Remove($LeadName); return 'ok' }
+    if ($said -cmatch ('NO-BANS ' + [regex]::Escape($LeadName) + ' ')) { Register-NoBans $LeadName $said; return 'nobans' }
     Write-Critical ("RESTART-LEAD-FAILED {0}: {1}" -f $LeadName, $said)
     return 'failed'
 }
@@ -1216,7 +1223,8 @@ while ($true) {
         $out = & powershell.exe -NoProfile -ExecutionPolicy Bypass -File (Join-Path $PSScriptRoot 'start-servers.ps1') `
             -Only $name -ConfigFile $ConfigFile -StateDir $StateDir 2>&1 | Out-String
         $said = ($out.Trim() -replace '\s+', ' ')
-        if ($s.Lead -and $said -match 'NO-BANS ') {
+        $nameEsc = [regex]::Escape($name)
+        if ($s.Lead -and $said -notmatch ('(Resumed|Started)( lead)?: ' + $nameEsc) -and $said -cmatch ('NO-BANS ' + $nameEsc + ' ')) {
             # Not a failed try: the lead is blocked until the owner says yes to the hard bans (Register-NoBans).
             $heals[$name] = $tries
             Register-NoBans $name $said

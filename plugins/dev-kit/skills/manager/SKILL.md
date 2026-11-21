@@ -37,8 +37,9 @@ nothing: the merge is P's step, so the owner sees in this chat why the session c
 - An independent part found mid-work goes to P as a new task, in one line. Dependent parts stay in
   this C: it fixes in the task file how the parts fit, then runs parallel subagents. A C never starts
   sessions of its own.
-- A hard ban (a deny rule in the project's settings) is never edited or worked around; only P adds
-  one, on the owner's «так».
+- A hard ban (a deny rule in the project's settings) is never edited or worked around. A C never writes
+  a ban or `.claude/hard-bans.json`; P (or the Pult hub when no P runs) prepares that file on the owner's «так»
+  and the owner types the command that adds it.
 - It sends a message only to its own P (this limits messages to sessions, not to its own subagents). Another session
   only when its first prompt names it in a line «May message: <sessions>».
 - A SendMessage to P that fails with "not reachable" means P is being restarted. The C keeps the

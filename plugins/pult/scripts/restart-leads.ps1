@@ -108,7 +108,7 @@ foreach ($lead in $leads) {
     $gate = @{ Start = $false; Reason = 'the hard-ban check failed' }
     try { $gate = Get-LeadPermissionMode $row.Path } catch { }
     if (-not $gate.Start) {
-        Write-Output "NO-BANS $lead ($($gate.Reason)): not restarted, it keeps running. Hard bans are missing on main; the owner's yes is needed to add them."
+        Write-Output "NO-BANS $lead ($($gate.Reason)): not restarted, it keeps running. Hard bans are missing on main. Hub: show the owner the exact lines, on his yes write .claude/hard-bans.json in the project's main checkout and give him this command to type: $(Get-AddBansCommand $row.Path)"
         continue
     }
     @(claude stop $s.id) | Select-Object -First 1  # capture first: a cut pipe sets exit code -1

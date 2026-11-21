@@ -1,5 +1,6 @@
 import io
 import json
+import os
 import shutil
 import subprocess
 import sys
@@ -189,6 +190,110 @@ class HardBansTestCase(unittest.TestCase):
         self.assertEqual(self.run_cmd("undo")[0], 0)
         self.assertEqual(git(self.repo, "show", "--name-only", "--format=", "HEAD"), SETTINGS)
         self.assertEqual(git(self.repo, "status", "--porcelain"), " M readme.md")
+
+    def write_bans(self, text):
+        path = self.repo / ".claude" / "hard-bans.json"
+        path.parent.mkdir(exist_ok=True)
+        path.write_text(text if isinstance(text, str) else json.dumps(text), encoding="utf-8")
+
+    # protects: Flow - the owner's one short command adds the approved set, both files in one commit
+    def test_add_approved_one_commit_with_both_files(self):
+        self.commit_settings({"permissions": {"deny": ["Bash(old*)"]}})
+        self.write_bans({"deny": ["Bash(old*)", BASH, PWSH]})
+        code, out = self.run_cmd("add-approved")
+        self.assertEqual((code, self.deny()), (0, ["Bash(old*)", BASH, PWSH]))
+        self.assertIn(f"added: {BASH}", out)
+        self.assertNotIn("added: Bash(old*)", out)
+        self.assertEqual(out.strip().splitlines()[-1], git(self.repo, "rev-parse", "HEAD"))
+        self.assertEqual(sorted(git(self.repo, "show", "--name-only", "--format=", "HEAD").split()),
+                         [".claude/hard-bans.json", SETTINGS])
+        self.assertEqual(git(self.repo, "log", "-1", "--format=%(trailers:key=Hard-Bans,valueonly)").strip(), "add")
+        self.assertEqual(git(self.repo, "status", "--porcelain"), "")
+
+    # protects: Flow - with no repo argument the command works on the git top folder of the current directory
+    def test_add_approved_default_repo_from_cwd(self):
+        self.write_bans({"deny": [BASH]})
+        sub = self.repo / "sub"
+        sub.mkdir()
+        old = Path.cwd()
+        self.addCleanup(os.chdir, old)
+        os.chdir(sub)
+        out, err = io.StringIO(), io.StringIO()
+        with redirect_stdout(out), redirect_stderr(err):
+            code = hard_bans.main(["add-approved"])
+        self.assertEqual((code, self.deny()), (0, [BASH]))
+
+    # protects: Rule - without the approved file, or with a broken one, nothing is added
+    def test_add_approved_refuses_absent_or_invalid_file(self):
+        count = self.commits()
+        code, out = self.run_cmd("add-approved")
+        self.assertEqual(code, 1)
+        self.assertIn("absent", out)
+        for bad in ("{not json", "[]", '{"deny": "Bash(x)"}', '{"deny": []}', '{"deny": ["git push"]}', '{"deny": [1]}'):
+            self.write_bans(bad)
+            self.assertEqual(self.run_cmd("add-approved")[0], 1, bad)
+        self.assertEqual((self.commits(), self.settings.exists()), (count, False))
+
+    # protects: Rule - add-approved keeps the checks of add (main only, settings file clean)
+    def test_add_approved_keeps_add_checks(self):
+        self.write_bans({"deny": [BASH]})
+        self.commit_settings({"permissions": {"deny": []}})
+        self.settings.write_text('{"mine": 1}\n', encoding="utf-8")
+        self.assertEqual(self.run_cmd("add-approved")[0], 1)
+        git(self.repo, "checkout", "--", SETTINGS)
+        git(self.repo, "checkout", "-q", "-b", "other")
+        self.assertEqual(self.run_cmd("add-approved")[0], 1)
+        self.assertEqual(self.deny(), [])
+
+    # protects: Rule - nothing new and an unchanged file mean no commit; a new file alone is still recorded
+    def test_add_approved_nothing_to_add(self):
+        self.write_bans({"deny": [BASH]})
+        self.assertEqual(self.run_cmd("add-approved")[0], 0)
+        count = self.commits()
+        code, out = self.run_cmd("add-approved")
+        self.assertEqual((code, out.strip(), self.commits()), (0, "nothing to add", count))
+        self.write_bans({"deny": [BASH, BASH]})
+        self.assertEqual(self.run_cmd("add-approved")[0], 0)
+        self.assertEqual((self.commits(), git(self.repo, "show", "--name-only", "--format=", "HEAD")),
+                         (count + 1, ".claude/hard-bans.json"))
+
+    # protects: Flow - the owner can take back the latest add-approved commit, both files
+    def test_undo_of_add_approved_commit(self):
+        self.commit_settings({"model": "x", "permissions": {"deny": ["Bash(old*)"]}})
+        self.write_bans({"deny": [BASH]})
+        self.run_cmd("add-approved")
+        added = git(self.repo, "rev-parse", "HEAD")
+        code, _ = self.run_cmd("undo")
+        self.assertEqual(code, 0)
+        self.assertEqual(json.loads(self.settings.read_text(encoding="utf-8")),
+                         {"model": "x", "permissions": {"deny": ["Bash(old*)"]}})
+        self.assertFalse((self.repo / ".claude" / "hard-bans.json").exists())
+        self.assertEqual(sorted(git(self.repo, "show", "--name-only", "--format=", "HEAD").split()),
+                         [".claude/hard-bans.json", SETTINGS])
+        self.assertEqual(git(self.repo, "log", "-1", "--format=%(trailers:key=Hard-Bans,valueonly)").strip(),
+                         f"undo {added}")
+
+    # protects: Rule - a hard-bans.json edited after the add is not ours to revert
+    def test_undo_refused_when_bans_file_changed_since(self):
+        self.write_bans({"deny": [BASH]})
+        self.run_cmd("add-approved")
+        self.write_bans({"deny": [BASH, PWSH]})
+        count = self.commits()
+        code, out = self.run_cmd("undo")
+        self.assertEqual((code, self.commits()), (1, count))
+        self.assertIn("changed after", out)
+
+    # protects: Bug - a staged file of other work must not stop an undo or enter its commit
+    def test_undo_with_other_file_staged(self):
+        self.write_bans({"deny": [BASH]})
+        self.run_cmd("add-approved")
+        (self.repo / "staged.txt").write_text("s\n", encoding="utf-8")
+        git(self.repo, "add", "staged.txt")
+        code, _ = self.run_cmd("undo")
+        self.assertEqual(code, 0)
+        self.assertEqual(sorted(git(self.repo, "show", "--name-only", "--format=", "HEAD").split()),
+                         [".claude/hard-bans.json", SETTINGS])
+        self.assertEqual(git(self.repo, "status", "--porcelain"), "A  staged.txt")
 
     # protects: Flow - the gate needs a Bash and a PowerShell line, same as Pult
     def test_check_pass_and_fail(self):
