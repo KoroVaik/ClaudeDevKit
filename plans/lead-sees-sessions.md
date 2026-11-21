@@ -21,3 +21,10 @@ Agree with the owner how P learns a session's real state and the owner's answers
 - 2026-11-21, owner's «так»: standard message kinds between all session types (P, Обговорення, C, other projects' leads). A short fixed list, each kind with its own first word (for example «ГОТОВО», «ПИТАННЯ», «ВЛАСНИК ВІДПОВІВ», «ЗАКРИТО», «ЗАСТРЯГ»); each session type's rules say which kinds it sends, so a receiver knows what to expect. Replaces «Обговорення sends P one line after the closing «Так»» (that becomes the «ЗАКРИТО» kind). Still open: P re-reads a session before asking or writing its status; P drops a queue item the owner already answered in the session. Touches the same skill texts as plans/cross-mode-messages.md (who may message whom), not against it.
 - 2026-11-21, owner's «так» (to both open points): before any question to the owner or status line about a session, P reads what the owner wrote in that session after its last question or report (a new `dev-kit-sessions` command prints it; pieces `tail_entries`, `message_text` exist). If the owner already answered there, P drops that queue item silently and never asks him again.
 - 2026-11-21: owner's «так» to the short plan; discussion closed.
+
+## Build (2026-11-21, branch c/lead-sees-build)
+- Kinds: `plugins/dev-kit/messages.md` is their one home (7 kinds: ГОТОВО, ЗАКРИТО, ПИТАННЯ, ЗАСТРЯГ, ВЛАСНИК ВІДПОВІВ, ВІДПОВІДЬ, ВКАЗІВКА); project-lead, manager and retro link to it and tag their messages.
+- `dev-kit-sessions answers [--id ...]`: the owner's messages in a session after its last SendMessage to a peer (messages to its own subagents do not count); live check on the 2026-11-21 transcript shows the owner's «Так» after the last report.
+- project-lead "Owner queue and critical items": P runs `answers` before writing out a question about a session or its status line, and drops an item the owner already answered there.
+- Merge note for c/one-mode: both add bullets after "A hard ban" in manager/SKILL.md; keep both. Both bump dev-kit's version.
+- Paid spend: 0 USD.

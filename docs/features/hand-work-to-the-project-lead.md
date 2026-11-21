@@ -27,8 +27,8 @@ waiting, it is one line saying so.
 Before P asks you about a session or shows its status, it reads what you wrote in that session since
 its last report. If you already answered there (for example «так» to closing a discussion), P drops its
 own question silently and acts on your answer. Sessions also tell P such answers in a message that
-starts with a fixed kind word; every message between sessions starts with one of a short fixed list
-(«ГОТОВО», «ПИТАННЯ», «ЗАСТРЯГ», «ВЛАСНИК ВІДПОВІВ», «ЗАКРИТО», «ВІДПОВІДЬ», «ВКАЗІВКА»).
+starts with a fixed kind word: every message between sessions starts with one word from a short fixed
+list (`plugins/dev-kit/messages.md`), such as «ГОТОВО», «ПИТАННЯ» or «ВЛАСНИК ВІДПОВІВ».
 
 ### Critical items reach your phone
 A critical item (a session cannot go on without you, a session crashed, a risk to data or money) also

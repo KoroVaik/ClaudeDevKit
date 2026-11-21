@@ -501,13 +501,14 @@ class SessionsTestCase(unittest.TestCase):
         self.add("d1", name="Обговорення: x")
         self.listing([{"sessionId": "d1", "pid": 1, "status": "idle"}])
         self.transcript("d1", [
-            self.human("old talk", ), self.sent("P: x", "ПИТАННЯ old", "2026-11-21T09:00:00Z"),
+            self.human("old talk"), self.sent("P: x", "ПИТАННЯ old", "2026-11-21T09:00:00Z"),
             self.human("між"), self.sent("P: x", "ЗАКРИТО plan agreed", "2026-11-21T10:11:00Z"),
             self.reply("Закриваю цю сесію обговорення?"),
             {"type": "user", "timestamp": "2026-11-21T10:19:16Z", "origin": {"kind": "human"},
              "message": {"role": "user", "content": "Так"}},
             {"type": "user", "origin": {"kind": "peer", "body": "P asks something"}, "message": {"content": "x"}},
             self.reply("Закрито."),
+            self.sent("ad9edd9da0e244387", "subagent follow-up", "2026-11-21T10:20:00Z"),  # not a report
         ])
         lines = self.answers_lines()
         self.assertEqual(3, len(lines), lines)

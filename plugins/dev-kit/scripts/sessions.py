@@ -170,6 +170,8 @@ GIST_CHARS = 120
 ANSWER_CHARS = 400  # an owner message in `answers` is cut to this
 ANSWER_FALLBACK = 3  # owner messages `answers` shows for a session that never sent a SendMessage
 ANSWER_SCAN = 50  # owner messages read back while looking for that SendMessage
+ANSWER_ENTRIES = 2000  # transcript entries read back at most (a long C transcript is not read whole)
+SUBAGENT_ID = re.compile(r"^a?[0-9a-f]{16,}$")  # a SendMessage `to` that names a subagent, not a session
 
 class Unreadable(Exception):
     """The registry cannot be read: exit code 2."""
@@ -726,10 +728,12 @@ def cmd_state(args, path, records):
 
 
 def sent_report(entry):
-    """Whether an assistant transcript entry calls the SendMessage tool (the session's question or report to a peer)."""
+    """Whether an assistant transcript entry calls the SendMessage tool to a peer session (the session's question or
+    report). A message to its own subagent (`to` is an agent id such as `a` + 16 hex digits) does not count."""
     content = (entry.get("message") or {}).get("content")
     return (entry.get("type") == "assistant" and not entry.get("isSidechain") and isinstance(content, list)
             and any(isinstance(part, dict) and part.get("type") == "tool_use" and part.get("name") == "SendMessage"
+                    and not SUBAGENT_ID.match(str((part.get("input") or {}).get("to") or "").strip())
                     for part in content))
 
 
@@ -742,10 +746,13 @@ def clock(value):
 def owner_after_report(path):
     """(report_time, owner, reply) of a transcript: report_time is the timestamp of the session's last SendMessage
     call (None when it sent none); owner lists (timestamp, text) of the owner's own messages after it, oldest first
-    (peer messages, the lead's own included, are left out; with no SendMessage, the last ANSWER_FALLBACK); reply is
+    (peer messages, the lead's own included, are left out; with no SendMessage, the last ANSWER_FALLBACK; at most
+    ANSWER_ENTRIES entries are read back); reply is
     the session's last assistant text after the owner's last message, '' when none."""
     owner, reply, report_time = [], "", None
-    for entry in tail_entries(path):
+    for scanned, entry in enumerate(tail_entries(path)):
+        if scanned >= ANSWER_ENTRIES:
+            break
         if entry.get("isSidechain"):
             continue
         if sent_report(entry):

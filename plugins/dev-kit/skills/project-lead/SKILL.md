@@ -401,7 +401,7 @@ it on `c/<slug>`, so the merge and the worktree removal see no stray file. C kee
   «Обговорення:» session wrote its «Approved design»; see "Build a designed screen"); the main checkout
   path; "run the dev-kit manager skill; P ran the overlap check"; the report rule (C messages P only
   on done, decision needed, stuck - 3 lines: state, result, what is needed; details in the task
-  file; each message starts with its kind word `ГОТОВО`, `ПИТАННЯ` or `ЗАСТРЯГ`, see
+  file; each message starts with its kind word `ГОТОВО`, `ПИТАННЯ`, `ЗАСТРЯГ` or `ВІДПОВІДЬ`, see
   `${CLAUDE_PLUGIN_ROOT}/messages.md`); "before handing in, pull main and resolve conflicts yourself". The report rule names the
   channel: "send each report with the SendMessage tool to `<P's own session name>`; text in your own
   chat never reaches P". Seen live: without it both C wrote their reports only in their own chat and
@@ -470,11 +470,12 @@ setup, registration) with these differences:
   says the talk is done, show the short plan (`dev-kit:project-lead`, "Start an «Обговорення:» session", "Short plan") and send P
   your done report, a `ЗАКРИТО` message (`${CLAUDE_PLUGIN_ROOT}/messages.md`), by SendMessage
   only after the owner's «так» to that plan, and only if no owner message came after that «так»; without that section and that «так» you may not report
-  done. When the owner answers here something P may ask him (a question P put to him, closing, a
-  change of scope), send P a `ВЛАСНИК ВІДПОВІВ` message with his words".
+  done. When the owner answers here something P may ask him (a question P put to him, a change
+  of scope), send P a `ВЛАСНИК ВІДПОВІВ` message with his words; the closing «так» is the `ЗАКРИТО`
+  message instead".
 - It ends with the owner's «так» to the short plan, when no owner message follows it. P merges and closes it only after
   that done report, as in "Acceptance and merge", but never a screen's branch whose feature file lacks
-  the «Approved design» section: P sends it back. Then P starts a C from that feature file (see "Build a designed screen").
+  the «Approved design» section: P sends it back (a `ВКАЗІВКА`). Then P starts a C from that feature file (see "Build a designed screen").
 - After the launch P writes exactly one line and nothing else: `Відкрий сесію «Обговорення:
   <feature>» - там обговориш усе по задачі.`, with the exact name from the launch. No question, no
   button, no status, no recommendation; the owner's global rules name this exception. When the owner
@@ -732,7 +733,7 @@ there are many). Then, in the main checkout: if it is not on `main` or `git stat
 empty, P does not merge and adds its own question (merge after the owner tidies the main checkout). P commits its own edits in the main checkout (PROGRESS.md,
 BACKLOG.md `Verdict:` lines) right after making them, so a dirty checkout is never P's own (that is the owner's work in progress, not C's conflict).
 Otherwise `git merge --ff-only c/<slug>`. If it refuses (main moved since C pulled it), P sends it back
-("main moved, pull main") and does not resolve anything itself.
+(«ВКАЗІВКА - main moved, pull main») and does not resolve anything itself.
 
 When P edits a file in the main checkout from outside its own worktree (PROGRESS.md, a feature's
 design state), it re-reads the file after each edit and checks that the edit fully applied before
@@ -741,7 +742,7 @@ of reach (seen in P: Zhratva, 2026-11-18: shell edits half-applied).
 
 For an «Обговорення:» session (a retro too), before the merge and before `claude rm`, P reads its
 transcript and finds the owner's «так» to the short plan. If an owner message follows it, P does not
-merge or close the session and sends it back: «Власник писав після «так»: дообговори і покажи план
+merge or close the session and sends it back: «ВКАЗІВКА - Власник писав після «так»: дообговори і покажи план
 знову». An owner message is a plain-text user entry; tool results and messages from sessions or agents
 do not count. Why: owner, 2026-11-20: «я не закінчив обговорення, і не погодив список змін» (P merged
 and archived a session while he was typing).
