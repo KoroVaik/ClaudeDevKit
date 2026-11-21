@@ -15,6 +15,12 @@ Agree with the owner where the client lives, what it logs, how every project use
 - 2026-11-21, «так»: every API call writes one line to one local log next to the weekly credit-check log (date, project, key name, model, tokens, cost).
 - 2026-11-21, «так»: the weekly Console check stays, now as a reconciliation of the Console figure against the log (the API gives no remaining balance).
 - 2026-11-21, «так»: agents may not call the Claude API directly, only through the client (a rule plus a deny rule).
+- 2026-11-21, «так»: the Zhratva prod worker (home Docker on this PC, stopped for two weeks) is not joined to the shared log for now; it keeps its per-call records in its own database; join it when it runs again.
+- 2026-11-21, «так»: the shared part is the log line format and the one log file, not a shared code library; Zhratva appends the line from its own single call point (AiProviderClient and the tools/ai-api CLI), no switch to another client.
+- 2026-11-21, «так»: for other projects and scripts dev-kit ships a small ready client that calls the API and writes the line itself.
+- 2026-11-21, «так»: cost per call is computed from tokens by one shared model price table in dev-kit (the API returns only tokens; Zhratva computes no dollars).
+- 2026-11-21, «так»: the dev-kit client is Python, like the other dev-kit tools.
+- 2026-11-21, «так»: each project has its own API key, and the log line carries the key's Console name, so the weekly check reconciles per key.
 
 ## Paid spend
 Total so far: 0 USD.

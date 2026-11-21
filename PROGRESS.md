@@ -14,7 +14,7 @@
 
 - [Pult idle cost](plans/pult-idle-cost.md): design in «Owner's approval», owner's «так» to the plan (2026-11-20); phase 1 build: «C: Пробудження лише на події».
 
-- [Shared Claude API client](plans/api-client.md): discussion with the owner; log, Console check and the agents' ban agreed (2026-11-21); next: what the shared part is and how Zhratva joins.
+- [Shared Claude API client](plans/api-client.md): discussion with the owner; log format, cost, Python client, keys and Zhratva's part agreed (2026-11-21); next: the short plan for the owner's yes.
 
 Open work of the features: `dev-kit-check-docs --open`.
 
