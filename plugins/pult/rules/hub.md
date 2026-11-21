@@ -137,19 +137,19 @@ to arm their watchers again.
 A project with no hard-ban deny lines on main starts no sessions (its lead is not started; a running lead is not
 restarted). The state reaches the owner three ways: the NO-BANS line in `servers.log` ("Server history"), a message
 from the watcher once per lead (`NO-BANS <project> (<reason>)`, handled as in "Phone push"), and "статус". The hub
-prepares the set; the owner types the one command himself:
+prepares the set and, on the owner's «так», adds it:
 - Prepare the set from the template in the project-lead skill, section "Hard bans" (`{DEVKIT}/skills/project-lead/SKILL.md`,
   entry 4 of `migrations.md`): fill the project-specific placeholders from the project or drop them; no push-to-main
   ban where P pushes main. Show the owner the exact lines and the reason, one question.
 - On «так»: write `.claude/hard-bans.json` (`{"deny": [...]}`, exactly those lines) in that project's main checkout
-  (when a P of that project runs, P writes it instead), then give the owner the command to type with `! `:
-  `! python -X utf8 {DEVKIT}/bin/dev-kit-bans add-approved <project path>`. The watcher starts the lead on its next look
-  (within 10 minutes); the hub starts nothing itself.
-- The hub never runs `dev-kit-bans add`, `add-approved` or `undo`, and never removes or edits bans. A wrong set:
+  (when a P of that project runs, P writes and adds it instead), then run
+  `python -X utf8 {DEVKIT}/bin/dev-kit-bans add-approved <project path>` itself. The watcher starts the lead on its
+  next look (within 10 minutes); the hub starts nothing itself.
+- The hub never runs `dev-kit-bans add` or `undo`, and never removes or edits bans. A wrong set:
   the owner types `! python -X utf8 {DEVKIT}/bin/dev-kit-bans undo <project path>` (reverts only the latest ban-adding
   commit); older bans only the owner removes by hand.
-Why: 2026-11-21, the auto-mode guard refused an agent writing permission settings even after the owner's yes; the
-owner typing the command himself is allowed.
+Why: owner, 2026-11-21: he cannot type a `!` command in a lead's or the hub's chat (from the phone it arrives as a
+plain message); an agent running `add-approved` in `bypassPermissions` passed with no guard refusal.
 
 ## Phone push
 
@@ -211,7 +211,7 @@ a `restart` event message (a lead on dev-kit before 0.1.78: its own session watc
   servers and lead restarts. Pult never edits another repo itself and uses no `other-repo-editor`
   (exception to the global rule "Stay in the session's project"; owner, 2026-11-16). The one exception to
   that: on the owner's «так», for a project whose lead is not started, the hub writes `.claude/hard-bans.json` in
-  its main checkout and nothing else in that repo ("Missing hard bans"; the owner types the command). Never start or stop sessions without the owner's explicit yes (one exception: "Restart leads for a plugin update").
+  its main checkout, runs `dev-kit-bans add-approved` there and changes nothing else in that repo ("Missing hard bans"). Never start or stop sessions without the owner's explicit yes (one exception: "Restart leads for a plugin update").
 - On a problem (a server the watcher gave up on, session over its limit, stuck session) only propose a fix. Act after the owner's explicit yes, and only on that fix.
 - Use only read-only commands for "статус" (exception: `dev-kit-retro critical`, which may run the day's
   transcript scan and notes what it showed).

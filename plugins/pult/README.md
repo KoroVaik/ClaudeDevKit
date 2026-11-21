@@ -16,9 +16,9 @@ problem it proposes a fix and acts after an explicit yes.
 - One permission mode: every session the plugin starts (leads, the hub, `start-session.ps1`) runs in
   `bypassPermissions`, never `auto`. A project with no hard-ban deny lines on main starts no sessions: its
   lead is not started (log NO-BANS), Pult tells you which project lacks them and asks your «так» to the exact
-  lines; on it the hub writes `.claude/hard-bans.json` in the project and gives you one command to type
-  yourself: `! python -X utf8 <dev-kit folder>/bin/dev-kit-bans add-approved <project path>`. No agent runs
-  `dev-kit-bans add`, `add-approved` or `undo`; `undo` (the latest add only) is typed by you too.
+  lines; on it the hub writes `.claude/hard-bans.json` in the project and adds them itself with
+  `dev-kit-bans add-approved` (one commit on main, adding only). No agent runs `dev-kit-bans add` or `undo`, and
+  no agent removes or edits a ban; `undo` (the latest add only) you type yourself.
 - Logs: `~/.claude/pult/logs/servers.log` (written by `start-servers.ps1` and `watch-servers.ps1`; nothing is
   written inside the plugin folder).
 - The watcher (`scripts/watch-servers.ps1`, started at logon) checks every minute. A lead or server of

@@ -5,9 +5,9 @@
     dev-kit-bans undo <repo-path>
     dev-kit-bans check <repo-path>
 
-No agent runs `add`, `add-approved` or `undo`: the owner types the command himself (`! dev-kit-bans add-approved` in
-the lead's chat). Why: 2026-11-21, the auto-mode guard refused an agent writing permission settings even after the
-owner's yes; the owner typing the command is allowed. The agent only prepares `.claude/hard-bans.json`.
+The project lead (or the Pult hub) runs `add-approved` itself after the owner's yes to the exact lines in
+`.claude/hard-bans.json`. No agent runs `add` or `undo`: removing a ban stays the owner's. Why: owner, 2026-11-21: he
+cannot type a `!` command in a lead's chat.
 
 `add` only appends deny lines (`Tool(...)`) to `permissions.deny`: it never removes or changes a line or a key. The
 repo must be on branch `main` and `.claude/settings.json` must have no uncommitted change (other dirty files stay

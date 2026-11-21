@@ -8,7 +8,7 @@
 #   Other sessions it touches only as the next item says; never an owner session.
 #   A lead whose project has no hard-ban lines on main is never started (start-servers.ps1 prints NO-BANS): no
 #   HEAL try is counted, no HEAL-FAILED or GIVEUP; the watcher logs NO-BANS <name> (<reason>) once and sends it to
-#   Pult (the hub prepares .claude/hard-bans.json on the owner's yes; he types `dev-kit-bans add-approved`), looks again every $NoBansRetryMin minutes, and starts the
+#   Pult (the hub prepares .claude/hard-bans.json on the owner's yes; then runs `dev-kit-bans add-approved`), looks again every $NoBansRetryMin minutes, and starts the
 #   lead once the bans are on main. A version restart of a running lead (restart-leads.ps1) is skipped the same
 #   way and the lead keeps running.
 # - A task session that a project lead registered as active (<DevKitStateDir>\<repo>-<hash>\sessions.json,
@@ -238,11 +238,11 @@ function Register-NoBans([string]$Name, [string]$Said) {
     if (-not $noBansTold[$Name]) {
         $noBansTold[$Name] = $true
         # The hub prepares the set and shows it; on the owner's yes it writes .claude/hard-bans.json in the project's
-        # main checkout and gives the owner this command to type himself (no agent runs it).
+        # main checkout and runs this command itself.
         $path = [string](@($servers | Where-Object { $_.Session -ceq $Name } | Select-Object -First 1).Path)
         $bin = ($DevKitDir -replace '\\', '/') + '/bin/dev-kit-bans'
-        $cmd = if ($path) { "! python `"$bin`" add-approved `"$($path -replace '\\', '/')`"" } else { "! python `"$bin`" add-approved <project path>" }
-        Write-Critical "NO-BANS $Name ($reason): not started. Hub: show the owner the exact lines, on his yes write .claude/hard-bans.json in the project's main checkout and give him this command to type: $cmd"
+        $cmd = if ($path) { "python `"$bin`" add-approved `"$($path -replace '\\', '/')`"" } else { "python `"$bin`" add-approved <project path>" }
+        Write-Critical "NO-BANS $Name ($reason): not started. Hub: show the owner the exact lines, on his yes write .claude/hard-bans.json in the project's main checkout and run: $cmd"
     }
 }
 

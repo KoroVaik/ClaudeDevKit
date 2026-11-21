@@ -117,11 +117,11 @@ function Set-LeadRespawnModel([string]$SessionName, [string]$SessionId, [string]
     return $false
 }
 
-# The command the owner types himself (no agent runs it) once the hub has written .claude/hard-bans.json in the
+# The command the hub runs itself on the owner's yes, once it has written .claude/hard-bans.json in the
 # project's main checkout; the dev-kit folder is the one next to this plugin (as in the other Pult scripts).
 function Get-AddBansCommand([string]$ProjectPath) {
     $bin = ([IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..\..\dev-kit\bin\dev-kit-bans')) -replace '\\', '/')
-    return "! python `"$bin`" add-approved `"$($ProjectPath -replace '\\', '/')`""
+    return "python `"$bin`" add-approved `"$($ProjectPath -replace '\\', '/')`""
 }
 
 # Every session the plugin starts runs in $LeadPermissionMode (bypassPermissions); there is no other mode

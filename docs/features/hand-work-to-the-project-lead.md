@@ -59,10 +59,9 @@ names one.
 Every session a project starts, P included, runs with no permission prompts, so a message between two
 sessions is never held for your approval. A project whose committed main has no hard-ban deny rules (push
 to main where it deploys, deleting data, and the like) starts no sessions. P shows you the exact lines
-and, on your «так», writes them to `.claude/hard-bans.json`; you cannot decline them. You then type
-`! dev-kit-bans add-approved` in P's chat yourself: no agent runs the add, because the auto-mode guard
-refused P writing permission settings even after your yes (2026-11-21). You also type the undo
-(`! dev-kit-bans undo`, only the latest addition); only you remove an older ban. You accept the Claude
+and, on your «так», writes them to `.claude/hard-bans.json` and adds them on main itself; you cannot
+decline them and type nothing. Removing a ban stays yours: you type the undo (`! dev-kit-bans undo`, only
+the latest addition), and only you remove an older ban. You accept the Claude
 Code disclaimer once per machine.
 
 ### No two sessions on the same task
