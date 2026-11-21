@@ -26,7 +26,11 @@ The owner answers by number, sometimes with **their own numbering** that differs
 questions asked (e.g. answers "42-44" to questions "38-40"). Match by meaning, not by digit.
 If an answer is genuinely ambiguous, ask, do not guess.
 
-- "так" / "ок" / "чудово" → accept the recommendation as asked.
+- "так" / "ок" / "чудово" → accept the recommendation as asked. A bare «так» answers only the
+  question(s) written out in full in your last message: one written question, that question; a
+  question only named there (for example «4 і 5 ще чекають») stays open. This is one reading, so
+  never ask «1 чи 2?» about it. Why: the session wrote one question and named two others; the
+  owner's «Так» got «1 чи 2?» and he answered «??» (ClaudeDevKit, 2026-11-21).
 - "треба думать" / "окремий флоу" → record as open, offer options next round, don't push.
 - A counter-proposal → it wins; adjust the recommendation and record it as the decision.
 - A question back ("чим X краще за Y?") → answer it briefly with the trade-off and a
