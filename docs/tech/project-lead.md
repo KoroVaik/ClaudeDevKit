@@ -22,6 +22,8 @@ Code: `plugins/dev-kit/scripts/sessions.py`, `plugins/dev-kit/scripts/migrations
 - `fill --over-only` prints only the sessions past the fill limit; `size --id ...` prints a session's
   conversation size and window (the Pult watcher's 0.7 push and its size log).
 - `state` prints each registered session as working, waiting, finished or gone with the gist of its last reply.
+- `answers` prints what the owner wrote in a session after its last SendMessage (its last report or
+  question), so the lead never asks him what he already answered there.
 - `add --owner` registers a session the owner started.
 
 Why: the host kills a background watcher after 2 hours, and the leads and Pult were woken only to re-arm
