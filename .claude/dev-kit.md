@@ -4,8 +4,8 @@
 
 | Setting | Value |
 |---|---|
-| migrations applied | 3 |
-| hard bans | accepted 2026-11-19 |
+| migrations applied | 4 |
+| hard bans | present 2026-11-21 |
 | docs migration | offered 2026-11-19: yes |
 
 ## All agents

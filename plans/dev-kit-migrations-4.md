@@ -11,3 +11,7 @@ P checked on 2026-11-21: `dev-kit-bans check` on main passes, so entry 4 needs o
 Success criterion: `dev-kit-migrations pending` prints `none` in the worktree; `.claude/dev-kit.md` has the `hard bans` row in the `## project-lead` table.
 
 Paid spend: 0 USD so far.
+
+## Result (2026-11-21)
+
+- `dev-kit-bans check` on main: passing. Profile row set to `| hard bans | present 2026-11-21 |`; `dev-kit-migrations record 4` done; `pending` prints `none`. Lint: 0 errors.
