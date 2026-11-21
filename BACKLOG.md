@@ -45,6 +45,7 @@ Built (2026-11-20, owner's yes): the `dev-kit:edit-rules` line (step 6, dev-kit 
 What: a rule on how agents state cost on a subscription. (1) A Claude Code cost figure (`/cost`, the session cost record, which prices tokens at API rates) is always labelled "API-price equivalent, not billed on the subscription", never plain USD. (2) It is a relative yardstick between runs only (fewer tokens, cheaper models = lower number), not money and not a share of subscription limits unless a documented source says so. (3) Real money is named only for actual API-key calls. (4) Cost targets in plans use the same labelled yardstick. Place: where the maintainer judges best (manager or project-lead skill, or a reporting standard).
 Why: owner, 2026-11-20, Zhratva discussion of catalogue speed (`plans/catalogue-speed.md` in Zhratva): a report said "about 149 USD-equivalent"; the owner read it as money («Що за юсд?») and asked where this way of measuring is written («Де вказано що таким чином міряється?»). No dev-kit or owner doc defines it; the session also claimed, unchecked, that the figure tracks subscription limits.
 Cheapest test: the next session report that mentions cost carries the label and no unlabelled USD.
+Verdict (2026-11-21): do it: one paragraph in `dev-kit:manager`, section «Claude API calls» (retitled «... and cost figures»); nothing defines the label today.
 
 ## A shared Claude API client with spend logging
 
