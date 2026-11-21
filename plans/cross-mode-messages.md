@@ -33,3 +33,4 @@ Agree with the owner a fix so a message between any two sessions on this machine
 - Unchecked: bypass->bypass delivery across projects, `claude -p` wake in bypass, hub start in bypass; one live send each after the change.
 - 2026-11-21: owner's «так» to the short plan; discussion closed; owner asked to start the build at once.
 - 2026-11-21, owner's «так» (after the plan): a script the owner runs himself with one command (`! <command>` in chat) writes a project's hard-ban lines into `.claude/settings.json` on main; P picks the set, the script only inserts it. Agents never run it (rule in the skills). Used first for ClaudeDevKit and Prishch, then once per new project.
+- 2026-11-21, owner's «так»: when Pult's gate finds a project with no hard-ban lines on main, it does not start the lead and instead tells the owner which project lacks them and gives the ready script command to paste.
