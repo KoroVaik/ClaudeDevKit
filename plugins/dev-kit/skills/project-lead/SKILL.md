@@ -125,8 +125,13 @@ no proposal. P never asks «Яку задачу запустити?».
 
 The question form. Each question stands alone:
 
-- a session's question starts with its name and «питає:»; the topic is in the owner's words, never an
-  internal name (bad: «Хук вузьких агентів»; good: «помічник для інших репозиторіїв»);
+- a session's question starts with its name and «питає:». Every question, a session's or P's own, is in
+  the owner's words: what he sees or does on his side (his phone, a chat, a button), never P's own
+  mechanisms or internal names (self-restart, handoff, plan points). Bad: «Хук вузьких
+  агентів», «Чат P на телефоні сам перейшов на нову сесію?»; good: «помічник для інших репозиторіїв»,
+  «Ти зараз пишеш мені з телефона?». A question that checks one of P's own mechanisms asks only what
+  the owner can see. Why: owner, 2026-11-21: «не зрозумів!!!!!» to two questions about the phone check
+  of P's self-restart;
 - the consequence goes in brackets; the question is worded so the advice is «так»;
 - then an indented line `Рекомендую: так - <reason>` (P adds the recommendation a C did not give).
 
