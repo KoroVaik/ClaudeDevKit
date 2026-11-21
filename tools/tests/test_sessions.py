@@ -1004,5 +1004,102 @@ class SessionsTestCase(unittest.TestCase):
                          (code, out))
         self.assertIn("owner=0 peer=0 notify=0 | units=0", self.run_main("size", "--id", "s1", "--wakes", str(state))[1])
 
+    def handoff_file(self):
+        return dev_kit_state.project_state_dir(self.project) / sessions.HANDOFF
+
+    # protects: Flow
+    def test_handoff_save_status_go_clear(self):
+        # The lead saves, the Pult watcher reads the status and clears the marker once the new lead runs.
+        self.assertEqual((0, "none\n"), self.run_main("handoff", "status"))
+        self.assertEqual((0, "handoff saved: handoff-1.md\n"), self.run_main("handoff", "save", "--file", "handoff-1.md"))
+        self.assertRegex(self.run_main("handoff", "status")[1], r"^saved handoff-1\.md \d+\n$")
+        self.assertEqual({"file": "handoff-1.md", "go": False}, {k: json.loads(self.handoff_file().read_text())[k] for k in ("file", "go")})
+        self.assertEqual((0, "handoff go: handoff-1.md\n"), self.run_main("handoff", "go"))
+        self.assertRegex(self.run_main("handoff", "status")[1], r"^go handoff-1\.md \d+\n$")
+        self.assertEqual((0, "handoff cleared\n"), self.run_main("handoff", "clear"))
+        self.assertFalse(self.handoff_file().exists())
+        self.assertEqual((0, "handoff cleared\n"), self.run_main("handoff", "clear"))  # absent is fine
+        self.assertEqual("none\n", self.run_main("handoff", "status")[1])
+
+    # protects: Rule
+    def test_handoff_save_accepts_only_a_bare_markdown_file_name(self):
+        # The name ends up in a command line of the watcher: no path, no space, no quote.
+        for bad in ("../x.md", "a/b.md", "a\\b.md", "x.txt", "x", ".x.md", "a b.md", 'a"b.md', "a;b.md", "-x.md", "a.md\nb", ""):
+            code, out = self.run_main("handoff", "save", f"--file={bad}")
+            self.assertEqual(1, code, bad)
+            self.assertFalse(self.handoff_file().exists(), bad)
+        self.assertEqual(0, self.run_main("handoff", "save", "--file", "Handoff-a.b_2.md")[0])
+
+    # protects: Edge
+    def test_handoff_go_without_a_saved_handoff_fails(self):
+        self.assertEqual((1, "dev-kit-sessions: no handoff is saved\n"), self.run_main("handoff", "go"))
+        self.assertFalse(self.handoff_file().exists())
+
+    # protects: Rule
+    def test_handoff_save_with_go_and_a_re_save_keeps_go(self):
+        # A lead that was told "go" must not lose it when it saves the file again.
+        self.run_main("handoff", "save", "--file", "a.md", "--go")
+        self.assertTrue(json.loads(self.handoff_file().read_text())["go"])
+        self.run_main("handoff", "save", "--file", "b.md")
+        saved = json.loads(self.handoff_file().read_text())
+        self.assertEqual(("b.md", True), (saved["file"], saved["go"]))
+        self.assertRegex(self.run_main("handoff", "status")[1], r"^go b\.md \d+\n$")
+        self.run_main("handoff", "clear")
+        self.run_main("handoff", "save", "--file", "c.md")
+        self.assertFalse(json.loads(self.handoff_file().read_text())["go"])
+
+    # protects: Rule
+    def test_handoff_status_prints_the_age_since_the_save(self):
+        # The Pult watcher parses this number.
+        self.handoff_file().parent.mkdir(parents=True, exist_ok=True)
+        self.handoff_file().write_text(json.dumps({"file": "a.md", "saved": time.time() - 700, "go": False}), encoding="utf-8")
+        self.assertTrue(700 <= int(self.run_main("handoff", "status")[1].split()[2]) < 710)
+
+    # protects: Edge
+    def test_handoff_works_with_an_unreadable_registry(self):
+        # The lead hands off when it is full, whatever state the registry is in.
+        (dev_kit_state.project_state_dir(self.project) / "sessions.json").write_text("{nope", encoding="utf-8")
+        self.assertEqual(0, self.run_main("handoff", "save", "--file", "a.md")[0])
+        self.assertTrue(self.run_main("handoff", "status")[1].startswith("saved a.md "))
+        self.assertEqual(0, self.run_main("handoff", "go")[0])
+        self.assertEqual(0, self.run_main("handoff", "clear")[0])
+
+    # protects: Edge
+    def test_handoff_status_of_a_broken_file_is_none(self):
+        self.handoff_file().parent.mkdir(parents=True, exist_ok=True)
+        self.handoff_file().write_text("{nope", encoding="utf-8")
+        self.assertEqual((0, "none\n"), self.run_main("handoff", "status"))
+
+    # protects: Flow
+    def test_fill_self_reads_the_own_transcript_by_env_or_by_id(self):
+        # The lead asks about its own context; the registry holds only the C sessions.
+        self.transcript("me-session", [self.assistant(0, 0, 50000)])
+        with mock.patch.dict(os.environ, {"CLAUDE_CODE_SESSION_ID": "me-session"}):
+            self.assertEqual((0, "self | me-session | 50000 tokens | window 200000 | 25%\n"), self.run_main("fill", "--self"))
+        self.assertEqual((0, "self | me-session | 50000 tokens | window 200000 | 25%\n"),
+                         self.run_main("fill", "--self", "me-session"))
+        self.assertEqual((0, "self | other | no transcript\n"), self.run_main("fill", "--self", "other"))
+
+    # protects: Edge
+    def test_fill_self_without_an_id_fails(self):
+        with mock.patch.dict(os.environ, {"CLAUDE_CODE_SESSION_ID": ""}):
+            code, out = self.run_main("fill", "--self")
+        self.assertEqual(1, code)
+        self.assertIn("session id", out)
+
+    # protects: Rule
+    def test_fill_self_ignores_the_registry_and_honours_limit_window_and_over_only(self):
+        self.add("a1")
+        self.transcript("a1", [self.assistant(0, 0, 150000)])  # a C row that must not show up
+        (dev_kit_state.project_state_dir(self.project) / "sessions.json").write_text("{nope", encoding="utf-8")
+        self.transcript("me-session", [self.assistant(0, 0, 150000)])
+        self.assertEqual((0, "self | me-session | 150000 tokens | window 200000 | 75% OVER\n"),
+                         self.run_main("fill", "--self", "me-session"))
+        self.assertEqual((0, "self | me-session | 150000 tokens | window 200000 | 75% OVER\n"),
+                         self.run_main("fill", "--self", "me-session", "--over-only"))
+        self.assertIn("window 1000000 | 15%\n", self.run_main("fill", "--self", "me-session", "--window", "1000000")[1])
+        self.assertEqual((0, ""), self.run_main("fill", "--self", "me-session", "--limit", "0.9", "--over-only"))
+        self.assertEqual((0, ""), self.run_main("fill", "--self", "other", "--over-only"))
+
 if __name__ == "__main__":
     unittest.main()

@@ -53,9 +53,11 @@ problem it proposes a fix and acts after an explicit yes.
   for every lead on dev-kit 0.1.78 or later and sends each new event (a task session gone, finished, on the
   usage limit, waiting 20 minutes, past half its context, or a restart request) to the lead as a
   cross-session message `[EVT-<id>] Pult server watcher: ...`, by a one-shot `claude -p` (haiku, safe mode,
-  only the SendMessage tool, `bypassPermissions`). GIVEUP, GIVEUP-TASK and RESTART-LEAD-FAILED go to
+  only the SendMessage tool, `bypassPermissions`). GIVEUP, GIVEUP-TASK, RESTART-LEAD-FAILED and HANDOFF-FAILED go to
   the Pult session the same way; Pult pushes them to your phone. A lead silent 50 minutes while one of its
-  task sessions works gets a keep-warm ping. A message counts as delivered once its id shows in the
+  task sessions works gets a keep-warm ping. A lead past half its own context that saved a handoff
+  (`dev-kit-sessions handoff save`) is moved to a fresh session of the same name once it has been idle and
+  quiet for 5 minutes, or at once after `handoff go`; HANDOFF in the log. A message counts as delivered once its id shows in the
   target's transcript; until then it is sent again, then pushed to your phone (for Pult: «Pult не піднявся -
   запусти його на комп'ютері»). A push also goes once per session when a conversation passes 0.7 of its
   window. The watcher cannot push by itself (a fresh session's push is refused: «Not sent - this terminal

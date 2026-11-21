@@ -107,6 +107,25 @@ class LeadPermissionModeTest(unittest.TestCase):
         self.assertIn("--permission-mode bypassPermissions", out)
         self.assertNotIn("auto", out)
 
+    # protects: Rule
+    def test_handoff_start_is_fresh_even_with_a_session_id_and_names_the_file(self):
+        # A resume would bring back the full conversation: the handoff lead must start empty and read the file.
+        out = ps("(Get-LeadStartArgs 'P: X' 'old-session-id' -Handoff 'handoff-2.md') -join ' '")
+        self.assertNotIn("--resume", out)
+        self.assertIn("--remote-control P: X --name P: X --permission-mode bypassPermissions", out)
+        self.assertTrue(out.endswith("-- /dev-kit:project-lead handoff: handoff-2.md"), out)
+        self.assertNotIn('"', out)
+        plain = ps("(Get-LeadStartArgs 'P: X' 'old-session-id') -join ' '")
+        self.assertIn("--resume old-session-id", plain)  # without -Handoff nothing changes
+
+    # protects: Rule
+    def test_handoff_name_with_a_path_or_a_quote_is_refused(self):
+        # The name goes into a command line (no double quote survives Windows PowerShell 5.1).
+        for bad in ("..\\x.md", "a b.md", 'a"b.md', "x.txt", "a;b.md"):
+            got = ps(f"try {{ Get-LeadStartArgs 'P: X' $null -Handoff '{bad.replace(chr(39), chr(39) * 2)}' | Out-Null; 'ok' }} "
+                     "catch { 'threw' }")
+            self.assertEqual("threw", got, bad)
+
     # protects: Flow
     def test_resume_rewrites_saved_mode(self):
         job = self.tmp / "jobs" / "abc"

@@ -32,8 +32,8 @@ SERVER = "Srv-wake-test-7f3a"  # a server row no real process matches
 OLD_TIME = 946684800  # 2000-01-01: every plugin.json is older than the "lead" process
 STALE_KEY = "2026-11-20T09:00:00.000Z"
 STALE_LINE = f"stale | C: task | {TASK} | waiting 25 min | {STALE_KEY}"
-PING = ("PING keep-warm: run dev-kit-sessions fill for your C sessions and dev-kit-sessions size --id "
-        "<your own session id> for yourself, then answer with your standard status only.")
+PING = ("PING keep-warm: run dev-kit-sessions fill for your C sessions and dev-kit-sessions fill --self "
+        "for yourself, then answer with your standard status only.")
 
 FAKE_SESSIONS = r'''import json, os, subprocess, sys
 from pathlib import Path
@@ -368,6 +368,24 @@ class WatchServersWakeTest(unittest.TestCase):
         self.age_transcript(60)  # the delivered ping wrote the transcript; a lead that stays silent is not pinged again
         self.run_watch(1)
         self.assertEqual(1, len(self.wakes()), "no second ping within 50 minutes of the last wake")
+
+    # protects: Rule
+    def test_lead_with_a_handoff_marker_gets_no_keep_warm_ping(self):
+        # It is about to be replaced (or its move failed): keeping its cache warm would only cost a turn.
+        self.registry_task()
+        self.age_transcript(60)
+        subprocess.run([sys.executable, str(self.plugins / "dev-kit" / "scripts" / "sessions.py"), "--project",
+                        str(self.project), "handoff", "save", "--file", "handoff-1.md"],
+                       env=dict(os.environ, DEV_KIT_STATE_DIR=str(self.state)), check=True, capture_output=True,
+                       timeout=60)
+        log = self.run_watch(2)
+        self.assertEqual([], self.wakes(), log)
+        subprocess.run([sys.executable, str(self.plugins / "dev-kit" / "scripts" / "sessions.py"), "--project",
+                        str(self.project), "handoff", "clear"],
+                       env=dict(os.environ, DEV_KIT_STATE_DIR=str(self.state)), check=True, capture_output=True,
+                       timeout=60)
+        self.run_watch(1)
+        self.assertEqual(1, len(self.wakes()), "without the marker the same lead is pinged")
 
     # protects: Rule
     def test_conversation_past_0_7_of_its_window_gets_one_phone_push(self):

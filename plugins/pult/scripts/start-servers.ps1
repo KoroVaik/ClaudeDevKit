@@ -19,12 +19,21 @@
 # folder (for tests with a throwaway lead; defaults: servers.psd1 and ~\.claude\pult).
 # A full run (no -Only) removes the hold file that stop-servers.ps1 and restart-leads.ps1 leave, at its end;
 # the watcher restarts nothing while a full run is going on.
-param([string[]]$Restarted, [string[]]$Only, [string]$ConfigFile, [string]$StateDir)
+# -Handoff <file>: only with exactly one -Only name (else an error and exit 1). That lead is started fresh, never
+# resumed (no Set-LeadRespawnModel, no wait for the old session to go), with the file name at the end of its first
+# prompt (`handoff: <file>`, resume-lib.ps1 Get-LeadStartArgs); the file is a bare .md name. The log says
+# STARTED <name> handoff <file>, the output stays `Started lead: <name>`. The hard-ban gate and the pin are as for
+# any start. The watcher runs this when a lead left a handoff (watch-servers.ps1, Invoke-HandoffCheck).
+param([string[]]$Restarted, [string[]]$Only, [string]$ConfigFile, [string]$StateDir, [string]$Handoff)
 $Restarted = @($Restarted | ForEach-Object { $_ -split ',' } | ForEach-Object { $_.Trim() } | Where-Object { $_ })  # -File passes one comma-joined string
 $Only = @($Only | ForEach-Object { $_ -split ',' } | ForEach-Object { $_.Trim() } | Where-Object { $_ })
 if (-not $ConfigFile) { $ConfigFile = Join-Path $PSScriptRoot 'servers.psd1' }
 if (-not $StateDir) { $StateDir = Join-Path $env:USERPROFILE '.claude\pult' }  # outside the plugin folder
 . (Join-Path $PSScriptRoot 'resume-lib.ps1')
+if ($Handoff) {
+    if ($Only.Count -ne 1) { Write-Output 'Error: -Handoff needs exactly one -Only name.'; exit 1 }
+    if ($Handoff -cnotmatch $HandoffNamePattern) { Write-Output "Error: -Handoff is not a bare .md file name: $Handoff"; exit 1 }
+}
 $projects = (Import-PowerShellDataFile $ConfigFile).Servers
 foreach ($p in $projects) { if ($p.Hub) { $p.Path = $env:USERPROFILE } }  # the hub server runs in the home folder
 if ($Only) { $projects = @($projects | Where-Object { $Only -ccontains $_.Session }) }
@@ -72,7 +81,9 @@ foreach ($p in $projects) {
         Push-Location $p.Path
         # Continue the previous conversation of this lead when one exists (stopped or finished).
         $resumeId = $null
-        try { $resumeId = Get-ResumeSessionId $sessionName $p.Path } catch { Write-Output "Could not look up a session to resume: $_" }
+        if (-not $Handoff) {  # a handoff lead starts empty: it never resumes the full conversation
+            try { $resumeId = Get-ResumeSessionId $sessionName $p.Path } catch { Write-Output "Could not look up a session to resume: $_" }
+        }
         $opt = @{}  # optional per-lead Prompt, Model, Effort from the server list
         foreach ($k in 'Prompt', 'Model', 'Effort') { if ($p[$k]) { $opt[$k] = $p[$k] } }
         $model = @{}
@@ -99,7 +110,7 @@ foreach ($p in $projects) {
             try { if (Set-LeadRespawnModel $sessionName $resumeId @model) { Write-Log "MODEL $sessionName $(if ($p.Model) { $p.Model } else { $LeadModel })/$(if ($p.Effort) { $p.Effort } else { $LeadEffort })/$($perm.Mode)" } }
             catch { Write-Output "Could not set the lead's model: $_" }
         }
-        $leadArgs = Get-LeadStartArgs $sessionName $resumeId -Restarted:($Restarted -ccontains $sessionName) @opt
+        $leadArgs = Get-LeadStartArgs $sessionName $resumeId -Restarted:($Restarted -ccontains $sessionName) -Handoff $Handoff @opt
         $copyLeft = $null
         $exitCode = 0
         for ($try = 1; $try -le 2; $try++) {
@@ -133,7 +144,7 @@ foreach ($p in $projects) {
             Write-Log "RESUMED $sessionName $resumeId"
             Write-Output "Resumed lead: $sessionName"
         } else {
-            Write-Log "STARTED $sessionName"
+            Write-Log "STARTED $sessionName$(if ($Handoff) { " handoff $Handoff" })"
             Write-Output "Started lead: $sessionName"
         }
         continue

@@ -112,7 +112,7 @@ five mechanical problems itself, with no yes (the owner's yes, 2026-11-16; the o
   so a merged change never ran before.
 - A dev-kit lock file whose owner is gone (`~/.claude/dev-kit/*/watch.lock`, `app.lock` of a removed
   worktree, leftover `app.lock.takeover` and `*.tmp`): removed, log UNLOCK.
-Everything else (GIVEUP, GIVEUP-TASK, HEAL-FAILED, HEAL-TASK-FAILED, RESTART-LEAD-FAILED, START-FAILED, WATCH-RESTART-SKIPPED, a lead that comes back and falls again) stays a problem Pult
+Everything else (GIVEUP, GIVEUP-TASK, HEAL-FAILED, HEAL-TASK-FAILED, RESTART-LEAD-FAILED, HANDOFF-FAILED, START-FAILED, WATCH-RESTART-SKIPPED, a lead that comes back and falls again) stays a problem Pult
 shows and proposes a fix for. A project with no hard-ban lines (NO-BANS) is shown too, as blocked, with the question of "Missing hard bans". A stop with only `claude stop` is undone by the watcher: `stop-servers.ps1`
 stops all entries until the next `start-servers.ps1` run; to retire one entry, remove its row from
 `servers.psd1` (the watcher reads the list when it starts). While a full `start-servers.ps1` run goes on,
@@ -153,8 +153,8 @@ owner typing the command himself is allowed.
 
 ## Phone push
 
-Pult pushes to the owner's phone only what the server watcher gave up on: a GIVEUP, GIVEUP-TASK or
-RESTART-LEAD-FAILED line (see "Servers"; a failed HEAL try ends in GIVEUP, so it is not pushed on its
+Pult pushes to the owner's phone only what the server watcher gave up on: a GIVEUP, GIVEUP-TASK,
+RESTART-LEAD-FAILED or HANDOFF-FAILED line (see "Servers"; a failed HEAL try ends in GIVEUP, so it is not pushed on its
 own), and the one-time NO-BANS line of a blocked lead («Pult: P: X не стартує - немає жорстких заборон, відкрий Pult»),
 after which Pult writes the question of "Missing hard bans". A session that came back by itself, a usage-limit stop and a lead restart that worked push
 nothing. Pult keeps no watcher (see "Servers"): the watcher sends it each such line in a message that
@@ -192,7 +192,11 @@ reach a safe point (output `Asked: <name>`), and the watcher restarts it. Pult s
 leads restarted and which were asked. A change of only an extension (web-kit, unity-kit) restarts an idle lead
 the same way; `-Ask` does not wake a busy lead for it and prints `Not asked, busy and only an extension changed: <name>`:
 Pult reports that lead as «оновиться, коли звільниться» (the watcher restarts it once it is idle). Bounds (owner, 2026-11-16): lead sessions (`P: ...`) only,
-never task sessions, owner sessions or Pult itself; always resume the same conversation.
+never task sessions, owner sessions or Pult itself; always resume the same conversation. The one exception
+is a lead's move to a fresh session (dev-kit project-lead skill, "Restart P"): a lead at half its context saves
+a handoff, and the watcher stops it and starts a fresh conversation of the same name that loads it. Pult only
+shows the log: HANDOFF is fixed («перенесено в нову сесію»); HANDOFF-FAILED is a problem to show with a
+proposed fix (the watcher brings the old lead back).
 
 Why: on 2026-11-16 the hub got a merge message but restarted nobody: it acts only when someone writes
 in its chat. `-Ask` writes a request file (`dev-kit-sessions restart`); the watcher sends it to the lead as

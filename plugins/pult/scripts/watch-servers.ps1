@@ -62,7 +62,7 @@
 #     finished, limited, stale, fill, restart); each becomes a line for that lead (as the old watcher printed it,
 #     `<kind>: <name> | <id> | <detail>`, or `restart requested: <V>`) with a `sessions.py mark` call run after
 #     delivery. A lead below that version keeps its own watcher and is skipped.
-#   - Pult events: each GIVEUP, GIVEUP-TASK and RESTART-LEAD-FAILED line also goes to Pult (the session list entry
+#   - Pult events: each GIVEUP, GIVEUP-TASK, RESTART-LEAD-FAILED and HANDOFF-FAILED line also goes to Pult (the session list entry
 #     named exactly Pult, kind interactive). Once ever (wake-state.json), when Pult is live, it is told that its
 #     log watcher (watch-log.py) is retired and must not be armed again.
 #   - Keep-warm ping: a lead (version as above) that is live and idle, has a non-owner task session of its registry
@@ -101,8 +101,30 @@
 #   after $PhoneRetrySec s. Not taken: sent again after $WakeConfirmSec s, after $WakeMaxTries sends every
 #   $PhoneRetrySec s (a size push too); events are never dropped. A ping or the Pult note that is not taken is
 #   dropped (WAKE-FAILED).
-# - Its own code: it takes a fingerprint (SHA-256) of this script and the script it dot-sources
-#   (plugin-versions.ps1) at start. When the fingerprint differs and was the same in the previous round
+#   The keep-warm ping is not sent to a lead that has a handoff marker (see the next item); events still are.
+# - A lead whose context is half full saves a handoff file and a marker (`sessions.py handoff save --file <name.md>
+#   [--go]`, handoff.json next to its registry; the project-lead skill's "Restart P"). A pass after its version check
+#   each round (Invoke-HandoffCheck; not with -Once, not while the hold file or a full start runs, not while NO-BANS
+#   blocks that lead) reads `handoff status` for each live lead: none (the in-memory marks of that lead are dropped) or
+#   `saved <file> <s>` / `go <file> <s>`. The lead is ready to move only when its status is idle, no message was sent to
+#   it for $HandoffWakeQuietSec s (wake-state.json LastWake: a just-sent message is not handled yet) and, for `saved`,
+#   its transcript was last written $HandoffQuietMin or more minutes ago (the lead may still be working through its
+#   notes); `go` (the lead or its caller ran `handoff go`) skips the quiet minutes. Not ready: HANDOFF-WAIT <name> <file>
+#   once per marker. Ready: the hard-ban gate is checked first (resume-lib.ps1 Get-LeadPermissionMode; a lead that
+#   could not be started again is not stopped: NO-BANS as for a restart), then the session list is read again right
+#   before the stop (a local copy; the lead must still be live with the same session id, idle and quiet), then
+#   `claude stop <id>` and a wait up to $HandoffStopWaitSec s until no background entry of that name has a pid and no
+#   claude.exe process holds its session id (Get-SessionProcessIds). Then `start-servers.ps1 -Only <name> -Handoff
+#   <file>` starts a fresh lead (never a resume) whose first prompt ends with `handoff: <file>`. `Started lead: <name>`:
+#   `handoff clear`, LastWake of the lead set to now, HANDOFF <name> <old session id> <file>. `NO-BANS <name> `:
+#   Register-NoBans. Any other output: Write-Critical HANDOFF-FAILED <name>: <output> (Pult gets it); a stop that did
+#   not finish in time: HANDOFF-FAILED <name>: still running after the stop. A failed move keeps the marker and is
+#   not tried again for that marker until the watcher restarts (in memory, key name and file; a new file name, or a
+#   marker that was cleared and saved again, is a new try); the next round's HEAL brings an old lead that is down
+#   back as for any dead lead. After the stop the round's session list is read again, so the rest of the round sees
+#   the new lead.
+# - Its own code: it takes a fingerprint (SHA-256) of this script and the scripts it dot-sources
+#   (plugin-versions.ps1, resume-lib.ps1) at start. When the fingerprint differs and was the same in the previous round
 #   (the file is stable, not in the middle of a git merge), the new files are parse-checked: with a parse
 #   error WATCH-RESTART-SKIPPED <reason> is logged once (it tries again only when the fingerprint changes
 #   again); otherwise WATCH-RESTART <old pult version> -> <new> (pult plugin.json; version+short hash when
@@ -124,7 +146,7 @@
 # -RestartExe: the program that starts the new copy (default powershell.exe; for tests).
 # -WakeExe: the program of the one-shot sender (default: claude from PATH); -SessionsPy: the sessions.py it calls
 # (default: <DevKitDir>\scripts\sessions.py); -WakeConfirmSec, -WakeCooldownSec, -WakeDownSec: the waits of the
-# wakes (all for tests).
+# wakes; -HandoffStopWaitSec: the wait for a stopped lead to be gone (all for tests).
 # -ConfigFile / -StateDir / -DevKitStateDir / -DaemonLog: another server list, Pult state folder,
 # dev-kit state folder and Claude Code daemon log (for tests with a throwaway lead).
 # -DevKitDir: the dev-kit plugin folder (default: ..\..\dev-kit next to this plugin); it holds
@@ -133,11 +155,12 @@
 param([int]$IntervalSec = 60, [switch]$Once, [int]$Rounds = 0, [int]$MaxHeals = 3,
     [string]$ConfigFile, [string]$StateDir, [string]$DevKitStateDir, [string]$DaemonLog, [string]$DevKitDir,
     [string]$RestartExe = 'powershell.exe', [string]$WakeExe, [string]$SessionsPy,
-    [int]$WakeConfirmSec = 120, [int]$WakeCooldownSec = 120, [int]$WakeDownSec = 600)
+    [int]$WakeConfirmSec = 120, [int]$WakeCooldownSec = 120, [int]$WakeDownSec = 600, [int]$HandoffStopWaitSec = 60)
 
 . (Join-Path $PSScriptRoot 'plugin-versions.ps1')
+. (Join-Path $PSScriptRoot 'resume-lib.ps1')  # Get-SessionProcessIds, Get-LeadPermissionMode, $HandoffNamePattern
 $scriptParams = @{} + $PSBoundParameters  # what the new copy gets on a WATCH-RESTART
-$CodeFiles = @($PSCommandPath, (Join-Path $PSScriptRoot 'plugin-versions.ps1'))  # this script and what it dot-sources
+$CodeFiles = @($PSCommandPath, (Join-Path $PSScriptRoot 'plugin-versions.ps1'), (Join-Path $PSScriptRoot 'resume-lib.ps1'))  # this script and what it dot-sources
 
 if (-not $DaemonLog) { $DaemonLog = Join-Path $env:USERPROFILE '.claude\daemon.log' }
 if (-not $DevKitDir) { $DevKitDir = Join-Path $PSScriptRoot '..\..\dev-kit' }
@@ -154,9 +177,11 @@ $WakeWaitSec = 60          # a one-shot sender still running after this is stopp
 $PhoneRetrySec = 600       # a failed phone push is tried again after this
 $WakeSendBudgetSec = 180   # the sends of one round stop after this; the rest wait for the next round
 $PingQuietMin = 50         # a lead with a busy task session silent this long gets the keep-warm ping
+$HandoffQuietMin = 5       # a lead that saved a handoff (not go) is moved after its transcript was quiet this long
+$HandoffWakeQuietSec = 120 # and when it was last sent a message at least this long ago (a just-sent one is not handled yet)
 $SizePushShare = 0.7       # a conversation at this share of its window gets one phone push
 $SizeLogMin = 10           # minutes between the SIZE lines
-$PingLine = 'PING keep-warm: run dev-kit-sessions fill for your C sessions and dev-kit-sessions size --id <your own session id> for yourself, then answer with your standard status only.'
+$PingLine = 'PING keep-warm: run dev-kit-sessions fill for your C sessions and dev-kit-sessions fill --self for yourself, then answer with your standard status only.'
 $NoteLine = 'Note: your log watcher (watch-log.py) is retired. Events now arrive as messages from the server watcher, like this one, so do not arm it again.'
 
 if (-not $ConfigFile) { $ConfigFile = Join-Path $PSScriptRoot 'servers.psd1' }
@@ -197,7 +222,7 @@ function Write-WarnOnce([string]$Key, [string]$Text) {
     if ($warnedOnce[$Key] -cne $Text) { Write-Log "WARN $Text"; $warnedOnce[$Key] = $Text }
 }
 
-# Logs a critical line (GIVEUP, GIVEUP-TASK, RESTART-LEAD-FAILED); the wake pass of the round sends it to Pult.
+# Logs a critical line (GIVEUP, GIVEUP-TASK, RESTART-LEAD-FAILED, HANDOFF-FAILED); the wake pass of the round sends it to Pult.
 function Write-Critical([string]$Msg) {
     Write-Log $Msg
     [void]$pultEvents.Add($Msg)
@@ -960,6 +985,8 @@ function Invoke-WakePass {
             $tr = Find-Transcript $t.SessionId
             if (-not $tr -or ([datetime]::UtcNow - $tr.LastWriteTimeUtc).TotalMinutes -lt $PingQuietMin) { continue }
             if (-not (Get-BusyTask $s.Path -NonOwner)) { continue }
+            # A lead that left a handoff is about to be replaced (or the move failed): its context is not kept warm.
+            if ((Invoke-Sessions @('--project', $s.Path, 'handoff', 'status')).Out -cmatch '^(saved|go) ') { continue }
             $item = New-WakeItem $name 'lead' 'ping'
             $item.Lines = @($PingLine); $item.Kinds = @('ping')
             [void]$wakePending.Add($item)
@@ -1006,6 +1033,95 @@ function Invoke-WakePass {
         }
     }
     if ($wakeDirty) { Save-WakePending }
+}
+
+# ---- Handoff (see the header) ----
+
+# True when the lead's entry $Entry of a session list is idle, was sent no message for $HandoffWakeQuietSec s and,
+# for a `saved` handoff (not `go`), its transcript was last written $HandoffQuietMin or more minutes ago.
+function Test-HandoffReady($Entry, [string]$Kind) {
+    if (-not $Entry -or $Entry.status -ne 'idle') { return $false }
+    if ((Get-Age ([double]$wakeState.LastWake[[string]$Entry.name])) -lt $HandoffWakeQuietSec) { return $false }
+    if ($Kind -eq 'go') { return $true }
+    $tr = Find-Transcript ([string]$Entry.sessionId)
+    return [bool]($tr -and ([datetime]::UtcNow - $tr.LastWriteTimeUtc).TotalMinutes -ge $HandoffQuietMin)
+}
+
+# Waits up to $HandoffStopWaitSec s until no background entry with this name has a pid and no claude.exe process of
+# the session is left (a start in the gap would find the session still "running", see resume-lib.ps1
+# Get-SessionProcessIds). $true when gone. The round's $agents and $agentsText are left as they were.
+function Wait-HandoffStopped([string]$Name, [string]$SessionId) {
+    $until = (Get-Date).AddSeconds($HandoffStopWaitSec)
+    while ($true) {
+        $keep = $script:agentsText
+        $list = Get-Agents -All
+        $script:agentsText = $keep
+        $listed = $null -eq $list -or @($list | Where-Object { $_.kind -eq 'background' -and $_.name -ceq $Name -and $_.pid }).Count
+        if (-not $listed -and -not (Get-SessionProcessIds $SessionId).Count) { return $true }
+        if ((Get-Date) -gt $until) { return $false }
+        Start-Sleep -Milliseconds 500
+    }
+}
+
+# One live lead ($s: its servers.psd1 row, $m: its entry in the round's session list) that may have left a handoff
+# (`sessions.py handoff`): when it is ready (Test-HandoffReady) it is stopped and a fresh lead is started that
+# loads the handoff file (start-servers.ps1 -Handoff). One try per marker (name and file) in this run.
+function Invoke-HandoffCheck($s, $m) {
+    $name = $s.Session
+    if ($Once -or -not $s.Path -or -not (Test-Path -LiteralPath $s.Path)) { return }
+    if ($onHold -or $starting -or (Test-Path -LiteralPath $hold)) { return }
+    if ($noBansUntil[$name] -and (Get-Date) -lt $noBansUntil[$name]) { return }
+    $r = Invoke-Sessions @('--project', $s.Path, 'handoff', 'status')
+    if ($r.Code -eq 0 -and $r.Out -ceq 'none') { $handoffTried.Remove($name); $handoffWaited.Remove($name); $warnedOnce.Remove("handoff $name"); return }
+    $parsed = ($r.Code -eq 0) -and ($r.Out -cmatch '^(saved|go) (\S+) \d+$')
+    if (-not $parsed) {
+        Write-WarnOnce "handoff $name" "cannot read the handoff status of $name (exit $($r.Code)): $($r.Out -replace '\s+', ' ')"
+        return
+    }
+    $warnedOnce.Remove("handoff $name")
+    $kind = $Matches[1]; $file = $Matches[2]
+    if ($file -cnotmatch $HandoffNamePattern) { return }  # goes on a command line: only a bare .md name
+    $key = "$name|$file"
+    if ($handoffTried[$name] -ceq $key) { return }
+    $sid = [string]$m.sessionId
+    if (-not (Test-HandoffReady $m $kind)) {
+        if ($handoffWaited[$name] -cne $key) { $handoffWaited[$name] = $key; Write-Log "HANDOFF-WAIT $name $file" }
+        return
+    }
+    # As restart-leads.ps1: a lead that could not be started again is not stopped.
+    try { $gate = Get-LeadPermissionMode $s.Path } catch { Write-Log "WARN cannot check the hard bans for the handoff of ${name}: $_"; return }
+    if (-not $gate.Start) { Register-NoBans $name "NO-BANS $name ($($gate.Reason))"; return }
+    # Right before the stop: look again (a message may have woken the lead since the round's list was read).
+    $keep = $script:agentsText
+    $fresh = Get-Agents -All
+    $script:agentsText = $keep
+    $cur = $fresh | Where-Object { $_.kind -eq 'background' -and $_.name -ceq $name -and $_.pid } | Select-Object -First 1
+    if (-not $cur -or [string]$cur.sessionId -cne $sid -or -not (Test-HandoffReady $cur $kind)) { return }
+    $handoffTried[$name] = $key
+    $null = claude stop $cur.id 2>&1
+    $stopped = Wait-HandoffStopped $name $sid
+    if ($stopped) {
+        $out = & powershell.exe -NoProfile -ExecutionPolicy Bypass -File (Join-Path $PSScriptRoot 'start-servers.ps1') `
+            -Only $name -Handoff $file -ConfigFile $ConfigFile -StateDir $StateDir 2>&1 | Out-String
+        $said = ($out.Trim() -replace '\s+', ' ')
+        if ($said -cmatch ('Started lead: ' + [regex]::Escape($name))) {
+            $cleared = Invoke-Sessions @('--project', $s.Path, 'handoff', 'clear')
+            if ($cleared.Out -cne 'handoff cleared') { Write-Log "WARN handoff clear for $name failed: $($cleared.Out -replace '\s+', ' ')" }
+            $wakeState.LastWake[$name] = Get-Now
+            Save-WakeState
+            $handoffWaited.Remove($name)  # the tried mark stays: a marker left by a failed clear is not moved again
+            $noBansTold.Remove($name)
+            Write-Log "HANDOFF $name $sid $file"
+        } elseif ($said -cmatch ('NO-BANS ' + [regex]::Escape($name) + ' ')) {
+            Register-NoBans $name $said
+        } else {
+            Write-Critical "HANDOFF-FAILED ${name}: $said"
+        }
+    } else {
+        Write-Critical "HANDOFF-FAILED ${name}: still running after the stop"
+    }
+    # The list of the round is out of date now: the old lead is gone and a new one may run.
+    $script:agents = Get-Agents -All
 }
 
 # SHA-256 (hex) over the files of $CodeFiles, or $null when one cannot be read (mid-merge, locked).
@@ -1103,6 +1219,8 @@ try {
 $leadSeen = @{}     # lead name -> the pid whose start time was checked in this run
 $ReadyMaxAgeSec = 600  # a ready mark older than this is not acted on (READY-EXPIRED)
 $leadTried = @{}    # lead name -> the version a restart was tried for
+$handoffTried = @{}   # lead name -> "<name>|<file>" of the handoff a move was tried for (one try per marker)
+$handoffWaited = @{}  # lead name -> "<name>|<file>" of the handoff HANDOFF-WAIT was logged for
 $lastVersion = $null
 $versionWarned = $null
 $pluginTime = $null
@@ -1202,6 +1320,9 @@ while ($true) {
 
         if ($s.Lead -and $alive -and $devKitVersion) {
             try { Invoke-LeadVersionCheck $s $m $devKitVersion } catch { Write-Log "WARN version check of $name failed: $_" }
+        }
+        if ($s.Lead -and $alive) {
+            try { Invoke-HandoffCheck $s $m } catch { Write-Log "WARN handoff check of $name failed: $_" }
         }
 
         # Bring back an entry that is down for two rounds in a row (one round may be a start or a

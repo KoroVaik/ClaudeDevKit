@@ -23,7 +23,7 @@ is listed below.
 
 - The Pult watcher (`plugins/pult/scripts/watch-servers.ps1`, started at logon) checks the leads every minute,
   runs `dev-kit-sessions check` for each lead and wakes the leads and Pult by a cross-session message (a one-shot
-  `claude -p`) only on an event.
+  `claude -p`) only on an event; it also moves a lead that saved a handoff to a fresh session.
 - The Remote Control server "Pult", with cwd = the home folder, serves the phone.
 - The session watcher (`dev-kit-sessions watch`) runs in the background only of a project lead on dev-kit before 0.1.78.
 - The daily scan `dev-kit-retro check` runs from the project lead of this repo.

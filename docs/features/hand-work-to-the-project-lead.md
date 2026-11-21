@@ -75,6 +75,11 @@ ends, writes the line "Роботу завершено", stops on the usage limi
 context; P keeps no watcher of its own. While a task session works and P has been silent 50 minutes, the
 Pult watcher pings P; P then shows its short status.
 
+### P moves itself to a fresh session
+When P's own context is half full, P saves its notes and asks you «Перезапустити мене зараз?» (a phone
+push). The Pult watcher moves P to a fresh session of the same name after 5 quiet minutes, or at once when
+you answer «так» or write «перезапускай»; you type nothing else.
+
 How P does it: [project lead tools](../tech/project-lead.md).
 
 Known limits: the plugin covers work inside one repository. Starting P, the project list, the phone flow

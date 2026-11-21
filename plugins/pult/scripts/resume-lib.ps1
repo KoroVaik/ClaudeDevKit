@@ -22,11 +22,25 @@ function Get-ResumeSessionId([string]$Name, [string]$Path, $Sessions) {
 # PowerShell cuts an argument passed to a native command at its first double quote.
 $RestartNote = 'restart: plugin update'
 
+# The word that, followed by the handoff file name, ends the first prompt of a lead started for a handoff (the
+# project-lead skill, "Restart P"; the watcher does this, watch-servers.ps1 Invoke-HandoffCheck).
+# Same rule as sessions.py HANDOFF_NAME: a bare file name that goes on a command line, so no space or quote.
+$HandoffNote = 'handoff:'
+$HandoffNamePattern = '^[A-Za-z0-9][A-Za-z0-9._-]*\.md\z'
+
 # The command line (as an argument array for `claude`) that continues a lead, or starts it fresh.
 # -Restarted adds $RestartNote to the first prompt of a resumed lead. -Prompt, -Model and -Effort
 # come from the lead's servers.psd1 row when it has them (a throwaway test lead uses a cheap model).
+# -Handoff <file>: always a fresh start, even with a SessionId (a resume would bring back the full context), and
+# the prompt ends with `handoff: <file>`; a name that is not a bare .md file name throws.
 function Get-LeadStartArgs([string]$SessionName, [string]$SessionId, [switch]$Restarted,
-        [string]$Prompt = '/dev-kit:project-lead', [string]$Model = $LeadModel, [string]$Effort = $LeadEffort) {
+        [string]$Prompt = '/dev-kit:project-lead', [string]$Model = $LeadModel, [string]$Effort = $LeadEffort,
+        [string]$Handoff) {
+    if ($Handoff) {
+        if ($Handoff -cnotmatch $HandoffNamePattern) { throw "the handoff file name is not a bare .md file name: $Handoff" }
+        $Prompt += ' ' + $HandoffNote + ' ' + $Handoff
+        $SessionId = $null
+    }
     if ($SessionId) {
         if ($Restarted) { $Prompt += ' ' + $RestartNote }
         # No flags besides the prompt: any flag makes claude start a copy instead of waking this one.

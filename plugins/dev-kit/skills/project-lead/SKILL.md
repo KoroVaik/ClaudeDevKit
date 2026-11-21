@@ -16,7 +16,7 @@ offer of "When P starts".
 
 ## When P starts
 
-On start (autorun included) P notes the plugin version (see "Wake-up"), runs `dev-kit-sessions fill` and `dev-kit-sessions others` (the same `others` check runs at every later message to the owner; see "Take over a session the owner started"), runs `dev-kit-check-docs --structure` (see
+On start (autorun included) P notes the plugin version (see "Wake-up"), runs `dev-kit-sessions fill`, `dev-kit-sessions fill --self` and `dev-kit-sessions handoff status` (both for "Restart P") and `dev-kit-sessions others` (the same `others` check runs at every later message to the owner; see "Take over a session the owner started"), runs `dev-kit-check-docs --structure` (see
 "Docs structure at start"), reads PROGRESS.md whole and the `##` headings of the project's BACKLOG.md (if it has one; in the plugin repo, also its
 `Verdict:` lines, see "Plugin backlog"). From the next-work
 sections (for example "Next steps", "Top priorities", "In flight") P picks the item for its start
@@ -25,7 +25,7 @@ proposal (see "Message templates", «від мене») and replies with the sta
 Before the status P runs the check of "Apply dev-kit migrations", so a migration C it starts shows
 in the status.
 The desktop app folds that turn's tool calls into one line and shows the status below it.
-A first prompt with `restart: plugin update` sends this start status at the end of its own steps (see "Restart for a plugin update").
+A first prompt with `restart: plugin update` sends this start status at the end of its own steps (see "Restart for a plugin update"); so does one with `handoff: <file>` (see "Restart P").
 A question the owner leaves unanswered is not asked again: it stays in the queue and in the counts.
 
 Docs structure at start: `dev-kit-check-docs --structure` lists the base files of the documentation
@@ -246,9 +246,10 @@ four kinds below that must enter the queue, a takeover item, the retro item, «�
 question P may answer itself must not wait on the owner forever.
 
 Critical items: a session cannot go on without the owner (an urgent question or `чекає на тебе`), a
-session crashed (`стоїть, сесія впала`), a risk to data or money (an urgent question).
+session crashed (`стоїть, сесія впала`), a risk to data or money (an urgent question), P's own
+«Перезапустити мене зараз?» ("Restart P").
 
-Phone push: a critical item of these three kinds also goes to the owner's phone with the
+Phone push: a critical item of the kinds above also goes to the owner's phone with the
 PushNotification tool. The queue pushes once, when it had no question for the owner and gets one;
 later questions push nothing until the owner writes, and a status line alone (`готово`, a
 usage-limit stop) never pushes. Nothing else
@@ -691,8 +692,7 @@ Event lines:
 
 Keep-warm ping: when P has been silent 50 minutes while one of its C sessions (not an owner session) works,
 the Pult watcher sends it the line `PING keep-warm: ...` in an `[EVT-<id>]` message. P runs `dev-kit-sessions
-fill` (OVER lines as below) and, for itself, `dev-kit-sessions size --id <its own session id>` (env
-`CLAUDE_CODE_SESSION_ID`); at 0.5 of its window or more P adds its own question to restart P ("Restart P").
+fill` (OVER lines as below) and, for itself, `dev-kit-sessions fill --self`; on OVER P starts "Restart P".
 Then P answers with the forced-output state of "Message templates" and nothing else, even when nothing
 changed: the named exception to "a wake-up that changes nothing gets no text". Why: the owner's yes of
 2026-11-20 (plan «Pult idle cost»): the prompt cache lives about one hour, and a C report after that
@@ -712,7 +712,8 @@ changed, read this SKILL.md whole with the Read tool (the Skill tool only answer
 and follow the new text from then on; P's process still runs the old hooks and agents, so P also runs
 the handshake of "Restart for a plugin update". No message to the owner about it.
 
-On an owner message or a C report run `dev-kit-sessions fill`.
+On an owner message or a C report run `dev-kit-sessions fill` and, for P itself, `dev-kit-sessions fill --self`
+(an OVER line starts "Restart P").
 
 The fill limit is 0.5 (half the context window). The script takes the window from C's model as Claude Code runs it
 (1M for Fable, Sonnet 5+, Haiku 5.5, Opus 4.7+; 200K for older ones); `--window` overrides it. For each
@@ -784,10 +785,38 @@ of "Message templates": the C's `готово` line, and the start proposal for 
 
 ## Restart P
 
-`continue-work-in-another-context save`, then the owner types `/clear`, then `load`. State lives in
-project files and the registry; the queue lives in PROGRESS.md "Open questions". After `load`, P runs
-the wake-up checks (fill, registry against the session list) and sends the start status. C reports and
-event messages reach P by name.
+P moves itself to a fresh session when its own context reaches the fill limit (0.5); the Pult watcher
+stops it and starts the fresh one, the owner types nothing. State lives in project files and the
+registry; the queue lives in PROGRESS.md "Open questions".
+
+1. `dev-kit-sessions fill --self` prints OVER. At the nearest point where a stop breaks nothing (as in
+   the handshake of "Restart for a plugin update": a merge and its clean-up finished, an edit committed,
+   a subagent waited for), P runs `continue-work-in-another-context save` and then `dev-kit-sessions
+   handoff save --file <the file name it printed>`. Until the move P starts no new C or merge of its own;
+   it still answers the owner and its C sessions, and after a turn that changed the state it saves a new
+   handoff and runs `handoff save` with the new name before the turn ends.
+2. P adds its own urgent question to the queue: «Перезапустити мене зараз?» with `Рекомендую: так -
+   контекст заповнений наполовину, свіжа сесія дешевша`. It is a critical item ("Owner queue and critical
+   items"), so it pushes to the phone by the queue rule.
+3. The watcher moves P once P is idle and its transcript has not changed for 5 minutes, checked again
+   right before the stop. The owner's «так» to that question, or his «перезапускай» at any time, makes P
+   run `dev-kit-sessions handoff go` (with no saved handoff, P first does step 1 without waiting for
+   OVER) and end the turn with the one line «Перезапускаюсь.»; the watcher then moves P as soon as it is
+   idle, without the 5 minutes. The `go` mark covers only this move.
+4. The fresh P gets the first prompt `/dev-kit:project-lead handoff: <file>`. It runs
+   `/continue-work-in-another-context load <file>` with exactly that file name, then the steps of the
+   first prompt after a plugin-update restart ("Restart for a plugin update": read this SKILL.md, fill,
+   others, state, the resend request to each active C, the migrations check), removes the restart
+   question from the queue and sends the full start status.
+5. A failed move: the watcher logs HANDOFF-FAILED (Pult shows it), tries that handoff file only once and
+   brings the old P back. At any start whose first prompt has no `handoff:`, a `handoff status` other than
+   `none` means that failure: P runs `dev-kit-sessions handoff clear`, puts the question back in the queue
+   and does not start step 1 again by itself; only the owner's «так» or «перезапускай» does (step 1 with
+   a new file, then `handoff go`).
+
+Why: the owner, 2026-11-20 and 2026-11-21 (plan «Pult idle cost», point 12 and its additions): leads
+often missed the moment their own context grew; a bloated lead re-reads its whole context at every wake;
+the 5 quiet minutes keep the move out of a running talk, and «перезапускай» lets the owner skip them.
 
 ## Restart for a plugin update
 

@@ -14,6 +14,8 @@ full their context is.
     dev-kit-sessions size --id <id> [--id <id> ...] [--wakes <state file>]
     dev-kit-sessions limited --id <id> [--id <id> ...]
     dev-kit-sessions restart request --version <V> | ready [--version <V>] | status | clear
+    dev-kit-sessions handoff save --file <name.md> [--go] | go | status | clear
+    dev-kit-sessions fill --self [<id>] [--limit 0.5] [--window N] [--over-only]
 
 The registry is `sessions.json` in the project state folder (see dev_kit_state.py; the same folder for all worktrees
 of one repository). Ids (`--id`, `--parent`, `--predecessor`, `--self`) and the registry's ids are trimmed of spaces and
@@ -125,6 +127,17 @@ the open one ready when it is for V (one for another version is replaced); `stat
 <seconds>` or `ready <V> <seconds>` (the seconds since the request was asked or marked ready); `clear` removes the
 file (fine when absent). A ready, notified or absent request does not stop `watch`.
 
+`fill --self [<id>]` reports the caller's own context instead of the registry rows (the id defaults to env
+CLAUDE_CODE_SESSION_ID; none: stderr, exit 1; the registry is not read): `self | <id> | N tokens | window W | P%` (with
+OVER at the limit) or `self | <id> | no transcript`; `--over-only` prints only the OVER line.
+
+`handoff` is the file handshake for a full lead (the Pult watcher stops it and starts a fresh lead that loads the
+handoff file; works with an unreadable registry). `handoff.json` next to the registry holds `{"file": NAME, "saved":
+<epoch>, "go": bool}`. `save --file NAME [--go]` writes it (NAME is a bare file name ending in .md of letters,
+digits, dot, underscore, hyphen, starting with a letter or digit, else exit 1; a re-save keeps `go` true); `go` sets
+`go` (exit 1 when nothing is saved); `status` prints `none`, `saved NAME <seconds>` or `go NAME <seconds>` (the
+seconds since the save); `clear` removes the file (fine when absent).
+
 Exit code: 0 done (fill too, whatever the transcripts), 1 unknown or duplicate id (restart: `ready` with no
 request), 2 registry unreadable, 3 the session list could not be read.
 """
@@ -144,6 +157,8 @@ import dev_kit_state  # noqa: E402
 
 REGISTRY = "sessions.json"
 RESTART = "restart.json"
+HANDOFF = "handoff.json"
+HANDOFF_NAME = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]*\.md")  # a bare file name: the watcher puts it on a command line
 PROJECTS_ENV = "DEV_KIT_PROJECTS_DIR"
 DEFAULT_WINDOW = 200000
 NATIVE_1M_WINDOW = 1000000
@@ -336,7 +351,29 @@ def window_for(model):
     return DEFAULT_WINDOW
 
 
+def cmd_fill_self(args):
+    own = args.self or os.environ.get("CLAUDE_CODE_SESSION_ID") or ""
+    if not own:
+        print("dev-kit-sessions: no session id: pass --self <id> or set CLAUDE_CODE_SESSION_ID", file=sys.stderr)
+        return 1
+    transcript = find_transcript(own)
+    usage = last_usage(transcript) if transcript else None
+    if usage is None:
+        if not args.over_only:
+            print(f"self | {own} | no transcript")
+        return 0
+    tokens, model = usage
+    window = args.window or window_for(model)
+    percent = tokens / window
+    flag = " OVER" if percent >= args.limit else ""
+    if flag or not args.over_only:
+        print(f"self | {own} | {tokens} tokens | window {window} | {percent:.0%}{flag}")
+    return 0
+
+
 def cmd_fill(args, path, records):
+    if args.self is not None:
+        return cmd_fill_self(args)
     rows = active(records)
     for record in rows:
         transcript = find_transcript(record["id"])
@@ -1065,6 +1102,50 @@ def cmd_restart(args, path, records):
     return 0
 
 
+def read_handoff(path):
+    """The saved handoff (dict with a valid `file`) of the project, else None; an unreadable file counts as none."""
+    try:
+        data = json.loads(path.with_name(HANDOFF).read_text(encoding="utf-8-sig"))
+    except (OSError, ValueError):
+        return None
+    if isinstance(data, dict) and isinstance(data.get("file"), str) and HANDOFF_NAME.fullmatch(data["file"]):
+        return data
+    return None
+
+
+def cmd_handoff(args, path, records):
+    target = path.with_name(HANDOFF)
+    saved = read_handoff(path)
+    if args.handoff_action == "save":
+        if not HANDOFF_NAME.fullmatch(args.file):
+            print(f"dev-kit-sessions: {args.file!r} is not a bare file name like handoff-1.md", file=sys.stderr)
+            return 1
+        go = bool(args.go or (saved and saved.get("go")))
+        save(target, {"file": args.file, "saved": time.time(), "go": go})
+        print(f"handoff saved: {args.file}")
+    elif args.handoff_action == "go":
+        if saved is None:
+            print("dev-kit-sessions: no handoff is saved", file=sys.stderr)
+            return 1
+        saved["go"] = True
+        save(target, saved)
+        print(f"handoff go: {saved['file']}")
+    elif args.handoff_action == "status":
+        if saved is None:
+            print("none")
+        else:
+            since = saved.get("saved")
+            age = int(max(0, time.time() - float(since))) if isinstance(since, (int, float)) else 0
+            print(f"{'go' if saved.get('go') else 'saved'} {saved['file']} {age}")
+    else:
+        try:
+            target.unlink()
+        except FileNotFoundError:
+            pass
+        print("handoff cleared")
+    return 0
+
+
 def transcript_of(agents, wanted):
     """The transcript path of a registry id: by the sessionId of its list entry, else by the id itself."""
     entries = agent_entries(agents, wanted)
@@ -1408,6 +1489,8 @@ def main(argv=None):
     fill.add_argument("--limit", type=float, default=0.5)
     fill.add_argument("--window", type=int, default=0)
     fill.add_argument("--over-only", action="store_true", help="print only the OVER rows, nothing else")
+    fill.add_argument("--self", nargs="?", const="", default=None,
+                      help="the caller's own context instead of the registry rows (id default: env CLAUDE_CODE_SESSION_ID)")
     others = sub.add_parser("others")
     others.add_argument("--self", default="", help="the caller's session id (default: env CLAUDE_CODE_SESSION_ID)")
     others.add_argument("--json", action="store_true")
@@ -1442,6 +1525,13 @@ def main(argv=None):
     restart_sub.add_parser("ready").add_argument("--version", help="mark ready even with no open request")
     for action in ("status", "clear"):
         restart_sub.add_parser(action)
+    handoff = sub.add_parser("handoff", help="the handoff a full lead leaves for the Pult watcher, which starts a fresh lead")
+    handoff_sub = handoff.add_subparsers(dest="handoff_action", required=True)
+    handoff_save = handoff_sub.add_parser("save")
+    handoff_save.add_argument("--file", required=True, help="the handoff file name (bare, ends in .md)")
+    handoff_save.add_argument("--go", action="store_true", help="move now: skip the quiet wait")
+    for action in ("go", "status", "clear"):
+        handoff_sub.add_parser(action)
     args = parser.parse_args(argv)
     for key in ("id", "parent", "predecessor", "self", "name", "worktree", "task"):  # ids pasted with a CR or spaces
         value = getattr(args, key, None)
@@ -1452,8 +1542,9 @@ def main(argv=None):
     try:
         stateless = args.action in ("limited", "size")  # these read transcripts only, no project state
         path = registry_path(args.project, create=not stateless)
-        records = [] if args.action == "restart" or stateless else load(path)  # the handshake works with a broken registry too
-        return {"add": cmd_add, "end": cmd_end, "list": cmd_list, "fill": cmd_fill, "restart": cmd_restart,
+        no_rows = args.action in ("restart", "handoff") or (args.action == "fill" and args.self is not None)
+        records = [] if no_rows or stateless else load(path)  # the handshakes and `fill --self` work with a broken registry too
+        return {"add": cmd_add, "end": cmd_end, "list": cmd_list, "fill": cmd_fill, "restart": cmd_restart, "handoff": cmd_handoff,
                 "others": cmd_others, "state": cmd_state, "answers": cmd_answers, "watch": cmd_watch, "check": cmd_check, "mark": cmd_mark,
                 "size": cmd_size, "limited": cmd_limited}[args.action](args, path, records)
     except Unreadable as exc:
