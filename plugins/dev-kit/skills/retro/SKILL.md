@@ -7,7 +7,8 @@ description: Use when the session was started by the ClaudeDevKit project lead a
 
 The session talks with the owner directly, like an «Обговорення:» session (`dev-kit:project-lead`, "Retro of
 session problems"), and runs in a worktree of ClaudeDevKit. With 1-2 simple findings there is no session: P
-runs the retro in its own chat (its step 4 is only the commit and `dev-kit-retro done`); the flow is in
+runs the retro in its own chat (its step 3 is "Small rule edit" of `dev-kit:project-lead`, its step 4 only
+`dev-kit-retro done`); the flow is in
 `dev-kit:project-lead`, "Retro of session problems". Its input is the unreviewed findings of
 `dev-kit-retro list` (if the command is not found, `python <this plugin>/scripts/retro.py list`): first the section
 "Priority: token problems", read first, then the lines of the
@@ -84,7 +85,7 @@ so its question stays last; with no real item, the whole message is «Нових
 ## 3. Apply the yeses
 
 - A wording edit of a plugin skill, agent or rule doc, the repo's `CLAUDE.md`, or the owner's global rules and docs:
-  edit it in this session through `dev-kit:edit-rules`, steps 4-6 (the reviewer did steps 1-2, the owner's «так»
+  edit it in this session (P in its own chat: as in "Small rule edit") through `dev-kit:edit-rules`, steps 4-6 (the reviewer did steps 1-2, the owner's «так»
   here is step 3). The owner's
   global files are local, outside the repo, and are edited in place. Bump the plugin version once if a plugin
   changed.

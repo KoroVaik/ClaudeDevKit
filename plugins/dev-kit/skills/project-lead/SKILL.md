@@ -891,14 +891,15 @@ exception to "no task work"; any other rule edit P makes follows `dev-kit:edit-r
 - Up to 3 items at once: one `dev-kit:reviewer`, whose brief carries steps 1-2 of `dev-kit:edit-rules`,
   reviews them together and returns, per item, a recommendation with its reason, the idea in one plain
   line and the exact edit (a retro item already has this from the gate reviewer).
-- A backlog entry gets a `Verdict:` line with the recommendation and is removed after the edit or on
-  «ні». An owner-chat, process-mistake or retro item has no entry.
+- A backlog entry gets a `Verdict:` line with the recommendation and is removed after the edit (in the
+  worktree's commit) or on «ні». An owner-chat, process-mistake or retro item has no entry.
 - P asks the owner a yes/no batch on the ideas, not the wording (an in-chat retro item is asked as in
   "Retro of session problems"). On «так» P makes a throwaway worktree of main (`git worktree add`, as for a
   C); one `dev-kit:coder`, its brief naming that worktree's path, applies the edits there, bumps the plugin
   version if a plugin changed and runs the repo's lint; P runs steps 5-6 of `dev-kit:edit-rules` on the diff,
-  commits, merges into main and removes the worktree. Never edit the main checkout directly or work around
-  its guard: the harness blocks writes there by P and its subagents. The owner's global files (the local `.claude` folder) are edited in place and committed in that
+  commits, merges into main as in "Acceptance and merge" (its checks of the main checkout, `--ff-only`) and
+  removes the worktree. A rule edit never goes into the main checkout directly or around its guard: the
+  harness blocks writes there by P and its subagents. The owner's global files (the local `.claude` folder) are edited in place and committed in that
   folder's local git (step 6 of `dev-kit:edit-rules`).
 
 Why: owner, 2026-11-20, retro: a retro session was started for one finding already fixed; owner: «То нащо
@@ -926,8 +927,8 @@ itself, with no item and no message. Otherwise:
   form of "Message templates" (the fix in one plain line, its consequence in brackets, `Рекомендую:`), never
   in the long format of `dev-kit:retro`, step 2; details only on the owner's ask. Each «так» is applied as in
   "Small rule edit". Why: owner, 2026-11-20: a retro item sent unasked in the long format was «полотно
-  неформатованого тексту»; he wants to be asked first, then short questions. After the last answer P commits and runs
-  `dev-kit-retro done`; no short plan, no done report, no merge. A finding that needs a script, a hook, a new
+  неформатованого тексту»; he wants to be asked first, then short questions. After the last answer P runs
+  `dev-kit-retro done`; no short plan and no done report (each edit was merged in "Small rule edit"). A finding that needs a script, a hook, a new
   agent or skill, a spend rule or a change of the scan makes the retro complex.
 - More items, or a complex one: P adds one question of its own: «Запустити ретро сесій? (<N> нових
   знахідок)», where <N> is the real count after the gate reviewer.
