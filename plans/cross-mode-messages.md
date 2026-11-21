@@ -36,3 +36,21 @@ Agree with the owner a fix so a message between any two sessions on this machine
 - 2026-11-21, owner's «так»: when Pult's gate finds a project with no hard-ban lines on main, it does not start the lead and instead tells the owner which project lacks them and gives the ready script command to paste.
 - 2026-11-21, owner's «так» (replaces «the owner runs himself» and «Agents never run it» in the script entry above): the script only adds deny lines, never removes or changes any. P shows the owner the set, and on his «так» P runs the script itself; the owner only approves. Pult's missing-bans notice then asks for that «так» instead of giving a command to paste. Reason: adding bans only tightens agents; removing or editing them stays forbidden to agents.
 - 2026-11-21, owner's «так»: undo of a wrong ban. Each script run is its own commit on main, so no separate snapshot. On the owner's «так» P may revert only the latest ban-adding commit (one step back); older bans stay and only the owner removes them by hand.
+
+## Build log (C «one-mode», 2026-11-21)
+Paid spend so far: 0 USD.
+
+### Step 1: ban sets for the owner's yes (sent to P)
+Pult's gate (`plugins/pult/scripts/resume-lib.ps1:111-126`) reads only committed `main:.claude/settings.json` and needs one deny line per shell starting with `Bash(git push` / `Bash(rm -rf` / `Bash(docker` and `PowerShell(git push` / `PowerShell(Remove-Item` / `PowerShell(docker`. `skipDangerousModePermissionPrompt` is already true in the user settings.
+
+ClaudeDevKit now: only `Edit(.claude/settings.json)`, `Edit(.claude/settings.local.json)` (commit a9c6ac8), so the gate fails. Lines to add (owner's choice: rm -rf, no push ban; the repo has no data folders, so they guard the repo's own history and product, a ticket for the gate more than protection):
+- `Bash(rm -rf .git*)`, `PowerShell(Remove-Item*.git*)`
+- `Bash(rm -rf plugins*)`, `PowerShell(Remove-Item*plugins*)`
+
+Prishch now: no `permissions` block on main. `Push: ask` (an agent pushes main after the owner's yes), so no push-to-main ban; no docker, no database. Lines to add:
+- `Bash(git push --force*)`, `PowerShell(git push --force*)`, `Bash(git push -f*)`, `PowerShell(git push -f*)`
+- `Bash(git push*--delete*)`, `PowerShell(git push*--delete*)`
+- `Bash(rm -rf Logs/archive*)`, `PowerShell(Remove-Item*Logs*archive*)` (run records the owner keeps, CLAUDE.md:19-20)
+- `Edit(.claude/settings.json)`, `Edit(.claude/settings.local.json)`
+
+Side effect to know: `Remove-Item*plugins*` also blocks deleting a single file under `plugins/` by PowerShell; agents use `git rm` for tracked files (which needs P's yes anyway).
