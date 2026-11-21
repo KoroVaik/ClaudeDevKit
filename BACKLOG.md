@@ -8,13 +8,6 @@ it and it is built, or when the owner drops it.
 Entry format: see the Backlog kind in [the documentation standard](plugins/dev-kit/skills/documentation/SKILL.md).
 A reviewed entry gets a `Verdict:` line (the project lead's recommendation) and waits for the owner's yes or no.
 
-## Retro: token waste findings (cold restarts, wakes without the owner, bloated context)
-
-What: three new spend findings in the daily retro scan (`plugins/dev-kit/scripts/retro.py`), each a top of sessions in units: (1) cold restart - units spent rewriting the cache on the first call after a gap over the cache lifetime (1 h; 5 min for 5-minute writes); (2) wakes without the owner - turns started by a task notification or timer, not an owner message, and how many of them did nothing but re-arm; (3) bloated context - sessions whose turns each read over about 300k tokens. Each top keeps the model weight (as the scan does now) and shows the session's reasoning level next to it: the transcripts record `"effort"` per turn (checked in the Pult hub transcript); thinking is already inside output tokens, so it needs no extra weight.
-Why: owner, 2026-11-20, discussion «pult-idle-cost»: idle watcher wakes of Pult and the leads burned tens of millions of tokens over days unseen; the retro counted spend per session but did not show why. Finding (2) would have caught it on the second day.
-Cheapest test: run the scan on 2026-11-19..20; the Pult hub and the Zhratva lead must top findings (1) and (2).
-Owner's yes (2026-11-20).
-
 ## Pult: own remote client for agents
 
 What: a custom remote interface for agents, maybe an own Claude client app without the extra features and with the missing ones (grouping by project, what waits on me, health). A self-updating status page instead of a chat list is the first step.
