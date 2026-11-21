@@ -109,6 +109,11 @@ Phase 1:
 
 Phase 2 (after phase 1 proves delivery):
 12. A lead checks its own fill (`fill --self`) and at 0.5 saves a handoff and writes a «handoff saved» marker; the script stops the old lead, waits until it is gone, starts a fresh one (same name, model, effort, mode; first prompt `/dev-kit:project-lead` plus the handoff, with the resend request to every C); no sends during a handoff; edit hub.md:149 and SKILL.md:721. Check first that the owner's phone chat follows the new session.
+    - Additions (owner, 2026-11-21, «так»): (a) the handoff restart also waits for the lead's 5 minutes of silence
+      (point 3), re-checked right before the stop; (b) when the lead reaches 0.5 it adds a ❗ question to its status,
+      «Перезапустити мене зараз?» (critical, so one phone push per the queue rule); (c) the owner's «так» to it, or his
+      «перезапускай», makes the lead write a marker that lets the script restart it at once, without the 5 minutes;
+      the marker covers only the next handoff.
 
 Tests first: mode matrix (auto to bypass, bypass to auto); target mid-turn (owner writing to Pult; busy lead); target down (error, exit code); `-p` needing approval (hang?); Ukrainian by stdin; one-shot cwd; owner away 10 minutes (one-shot push and Pult's push reach the phone); lead with no watcher shows idle; ping answer on the phone; `watch --max-minutes 0` as a single round.
 Success check: from the logs and transcripts, Pult and a lead with no events show no wakes for a day; one forced GIVEUP gives one push and the fix line in Pult; a C past 0.5 wakes its lead within a few minutes.
