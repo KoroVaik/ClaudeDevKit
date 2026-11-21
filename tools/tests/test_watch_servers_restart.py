@@ -49,6 +49,17 @@ Add-Content -LiteralPath $env:TEST_STARTS_FILE -Value "Restarted=$($Restarted -j
 '''
 
 
+# A restart-leads.ps1 / start-servers.ps1 that finds no hard bans on main (the real lines: see resume-lib.ps1).
+STUB_RESTART_NO_BANS = '''param($Name, $Ready, $ConfigFile, $StateDir)
+Add-Content -LiteralPath $env:TEST_CALLS_FILE -Value "restart $Name"
+Write-Output "NO-BANS $Name (no Bash and PowerShell hard-ban deny lines on main): not restarted, it keeps running."
+'''
+STUB_START_NO_BANS = '''param([string[]]$Restarted, [string[]]$Only, [string]$ConfigFile, [string]$StateDir)
+Add-Content -LiteralPath $env:TEST_CALLS_FILE -Value "start $($Only -join ',')"
+Write-Output "NO-BANS $($Only -join ',') (no .claude/settings.json committed on main): lead not started."
+'''
+
+
 def plugin_json(version):
     return json.dumps({"name": "x", "version": version})
 
@@ -233,6 +244,27 @@ class WatchServersRestartTest(WatcherEnv, unittest.TestCase):
         self.assertTrue(any(f"RESTART-LEAD {LEAD} (web-kit 1.0.0 -> 1.1.0, idle)" in line for line in log), log)
 
     # protects: Rule
+    def test_lead_without_hard_bans_is_not_restarted_again_and_again_and_is_reported_once(self):
+        (self.scripts / "restart-leads.ps1").write_text(STUB_RESTART_NO_BANS, encoding="ascii")
+        self.plan({2: [{"path": str(self.plugins / "web-kit" / ".claude-plugin" / "plugin.json"),
+                        "write": plugin_json("1.1.0")}]})
+        log = self.run_watch(6)
+        self.assertEqual([f"restart {LEAD}"], self.restart_calls(), "asked again only after the retry time")
+        notices = [line for line in log if " NO-BANS " in line]
+        self.assertEqual(1, len(notices), log)
+        self.assertIn(f"NO-BANS {LEAD} (no Bash and PowerShell hard-ban deny lines on main)", notices[0])
+        self.assertFalse([line for line in log if "RESTART-LEAD-FAILED" in line], log)
+
+    # protects: Rule
+    def test_down_lead_without_hard_bans_is_not_healed_in_a_loop(self):
+        (self.scripts / "start-servers.ps1").write_text(STUB_START_NO_BANS, encoding="ascii")
+        (self.bin / "agents.json").write_text("[]", encoding="utf-8")  # the lead is down
+        log = self.run_watch(8)
+        self.assertEqual([f"start {LEAD}"], self.restart_calls(), "one start try, then the retry time")
+        self.assertEqual(1, len([line for line in log if " NO-BANS " in line]), log)
+        self.assertFalse([line for line in log if "HEAL-FAILED" in line or "GIVEUP" in line], log)
+
+    # protects: Rule
     def test_busy_lead_is_not_woken_for_an_extension_and_restarts_when_idle(self):
         self.agents("busy")
         self.plan({2: [{"path": str(self.plugins / "web-kit" / ".claude-plugin" / "plugin.json"),
@@ -310,6 +342,42 @@ class WatchServersRestartTest(WatcherEnv, unittest.TestCase):
 class RestartLeadsAskTest(WatcherEnv, unittest.TestCase):
     """The real restart-leads.ps1 -Ask against lead-versions.json (its start-servers.ps1 is a stub)."""
     REAL_RESTART_LEADS = True
+
+    def setUp(self):
+        super().setUp()
+        # The lead's project holds hard-ban lines on main and the user accepted the bypass disclaimer: the gate of
+        # resume-lib.ps1 passes (a fake user folder, so the real settings of this machine are not read).
+        self.user_home = self.tmp / "user"
+        (self.user_home / ".claude").mkdir(parents=True)
+        (self.user_home / ".claude" / "settings.json").write_text(
+            json.dumps({"skipDangerousModePermissionPrompt": True}), encoding="utf-8")
+        self.commit_bans()
+
+    def commit_bans(self, deny=("Bash(rm -rf data*)", "PowerShell(Remove-Item*data*)")):
+        settings = self.project / ".claude" / "settings.json"
+        before = settings.read_text(encoding="utf-8")
+        settings.write_text(json.dumps({"permissions": {"deny": list(deny)}}), encoding="utf-8")
+        for args in (["init", "-q", "-b", "main"], ["config", "user.email", "t@t"], ["config", "user.name", "t"],
+                     ["add", ".claude/settings.json"], ["commit", "-q", "-m", "bans"]):
+            subprocess.run(["git", "-C", str(self.project), *args], check=True, capture_output=True)
+        settings.write_text(before, encoding="utf-8")  # the working copy keeps the enabledPlugins
+
+    def env(self):
+        return dict(super().env(), USERPROFILE=str(self.user_home))
+
+    # protects: Rule
+    def test_lead_without_hard_bans_on_main_is_not_stopped(self):
+        subprocess.run(["git", "-C", str(self.project), "rm", "-q", "-r", "--cached", ".claude"], check=True,
+                       capture_output=True)
+        subprocess.run(["git", "-C", str(self.project), "commit", "-q", "-m", "drop"], check=True,
+                       capture_output=True)
+        self.lead_record("0.9.0", {"web-kit": "1.0.0"})
+        lines = self.run_ask()
+        self.assertTrue(any(line.startswith(f"NO-BANS {LEAD} (no .claude/settings.json committed on main)")
+                            for line in lines), lines)
+        self.assertEqual(1, len(json.loads((self.bin / "agents.json").read_text(encoding="utf-8"))),
+                         "claude stop was not called: the lead is still listed")
+        self.assertEqual(["Restarted="], self.starts())
 
     # protects: Rule
     def test_lead_on_the_installed_versions_is_left_alone(self):

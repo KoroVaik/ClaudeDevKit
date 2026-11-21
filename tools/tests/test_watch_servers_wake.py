@@ -245,10 +245,9 @@ class WatchServersWakeTest(unittest.TestCase):
     # ---- the tests ----
 
     # protects: Flow
-    def test_lead_event_reaches_the_lead_in_its_mode_and_is_marked_after_delivery(self):
+    def test_lead_event_reaches_the_lead_in_bypass_and_is_marked_after_delivery(self):
         (self.pult / "logs" / "servers.log").write_text(
-            f"2026-11-20T08:00:00 MODE {LEAD} auto (no hard bans)\n"
-            f"2026-11-20T09:00:00 MODE {LEAD} bypassPermissions (hard bans on main)\n", encoding="utf-8")
+            f"2026-11-20T08:00:00 MODE {LEAD} auto (an old line: the sender never reads it)\n", encoding="utf-8")
         (self.bin / "check.txt").write_text(STALE_LINE + "\n", encoding="utf-8")
         log = self.run_watch(2)
         self.assertFalse([line for line in log if line.startswith("WARN")], log)
@@ -284,7 +283,7 @@ class WatchServersWakeTest(unittest.TestCase):
         self.assertEqual([LEAD] * 3 + ["Pult"], [self.to(w) for w in wakes], log)
         self.assertEqual(["SendMessage"] * 4, [self.arg(w, "--tools") for w in wakes], "no one-shot push of its own")
         self.assertEqual(1, len({self.message(w).split("\n")[0] for w in wakes[:3]}), "a retry keeps the event id")
-        self.assertEqual("auto", self.arg(wakes[3], "--permission-mode"))
+        self.assertEqual("bypassPermissions", self.arg(wakes[3], "--permission-mode"))
         push = self.push(wakes[3])
         self.assertLess(len(push), 200)
         self.assertTrue(push.startswith(f"{LEAD} не взяв повідомлення; stale: C: task | {TASK}"), push)
@@ -294,10 +293,8 @@ class WatchServersWakeTest(unittest.TestCase):
         self.assertEqual([f"stale|{TASK}|{STALE_KEY}"], self.marks(), "marked once, after Pult took the push")
 
     # protects: Flow
-    def test_pult_down_its_giveup_is_pushed_through_a_live_lead_in_its_mode(self):
+    def test_pult_down_its_giveup_is_pushed_through_a_live_lead_in_bypass(self):
         self.config(lead=True, server=True)
-        (self.pult / "logs" / "servers.log").write_text(
-            f"2026-11-20T09:00:00 MODE {LEAD} bypassPermissions (hard bans on main)\n", encoding="utf-8")
         log = self.run_watch(2, "-MaxHeals", "0", "-WakeDownSec", "0")
         wakes = self.wakes()
         self.assertEqual([LEAD], [self.to(w) for w in wakes], log)
@@ -324,7 +321,7 @@ class WatchServersWakeTest(unittest.TestCase):
         self.assertFalse([line for line in log if line.startswith("WARN")], log)
         wakes = self.wakes()
         self.assertEqual(2, len(wakes), log)
-        self.assertEqual(["auto", "auto"], [self.arg(w, "--permission-mode") for w in wakes])
+        self.assertEqual(["bypassPermissions"] * 2, [self.arg(w, "--permission-mode") for w in wakes])
         self.assertIn("brackets added: Pult\n", wakes[0]["stdin"])
         self.assertIn("watch-log.py) is retired", self.message(wakes[0]))
         giveup = self.message(wakes[1]).split("\n")

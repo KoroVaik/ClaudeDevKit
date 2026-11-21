@@ -13,6 +13,8 @@
 # -Ask also counts the extension plugins a project uses (web-kit, unity-kit; see plugin-versions.ps1): a lead
 # stale only in an extension is restarted now when idle, and a busy one is not asked (the watcher restarts it
 # when it is idle: `Not asked, busy and only an extension changed: <name>`).
+# A lead whose project has no hard-ban lines on main is not stopped: `NO-BANS <name> (<reason>): not restarted`
+# (start-servers.ps1 would not start it again; the watcher parses this line).
 # Without -Ready and -Ask, only idle leads are restarted and a busy one is skipped (its turn would be cut);
 # -Force restarts busy ones too, only after checking they are not in the middle of a step.
 # -ConfigFile and -StateDir: another server list and Pult state folder (hold file); both are passed on to
@@ -32,6 +34,7 @@ if (-not $StateDir) { $StateDir = Join-Path $env:USERPROFILE '.claude\pult' }  #
 if (-not $DevKitDir) { $DevKitDir = Join-Path $scripts '..\..\dev-kit' }
 $DevKitDir = [IO.Path]::GetFullPath($DevKitDir)
 . (Join-Path $scripts 'plugin-versions.ps1')
+. (Join-Path $scripts 'resume-lib.ps1')  # Get-LeadPermissionMode
 $rows = @((Import-PowerShellDataFile $ConfigFile).Servers | Where-Object { $_.Lead })
 $leads = @($rows | ForEach-Object { $_.Session })
 if ($Ready) { $Name = $Ready }
@@ -101,6 +104,13 @@ foreach ($lead in $leads) {
         continue
     }
     if ($s.status -eq 'busy' -and -not $Force -and -not $Ready) { Write-Output "Busy, skipped: $lead"; continue }
+    # start-servers.ps1 starts a lead only with hard bans on main: without them a stopped lead would stay down.
+    $gate = @{ Start = $false; Reason = 'the hard-ban check failed' }
+    try { $gate = Get-LeadPermissionMode $row.Path } catch { }
+    if (-not $gate.Start) {
+        Write-Output "NO-BANS $lead ($($gate.Reason)): not restarted, it keeps running. Hard bans are missing on main; the owner's yes is needed to add them."
+        continue
+    }
     @(claude stop $s.id) | Select-Object -First 1  # capture first: a cut pipe sets exit code -1
     $stopped += $lead
 }

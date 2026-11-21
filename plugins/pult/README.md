@@ -13,6 +13,11 @@ problem it proposes a fix and acts after an explicit yes.
   home) the hook prints nothing.
 - The Remote Control server "Pult" runs with cwd = the home folder, so its sessions get these rules.
 - The project list is the lead entries of `scripts/servers.psd1`. To add a project, add one row there.
+- One permission mode: every session the plugin starts (leads, the hub, `start-session.ps1`) runs in
+  `bypassPermissions`, never `auto`. A project with no hard-ban deny lines on main starts no sessions: its
+  lead is not started (log NO-BANS), Pult tells you which project lacks them and asks your «так»; on it the
+  hard bans are added with `dev-kit-bans add` (the hub never removes or edits bans; `dev-kit-bans undo` only
+  on your «так»).
 - Logs: `~/.claude/pult/logs/servers.log` (written by `start-servers.ps1` and `watch-servers.ps1`; nothing is
   written inside the plugin folder).
 - The watcher (`scripts/watch-servers.ps1`, started at logon) checks every minute. A lead or server of
@@ -47,7 +52,7 @@ problem it proposes a fix and acts after an explicit yes.
   for every lead on dev-kit 0.1.78 or later and sends each new event (a task session gone, finished, on the
   usage limit, waiting 20 minutes, past half its context, or a restart request) to the lead as a
   cross-session message `[EVT-<id>] Pult server watcher: ...`, by a one-shot `claude -p` (haiku, safe mode,
-  only the SendMessage tool, the lead's permission mode). GIVEUP, GIVEUP-TASK and RESTART-LEAD-FAILED go to
+  only the SendMessage tool, `bypassPermissions`). GIVEUP, GIVEUP-TASK and RESTART-LEAD-FAILED go to
   the Pult session the same way; Pult pushes them to your phone. A lead silent 50 minutes while one of its
   task sessions works gets a keep-warm ping. A message counts as delivered once its id shows in the
   target's transcript; until then it is sent again, then pushed to your phone (for Pult: «Pult не піднявся -

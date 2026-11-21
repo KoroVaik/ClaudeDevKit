@@ -6,6 +6,11 @@
 #   hour per entry, then GIVEUP until it is seen up again. A hold file (~\.claude\pult\hold, left by
 #   stop-servers.ps1 and restart-leads.ps1, removed by a full start-servers.ps1 run) pauses this: HOLD.
 #   Other sessions it touches only as the next item says; never an owner session.
+#   A lead whose project has no hard-ban lines on main is never started (start-servers.ps1 prints NO-BANS): no
+#   HEAL try is counted, no HEAL-FAILED or GIVEUP; the watcher logs NO-BANS <name> (<reason>) once and sends it to
+#   Pult (the owner's yes is needed to add the bans), looks again every $NoBansRetryMin minutes, and starts the
+#   lead once the bans are on main. A version restart of a running lead (restart-leads.ps1) is skipped the same
+#   way and the lead keeps running.
 # - A task session that a project lead registered as active (<DevKitStateDir>\<repo>-<hash>\sessions.json,
 #   not a lead) and that Claude Code closed is brought back by `claude respawn <id>`. It is closed when
 #   it is in `claude agents --json --all` with no pid and its state is not stopped (an idle session
@@ -76,8 +81,8 @@
 #   none to a lead whose `restart status` says ready (its -Ready restart would cut the turn handling the message;
 #   it waits until after the restart). The sends of a round stop after $WakeSendBudgetSec s; the rest wait for
 #   the next round. The output of every python call is read as UTF-8 (Cyrillic names). Send-Wake runs one
-#   hidden one-shot `claude -p` (haiku, safe mode, only the SendMessage tool, the target's permission mode: Pult auto, a lead its last
-#   `MODE <name> <mode> (` line of servers.log, auto or bypassPermissions, else auto) in <StateDir>\wake, the
+#   hidden one-shot `claude -p` (haiku, safe mode, only the SendMessage tool, permission mode bypassPermissions, the
+#   one mode of every session of the plugin) in <StateDir>\wake, the
 #   prompt by stdin; it is stopped after $WakeWaitSec s; its json `result` says sent or failed. Logged: WAKE
 #   <target> <id> cause=event|ping|note kinds=<kinds> (first send), WAKE-SENT, WAKE-FAILED <reason>. A message
 #   is delivered when `[EVT-<id>]` shows in the tail of the target's transcript (<projects>\*\<session id>.jsonl,
@@ -142,7 +147,9 @@ if (-not $WakeExe) {  # an Application: claude.exe or claude.cmd, never the npm 
     $WakeExe = [string](Get-Command claude -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1).Source
 }
 $WakeMinDevKit = '0.1.78'  # a lead that started on this dev-kit or later keeps no session watcher: it is woken by message
-$WakeMaxTries = 3          # sends of one message before the phone fallback
+$NoBansRetryMin = 10       # a lead blocked by missing hard bans is looked at again after this
+$WakeMode = 'bypassPermissions' # the one permission mode of every session of the plugin (the sender's too)
+$WakeMaxTries = 3         # sends of one message before the phone fallback
 $WakeWaitSec = 60          # a one-shot sender still running after this is stopped
 $PhoneRetrySec = 600       # a failed phone push is tried again after this
 $WakeSendBudgetSec = 180   # the sends of one round stop after this; the rest wait for the next round
@@ -194,6 +201,19 @@ function Write-WarnOnce([string]$Key, [string]$Text) {
 function Write-Critical([string]$Msg) {
     Write-Log $Msg
     [void]$pultEvents.Add($Msg)
+}
+
+# A lead blocked because its project has no hard-ban lines on main (start-servers.ps1 and restart-leads.ps1 print
+# `NO-BANS <name> (<reason>)`): not an error and not a HEAL failure. No start or restart of it is tried for
+# $NoBansRetryMin minutes (then the gate runs again, so bans added meanwhile let it start). The owner is told once
+# (Write-Critical: log line and a message to Pult), until the lead is started or restarted again.
+function Register-NoBans([string]$Name, [string]$Said) {
+    $reason = if ($Said -match 'NO-BANS [^(]*\(([^)]*)\)') { $Matches[1] } else { 'no hard-ban lines on main' }
+    $noBansUntil[$Name] = (Get-Date).AddMinutes($NoBansRetryMin)
+    if (-not $noBansTold[$Name]) {
+        $noBansTold[$Name] = $true
+        Write-Critical "NO-BANS $Name ($reason): not started, the owner's yes is needed to add the hard bans"
+    }
 }
 
 # Runs python with $PyArgs and returns @{ Code; Out } (stdout, and stderr unless -NoStderr). The output is read as
@@ -430,7 +450,8 @@ function Invoke-LeadRestart([string]$LeadName, [switch]$IsReady) {
     $out = & powershell.exe @cmd 2>&1 | Out-String
     $said = ($out.Trim() -replace '\s+', ' ')
     if ($said -match 'Busy, skipped') { return 'busy' }
-    if ($said -match ('(Resumed|Started) lead: ' + [regex]::Escape($LeadName))) { return 'ok' }
+    if ($said -match 'NO-BANS ') { Register-NoBans $LeadName $said; return 'nobans' }
+    if ($said -match ('(Resumed|Started) lead: ' + [regex]::Escape($LeadName))) { $noBansTold.Remove($LeadName); return 'ok' }
     Write-Critical ("RESTART-LEAD-FAILED {0}: {1}" -f $LeadName, $said)
     return 'failed'
 }
@@ -493,6 +514,7 @@ function Invoke-LeadVersionCheck($s, $m, [string]$V) {
         return
     }
     if ($onHold -or $starting -or (Test-Path -LiteralPath $hold)) { return }
+    if ($noBansUntil[$name] -and (Get-Date) -lt $noBansUntil[$name]) { return }  # no hard bans on main: asked a moment ago
     # The key of one try: the dev-kit version and the extension versions together.
     $tryKey = $V + (($ext.Keys | Sort-Object | ForEach-Object { "|$_=$($ext[$_].Version)" }) -join '')
     if ($leadTried[$name] -ceq $tryKey) { return }
@@ -536,6 +558,7 @@ function Invoke-LeadVersionCheck($s, $m, [string]$V) {
     Write-Log "RESTART-LEAD $name ($($changed -join '; '), $how)"
     $result = Invoke-LeadRestart $name -IsReady:($how -eq 'ready')
     if ($result -eq 'busy') { return }  # turned busy meanwhile: the busy path handles it next round
+    if ($result -eq 'nobans') { return }  # no hard bans on main: the lead was left running; tried again later (Register-NoBans)
     $leadTried[$name] = $tryKey
     $cleared = Invoke-LeadRestartFile $s.Path @('clear')  # also after a failure: no stale ready mark stays
     if ($cleared -cne 'restart cleared') { Write-Log "WARN restart clear for $name failed: $($cleared -replace '\s+', ' ')" }
@@ -615,22 +638,6 @@ function Test-TranscriptHas([string]$SessionId, [string]$Text) {
         } finally { $fs.Dispose() }
     } catch { return $false }
     return $tail.IndexOf($Text, [StringComparison]::Ordinal) -ge 0
-}
-
-# A permission mode for a message to a lead: its last `MODE <name> <mode> (` line of servers.log (start-servers.ps1
-# writes it), auto or bypassPermissions; else auto. A message from another mode is held for the owner's approval.
-function Get-LeadMode([string]$Name) {
-    $mode = 'auto'
-    $pattern = '^\S+ MODE ' + [regex]::Escape($Name) + ' (\S+) \('
-    foreach ($f in @("$log.old", $log)) {
-        if (-not (Test-Path -LiteralPath $f)) { continue }
-        try {
-            $hit = Select-String -LiteralPath $f -Pattern $pattern -CaseSensitive -Encoding UTF8 | Select-Object -Last 1
-            if ($hit) { $mode = $hit.Matches[0].Groups[1].Value }
-        } catch { }
-    }
-    if ($mode -cne 'bypassPermissions') { $mode = 'auto' }
-    return $mode
 }
 
 # One line of a message: no control characters, at most $Max characters.
@@ -766,7 +773,7 @@ function Test-WakeTaken($Item) {
 
 function Send-WakeItem($Item, $T) {
     if (-not $Item.Tries) { Write-Log "WAKE $($Item.Target) $($Item.Id) cause=$($Item.Cause) kinds=$($Item.Kinds -join ',')" }
-    $Item.Mode = if ($Item.Kind -eq 'lead') { Get-LeadMode $Item.Target } else { 'auto' }
+    $Item.Mode = $WakeMode
     $Item.SessionId = $T.SessionId
     $Item.Tries++
     $Item.Sent = Get-Now
@@ -812,7 +819,7 @@ function Send-PhoneItem($Item, $Targets, $Handled) {
     $Handled[$relay] = $true
     if (-not $Item.Tries -and -not $Item.From) { Write-Log "WAKE phone $($Item.Id) cause=$($Item.Cause) kinds=$($Item.Kinds -join ',')" }
     $Item.Relay = $relay
-    $Item.Mode = if ($relay -ceq 'Pult') { 'auto' } else { Get-LeadMode $relay }
+    $Item.Mode = $WakeMode
     $Item.SessionId = $Targets[$relay].SessionId
     $Item.Tries++
     $Item.Sent = Get-Now
@@ -1094,6 +1101,8 @@ $versionWarned = $null
 $pluginTime = $null
 $prev = @{}
 $downRounds = @{}   # name -> rounds in a row seen down
+$noBansUntil = @{}  # name -> no start or restart is tried before this time (no hard bans on main)
+$noBansTold = @{}   # name -> $true once the owner was told (Register-NoBans)
 $heals = @{}        # name -> times of HEAL tries in the last hour
 $gaveUp = @{}       # name -> $true after GIVEUP, until seen up
 $taskClosed = @{}   # task session id -> rounds in a row seen closed
@@ -1195,6 +1204,7 @@ while ($true) {
         $downRounds[$name] = [int]$downRounds[$name] + 1
         if ($Once -or $downRounds[$name] -lt 2 -or $gaveUp[$name]) { continue }
         if (Test-Path -LiteralPath $hold) { continue }  # a stop began during this round
+        if ($noBansUntil[$name] -and (Get-Date) -lt $noBansUntil[$name]) { $downRounds[$name] = 0; continue }  # blocked, not broken
         $tries = @($heals[$name] | Where-Object { $_ -and ((Get-Date) - $_).TotalHours -lt 1 })
         if ($tries.Count -ge $MaxHeals) {
             Write-Critical "GIVEUP $name ($MaxHeals restarts in the last hour did not keep it up; restart it by hand)"
@@ -1206,6 +1216,14 @@ while ($true) {
         $out = & powershell.exe -NoProfile -ExecutionPolicy Bypass -File (Join-Path $PSScriptRoot 'start-servers.ps1') `
             -Only $name -ConfigFile $ConfigFile -StateDir $StateDir 2>&1 | Out-String
         $said = ($out.Trim() -replace '\s+', ' ')
+        if ($s.Lead -and $said -match 'NO-BANS ') {
+            # Not a failed try: the lead is blocked until the owner says yes to the hard bans (Register-NoBans).
+            $heals[$name] = $tries
+            Register-NoBans $name $said
+            $downRounds[$name] = 0
+            continue
+        }
+        if ($said -match '(Resumed|Started)( lead)?: ') { $noBansTold.Remove($name) }
         if ($LASTEXITCODE -ne 0 -or $said -notmatch '(Resumed|Started)( lead)?: ') {
             Write-Log ("HEAL-FAILED {0} (exit {1}): {2}" -f $name, $LASTEXITCODE, $said)
         }

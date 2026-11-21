@@ -77,9 +77,16 @@ foreach ($p in $projects) {
         foreach ($k in 'Prompt', 'Model', 'Effort') { if ($p[$k]) { $opt[$k] = $p[$k] } }
         $model = @{}
         foreach ($k in 'Model', 'Effort') { if ($p[$k]) { $model[$k] = $p[$k] } }
-        # The same permission mode the lead's C sessions get (resume-lib.ps1, Get-LeadPermissionMode).
-        $perm = @{ Mode = 'auto'; Reason = 'mode check failed' }
+        # The one permission mode, bypassPermissions, only with hard bans on main (resume-lib.ps1,
+        # Get-LeadPermissionMode); no fallback: a failed check counts as "do not start".
+        $perm = @{ Start = $false; Mode = ''; Reason = 'the hard-ban check failed' }
         try { $perm = Get-LeadPermissionMode $p.Path } catch { Write-Output "Could not check the lead's permission mode: $_" }
+        if (-not $perm.Start) {
+            # The watcher reads this line from the output (watch-servers.ps1) and the hub shows the log line.
+            Write-Log "NO-BANS $sessionName ($($perm.Reason))"
+            Write-Output "NO-BANS $sessionName ($($perm.Reason)): lead not started. Hard bans are missing on main; the owner's yes is needed to add them."
+            Pop-Location; continue
+        }
         Write-Log "MODE $sessionName $($perm.Mode) ($($perm.Reason))"
         # A lead stopped a moment ago may still have its processes; a resume then starts a flag-less copy
         # (resume-lib.ps1, Get-SessionProcessIds). Wait until they are gone, before the saved flags are set.
@@ -89,13 +96,15 @@ foreach ($p in $projects) {
             Pop-Location; continue
         }
         if ($resumeId) {
-            try { if (Set-LeadRespawnModel $sessionName $resumeId @model -Mode $perm.Mode) { Write-Log "MODEL $sessionName $(if ($p.Model) { $p.Model } else { $LeadModel })/$(if ($p.Effort) { $p.Effort } else { $LeadEffort })/$($perm.Mode)" } }
+            try { if (Set-LeadRespawnModel $sessionName $resumeId @model) { Write-Log "MODEL $sessionName $(if ($p.Model) { $p.Model } else { $LeadModel })/$(if ($p.Effort) { $p.Effort } else { $LeadEffort })/$($perm.Mode)" } }
             catch { Write-Output "Could not set the lead's model: $_" }
         }
-        $leadArgs = Get-LeadStartArgs $sessionName $resumeId -Restarted:($Restarted -ccontains $sessionName) @opt -Mode $perm.Mode
+        $leadArgs = Get-LeadStartArgs $sessionName $resumeId -Restarted:($Restarted -ccontains $sessionName) @opt
         $copyLeft = $null
+        $exitCode = 0
         for ($try = 1; $try -le 2; $try++) {
             $said = @(claude @leadArgs 2>&1 | ForEach-Object { "$_" })
+            $exitCode = $LASTEXITCODE  # right after the call: the lines below are cmdlets, but keep it safe
             $said | Where-Object { $_ -notlike 'note:*' } | Select-Object -First 1
             $copyLeft = if ($resumeId) { Get-ResumeCopyId ($said -join "`n") } else { $null }
             if (-not $copyLeft) { break }
@@ -111,6 +120,13 @@ foreach ($p in $projects) {
         if ($copyLeft) {
             Write-Log "NOT-RESUMED $sessionName $resumeId (claude started a copy twice)"
             Write-Output "Not resumed, claude started a copy twice: $sessionName"
+            continue
+        }
+        if ($exitCode) {
+            # claude refused to start or resume it (for example the bypass disclaimer is not accepted): not started.
+            $first = ($said | Where-Object { $_ -notlike 'note:*' -and $_.Trim() } | Select-Object -First 1)
+            Write-Log "START-FAILED $sessionName exit $exitCode ($first)"
+            Write-Output "Start failed, exit ${exitCode}: ${sessionName}: $first"
             continue
         }
         if ($resumeId) {
@@ -130,7 +146,7 @@ foreach ($p in $projects) {
         Write-Output "Folder missing, skipped: $($p.Path)"
         continue
     }
-    $base = "--name '$sessionName' --permission-mode auto"
+    $base = "--name '$sessionName' --permission-mode $LeadPermissionMode"
     if ($p.Prefix) { $base += " --remote-control-session-name-prefix '$($p.Prefix)'" }
     # First try to reattach to the server's last session (--continue cannot take --spawn; same-dir
     # is the default). If that fails at once (nothing recorded in the last hours), start fresh.
