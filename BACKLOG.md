@@ -40,13 +40,6 @@ Cheapest test: after one global rule edit through `dev-kit:edit-rules`, ask a fr
 Verdict (2026-11-20): build now: a local git repo in the owner's `.claude` folder tracking only `CLAUDE.md` and `docs/` (allow-list `.gitignore`), and one `dev-kit:edit-rules` line to commit each global-rule edit with its reason.
 Built (2026-11-20, owner's yes): the `dev-kit:edit-rules` line (step 6, dev-kit 0.1.67) and the local git repo in the owner's `.claude` folder.
 
-## Rule: how agents state cost on a subscription
-
-What: a rule on how agents state cost on a subscription. (1) A Claude Code cost figure (`/cost`, the session cost record, which prices tokens at API rates) is always labelled "API-price equivalent, not billed on the subscription", never plain USD. (2) It is a relative yardstick between runs only (fewer tokens, cheaper models = lower number), not money and not a share of subscription limits unless a documented source says so. (3) Real money is named only for actual API-key calls. (4) Cost targets in plans use the same labelled yardstick. Place: where the maintainer judges best (manager or project-lead skill, or a reporting standard).
-Why: owner, 2026-11-20, Zhratva discussion of catalogue speed (`plans/catalogue-speed.md` in Zhratva): a report said "about 149 USD-equivalent"; the owner read it as money («Що за юсд?») and asked where this way of measuring is written («Де вказано що таким чином міряється?»). No dev-kit or owner doc defines it; the session also claimed, unchecked, that the figure tracks subscription limits.
-Cheapest test: the next session report that mentions cost carries the label and no unlabelled USD.
-Verdict (2026-11-21): do it, reworded by the owner: state cost as a share of the weekly subscription limit (retro.py WEEKLY_LIMIT_UNITS, about 30% uncertain), not USD; one paragraph in `dev-kit:manager`, section «Claude API calls».
-
 ## A shared Claude API client with spend logging
 
 What: one small client (or wrapper) that every project and script uses for Claude API calls instead of calling the API directly; it logs each call (date, project, key name, model, tokens, cost) to one local log, so spend is known per project and per day without the Console. Projects then stop calling the API directly (a rule, and where possible a deny rule for agents).

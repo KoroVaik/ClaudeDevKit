@@ -22,7 +22,7 @@
 
 - [Shared Claude API client](plans/api-client.md): dev-kit side built (dev-kit 0.1.87); next: the deny lines for the owner and the Zhratva handoff (both in the plan).
 
-- [Cost as a share of the subscription limit](plans/cost-share.md): discussion; agreed (2026-11-21): share of the weekly limit marked «оцінка», API money stays USD, a retro command for one session's share, the status line logs the weekly % to refit the limit, plans' spend lines in %, P's $1 threshold for API money only; next: the short plan.
+- [Cost as a share of the subscription limit](plans/cost-share.md): built (dev-kit 0.1.91): cost in % of the weekly limit, `dev-kit-retro session`, status line calibration.
 
 Open work of the features: `dev-kit-check-docs --open`.
 
