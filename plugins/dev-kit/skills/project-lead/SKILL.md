@@ -894,15 +894,18 @@ exception to "no task work"; any other rule edit P makes follows `dev-kit:edit-r
 - A backlog entry gets a `Verdict:` line with the recommendation and is removed after the edit or on
   «ні». An owner-chat, process-mistake or retro item has no entry.
 - P asks the owner a yes/no batch on the ideas, not the wording (an in-chat retro item is asked as in
-  "Retro of session problems"). On «так» one `dev-kit:coder` applies the edits, bumps the plugin version if a
-  plugin changed and runs the repo's lint; P runs steps 5-6 of `dev-kit:edit-rules` on the diff and
-  commits. The owner's global files (the local `.claude` folder) are edited in place and committed in that
+  "Retro of session problems"). On «так» P makes a throwaway worktree of main (`git worktree add`, as for a
+  C); one `dev-kit:coder`, its brief naming that worktree's path, applies the edits there, bumps the plugin
+  version if a plugin changed and runs the repo's lint; P runs steps 5-6 of `dev-kit:edit-rules` on the diff,
+  commits, merges into main and removes the worktree. Never edit the main checkout directly or work around
+  its guard: the harness blocks writes there by P and its subagents. The owner's global files (the local `.claude` folder) are edited in place and committed in that
   folder's local git (step 6 of `dev-kit:edit-rules`).
 
 Why: owner, 2026-11-20, retro: a retro session was started for one finding already fixed; owner: «То нащо
 ця сесія?» and «щось багато сесій створюється на різні мінорні зміни»; he prefers subagents for minor
 edits. This widens the 2026-11-14 backlog decision (a C for every simple rule edit is too much) to any
-source.
+source. The worktree: owner, 2026-11-21, retro: a coder sent to edit the main checkout was blocked
+four times in a minute while the owner was told to wait 12 minutes, and P then edited around the guard.
 
 ## Retro of session problems (plugin repo only)
 
