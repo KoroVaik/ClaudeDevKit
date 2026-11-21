@@ -21,10 +21,10 @@ All use the dev-kit plugin. Each has a project lead "P: <project>": a background
 
 Read only. Sources, per project:
 - Sessions and state: `claude agents --json --cwd <project path>` (add `--all` to include finished ones). Worktrees of the project sit under that path or next to it; group by project.
-- Task sessions registered by the lead and their context fill: `dev-kit-sessions --project <project path> list` and `dev-kit-sessions --project <project path> fill`. In the home folder `dev-kit-sessions` is not on PATH, so run `python {DEVKIT}/bin/dev-kit-sessions ...` with that path.
-- Desktop-app sessions of all projects (title, project folder, state, age): `python {PLUGIN}/scripts/list-sessions.py`.
+- Task sessions registered by the lead and their context fill: `dev-kit-sessions --project <project path> list` and `dev-kit-sessions --project <project path> fill`. In the home folder `dev-kit-sessions` is not on PATH, so run `python -X utf8 {DEVKIT}/bin/dev-kit-sessions ...` with that path.
+- Desktop-app sessions of all projects (title, project folder, state, age): `python -X utf8 {PLUGIN}/scripts/list-sessions.py`.
 - What waits on the owner: the "Open questions" section of `<project path>/PROGRESS.md` (written by the lead P and task sessions C). "None." means nothing waits.
-- Critical token problems, all projects at once: `python {DEVKIT}/bin/dev-kit-retro critical`. Each line
+- Critical token problems, all projects at once: `python -X utf8 {DEVKIT}/bin/dev-kit-retro critical`. Each line
   `critical | <project> | <session> | <date> | spent X% of the weekly limit ...` or `... | wasted X% ...` is a
   problem under its project, in plain words (which session, that day, how much of the weekly limit spent or
   wasted). The command prints a problem once and again only when it grew; nothing printed: show nothing.
@@ -38,7 +38,7 @@ Traps (checked 2026-11-14):
 - Names shown to the owner: the hub's own session (cwd = the home folder) has a system name like «<user>-f1» in `claude agents --json`. Never show that name to the owner; sessions in the home folder are «Pult».
 - Server history: the last lines of `~/.claude/pult/logs/servers.log` (the health log, written by the watcher, see "Servers"). A HEAL line followed by UP, or a HEAL-TASK line with no HEAL-TASK-FAILED after it, is fixed: show it in one line as "впав о <time>, піднявся сам". A GIVEUP, GIVEUP-TASK, HEAL-FAILED or HEAL-TASK-FAILED line with no UP after it is a problem: show when it happened and the cause the log gives, and propose the fix. A LIMIT line with no LIMIT-END and no "WATCH started" line after it means that session stopped on the usage limit: show it as "стоїть на ліміті до <reset time>" and propose no fix (a restart hits the same limit). UNLOCK lines (a stale lock removed) are shown only when asked. A WATCH-RESTART line means the watcher took new code and started a fresh copy of itself (the new copy's "WATCH started" line comes just before it; nothing to do); WATCH-RESTART-SKIPPED means its new code did not parse or the new copy did not start, so it still runs the old code: show the reason in one line and propose the fix. HOLD on means a stop on purpose: the watcher restarts nothing until `start-servers.ps1` runs. A NO-BANS line with no later MODE line for that project means its lead is blocked (see "Missing hard bans"): show it as «не стартує: немає жорстких заборон», not as a crash.
 
-Status page: run `python {PLUGIN}/scripts/status-page.py` (read only; writes `~/.claude/pult/status.html`, all projects' sessions and open questions on one page) and send that file with SendUserFile, then give the reply below.
+Status page: run `python -X utf8 {PLUGIN}/scripts/status-page.py` (read only; writes `~/.claude/pult/status.html`, all projects' sessions and open questions on one page) and send that file with SendUserFile, then give the reply below.
 
 Reply grouped by project. For each session show name, state and context fill when available (mark OVER as a problem). Under each project list what waits on the owner. Unreadable source: say "not checked: <what>", never guess.
 
@@ -143,10 +143,10 @@ prepares the set; the owner types the one command himself:
   ban where P pushes main. Show the owner the exact lines and the reason, one question.
 - On «так»: write `.claude/hard-bans.json` (`{"deny": [...]}`, exactly those lines) in that project's main checkout
   (when a P of that project runs, P writes it instead), then give the owner the command to type with `! `:
-  `! python {DEVKIT}/bin/dev-kit-bans add-approved <project path>`. The watcher starts the lead on its next look
+  `! python -X utf8 {DEVKIT}/bin/dev-kit-bans add-approved <project path>`. The watcher starts the lead on its next look
   (within 10 minutes); the hub starts nothing itself.
 - The hub never runs `dev-kit-bans add`, `add-approved` or `undo`, and never removes or edits bans. A wrong set:
-  the owner types `! python {DEVKIT}/bin/dev-kit-bans undo <project path>` (reverts only the latest ban-adding
+  the owner types `! python -X utf8 {DEVKIT}/bin/dev-kit-bans undo <project path>` (reverts only the latest ban-adding
   commit); older bans only the owner removes by hand.
 Why: 2026-11-21, the auto-mode guard refused an agent writing permission settings even after the owner's yes; the
 owner typing the command himself is allowed.

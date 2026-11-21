@@ -67,7 +67,7 @@ Before any work on a new task, small ones included, check that no other live ses
 repository already does it: the owner may start sessions without the project lead. Skip it when the
 task came from the project lead with "P ran the overlap check", and when the session goes on with a
 task it already started. Run `dev-kit-sessions others` (Bash tool; if the command is not found,
-`python <this plugin>/scripts/sessions.py others`). On `no other sessions` go on. Otherwise launch a
+`python -X utf8 <this plugin>/scripts/sessions.py others`). On `no other sessions` go on. Otherwise launch a
 `dev-kit:overlap-checker` subagent (model haiku) with the task in the owner's words, the files or
 area it will touch if known, and the project folder. On "no overlap" go on. On an overlap do not
 start: tell the owner which session does the same task or touches the same files, and ask whether

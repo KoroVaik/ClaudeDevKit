@@ -17,7 +17,7 @@ problem it proposes a fix and acts after an explicit yes.
   `bypassPermissions`, never `auto`. A project with no hard-ban deny lines on main starts no sessions: its
   lead is not started (log NO-BANS), Pult tells you which project lacks them and asks your «так» to the exact
   lines; on it the hub writes `.claude/hard-bans.json` in the project and gives you one command to type
-  yourself: `! python <dev-kit folder>/bin/dev-kit-bans add-approved <project path>`. No agent runs
+  yourself: `! python -X utf8 <dev-kit folder>/bin/dev-kit-bans add-approved <project path>`. No agent runs
   `dev-kit-bans add`, `add-approved` or `undo`; `undo` (the latest add only) is typed by you too.
 - Logs: `~/.claude/pult/logs/servers.log` (written by `start-servers.ps1` and `watch-servers.ps1`; nothing is
   written inside the plugin folder).
@@ -83,6 +83,6 @@ The steps of a day with a project lead (P) from the phone and the rules behind t
 [Run all projects from the phone](../../docs/epics/run-all-projects-from-the-phone.md) and the feature
 [Hand work to the project lead](../../docs/features/hand-work-to-the-project-lead.md). The commands:
 
-- Status page: `python scripts/status-page.py` writes `~/.claude/pult/status.html` (`--out` for another file).
-- All desktop-app sessions of all projects: `python scripts/list-sessions.py`.
+- Status page: `python -X utf8 scripts/status-page.py` writes `~/.claude/pult/status.html` (`--out` for another file).
+- All desktop-app sessions of all projects: `python -X utf8 scripts/list-sessions.py`.
 - After a dev-kit plugin update the watcher restarts each P by itself; to hurry it, run `scripts/restart-leads.ps1 -Ask`. By hand: `scripts/restart-leads.ps1`, or `scripts/stop-servers.ps1` (graceful stop) and then `scripts/start-servers.ps1`, or restart Windows.

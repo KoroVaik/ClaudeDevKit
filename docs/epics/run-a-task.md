@@ -25,6 +25,7 @@ tables, not skill descriptions. A project may override a slot in its profile
 
 - [Start and stop the app](../features/start-and-stop-the-app.md)
 - [Launch only the project's own agents](../features/launch-only-the-projects-own-agents.md)
+- [Stop the known Windows shell traps](../features/stop-the-known-windows-shell-traps.md)
 
 ## Not written yet
 

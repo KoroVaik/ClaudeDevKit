@@ -10,7 +10,7 @@ session problems"), and runs in a worktree of ClaudeDevKit. With 1-2 simple find
 runs the retro in its own chat (its step 3 is "Small rule edit" of `dev-kit:project-lead`, its step 4 only
 `dev-kit-retro done`); the flow is in
 `dev-kit:project-lead`, "Retro of session problems". Its input is the unreviewed findings of
-`dev-kit-retro list` (if the command is not found, `python <this plugin>/scripts/retro.py list`): first the section
+`dev-kit-retro list` (if the command is not found, `python -X utf8 <this plugin>/scripts/retro.py list`): first the section
 "Priority: token problems", read first, then the lines of the
 daily transcript scan and the lines sessions appended for what the scan cannot see (the owner's global
 `docs/process-mistakes.md`), then the scan's spend tables (tokens in units, by session and by subagent). The
