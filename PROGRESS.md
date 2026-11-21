@@ -14,6 +14,8 @@
 
 - [Pult idle cost](plans/pult-idle-cost.md): design in «Owner's approval», owner's «так» to the plan (2026-11-20); phase 1 build: «C: Пробудження лише на події».
 
+- [Messages between modes](plans/cross-mode-messages.md): plan approved, discussion closed (2026-11-21), owner wants the build started at once; one mode `bypassPermissions` for all dev-kit sessions (2026-11-20); ClaudeDevKit bans: `rm -rf` only; Prishch's lines added by the owner from a ready list; Pult and its sessions bypass too; bans cannot be declined; a C messages only its own P unless its brief allows more.
+
 Open work of the features: `dev-kit-check-docs --open`.
 
 ## Open questions
