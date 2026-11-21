@@ -5,7 +5,11 @@
   "permissions": {
     "deny": [
       "Edit(.claude/settings.json)",
-      "Edit(.claude/settings.local.json)"
+      "Edit(.claude/settings.local.json)",
+      "Bash(rm -rf .git*)",
+      "PowerShell(Remove-Item*.git*)",
+      "Bash(rm -rf plugins*)",
+      "PowerShell(Remove-Item*plugins*)"
     ]
   }
 }
