@@ -38,6 +38,8 @@ nothing: the merge is P's step, so the owner sees in this chat why the session c
   this C: it fixes in the task file how the parts fit, then runs parallel subagents. A C never starts
   sessions of its own.
 - A hard ban (a deny rule in the project's settings) is never edited or worked around.
+- Every message to P starts with its kind word (`ГОТОВО`, `ПИТАННЯ`, `ЗАСТРЯГ`, `ВІДПОВІДЬ`), as
+  `${CLAUDE_PLUGIN_ROOT}/messages.md` sets.
 - A SendMessage to P that fails with "not reachable" means P is being restarted. The C keeps the
   report and goes on with its work; P asks for missed reports after its restart, and the C then sends
   the report again.

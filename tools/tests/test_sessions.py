@@ -486,6 +486,49 @@ class SessionsTestCase(unittest.TestCase):
                           "S: dead | dead-session | gone | (no reply text)",
                           "S: done | done-session | finished | Fixed it."], lines)
 
+    @staticmethod
+    def sent(to, text, stamp):
+        return {"type": "assistant", "timestamp": stamp, "message": {"role": "assistant", "content": [
+            {"type": "tool_use", "id": "t1", "name": "SendMessage", "input": {"to": to, "message": text}}]}}
+
+    def answers_lines(self, *argv):
+        code, out = self.run_main("answers", *argv)
+        self.assertEqual(0, code, out)
+        return out.splitlines()
+
+    def test_answers_shows_the_owner_answer_after_the_last_report(self):  # Bug
+        # 2026-11-21: the owner said «Так» in a discussion after its report; the lead asked him again.
+        self.add("d1", name="Обговорення: x")
+        self.listing([{"sessionId": "d1", "pid": 1, "status": "idle"}])
+        self.transcript("d1", [
+            self.human("old talk", ), self.sent("P: x", "ПИТАННЯ old", "2026-11-21T09:00:00Z"),
+            self.human("між"), self.sent("P: x", "ЗАКРИТО plan agreed", "2026-11-21T10:11:00Z"),
+            self.reply("Закриваю цю сесію обговорення?"),
+            {"type": "user", "timestamp": "2026-11-21T10:19:16Z", "origin": {"kind": "human"},
+             "message": {"role": "user", "content": "Так"}},
+            {"type": "user", "origin": {"kind": "peer", "body": "P asks something"}, "message": {"content": "x"}},
+            self.reply("Закрито."),
+        ])
+        lines = self.answers_lines()
+        self.assertEqual(3, len(lines), lines)
+        self.assertTrue(lines[0].startswith("Обговорення: x | d1 | after report 2026-11-21 "), lines[0])
+        self.assertTrue(lines[0].endswith(" | 1 owner message"), lines[0])
+        self.assertTrue(lines[1].endswith(" owner: Так"), lines[1])
+        self.assertEqual("  session after it: Закрито.", lines[2])
+
+    def test_answers_without_owner_message_or_report(self):  # Edge
+        self.add("c1")
+        self.add("o1", name="Own", owner=True)
+        self.listing([{"sessionId": "c1", "pid": 1, "status": "busy"}, {"sessionId": "o1", "pid": 2, "status": "idle"}])
+        self.transcript("c1", [self.human("task"), self.sent("P: x", "ГОТОВО", "2026-11-21T10:00:00Z"),
+                               self.reply("Готово")])
+        self.transcript("o1", [self.human(f"m{i}") for i in range(5)] + [self.reply("ok")])
+        lines = self.answers_lines()
+        self.assertTrue(lines[0].endswith(" | no owner message"), lines[0])
+        self.assertTrue(lines[1].startswith("Own | o1 | last 3, no report sent | 3 owner messages"), lines[1])
+        self.assertEqual(["m2", "m3", "m4"], [line.rsplit(" owner: ", 1)[1] for line in lines[2:5]])
+        self.assertEqual("  session after it: ok", lines[5])
+
     def test_state_matches_interactive_session_by_session_id_and_prefix(self):  # Flow
         self.add("12345678-aaaa-bbbb", name="Own idea")
         self.listing([{"sessionId": "12345678-aaaa-bbbb", "name": "Own idea", "kind": "interactive", "pid": 9,
