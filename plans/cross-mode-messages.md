@@ -74,3 +74,9 @@ The auto-mode guard refused P running `dev-kit-bans add` («Undermining Oversigh
 - `dev-kit-bans add-approved [<repo>]` (repo defaults to the current git top folder): adds the missing lines of that file to `.claude/settings.json` on main, one commit with both files; prints what it added. `undo` is owner-only too.
 - The owner types it with `! ` in P's chat (or the hub's); the command is what P or Pult gives.
 - 2026-11-21: bans added. The guard refused P's own run, but allowed it when the owner typed the command as his own message. ClaudeDevKit main 996a252 (pushed), Prishch main 8bf0bd3 (local, Prishch pushes by its own rules). `check` passes in all three leads' projects. The add-approved design above stays for new projects: the owner types the short command.
+
+### Hand-in (2026-11-21)
+Done: one mode in Pult and the skills, `dev-kit-bans` (add, add-approved, undo, check), the no-bans notice, C messaging limit, migration entry 4, dev-kit 0.1.82, pult 0.1.17. Tests 601 OK, lint clean. Review found 4 problems, all fixed.
+On merge: the version bump makes the Pult watcher restart the leads (into bypass; leads without bans are not stopped). The watcher also sends its wakes in bypass at once.
+Unchecked, need one live run each after the restart: bypass-to-bypass message across projects, the `claude -p` wake in bypass, the hub start with `--permission-mode bypassPermissions`.
+Paid spend: 0 USD.
