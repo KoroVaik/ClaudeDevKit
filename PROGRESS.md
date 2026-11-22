@@ -22,7 +22,7 @@
 
 - [Shared Claude API client](plans/api-client.md): dev-kit side built (dev-kit 0.1.87); next: the deny lines for the owner and the Zhratva handoff (both in the plan).
 
-- [Retro for project problems](plans/retro-scope.md): discussion; agreed: the retro stays in dev-kit and also fixes each project's own problems, in that project, skipping one-off causes; next: agree the design.
+- [Retro for project problems](plans/retro-scope.md): discussion; agreed (plan, «Owner's approval»): dev-kit projects only, agent-work problems only, per-project local item folders, a daily background check of every plugin change, owner sees only disputed or high-impact items in a weekly ask; next: settle whether the reviewer applies trivial fixes itself, then the short plan.
 
 Open work of the features: `dev-kit-check-docs --open`.
 
