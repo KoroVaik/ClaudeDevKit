@@ -59,3 +59,5 @@ Known weak spot: a project's retro runs only while its P is live; with P closed 
 - `dev-kit:edit-rules` step 3 asks the owner for a yes; the trivial-fix lane needs one line there.
 - Not checked: how long Claude Code keeps old transcripts (the post-change check relies on them).
 - Rough split: 1 scan (lock, project mapping, per-project split and done; small), 2 retro skill rewrite (medium), 3 project-lead per-project retro, weekly list, urgent path, trivial auto-apply (medium), 4 Pult watcher trigger (small-medium), 5 remove trials, code bugs to project backlog (small). 1, 2 and 4 can ship alone; 3 needs 1 and 2.
+- 2026-11-22, owner «ні»: the ClaudeDevKit lead does not take over the retro of projects with no lead (Pult, KnowledgeBase, Zhratva-design-sandbox); the retro covers only projects that have a lead.
+- 2026-11-22, owner «так»: trivial plugin fixes are batched into one plugin update a day (each update restarts every lead).
