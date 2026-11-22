@@ -945,16 +945,24 @@ of ClaudeDevKit brings them to the owner.
   In ClaudeDevKit the merge bumps the plugin version once a day at most (each bump restarts every lead).
 - `ПИТАННЯ` from «Ретро: <project>» (an urgent item: lost work, a critical token problem, blocked work, one cause
   repeated the same day): a critical queue item, asked at once.
+- `ГОТОВО` from «Документація: <project>» (the weekly docs session, `dev-kit:maintain-project-docs`, "Weekly
+  background run"): P merges and closes it the same way. When its run wrote `open` docs items, P starts one C
+  «C: Документація <YYYY-MM-DD>» whose task file lists those item files; that C fixes them and sets each one's
+  `status:` to `fixed`.
 - The line `retro: <N> items due` in P's context (the prompt hook adds it when urgent items are open, or when
-  disputed items and trivial fixes wait and the last weekly ask is a week old, a day old after a «ні»): P adds
-  one queue question of its own, «Розібрати <N> пунктів ретро?», a normal item. On the answer P runs
+  disputed items, trivial fixes and docs items for the owner wait and the last weekly ask is a week old, a day old
+  after a «ні»): P adds one queue question of its own, «Розібрати <N> пунктів ретро?», a normal item; the docs items
+  join it, never a second weekly question. On the answer P runs
   `dev-kit-retro asked --answer yes|no`. On «так» P reads the items with `dev-kit-retro items` and goes through
   them in its own chat: first the trivial fixes as one list, each line the fix in plain words, «скасувати 2» reverts
-  one (as a "Small rule edit"); then each disputed or urgent item as a normal P question of "Message templates",
+  one (as a "Small rule edit"); then each disputed or urgent item and each docs item with `status: owner` as a
+  normal P question of "Message templates",
   built from the item's Було / Виправлення lines (the long form only on the owner's ask). Each «так» is applied
   as a "Small rule edit"; a script, hook, new agent or skill becomes a backlog entry with `Verdict: owner yes in
-  retro <YYYY-MM-DD>` in ClaudeDevKit, or a C elsewhere. P then sets each item's `status:` line in its file (a
-  trivial fix the owner kept and a disputed item he said «так» to: `fixed`; a reverted one or a «ні»: `no-fix`); the files are local, outside any repo. With more than 5 disputed items, P offers an
+  retro <YYYY-MM-DD>` in ClaudeDevKit, or a C elsewhere; a docs «так» larger than a small edit goes to a C. P then
+  sets each item's `status:` line in its file (a
+  trivial fix the owner kept and a disputed item he said «так» to: `fixed`; a reverted one or a «ні»: `no-fix`; a
+  docs item: `fixed` or `rejected`); the files are local, outside any repo. With more than 5 disputed items, P offers an
   «Обговорення: Ретро сесій <YYYY-MM-DD>» session instead, started as in "Start an «Обговорення:» session".
 - The owner may ask for a retro at any time («ретро», «розбери проблеми сесій»): P goes through the open items as
   above, or offers that session for the owner's own cases.
@@ -963,7 +971,8 @@ Why: owner, 2026-11-21 and 2026-11-22 (`plans/retro-scope.md`): the retro covers
 fixes its problems in its own context; the owner gets only disputed, high-impact and urgent items and those about
 how sessions talk to him, once a week, and trivial fixes as a list he can revert. This replaces the 2026-11-19
 rejection of a review agent writing straight into the rules, for trivial fixes only; the 2026-11-20 decision that
-retro questions are short P questions in P's chat stays.
+retro questions are short P questions in P's chat stays. The weekly docs session: owner, 2026-11-22
+(`plans/weekly-docs.md`): its important items join the same weekly question, the rest are fixed separately.
 
 ## API credit check (plugin repo only)
 

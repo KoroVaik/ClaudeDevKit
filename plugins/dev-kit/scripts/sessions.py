@@ -32,8 +32,8 @@ of a side chain (`"isSidechain": true`, a subagent's) are not counted as the ses
 before a task starts. Source: `claude agents --json` (background sessions and running interactive ones, the desktop
 Code tab included; env DEV_KIT_AGENTS_JSON names a file to read instead). The claude command is taken from PATH, else
 from the usual install places (see `claude_candidates`), since a subagent's shell may lack the npm folder. The caller is `--self`, else env
-CLAUDE_CODE_SESSION_ID. Lead sessions (name starts with `P: `) and the hook-started retro sessions (`Ретро: `) are left
-out: they do no task work and no owner started them. For each: name,
+CLAUDE_CODE_SESSION_ID. Lead sessions (name starts with `P: `) and the hook-started retro and docs sessions
+(`Ретро: `, `Документація: `) are left out: no owner started them and P merges their work. For each: name,
 state, who started it (`lead` when the registry holds its id, else `owner`), branch, cwd, the first task messages
 (owner or peer messages of its transcript, cut to TASK_CHARS) and the files it changed (the branch against the base
 branch, plus uncommitted ones). Reads no code. Prints `no other sessions` when there are none.
@@ -168,6 +168,7 @@ CHUNK = 256 * 1024
 AGENTS_ENV = "DEV_KIT_AGENTS_JSON"
 LEAD_PREFIX = "P: "
 RETRO_PREFIX = "Ретро: "  # a background retro session the dev-kit SessionStart hook starts (dev-kit:retro)
+DOCS_PREFIX = "Документація: "  # the weekly docs session the same hook starts (dev-kit:maintain-project-docs)
 TASK_MESSAGES = 2
 TASK_CHARS = 700
 FILES_SHOWN = 40
@@ -549,7 +550,8 @@ def cmd_others(args, path, records):
         session_id = str(agent.get("sessionId") or "")
         name = str(agent.get("name") or "")
         cwd = agent.get("cwd")
-        if not cwd or not inside(cwd, roots) or (me and session_id == me) or name.startswith((LEAD_PREFIX, RETRO_PREFIX)):
+        skipped = name.startswith((LEAD_PREFIX, RETRO_PREFIX, DOCS_PREFIX))
+        if not cwd or not inside(cwd, roots) or (me and session_id == me) or skipped:
             continue
         branch, files = changed_files(cwd) if Path(cwd).is_dir() else ("", [])
         rows.append({"name": name, "sessionId": session_id, "kind": agent.get("kind"),

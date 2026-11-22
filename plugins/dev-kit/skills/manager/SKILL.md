@@ -51,6 +51,8 @@ nothing: the merge is P's step, so the owner sees in this chat why the session c
   no product code; how it works and ends is in `dev-kit:project-lead`, "Start an «Обговорення:» session".
 - A background session named «Ретро: <project>» is started by a dev-kit hook, not by P, and follows
   `dev-kit:retro`; it never talks with the owner and sends its P only `ПИТАННЯ` (urgent items) and one `ГОТОВО`.
+  The weekly «Документація: <project>» session, started by the same hook, follows `dev-kit:maintain-project-docs`,
+  "Weekly background run", and sends its P only one `ГОТОВО`.
 
 A session the owner started that P took over (after the owner's yes) is not a C: it keeps talking with
 the owner, P sends it nothing, and P watches it by reading its state. A plugin hook tells it at each
@@ -112,7 +114,7 @@ A slot nobody fills is told to the owner; do not guess a command for it.
 | Writing, changing or checking project docs | `dev-kit:documentation` |
 | Shaping the product idea, answering numbered questions (accepted rules go to the feature, epic or standard) | `dev-kit:discovery-round` |
 | Generating ideas without deciding (ends in `BACKLOG.md` entries) | `dev-kit:brainstorm` |
-| Periodic audit of the docs against the `dev-kit:documentation` skill, only on the owner's request | `dev-kit:maintain-project-docs` |
+| Periodic audit of the docs against the `dev-kit:documentation` skill, on the owner's request (the weekly background run starts by itself) | `dev-kit:maintain-project-docs` |
 | Moving an existing project's docs onto the `dev-kit:documentation` standard (a dry run first) | `dev-kit:migrate-docs` |
 | A public showcase repo for a private project: create it or bring it up to date | `dev-kit:showcase` |
 | Prune a project's existing tests or mark old tests with what they protect | `dev-kit:prune-tests` |

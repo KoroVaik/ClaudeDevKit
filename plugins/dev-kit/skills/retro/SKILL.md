@@ -103,7 +103,8 @@ with one word.
 
 ## 5. Close
 
-Run `dev-kit-retro done`. Then send P one `ГОТОВО` in 3 lines: state, result (fixes made, items for the owner,
+Run `dev-kit-retro done --branch <branch>` (plain `dev-kit-retro done` when nothing was committed): the weekly docs
+session waits for that branch's merge, so it runs on the fixed rules. Then send P one `ГОТОВО` in 3 lines: state, result (fixes made, items for the owner,
 urgent ones sent), what is needed (merge branch `<branch>`, or nothing to merge). The session then waits; P closes
 it.
 

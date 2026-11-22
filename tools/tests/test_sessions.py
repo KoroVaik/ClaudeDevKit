@@ -195,6 +195,8 @@ class SessionsTestCase(unittest.TestCase):
             {"sessionId": "me", "name": "C: me", "cwd": str(repo), "kind": "background", "status": "busy"},
             {"sessionId": "lead", "name": "P: repo", "cwd": str(repo), "kind": "background", "status": "idle"},
             {"sessionId": "r1", "name": "Ретро: repo", "cwd": str(repo), "kind": "background", "status": "busy"},
+            {"sessionId": "d1", "name": "Документація: repo", "cwd": str(repo), "kind": "background",
+             "status": "busy"},
             {"sessionId": "c1", "name": "C: side", "cwd": str(wt), "kind": "background", "status": "busy",
              "state": "working"},
             {"sessionId": "o1", "name": "Own idea", "cwd": str(repo), "kind": "interactive", "status": "idle"},

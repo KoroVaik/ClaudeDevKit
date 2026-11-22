@@ -4,7 +4,10 @@ retro session and the lead of each project. A model reads the findings; this scr
     dev-kit-retro scan [--force] [--days N]       the full scan of every transcript (once a day without --force)
     dev-kit-retro scan --transcript PATH          only that transcript and its subagents
     dev-kit-retro items [--project DIR]           the new findings and the items of the project, see below
-    dev-kit-retro done [--project DIR]            move the findings the last `items` showed to `seen/`
+    dev-kit-retro done [--branch NAME] [--project DIR]
+                                                  move the findings the last `items` showed to `seen/`; NAME: the
+                                                  branch the retro session left for its lead to merge
+    dev-kit-retro docs-done [--project DIR]       stamp the end of the weekly docs session
     dev-kit-retro add --text LINE [--from NAME] [--project DIR]
                                                   add a finding to the project's `new/` (any session, any project)
     dev-kit-retro due [--session ID] [--project DIR]
@@ -30,8 +33,8 @@ git fails, a deleted worktree, the path is cut at `/.claude/worktrees/` and the 
 Only the findings of retro projects are routed: transcripts of other projects (the home folder, Pult, a project with
 no lead) are still read for the token statistics, the spend tables and `critical`, which stay global, and their
 findings stay in `scan-<date>.md` only. The findings of a session whose title starts with `Ретро:` (a retro session)
-and of its subagents are dropped everywhere (log included), so the retro never feeds on itself; its token statistics
-still count.
+or `Документація:` (the weekly docs session) and of its subagents are dropped everywhere (log included), so the retro
+never feeds on these hook-started sessions; their token statistics still count.
 
 Folders: the retro folder is env DEV_KIT_RETRO_DIR, else `~/.claude/dev-kit/retro` (local, outside any repository).
 It holds the global `state.json` (byte offsets, token statistics, the fitted weekly limit), `scan.lock`, the human
@@ -43,8 +46,11 @@ has `<retro folder>/<repo-folder-name>-<10 hex>/` (`dev_kit_state.folder_name`, 
 - `seen/`: files moved there by `done`, deleted after SEEN_DAYS days;
 - `items/<cause-key>.md`: one file per item, written by the retro session; lines `- status: <status>`, `- kind:
   <kind>`, one `- seen: ...` line per sighting and `- fix: <YYYY-MM-DD> | <what> | trivial` per trivial fix;
-- `state.json`: `root` (the main checkout), `last_review`, `retro_started`, `lead_session`, `asked_at`, `answer`,
-  `shown` (the `new/` files the last `items` showed). Written atomically (temp file and replace).
+- `docs-items/<key>.md`: one file per docs item, written by the weekly docs session (`dev-kit:maintain-project-docs`,
+  "Weekly background run"); its line `- status: owner` marks an item the owner decides;
+- `state.json`: `root` (the main checkout), `last_review`, `retro_started`, `retro_branch`, `docs_started`,
+  `docs_done`, `lead_session`, `asked_at`, `answer`, `shown` (the `new/` files the last `items` showed). Written
+  atomically (temp file and replace).
 Transcripts: every `*.jsonl` under env DEV_KIT_PROJECTS_DIR, else `~/.claude/projects`, subagent ones in
 `<session>/subagents/` included.
 
@@ -53,7 +59,7 @@ changed and written only while `scan.lock` exists (stale after LOCK_STALE_S). A 
 LOCK_WAIT_TRANSCRIPT_S for it and then exits 0 with no output (its lines are read by the next full scan); a full scan,
 `critical` and `calibrate` wait up to LOCK_WAIT_FULL_S. A project's `state.json` is read, changed and written only
 while `state.lock` exists in its item folder (stale after PROJECT_LOCK_STALE_S, wait up to PROJECT_LOCK_WAIT_S): the
-stamps of `hook-start`, `items`, `done`, `asked` and the scan's `root` record. `hook-start` that cannot get it starts
+stamps of `hook-start`, `items`, `done`, `docs-done`, `asked` and the scan's `root` record. `hook-start` that cannot get it starts
 nothing, so two sessions starting at once never both start a retro session.
 
 `scan` reads only what was appended to each transcript since the last scan (`state.json` keeps a byte offset per
@@ -77,18 +83,29 @@ nothing found, no file.
 `new/` (token problems first, under "Priority"); one line per
 `items/*.md` file `<cause-key> | <status> | <kind> | sightings <N>` (N = the lines starting `- seen:`); and `trivial
 fixes in the last 7 days: <N> of FIXES_PER_WEEK` (the `- fix:` lines marked trivial and dated in the last 7 days, today
-included). It records the `new/` file names it showed; `done` moves exactly those to `seen/`, sets `last_review` and
-deletes what is older than SEEN_DAYS in `seen/`. Findings that came after `items` stay new.
+included); then one line per `docs-items/*.md` file `<key> | <status>`. It records the `new/` file names it showed;
+`done` moves exactly those to `seen/`, sets `last_review`, records `retro_branch` (`--branch`, else none) and deletes
+what is older than SEEN_DAYS in `seen/`. Findings that came after `items` stay new. `docs-done` sets `docs_done`.
 `due` prints nothing unless the session (when `--session` is given) is the lead recorded by `hook-start`; then
 `retro: <N> items due (<U> urgent)` when an item has status `urgent`, or when items with status `disputed` or
-`trivial-fixed` exist and the last weekly ask is 7+ days old or missing, or 1+ day old after the answer `no`
-(N counts the urgent items, and the others when the weekly ask is due).
-`hook-start` (never fails, exit 0): in a retro project, a session titled `Ретро:` does nothing; a full scan is spawned
+`trivial-fixed`, or docs items with status `owner`, exist and the last weekly ask is 7+ days old or missing, or 1+ day
+old after the answer `no` (N counts the urgent items, and the others when the weekly ask is due: one weekly question
+for the retro and the docs).
+`hook-start` (never fails, exit 0): in a retro project, a session titled `Ретро:` or `Документація:` does nothing; a
+full scan is spawned
 (detached) when none ran today and the scan lock is free; then, under the project lock, a title `P: ` records the
-lead's session id, and when `new/` has files, `last_review` is older than REVIEW_HOURS (or missing) and
-`retro_started` older than START_GUARD_HOURS (or missing), it stamps `retro_started` and starts a background
+lead's session id, and when `new/` has files, `last_review` is older than REVIEW_HOURS (or missing),
+`retro_started` older than START_GUARD_HOURS (or missing) and no docs session may still run (`docs_started` younger
+than START_GUARD_HOURS and newer than `docs_done`), it stamps `retro_started` and starts a background
 `Ретро: <repo folder>` session running `/dev-kit:retro` (env DEV_KIT_RETRO_NO_START=1 skips that start, not the
-stamp). `hook-end` in a retro project spawns (detached) `scan --transcript` of the ending session when its transcript
+stamp). When it starts no retro session, it starts the weekly docs session `Документація: <repo folder>` running
+`/dev-kit:maintain-project-docs weekly` (same env switch) when all hold: `docs_done` is older than DOCS_DAYS (or
+missing); `docs_started` is older than DOCS_GUARD_HOURS (or missing), so a run that ended with no `docs-done` is
+retried once a day, not at every session start; no retro session may still run (`retro_started`
+is not newer than `last_review` while younger than START_GUARD_HOURS); and the retro's `retro_branch` is merged into
+the main checkout's HEAD (or gone) or `last_review` is older than DOCS_MERGE_WAIT_HOURS. So the docs session runs on
+the rules the week's retro just fixed, or on its own in a week with no retro; it stamps `docs_started`.
+`hook-end` in a retro project spawns (detached) `scan --transcript` of the ending session when its transcript
 exists. Detached start: on Windows CREATE_NO_WINDOW | CREATE_NEW_PROCESS_GROUP | CREATE_BREAKAWAY_FROM_JOB (not
 DETACHED_PROCESS, which makes the console children, git, open windows); when the session's job forbids the breakaway
 (Popen raises OSError) it is started again without it. Elsewhere `start_new_session`.
@@ -206,6 +223,11 @@ PROJECT_LOCK_NAME = "state.lock"  # in a project's item folder, for its state.js
 PROJECT_LOCK_STALE_S = 60
 PROJECT_LOCK_WAIT_S = 2
 RETRO_TITLE = "Ретро:"  # the title of a retro session (sessions.RETRO_PREFIX is this plus a space)
+DOCS_TITLE = "Документація:"  # the title of the weekly docs session (sessions.DOCS_PREFIX is this plus a space)
+DOCS_DAYS = 7  # the weekly docs session runs once in this many days
+DOCS_MERGE_WAIT_HOURS = 48  # the docs session waits this long for the retro's branch to be merged
+DOCS_GUARD_HOURS = 24  # no new docs session while the last start is younger (one that ended with no `docs-done` too)
+GIT_TIMEOUT_S = 2  # each git call of the SessionStart hook (its limit is 10 s)
 WINDOWS = os.name == "nt"
 CREATE_NO_WINDOW = 0x08000000
 CREATE_NEW_PROCESS_GROUP = 0x00000200
@@ -829,7 +851,7 @@ def scan_locked(folder, days, force, out, transcript):
 
     def retro_session(project, session):
         """A retro session's own findings never feed the retro again (its token statistics still count)."""
-        return titles.get((project, session), "").strip().startswith(RETRO_TITLE)
+        return titles.get((project, session), "").strip().startswith((RETRO_TITLE, DOCS_TITLE))
 
     def route(project, session, line):
         """A finding line to the scan log, and to the project of its session when that is a retro project."""
@@ -866,7 +888,7 @@ def scan_locked(folder, days, force, out, transcript):
     if not transcript:
         refit_if_new(state)
         for key, line in priority_lines(state, day):
-            if state.get("titles", {}).get(key, "").strip().startswith(RETRO_TITLE):
+            if state.get("titles", {}).get(key, "").strip().startswith((RETRO_TITLE, DOCS_TITLE)):
                 continue
             out_lines.append(line)
             if state.get("home", {}).get(key):
@@ -1270,11 +1292,19 @@ def items(directory=None, out=None):
         rows.append(f"{path.stem} | {status} | {kind} | sightings {sightings}")
     print("\n".join(rows) or "(none)", file=out)
     print(f"\ntrivial fixes in the last 7 days: {trivial_fixes(fixes)} of {FIXES_PER_WEEK}", file=out)
+    print("\n## Docs items", file=out)
+    print("\n".join(f"{path.stem} | {read_item(path)[0]}" for path in docs_items(folder)) or "(none)", file=out)
     return 0
 
 
-def done(directory=None, out=None):
-    """Move the `new/` files the last `items` showed to `seen/`, stamp `last_review`, drop old files of `seen/`."""
+def docs_items(folder):
+    docs = folder / "docs-items"
+    return sorted(docs.glob("*.md")) if docs.is_dir() else []
+
+
+def done(directory=None, out=None, branch=None):
+    """Move the `new/` files the last `items` showed to `seen/`, stamp `last_review` and `retro_branch`, drop old files
+    of `seen/`."""
     out = out or sys.stdout
     project = project_for(directory)
     if not project:
@@ -1298,6 +1328,10 @@ def done(directory=None, out=None):
             os.utime(target)  # the age counts from the review, not from the finding
             moved += 1
         state["last_review"] = now_utc().isoformat()
+        if branch:
+            state["retro_branch"] = branch
+        else:
+            state.pop("retro_branch", None)
         save_project(folder, state)
     limit = time.time() - SEEN_DAYS * 86400
     for old in seen.iterdir() if seen.is_dir() else []:
@@ -1305,6 +1339,23 @@ def done(directory=None, out=None):
             if old.is_file() and old.stat().st_mtime < limit:
                 old.unlink()
     print(f"marked reviewed: {moved} file(s) moved to seen", file=out)
+    return 0
+
+
+def docs_done(directory=None, out=None):
+    """Stamp the end of the weekly docs session (`docs_done`)."""
+    out = out or sys.stdout
+    project = project_for(directory)
+    if not project:
+        return no_project(directory)
+    folder = project_folder(project)
+    with project_lock(folder) as held:
+        if not held:
+            return state_busy()
+        state = load_project(folder)
+        state["docs_done"] = now_utc().isoformat()
+        save_project(folder, state)
+    print("docs run stamped", file=out)
     return 0
 
 
@@ -1339,6 +1390,7 @@ def due_line(directory=None, session_id=None):
         status = read_item(path)[0].lower()
         urgent += status == "urgent"
         other += status in ("disputed", "trivial-fixed")
+    other += sum(read_item(path)[0].lower() == "owner" for path in docs_items(folder))
     last_ask = parse_time(state.get("asked_at", ""))
     waited = (now_utc() - last_ask) if last_ask else None
     weekly = bool(other) and (waited is None or waited >= datetime.timedelta(days=7)
@@ -1406,7 +1458,7 @@ def hook_start(payload):
     """SessionStart in a retro project: record the lead, start the daily scan and the retro session (module doc)."""
     project = Mapper().project_of_cwd(payload.get("cwd"))
     title = str(payload.get("session_title") or "").strip()
-    if not project or title.startswith(RETRO_TITLE):
+    if not project or title.startswith((RETRO_TITLE, DOCS_TITLE)):
         return
     folder = project_folder(project)
     retro = retro_dir()
@@ -1422,7 +1474,7 @@ def hook_start(payload):
         if title.startswith("P: ") and isinstance(session_id, str) and session_id:
             state["lead_session"] = session_id
         save_project(folder, state)
-        command = retro_start_command(project, folder, state)
+        command = retro_start_command(project, folder, state) or docs_start_command(project, folder, state)
     if command:
         spawn(command, cwd=str(project.root))
 
@@ -1433,6 +1485,10 @@ def retro_start_command(project, folder, state):
     new = folder / "new"
     if not (new.is_dir() and any(new.iterdir())):
         return None
+    docs_started, docs_done = parse_time(state.get("docs_started", "")), parse_time(state.get("docs_done", ""))
+    if docs_started and not older(state, "docs_started", START_GUARD_HOURS) and (not docs_done or
+                                                                                 docs_started > docs_done):
+        return None  # the docs session may still run: never both at once
     for key, hours in {"last_review": REVIEW_HOURS, "retro_started": START_GUARD_HOURS}.items():
         stamp = parse_time(state.get(key, ""))
         if stamp and now_utc() - stamp < datetime.timedelta(hours=hours):
@@ -1447,6 +1503,52 @@ def retro_start_command(project, folder, state):
         return None
     return [claude, "--bg", "--name", f"{RETRO_TITLE} {project.name}", "--model", "opus", "--effort", "medium",
             "--permission-mode", "bypassPermissions", "--", "/dev-kit:retro"]
+
+
+def older(state, key, hours):
+    """True when the stamp `key` is missing or at least `hours` old."""
+    stamp = parse_time(state.get(key, ""))
+    return not stamp or now_utc() - stamp >= datetime.timedelta(hours=hours)
+
+
+def git_ok(root, *args):
+    """True when the git command exits 0; False on any other exit or failure."""
+    try:
+        return subprocess.run(["git", "-C", str(root), *args], capture_output=True, timeout=GIT_TIMEOUT_S,
+                              creationflags=CREATE_NO_WINDOW if WINDOWS else 0).returncode == 0
+    except (OSError, subprocess.SubprocessError):
+        return False
+
+
+def merged(root, branch):
+    """True when `branch` is merged into the main checkout's HEAD or no longer exists (deleted after its merge). A
+    git failure reads as gone; the docs session then starts at once, as it would after DOCS_MERGE_WAIT_HOURS."""
+    ref = f"refs/heads/{branch}"
+    return not git_ok(root, "rev-parse", "--verify", "--quiet", ref) or git_ok(root, "merge-base", "--is-ancestor",
+                                                                                ref, "HEAD")
+
+
+def docs_start_command(project, folder, state):
+    """The command that starts the weekly docs session when it is due (module doc, `hook-start`); it stamps
+    `docs_started` (the caller holds the project lock). None otherwise, and with env DEV_KIT_RETRO_NO_START=1."""
+    if not older(state, "docs_done", DOCS_DAYS * 24) or not older(state, "docs_started", DOCS_GUARD_HOURS):
+        return None
+    started, reviewed = parse_time(state.get("retro_started", "")), parse_time(state.get("last_review", ""))
+    if started and not older(state, "retro_started", START_GUARD_HOURS) and (not reviewed or started > reviewed):
+        return None  # the retro session may still run: its fixes come first
+    branch = state.get("retro_branch")
+    if branch and not older(state, "last_review", DOCS_MERGE_WAIT_HOURS) and not merged(project.root, branch):
+        return None  # the retro's fixes are not on main yet
+    import sessions  # late: only this hook needs it
+    claude = sessions.find_claude()
+    if not claude:
+        return None
+    state["docs_started"] = now_utc().isoformat()
+    save_project(folder, state)
+    if os.environ.get(NO_START_ENV) == "1":
+        return None
+    return [claude, "--bg", "--name", f"{DOCS_TITLE} {project.name}", "--model", "opus", "--effort", "medium",
+            "--permission-mode", "bypassPermissions", "--", "/dev-kit:maintain-project-docs weekly"]
 
 
 def hook_main(kind):
@@ -1707,11 +1809,13 @@ def main(argv=None):
         if name == "scan":
             command.add_argument("--force", action="store_true")
             command.add_argument("--transcript")
-    for name in ("items", "done", "due", "asked", "add"):
+    for name in ("items", "done", "docs-done", "due", "asked", "add"):
         command = sub.add_parser(name)
         command.add_argument("--project", help="any folder of the project (default: the current folder)")
         if name == "due":
             command.add_argument("--session")
+        if name == "done":
+            command.add_argument("--branch")
         if name == "asked":
             command.add_argument("--answer", choices=("yes", "no"), required=True)
         if name == "add":
@@ -1744,7 +1848,9 @@ def main(argv=None):
         return asked(args.answer, args.project)
     if args.command == "add":
         return add(args.text, args.sender, args.project)
-    return done(args.project)
+    if args.command == "docs-done":
+        return docs_done(args.project)
+    return done(args.project, branch=args.branch)
 
 
 if __name__ == "__main__":
