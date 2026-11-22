@@ -27,5 +27,5 @@ Design chosen within the owner's answers:
 - Migrations: none; the hook comes with the plugin, projects change no files.
 - First run: each project with a lead gets its first docs session at its next session start after the update (no docs run recorded yet).
 - Reviewer's fixes applied: the docs session's own findings are not fed to the retro; the retro also waits while a docs session may run; a docs run that ended without `docs-done` is retried once a day; git calls in the hook capped at 2 s; the weekly mode turns every "owner's yes" of steps 2-3 into an item; `fixed` and `rejected` items are not reopened.
-- dev-kit 0.1.97 (main had 0.1.96). After the merge of main the full tests passed on a rerun; the first run had one failure that did not repeat (flaky, not in the changed tests).
+- dev-kit 0.1.97 (main had 0.1.96). After the merge of main the full tests passed on a rerun; the first run had one failure that did not repeat (which test was not recorded; the retro, sessions and hook tests pass every run).
 - Spend: ~0.4% of the weekly limit, estimate; API: 0 USD.
