@@ -148,6 +148,7 @@ Why: the Zhratva lead could not launch `dev-kit:overlap-checker` on 2026-11-15 a
 | `dev-kit:reviewer` | sonnet | an independent read-only look at a change, plan, claimed cause or changed feature rules | ranked problems with places, doubts that need a run |
 | `dev-kit:coder` | sonnet; opus when the manager passes it for a large or delicate change | a step with a lot of code to read or write | the change, rationale, risks, checks to run |
 | `dev-kit:overlap-checker` | haiku | at task start, when `dev-kit-sessions others` lists sessions (see "Overlap check at task start") | "no overlap" or the overlapping sessions with the reason |
+| `dev-kit:question-reader` | haiku | the project lead, before it first writes new questions to the owner in full (`dev-kit:project-lead`, "The reader check") | per question `ok`, or the flagged words and a plain rewrite |
 | `dev-kit:mechanical-editor` | haiku | a fully specified edit across named files (rename, replace references, move a block) | files and edit counts, skipped places, a Grep proving nothing is left |
 
 The project's own types come from its `## manager` section.

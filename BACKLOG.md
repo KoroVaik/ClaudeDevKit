@@ -52,10 +52,3 @@ Verdict (2026-11-21): built, dev-kit side ([plans/api-client.md](plans/api-clien
 What: sessions the project lead starts with `claude --bg` have no `mcp__Claude_Browser__*` tools, so the web-kit `ui-tester` and `user` subagents (web-kit:e2e-check, web-kit:user-walk) cannot run there. No route is documented: `web-kit/browser-checks.md:14-15` and `38-43` require the in-app browser; dev-kit project-lead SKILL.md "Build a designed screen" (around lines 534-541) tells the C to run check-ui and check-usability itself. Seen live in Zhratva on 2026-11-21 («C: Обід на справжніх акаунтах») and 2026-11-22 («C: Огляд телефонного застосунку»): both had to skip the owner-approved walk and e2e check.
 Why: owner-approved checks are silently skipped; the lead has no way to run them.
 Cheapest test: start one `claude --bg` session and list its tools for `mcp__Claude_Browser__*`; then decide between a headless scenario route (e.g. Playwright via a web-kit command) or a documented hand-off to a session that has the browser pane.
-
-## Reader check of the lead's questions before the owner sees them
-
-What: before P (and other sessions that ask the owner) shows a new question, a cheap reader subagent checks it is in the owner's own words (what he sees or does, no agent terms such as «USD-еквівалент», «API-ключ», internal names) and rewrites it if not. Where and how cheap: the builder decides (e.g. haiku, only new questions).
-Why: retro item check-questions-owner-words: the rule «every question in the owner's words» (project-lead, «The question form», commit 1b4af2e) existed, yet on 2026-11-22 P asked «Додати правило підписувати цифри вартості?» with an «USD-еквівалент за цінами API» example; owner: «всеодно неясно що це»; a plain version came only on the second try.
-Cheapest test: feed the reader the 2026-11-22 question; it flags the terms and returns a plain version.
-Verdict: owner yes in retro 2026-11-22.

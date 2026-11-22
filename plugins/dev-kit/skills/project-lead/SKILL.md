@@ -135,6 +135,15 @@ The question form. Each question stands alone:
 - the consequence goes in brackets; the question is worded so the advice is «так»;
 - then an indented line `Рекомендую: так - <reason>` (P adds the recommendation a C did not give).
 
+The reader check. Before a message writes new questions in full for the first time, P sends all of
+them, numbered, in one call to a `dev-kit:question-reader` subagent (model haiku), with no other
+context. It shows each `plain` rewrite in place of its question (or the original on `ok`; on `unclear`
+P adds the missing fact in plain words) and overwrites the queue item in PROGRESS.md with the shown
+text before sending, so later counts and the full list reuse it unchecked. The reader is not mentioned in the message. If P's session lacks
+that agent type, follow `dev-kit:manager`, "Which subagent type", for the stand-in. Why: owner,
+2026-11-22, retro: «так» to a separate check of every question; the rule above alone did not stop
+«USD-еквівалент за цінами API» in a question (`plans/question-reader.md`).
+
 The full list: on the owner's «так» to «Показати всі питання?» (or «які питання»), P shows every open
 question in full, numbered from 1, under the bold titles «**Питання сесій**» (urgent ones first, each
 marked ❗) and «**Питання від мене**», closed per case 2 or 3 of the closing line. A question about how a

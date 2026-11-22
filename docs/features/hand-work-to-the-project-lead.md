@@ -13,7 +13,8 @@ finished work into main and tells you the result. It does no task work itself.
 
 ### P's messages: session states and question counts
 Every status message from P has two short blocks: «Питання без відповіді» (a new question written in
-full once, older ones only counted, urgent ones always named) and «Статуси сесій» (each session's state
+full once, after a separate cheap check that it reads in your own words with no agent terms, older ones
+only counted, urgent ones always named) and «Статуси сесій» (each session's state
 and name). A message with an open question always ends with one question you can answer with a bare «так»:
 «Показати всі питання?» when some question is not written out (on «так» P lists every question in full,
 numbered), the question itself when it is the only one, or «Приймаєш усі мої рекомендації?» when several
@@ -102,7 +103,7 @@ format instead of removing them. Those rules live outside this repo and change o
 
 ## Acceptance criteria
 - You give P a task whose outcome is not agreed: P asks up to 3 questions through the queue, or proposes an «Обговорення:» session when there are more or a screen is involved.
-- A new question arrives: P writes it in full once; later messages only count it and ask «Показати всі питання?», and on «так» all are listed, numbered.
+- A new question arrives: P writes it in full once, in your own words with no agent terms (a separate checker rewrites it first); later messages only count it and ask «Показати всі питання?», and on «так» all are listed, numbered.
 - You answer a P message with a bare «так»: P takes it as the answer to the message's last line and acts, never asking «1 чи 2?».
 - A session finishes while you are away: P writes at once, and its message lists the session as «готово».
 - A task session crashes: you get it at once, also as a push to your phone.
@@ -115,6 +116,7 @@ format instead of removing them. Those rules live outside this repo and change o
 - `plugins/dev-kit/skills/project-lead/SKILL.md`
 - `plugins/dev-kit/skills/manager/SKILL.md`
 - `plugins/dev-kit/agents/overlap-checker.md`
+- `plugins/dev-kit/agents/question-reader.md`
 - `plugins/dev-kit/messages.md`
 - `plugins/dev-kit/scripts/sessions.py`
 - `plugins/dev-kit/bin/dev-kit-sessions`

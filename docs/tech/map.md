@@ -5,7 +5,7 @@ is listed below.
 
 ## Code folders
 
-- `plugins/dev-kit/skills`, `plugins/dev-kit/agents` - the process as Markdown: skills and generic agents (coder, reviewer, investigator).
+- `plugins/dev-kit/skills`, `plugins/dev-kit/agents` - the process as Markdown: skills and generic agents (one file per agent type).
 - `plugins/dev-kit/scripts` - Python: `check_docs.py` checks a project's docs (every epic and feature has its sections, links, anchors and "Built in" paths resolve), finds the feature that owns a code file, lists open tasks and defects and the base docs files a project lacks; `check_tests.py` is the tests check; `run_app.py` starts and stops a project's app from the commands in its profile; `sessions.py`, `migrations.py`, `retro.py` (also `session`, one session's units as a share of the weekly limit, and `calibrate`, the refit of that limit), `hard_bans.py` serve the project lead; `statusline.py` is the status line that shows the weekly use and logs it for that refit; `api_client.py` is the shared Claude API client that logs and reconciles spend, with its price table `plugins/dev-kit/api-prices.json`.
 - `plugins/dev-kit/bin` - the commands on the Bash tool PATH while dev-kit is enabled: `dev-kit-check-docs`, `dev-kit-check-tests`, `dev-kit-app`, `dev-kit-sessions`, `dev-kit-migrations`, `dev-kit-retro`, `dev-kit-statusline`, `dev-kit-bans`, `dev-kit-api`.
 - `plugins/dev-kit/hooks` - the hook that lets a project launch only its own agents, the hook that stops the known Windows shell traps, and the hook that tells an owner-started session the lead watches it ([hooks](hooks.md)).
