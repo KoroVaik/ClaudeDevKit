@@ -26,7 +26,7 @@ is listed below.
   `claude -p`) only on an event; it also moves a lead that saved a handoff to a fresh session.
 - The Remote Control server "Pult", with cwd = the home folder, serves the phone.
 - The session watcher (`dev-kit-sessions watch`) runs in the background only of a project lead on dev-kit before 0.1.78.
-- The daily scan `dev-kit-retro check` runs from the project lead of this repo.
+- The retro scan runs from dev-kit's SessionEnd hook (one transcript) and SessionStart hook (the full pass once a day), which also starts a background «Ретро: <project>» session in a project with a lead.
 - `dev-kit-app start` queues a project's app start between worktrees with a lock.
 
 ## Data stores

@@ -10,7 +10,7 @@ that disagree make the agent pick one at random. This skill keeps every rule edi
 It does not change who approves an edit: agent rules still need the owner's yes ("Agent rules" in
 `dev-kit:documentation`). Feature rules in product docs follow that skill's "Review" instead.
 
-The session that owns the edit runs the steps (the manager, P or a C); a subagent cannot run a skill. A
+The session that owns the edit runs the steps (the manager, P, a C or a «Ретро:» session); a subagent cannot run a skill. A
 `dev-kit:coder` or `dev-kit:mechanical-editor` may apply the edit from a brief that carries the step-3 list.
 
 ## 1. Read set
@@ -50,6 +50,9 @@ Show the owner one plain line per change of behaviour (not per file) on what wil
 idea; the exact wording goes to the owner only on request (owner, 2026-11-16: «я апрувлю тіки ідею»). A
 duplicate or conflict that changes the idea (a rule moved, another rule given way) is part of that line.
 The full list with the wording stays in the task file or a scratchpad for the agents.
+
+Exception: a trivial fix of a «Ретро:» session skips this step; the owner sees it afterwards in the weekly
+list and may revert it (`dev-kit:retro`, steps 3-4, which also say what counts as trivial).
 
 ## 4. Edit
 

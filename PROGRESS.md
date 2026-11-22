@@ -10,7 +10,7 @@
 
 ## In flight
 
-- [Token spend in the retro](plans/retro-tokens.md): built; Opus weight set to 1.5 from the /usage readings (plan, «Opus weight check»); the spend trial is compared in a later retro.
+- [Token spend in the retro](plans/retro-tokens.md): built; Opus weight set to 1.5 from the /usage readings (plan, «Opus weight check»); spend trials were replaced by ordinary retro items (plans/retro-scope.md).
 
 - [Pult idle cost](plans/pult-idle-cost.md): design in «Owner's approval», owner's «так» to the plan (2026-11-20); phase 1 build: «C: Пробудження лише на події». Phase 2 (lead self-handoff by the server watcher, plan point 12): owner's «так» 2026-11-21 to start it right after «C: Один режим для всіх сесій» merges. Live check 2026-11-21: P moved itself to a fresh session and the owner's phone chat followed it.
 

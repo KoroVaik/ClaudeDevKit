@@ -1,25 +1,97 @@
-"""Find problems in the sessions' transcripts with no model, and keep the findings for a retro session.
+"""Find problems in the sessions' transcripts with no model, sort them into one folder per project, and serve the
+retro session and the lead of each project. A model reads the findings; this script uses none.
 
-    dev-kit-retro check [--days N]     scan if not yet scanned today, then print the count of unreviewed findings
-    dev-kit-retro scan [--force] [--days N]
-    dev-kit-retro list                 print the unreviewed findings (token problems first, then scan lines, session
-                                       notes, then the spend tables)
-    dev-kit-retro done                 mark what the last check or list showed as reviewed (after a retro, or a no)
-    dev-kit-retro critical [--days N]  scan if not yet scanned today, then print the critical token problems
+    dev-kit-retro scan [--force] [--days N]       the full scan of every transcript (once a day without --force)
+    dev-kit-retro scan --transcript PATH          only that transcript and its subagents
+    dev-kit-retro items [--project DIR]           the new findings and the items of the project, see below
+    dev-kit-retro done [--project DIR]            move the findings the last `items` showed to `seen/`
+    dev-kit-retro add --text LINE [--from NAME] [--project DIR]
+                                                  add a finding to the project's `new/` (any session, any project)
+    dev-kit-retro due [--session ID] [--project DIR]
+                                                  one line when the lead has retro items to act on, else nothing
+    dev-kit-retro asked --answer yes|no [--project DIR]
+                                                  stamp the weekly question to the owner and the answer
+    dev-kit-retro hook-start | hook-end           SessionStart and SessionEnd hooks of the plugin (JSON on stdin)
+    dev-kit-retro critical [--days N]             scan if not yet scanned today, then print the critical token problems
     dev-kit-retro session [--id SESSION_ID | --path TRANSCRIPT.jsonl] [--no-subagents]
-                                       the units of one session as a share of the weekly limit (see below)
-    dev-kit-retro calibrate            refit the weekly limit from the status line log and print the result
+                                                  the units of one session as a share of the weekly limit (see below)
+    dev-kit-retro calibrate                       refit the weekly limit from the status line log and print the result
 
-Findings folder: env DEV_KIT_RETRO_DIR, else `~/.claude/dev-kit/retro` (local, outside any repository, one for all
-projects). Transcripts: every `*.jsonl` under env DEV_KIT_PROJECTS_DIR, else `~/.claude/projects`, subagent ones in
+`--project DIR` is any folder of the project (a worktree too; default the current folder), or a bare repository folder
+name of a known retro project (`ClaudeDevKit`, ignoring case; known = it has an item folder whose `state.json` records
+its `root`, so another project's retro can write `add --project ClaudeDevKit ...`); a bare name that is no known
+project is taken as a folder. A project that is not a retro project gets exit code 2 (`due` and the hooks stay silent
+instead); when the project's `state.json` stays locked (see Lock), `items`, `done` and `asked` exit 1 and change
+nothing.
+
+Retro projects: a project counts when its main checkout (the parent of the git common dir) has `.claude/dev-kit.md`
+with a line `## project-lead`. A transcript belongs to the project of the `cwd` of its lines (git, cached per cwd; when
+git fails, a deleted worktree, the path is cut at `/.claude/worktrees/` and the part before it is the checkout).
+Only the findings of retro projects are routed: transcripts of other projects (the home folder, Pult, a project with
+no lead) are still read for the token statistics, the spend tables and `critical`, which stay global, and their
+findings stay in `scan-<date>.md` only. The findings of a session whose title starts with `Ретро:` (a retro session)
+and of its subagents are dropped everywhere (log included), so the retro never feeds on itself; its token statistics
+still count.
+
+Folders: the retro folder is env DEV_KIT_RETRO_DIR, else `~/.claude/dev-kit/retro` (local, outside any repository).
+It holds the global `state.json` (byte offsets, token statistics, the fitted weekly limit), `scan.lock`, the human
+log `scan-<date>.md` (all findings of a full scan and the `## Spend` tables) and the owner's `notes.md`. Each project
+has `<retro folder>/<repo-folder-name>-<10 hex>/` (`dev_kit_state.folder_name`, the name of its state folder) with:
+- `new/`: findings no review has seen, one file per writer and run, never shared: `scan-<date>-<HHMMSS>.md` (full
+  scan), `<date>-<session id8>-<HHMMSS>.md` (one transcript), `notes-<date>-<HHMMSS>.md` (owner notes), `add-...md`
+  (`add`); each finding is a line starting `- `;
+- `seen/`: files moved there by `done`, deleted after SEEN_DAYS days;
+- `items/<cause-key>.md`: one file per item, written by the retro session; lines `- status: <status>`, `- kind:
+  <kind>`, one `- seen: ...` line per sighting and `- fix: <YYYY-MM-DD> | <what> | trivial` per trivial fix;
+- `state.json`: `root` (the main checkout), `last_review`, `retro_started`, `lead_session`, `asked_at`, `answer`,
+  `shown` (the `new/` files the last `items` showed). Written atomically (temp file and replace).
+Transcripts: every `*.jsonl` under env DEV_KIT_PROJECTS_DIR, else `~/.claude/projects`, subagent ones in
 `<session>/subagents/` included.
 
+Locks (lock files made with O_EXCL; a lock older than its limit is taken over): the global `state.json` is read,
+changed and written only while `scan.lock` exists (stale after LOCK_STALE_S). A transcript scan waits up to
+LOCK_WAIT_TRANSCRIPT_S for it and then exits 0 with no output (its lines are read by the next full scan); a full scan,
+`critical` and `calibrate` wait up to LOCK_WAIT_FULL_S. A project's `state.json` is read, changed and written only
+while `state.lock` exists in its item folder (stale after PROJECT_LOCK_STALE_S, wait up to PROJECT_LOCK_WAIT_S): the
+stamps of `hook-start`, `items`, `done`, `asked` and the scan's `root` record. `hook-start` that cannot get it starts
+nothing, so two sessions starting at once never both start a retro session.
+
 `scan` reads only what was appended to each transcript since the last scan (`state.json` keeps a byte offset per
-file, up to the last complete line). On the first scan (no offsets yet) a file last changed before `--days` days ago
-(default 1) is skipped and its offset set to its size, so the first scan does not read the whole history. It writes
-`scan-<YYYY-MM-DD>.md` (local date; a second scan the same day with `--force` appends to it), one line per finding:
+file, up to the last complete line). On the first full scan (no full scan yet) a file last changed before `--days`
+days ago (default 1) that has no offset is skipped and its offset set to its size, so it does not read the whole
+history. A full scan writes `scan-<YYYY-MM-DD>.md` (local date; a second scan the same day with `--force` appends to
+it), one line per finding, and each line also goes to the `new/` of its project (priority token lines too):
 
     - <project folder> | <session title (first 8 of its id)> or <session id>[ / subagent <type>] | <kind> | <detail>
+
+A full scan also reads the new lines of `<retro folder>/notes.md` (offset kept in the global state) and puts each into
+the `new/` of the retro project whose repository folder name equals the line's project field, ignoring case; other
+lines are dropped. `script candidate` lines go to the project when all their sessions are of one project, else to the
+project of the repository that holds this plugin (when it is a retro project).
+`scan --transcript PATH` is for the SessionEnd hook: only that transcript and its `<id>/subagents/*.jsonl`, the same
+per-transcript kinds and token statistics (merged into the global state), no cross-transcript kinds, no refit, no
+priority lines, no notes; its findings go to one `new/<date>-<id8>-<HHMMSS>.md` and are appended to `scan-<date>.md`;
+nothing found, no file.
+
+`items` prints: the folder path; `last review: <local date and time of last_review, or never>`; the new findings of
+`new/` (token problems first, under "Priority"); one line per
+`items/*.md` file `<cause-key> | <status> | <kind> | sightings <N>` (N = the lines starting `- seen:`); and `trivial
+fixes in the last 7 days: <N> of FIXES_PER_WEEK` (the `- fix:` lines marked trivial and dated in the last 7 days, today
+included). It records the `new/` file names it showed; `done` moves exactly those to `seen/`, sets `last_review` and
+deletes what is older than SEEN_DAYS in `seen/`. Findings that came after `items` stay new.
+`due` prints nothing unless the session (when `--session` is given) is the lead recorded by `hook-start`; then
+`retro: <N> items due (<U> urgent)` when an item has status `urgent`, or when items with status `disputed` or
+`trivial-fixed` exist and the last weekly ask is 7+ days old or missing, or 1+ day old after the answer `no`
+(N counts the urgent items, and the others when the weekly ask is due).
+`hook-start` (never fails, exit 0): in a retro project, a session titled `Ретро:` does nothing; a full scan is spawned
+(detached) when none ran today and the scan lock is free; then, under the project lock, a title `P: ` records the
+lead's session id, and when `new/` has files, `last_review` is older than REVIEW_HOURS (or missing) and
+`retro_started` older than START_GUARD_HOURS (or missing), it stamps `retro_started` and starts a background
+`Ретро: <repo folder>` session running `/dev-kit:retro` (env DEV_KIT_RETRO_NO_START=1 skips that start, not the
+stamp). `hook-end` in a retro project spawns (detached) `scan --transcript` of the ending session when its transcript
+exists. Detached start: on Windows CREATE_NO_WINDOW | CREATE_NEW_PROCESS_GROUP | CREATE_BREAKAWAY_FROM_JOB (not
+DETACHED_PROCESS, which makes the console children, git, open windows); when the session's job forbids the breakaway
+(Popen raises OSError) it is started again without it. Elsewhere `start_new_session`.
 
 Kinds, per transcript and per scan window (the subagents of one type in one session summed; thresholds below):
 - `repeated call`: the same tool with the same input, REPEAT_MIN or more times (`run_in_background` calls left out:
@@ -45,10 +117,8 @@ started (a resumed session copies old lines) is not counted. Two more kinds:
 - `opus coder`: a coder subagent run on Opus, with its units against the usual Sonnet coder run (only with USUAL_MIN
   or more such runs kept).
 The scan file also gets a `## Spend` section of `| `-table lines (sessions by title, subagents by type and model;
-not findings; `list` prints the unreviewed ones, older ones stay in the scan files). "Usual" is the median units per run of one
+not findings; they stay in the scan files only). "Usual" is the median units per run of one
 subagent type on one model over the last RUNS_KEPT runs (`state.json`), shown only with USUAL_MIN or more runs.
-
-`check` runs `scan` when `state.json` has no scan for today, then prints `new findings: <N>` or `no new findings`.
 
 Token problems (owner, 2026-11-20, plans/pult-idle-cost.md point 9): `state.json` keeps, per local day (by message
 time, DAILY_KEPT days) and per session (its subagents summed), the units and the waste in them. Waste is counted once
@@ -64,9 +134,10 @@ A session's day is a problem when it spent NOTE_SPEND_PCT or wasted NOTE_WASTE_P
 (`weekly_limit()`: the fit kept in `state.json`, else the seed WEEKLY_LIMIT_UNITS; one place), and critical from
 CRITICAL_SPEND_PCT or CRITICAL_WASTE_PCT. When a scan runs on a later day, each finished day's problems become scan lines
 `- <project folder> | <session> | token spend|token waste | <date>: <detail>[; critical (shown in Pult's status)]`
-(once per day); `list` prints them first, under "Priority". `critical` prints, for today and CRITICAL_DAYS days
-before, one line per critical problem not shown before, or grown to CRITICAL_GROWTH times the share shown (shown
-shares are kept in `state.json`; `list`, `check` and `done` do not touch them), biggest first, nothing when none:
+(once per day, in the `new/` of the session's project; `items` prints them first, under "Priority"). `critical`
+prints, for today and CRITICAL_DAYS days before, one line per critical problem not shown before, or grown to
+CRITICAL_GROWTH times the share shown (shown shares are kept in `state.json`; nothing else touches them), biggest
+first, nothing when none:
 
     critical | <project> | <session title (id8)> | <date> | spent 2.4% of the weekly limit (16.6M units)
     critical | <project> | <session title (id8)> | <date> | wasted 0.6% of the weekly limit: idle wakes 0.60% (11),
@@ -95,29 +166,55 @@ with the scan's weights, and prints the share of the weekly limit, the one an ag
 
 It reads no state but the fit and changes nothing. Exit code 2 when the session or its file is not found.
 
-New findings are the lines of scan files dated after the last `done` plus the lines of `notes.md` past the count
-recorded at that `done`. `check` and `list` record what they showed; `done` marks only that, so findings that came
-later stay new. Findings files are read as UTF-8 with a BOM allowed and bad bytes replaced. `notes.md` holds what only a session can see; sessions append one line per case (the
-owner's global `docs/process-mistakes.md`):
+Findings and item files are read as UTF-8 with a BOM allowed and bad bytes replaced. `notes.md` holds what only a
+session can see; sessions append one line per case (the owner's global `docs/process-mistakes.md`):
 
     - <YYYY-MM-DD> | <project> | <session name> | <correction | wrong order> | <what happened, one sentence>
 
 Exit codes: 0 done, 2 bad arguments.
 """
 import argparse
+import contextlib
 import datetime
 import json
 import os
+import re
+import secrets
+import subprocess
 import sys
 import time
-from collections import Counter, defaultdict
+from collections import Counter, defaultdict, namedtuple
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))  # the launcher runs this file with runpy, which adds nothing
+import dev_kit_state  # noqa: E402  the project's folder name and main checkout
 import statusline  # noqa: E402  the status line script owns the usage log file
 
 RETRO_ENV = "DEV_KIT_RETRO_DIR"
 PROJECTS_ENV = "DEV_KIT_PROJECTS_DIR"
+NO_START_ENV = "DEV_KIT_RETRO_NO_START"  # 1: the SessionStart hook does not start the retro session (tests)
+PROFILE_LINE = "## project-lead"  # the line of `.claude/dev-kit.md` that makes a project a retro project
+FIXES_PER_WEEK = 5  # the cap of trivial fixes per project per week, shown by `items`
+REVIEW_HOURS = 20  # no new retro session while the last review is younger
+START_GUARD_HOURS = 6  # no new retro session while the last start is younger (a session that is still running)
+SEEN_DAYS = 30  # `done` deletes what is older in `seen/`
+LOCK_NAME = "scan.lock"
+LOCK_STALE_S = 600
+LOCK_WAIT_TRANSCRIPT_S = 5
+LOCK_WAIT_FULL_S = 60
+PROJECT_LOCK_NAME = "state.lock"  # in a project's item folder, for its state.json
+PROJECT_LOCK_STALE_S = 60
+PROJECT_LOCK_WAIT_S = 2
+RETRO_TITLE = "Ретро:"  # the title of a retro session (sessions.RETRO_PREFIX is this plus a space)
+WINDOWS = os.name == "nt"
+CREATE_NO_WINDOW = 0x08000000
+CREATE_NEW_PROCESS_GROUP = 0x00000200
+CREATE_BREAKAWAY_FROM_JOB = 0x01000000
+HEAD_LINES = 200  # the lines of a transcript's start searched for its `cwd`
+WORKTREES = re.compile(r"[\\/]\.claude[\\/]worktrees[\\/]", re.IGNORECASE)
+URGENT_LINE = re.compile(r" \| token (spend|waste) \| ")
+FIX_LINE = re.compile(r"^- fix:\s*(\d{4}-\d\d-\d\d)\s*\|.*\|\s*trivial\s*$")
+Project = namedtuple("Project", "root name folder")  # main checkout, its folder name, the retro folder name
 REPEAT_MIN = 3
 ERRORS_MIN = 3
 MANY_CALLS = 150
@@ -157,9 +254,10 @@ COLD_TTL_MIN = {"5m": 5, "1h": 60}  # the prompt cache lifetime by write kind
 DAILY_KEPT = 14  # days of per-session units kept in `state.json`
 
 
-def retro_dir():
+def retro_dir(create=True):
     folder = Path(os.environ[RETRO_ENV]) if os.environ.get(RETRO_ENV) else Path.home() / ".claude" / "dev-kit" / "retro"
-    folder.mkdir(parents=True, exist_ok=True)
+    if create:
+        folder.mkdir(parents=True, exist_ok=True)
     return folder
 
 
@@ -171,23 +269,226 @@ def today():
     return datetime.date.today().isoformat()
 
 
+def now_utc():
+    return datetime.datetime.now(datetime.timezone.utc)
+
+
 def load_state(folder):
+    """The global state (offsets, token statistics); read-modify-write it only under `scan_lock`."""
     path = folder / "state.json"
     try:
         state = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, ValueError):
         state = {}
+    if not isinstance(state, dict):
+        state = {}
     state.setdefault("offsets", {})
     state.setdefault("last_scan", "")
-    state.setdefault("reviewed", {"scans_until": "", "notes_lines": 0})
     return state
 
 
-def save_state(folder, state):
-    path = folder / "state.json"
-    tmp = path.with_suffix(".tmp")
-    tmp.write_text(json.dumps(state, indent=1, sort_keys=True), encoding="utf-8")
+def write_json(path, data):
+    """Write a JSON file atomically: a temp file of this process, then replace."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp = path.with_name(f"{path.stem}.{os.getpid()}.tmp")
+    tmp.write_text(json.dumps(data, indent=1, sort_keys=True), encoding="utf-8")
     os.replace(tmp, path)
+
+
+def save_state(folder, state):
+    write_json(folder / "state.json", state)
+
+
+def lock_age(path):
+    """Seconds since the lock file was made, or None when there is none."""
+    try:
+        return time.time() - path.stat().st_mtime
+    except OSError:
+        return None
+
+
+def lock_free(folder):
+    """Whether no live scan lock is held (no lock file, or a stale one)."""
+    age = lock_age(folder / LOCK_NAME)
+    return age is None or age > LOCK_STALE_S
+
+
+@contextlib.contextmanager
+def scan_lock(folder, wait):
+    """Hold `scan.lock` of the retro folder for the global state; yields False after `wait` s (see `file_lock`)."""
+    with file_lock(folder / LOCK_NAME, wait, LOCK_STALE_S) as held:
+        yield held
+
+
+@contextlib.contextmanager
+def project_lock(folder):
+    """Hold `state.lock` of a project's item folder for its `state.json`; yields False when it stays taken."""
+    folder.mkdir(parents=True, exist_ok=True)
+    with file_lock(folder / PROJECT_LOCK_NAME, PROJECT_LOCK_WAIT_S, PROJECT_LOCK_STALE_S) as held:
+        yield held
+
+
+@contextlib.contextmanager
+def file_lock(path, wait, stale):
+    """Hold a lock file (made with O_EXCL; one older than `stale` s is taken over); yields False after `wait` s."""
+    deadline = time.monotonic() + wait
+    while True:
+        try:
+            handle = os.open(path, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+        except (FileExistsError, PermissionError):  # Windows: PermissionError while the other side deletes it
+            age = lock_age(path)
+            if age is not None and age > stale:
+                with contextlib.suppress(OSError):
+                    path.unlink()
+                continue
+            if time.monotonic() >= deadline:
+                yield False
+                return
+            time.sleep(0.1)
+            continue
+        os.write(handle, str(os.getpid()).encode("ascii"))
+        os.close(handle)
+        break
+    try:
+        yield True
+    finally:
+        with contextlib.suppress(OSError):
+            path.unlink()
+
+
+def load_project(folder):
+    """The state of one project's item folder (see the module doc); {} when none."""
+    try:
+        data = json.loads((folder / "state.json").read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}
+    return data if isinstance(data, dict) else {}
+
+
+def save_project(folder, data):
+    write_json(folder / "state.json", data)
+
+
+def remember_root(project):
+    """Record the project's main checkout in its item folder state, so the notes can be sorted by repository name."""
+    folder = retro_dir() / project.folder
+    if load_project(folder).get("root") == str(project.root):
+        return
+    with project_lock(folder) as held:
+        if held:  # else the next scan records it
+            data = load_project(folder)
+            data["root"] = str(project.root)
+            save_project(folder, data)
+
+
+def is_retro_project(root):
+    """Whether the checkout `root` has a `## project-lead` line in `.claude/dev-kit.md`."""
+    try:
+        text = (Path(root) / ".claude" / "dev-kit.md").read_text(encoding="utf-8-sig", errors="replace")
+    except OSError:
+        return False
+    return any(line.strip() == PROFILE_LINE for line in text.splitlines())
+
+
+def head_cwd(path):
+    """The `cwd` of the first line of a transcript that has one (within HEAD_LINES lines), or None."""
+    try:
+        with open(path, "rb") as handle:
+            for number, raw in enumerate(handle):
+                if number >= HEAD_LINES:
+                    break
+                if b'"cwd"' not in raw:
+                    continue
+                try:
+                    entry = json.loads(raw)
+                except ValueError:
+                    continue
+                cwd = entry.get("cwd") if isinstance(entry, dict) else None
+                if isinstance(cwd, str) and cwd:
+                    return cwd
+    except OSError:
+        pass
+    return None
+
+
+class Mapper:
+    """Folders and transcripts to retro projects; the git calls are cached per cwd."""
+
+    def __init__(self):
+        self.roots = {}  # cwd -> main checkout
+        self.projects = {}  # main checkout -> Project or None
+        self.heads = {}  # transcript path -> cwd or None
+
+    def root_of(self, cwd):
+        """The main checkout of a folder; for a path git cannot read (a deleted worktree) the part before
+        `/.claude/worktrees/`, else the folder itself."""
+        if cwd not in self.roots:
+            root = dev_kit_state.main_checkout(cwd)
+            if root is None:
+                base = WORKTREES.split(cwd, maxsplit=1)[0]
+                root = dev_kit_state.main_checkout(base) or Path(base)
+            self.roots[cwd] = root
+        return self.roots[cwd]
+
+    def project_of_cwd(self, cwd):
+        """The retro project of a folder, or None."""
+        if not isinstance(cwd, str) or not cwd.strip():
+            return None
+        root = self.root_of(cwd)
+        key = str(root)
+        if key not in self.projects:
+            self.projects[key] = (Project(root, root.name, dev_kit_state.folder_name(root))
+                                  if is_retro_project(root) else None)
+        return self.projects[key]
+
+    def project_of_transcript(self, path):
+        """The retro project of a transcript (the `cwd` of its first lines), None for another or an unknown one."""
+        key = str(path)
+        if key not in self.heads:
+            self.heads[key] = head_cwd(path)
+        cwd = self.heads[key]
+        if cwd is None:
+            del self.heads[key]  # look again at the next call: the lines may come
+        return self.project_of_cwd(cwd)
+
+
+def plugin_project(mapper):
+    """The retro project of the repository that holds this plugin, or None."""
+    return mapper.project_of_cwd(str(Path(__file__).resolve().parents[3]))
+
+
+def known_roots():
+    """Retro projects with an item folder: lower-case repository folder name -> (item folder name, main checkout)."""
+    found = {}
+    for state in sorted(retro_dir(create=False).glob("*/state.json")):
+        root = load_project(state.parent).get("root")
+        if isinstance(root, str) and root:
+            found.setdefault(Path(root).name.lower(), (state.parent.name, root))
+    return found
+
+
+def known_projects():
+    """Retro projects with an item folder: lower-case repository folder name -> item folder name."""
+    return {name: folder for name, (folder, _) in known_roots().items()}
+
+
+def write_new(folder_name, name, lines):
+    """Write `lines` to a new file of the project's `new/` folder, never over another file; None for no lines."""
+    if not lines:
+        return None
+    new = retro_dir() / folder_name / "new"
+    new.mkdir(parents=True, exist_ok=True)
+    stem = name[:-len(".md")]
+    for number in range(1000):
+        path = new / (name if number == 0 else f"{stem}-{number}.md")
+        try:
+            handle = open(path, "x", encoding="utf-8")
+        except FileExistsError:
+            continue
+        with handle:
+            handle.write("".join(line + "\n" for line in lines))
+        return path
+    return None
 
 
 def parse_time(value):
@@ -447,24 +748,43 @@ def findings_of(result):
     return found
 
 
-def scan(days=1, force=False, out=None):
+def scan(days=1, force=False, out=None, transcript=None):
+    """The full scan, or with `transcript` only that transcript and its subagents (see the module doc)."""
     out = out or sys.stdout
     folder = retro_dir()
+    with scan_lock(folder, LOCK_WAIT_TRANSCRIPT_S if transcript else LOCK_WAIT_FULL_S) as held:
+        if not held:
+            if not transcript:
+                print("scan busy: another scan holds scan.lock", file=out)
+            return 0
+        return scan_locked(folder, days, force, out, transcript)
+
+
+def scan_locked(folder, days, force, out, transcript):
     state = load_state(folder)
     day = today()
-    if state["last_scan"] == day and not force:
+    if not transcript and state["last_scan"] == day and not force:
         print("already scanned today", file=out)
         return 0
     root = projects_dir()
-    started = datetime.datetime.now(datetime.timezone.utc)
+    started = now_utc()
     since = parse_time(state.get("scan_started", ""))
     seen = set()  # message ids counted in this scan
-    first = not state["offsets"]
+    first = not state["last_scan"] and not transcript
     cutoff = time.time() - days * 86400
     known = state.setdefault("titles", {})  # a title is written once, often in an earlier scan's lines
     windows = {}  # (project, session, subagent type) -> counters; subagents of one type in one session are summed
-    for path in sorted(root.rglob("*.jsonl")) if root.is_dir() else []:
-        key = str(path)
+    homes = {}  # (project, session) -> the retro project of the transcripts read
+    mapper = Mapper()
+    if transcript:
+        main_file = Path(transcript)
+        root = main_file.parent.parent  # the project folder is its parent: the same labels as in the full scan
+        paths = [main_file] + sorted((main_file.with_suffix("") / "subagents").rglob("*.jsonl"))
+    else:
+        paths = sorted(root.rglob("*.jsonl")) if root.is_dir() else []
+    index = {os.path.normcase(known_key): known_key for known_key in state["offsets"]}  # a hook's path may differ in case
+    for path in paths:
+        key = index.get(os.path.normcase(str(path)), str(path))
         try:
             size = path.stat().st_size
             mtime = path.stat().st_mtime
@@ -478,10 +798,16 @@ def scan(days=1, force=False, out=None):
             offset = 0
         if offset == size:
             continue
+        owner = mapper.project_of_transcript(path)  # None: not a retro project; read for the token statistics only
         lines, state["offsets"][key] = read_new_lines(path, offset)
         if not lines:
             continue
         project, session, sub = session_label(path, root)
+        homes[(project, session)] = owner
+        if owner:
+            state.setdefault("home", {})[f"{project}/{session}"] = owner.folder
+        else:
+            state.get("home", {}).pop(f"{project}/{session}", None)
         before = state.setdefault("last_assistant", {}).get(key)
         result = analyse(lines, seen, since, (parse_time(before[0]), before[1]) if before else None)
         if result["last"]:
@@ -498,23 +824,63 @@ def scan(days=1, force=False, out=None):
     titles = {(project, session): known[f"{project}/{session}"] for project, session, _ in windows
               if known.get(f"{project}/{session}")}
     out_lines = []
+    routed = defaultdict(list)  # item folder name -> its finding lines
     commands = defaultdict(set)
+
+    def retro_session(project, session):
+        """A retro session's own findings never feed the retro again (its token statistics still count)."""
+        return titles.get((project, session), "").strip().startswith(RETRO_TITLE)
+
+    def route(project, session, line):
+        """A finding line to the scan log, and to the project of its session when that is a retro project."""
+        out_lines.append(line)
+        if homes[(project, session)]:
+            routed[homes[(project, session)].folder].append(line)
+
     for (project, session, sub), result in windows.items():
+        if retro_session(project, session):
+            continue
         label = f"{titles[(project, session)]} ({session[:8]})" if (project, session) in titles else session
         if sub:
             label += " / " + sub
         for kind, detail in findings_of(result):
-            out_lines.append(f"- {project} | {label} | {kind} | {detail}")
+            route(project, session, f"- {project} | {label} | {kind} | {detail}")
         for command in result["bash"]:
             commands[command].add((project, session))
-    for command, sessions in sorted(commands.items()):
-        if len(sessions) >= SCRIPT_SESSIONS:
-            out_lines.append(f"- {len({p for p, _ in sessions})} project(s) | {len(sessions)} sessions | "
-                             f"script candidate | {short(command)}")
+    if not transcript:  # the same command in several sessions needs the sessions of all transcripts
+        plugin = plugin_project(mapper)
+        for command, sessions in sorted(commands.items()):
+            if len(sessions) >= SCRIPT_SESSIONS:
+                line = (f"- {len({p for p, _ in sessions})} project(s) | {len(sessions)} sessions | "
+                        f"script candidate | {short(command)}")
+                out_lines.append(line)
+                owners = {homes[pair].folder for pair in sessions if homes[pair]}
+                if len(owners) == 1 and all(homes[pair] for pair in sessions):
+                    routed[next(iter(owners))].append(line)
+                elif plugin and owners:  # spread over several projects, one of them a retro project
+                    routed[plugin.folder].append(line)
     spend_findings, table = spend(windows, titles, state)
-    out_lines += spend_findings
-    refit_if_new(state)
-    out_lines += priority_lines(state, day)
+    for project, session, line in spend_findings:
+        if not retro_session(project, session):
+            route(project, session, line)
+    if not transcript:
+        refit_if_new(state)
+        for key, line in priority_lines(state, day):
+            if state.get("titles", {}).get(key, "").strip().startswith(RETRO_TITLE):
+                continue
+            out_lines.append(line)
+            if state.get("home", {}).get(key):
+                routed[state["home"][key]].append(line)
+        sort_notes(state, folder, mapper, plugin, routed)
+    else:
+        table = []
+    for owner in {owner.folder: owner for owner in mapper.projects.values() if owner}.values():
+        remember_root(owner)  # also without findings: the notes are sorted by the repository name of these roots
+    clock = datetime.datetime.now().strftime("%H%M%S")
+    if transcript:
+        write_new_all(routed, lambda: f"{day}-{Path(transcript).stem[:8]}-{clock}.md")
+    else:
+        write_new_all(routed, lambda: f"scan-{day}-{clock}.md")
     if out_lines or table:
         report = folder / f"scan-{day}.md"
         header = "" if report.exists() else f"# Scan {day}\n\n"
@@ -522,11 +888,66 @@ def scan(days=1, force=False, out=None):
             handle.write(header + "".join(line + "\n" for line in out_lines))
             if table:
                 handle.write(f"\n## Spend {started.astimezone().strftime('%H:%M')}\n\n" + "\n".join(table) + "\n\n")
-    state["scan_started"] = started.isoformat()
-    state["last_scan"] = day
+    if not transcript:
+        state["scan_started"] = started.isoformat()
+        state["last_scan"] = day
     save_state(folder, state)
     print(f"scanned {len(windows)} transcript(s), {len(out_lines)} finding(s)", file=out)
     return 0
+
+
+def write_new_all(routed, make_name):
+    """One new file per project in `routed` (item folder name -> lines)."""
+    for folder_name, lines in routed.items():
+        write_new(folder_name, make_name(), lines)
+
+
+def notes_offset(state, path):
+    """The byte offset in `notes.md` where the unread lines begin: kept in the state; with none (an older state), after
+    the lines an earlier version had marked reviewed (`reviewed.notes_lines`)."""
+    if "notes_offset" in state:
+        return state["notes_offset"]
+    reviewed = state.get("reviewed")
+    skip = reviewed.get("notes_lines", 0) if isinstance(reviewed, dict) else 0
+    if not skip:
+        return 0
+    try:
+        data = path.read_bytes()
+    except OSError:
+        return 0
+    offset = 0
+    for line in data.splitlines(keepends=True):
+        if skip <= 0:
+            break
+        offset += len(line)
+        skip -= line.decode("utf-8-sig", errors="replace").startswith("- ")  # an earlier version counted these
+    return offset
+
+
+def sort_notes(state, folder, mapper, plugin, routed):
+    """Put the new lines of `notes.md` into the project named in each line (a retro project; others dropped)."""
+    path = folder / "notes.md"
+    offset = notes_offset(state, path)
+    try:
+        size = path.stat().st_size
+    except OSError:
+        return
+    if offset > size:
+        offset = 0
+    lines, state["notes_offset"] = read_new_lines(path, offset)
+    if not lines:
+        return
+    projects = known_projects()
+    for owner in mapper.projects.values():
+        if owner:
+            projects.setdefault(owner.name.lower(), owner.folder)
+    if plugin:
+        projects.setdefault(plugin.name.lower(), plugin.folder)
+    for raw in lines:
+        line = raw.decode("utf-8-sig", errors="replace").strip()
+        fields = [field.strip() for field in line.split("|")]
+        if line.startswith("- ") and len(fields) >= 5 and fields[1].lower() in projects:
+            routed[projects[fields[1].lower()]].append(line)
 
 
 def weekly_limit(state=None):
@@ -575,7 +996,7 @@ def session_label_of(state, key):
 
 
 def priority_lines(state, day):
-    """Scan lines for the token problems of every finished day not written yet; the retro lists them first.
+    """`(session key, scan line)` for the token problems of every finished day not written yet; the retro lists them first.
 
     A day is finished once a scan runs on a later day. The days older than DAILY_KEPT are dropped from the state."""
     keep = (datetime.date.fromisoformat(day) - datetime.timedelta(days=DAILY_KEPT)).isoformat()
@@ -594,11 +1015,15 @@ def priority_lines(state, day):
         found = []
         for key, row in daily[date].items():
             project, label = session_label_of(state, key)
-            found += [(share, f"- {project} | {label.replace('|', '/')} | token {kind} | {date}: {detail}"
+            found += [(share, key, f"- {project} | {label.replace('|', '/')} | token {kind} | {date}: {detail}"
                        + ("; critical (shown in Pult's status)" if critical else ""))
                       for kind, share, detail, critical in problems(row, limit)]
-        lines += [line for _, line in sorted(found, key=lambda item: -item[0])]
+        lines += [(key, line) for _, key, line in sorted(found, key=lambda item: -item[0])]
     state["noted_days"] = written[-DAILY_KEPT:]
+    alive = {key for sessions in daily.values() for key in sessions}
+    homes = state.setdefault("home", {})
+    for old in [key for key in homes if key not in alive]:
+        del homes[old]  # the project of a session is kept as long as its days are
     return lines
 
 
@@ -633,7 +1058,7 @@ def project_name(folder):
 
 
 def spend(windows, titles, state):
-    """The spend findings (long sessions, Opus coders) and the `## Spend` table lines of one scan."""
+    """The spend findings (long sessions, Opus coders) as `(project, session, line)` and the `## Spend` table lines."""
     def label(project, session):
         name = titles[(project, session)].replace("|", "/") if (project, session) in titles else ""
         return f"{name} ({session[:8]})" if name else session
@@ -673,16 +1098,17 @@ def spend(windows, titles, state):
         if so_far < LONG_TURNS:
             continue
         ratio = f", x{cost / short_usual:.1f} of a session under {SHORT_TURNS} turns" if short_usual else ""
-        found.append(f"- {project} | {label(project, session)} | long session | {so_far} main turns so far; this scan "
-                     f"{sessions[(project, session)]['turns']} turns at {amount(cost)} units per turn{ratio}")
+        found.append((project, session, f"- {project} | {label(project, session)} | long session | {so_far} main turns "
+                      f"so far; this scan {sessions[(project, session)]['turns']} turns at {amount(cost)} units per "
+                      f"turn{ratio}"))
     sonnet_runs = [units for key, runs in history.items() if key.endswith("coder sonnet") for units in runs]
     sonnet_coder = median(sonnet_runs) if len(sonnet_runs) >= USUAL_MIN else 0
     for (project, session, sub), result in windows.items():
         for family, units in result["run_units"]:
             if family == "opus" and sub.endswith("coder"):
                 ratio = f", x{units / sonnet_coder:.0f} of a usual Sonnet coder run" if sonnet_coder else ""
-                found.append(f"- {project} | {label(project, session)} / {sub} | opus coder | "
-                             f"{amount(units)} units{ratio}")
+                found.append((project, session, f"- {project} | {label(project, session)} / {sub} | opus coder | "
+                              f"{amount(units)} units{ratio}"))
     subs_share = sum(sum(runs) for runs in subagents.values()) * 100 / grand
     table = [f"Total {amount(grand)} units ({mix(total)}); subagents {subs_share:.0f}%.", "",
              "| project | session | main models | main turns | main units | subagent units | share |",
@@ -703,114 +1129,334 @@ def spend(windows, titles, state):
     return found, table
 
 
-def spend_tables(folder, until):
-    """The `## Spend` sections of the scan files dated after `until`."""
-    shown = []
-    for report in sorted(folder.glob("scan-*.md")):
-        if report.stem[len("scan-"):] <= until:
-            continue
-        inside = False
-        for line in report.read_text(encoding="utf-8-sig", errors="replace").splitlines():
-            if line.startswith("## Spend"):
-                inside = True
-                shown.append(f"### {report.stem[len('scan-'):]} {line[len('## Spend '):]}")
-            elif inside and not line.startswith("- "):
-                shown.append(line)
-            else:
-                inside = False
-    return shown
-
-
 def read_lines(path):
     """The `- ` lines of a findings file; agents may write it with a BOM or a non-UTF-8 code page."""
-    if not path.exists():
+    try:
+        text = path.read_text(encoding="utf-8-sig", errors="replace")
+    except OSError:
         return []
-    return [line for line in path.read_text(encoding="utf-8-sig", errors="replace").splitlines()
-            if line.startswith("- ")]
+    return [line for line in text.splitlines() if line.startswith("- ")]
 
 
-def snapshot(folder):
-    """The newest scan date and the notes line count now."""
-    scans = sorted(report.stem[len("scan-"):] for report in folder.glob("scan-*.md"))
-    return {"scans_until": scans[-1] if scans else "", "notes_lines": len(read_lines(folder / "notes.md"))}
-
-
-def unreviewed(folder, state):
-    """The unreviewed scan lines and note lines."""
-    until = state["reviewed"].get("scans_until", "")
-    scan_lines = []
-    for report in sorted(folder.glob("scan-*.md")):
-        if report.stem[len("scan-"):] > until:
-            scan_lines += read_lines(report)
-    note_lines = read_lines(folder / "notes.md")
-    return scan_lines, note_lines[state["reviewed"].get("notes_lines", 0):]
-
-
-def check(days=1, out=None):
-    out = out or sys.stdout
-    folder = retro_dir()
-    if load_state(folder)["last_scan"] != today():
+def quiet_scan(days):
+    """The full scan of today when none ran, with no output."""
+    if load_state(retro_dir())["last_scan"] != today():
         with open(os.devnull, "w", encoding="utf-8") as quiet:
             scan(days=days, out=quiet)
-    state = load_state(folder)
-    scan_lines, note_lines = unreviewed(folder, state)
-    count = len(scan_lines) + len(note_lines)
-    state["shown"] = snapshot(folder)
-    save_state(folder, state)
-    print(f"new findings: {count}" if count else "no new findings", file=out)
-    return 0
-
-
-def list_findings(out=None):
-    out = out or sys.stdout
-    folder = retro_dir()
-    state = load_state(folder)
-    scan_lines, note_lines = unreviewed(folder, state)
-    state["shown"] = snapshot(folder)
-    save_state(folder, state)
-    urgent = [line for line in scan_lines if " | token spend | " in line or " | token waste | " in line]
-    print("## Priority: token problems (read first; the retro asks them before the rest)", file=out)
-    print("\n".join(urgent) or "(none)", file=out)
-    print("\n## Scan findings", file=out)
-    print("\n".join(line for line in scan_lines if line not in urgent) or "(none)", file=out)
-    print("\n## Session notes", file=out)
-    print("\n".join(note_lines) or "(none)", file=out)
-    tables = spend_tables(folder, state["reviewed"].get("scans_until", ""))
-    if tables:
-        print("\n## Spend (units; evidence for the findings above, not findings)", file=out)
-        print("\n".join(tables).rstrip(), file=out)
-    return 0
 
 
 def critical(days=1, out=None):
     """Print the critical token problems of today and the days before it not shown yet, or grown since shown."""
     out = out or sys.stdout
     folder = retro_dir()
-    if load_state(folder)["last_scan"] != today():
-        with open(os.devnull, "w", encoding="utf-8") as quiet:
-            scan(days=days, out=quiet)
-    state = load_state(folder)
-    first = (datetime.date.fromisoformat(today()) - datetime.timedelta(days=CRITICAL_DAYS)).isoformat()
-    shown = {key: value for key, value in state.setdefault("critical_shown", {}).items() if key.split("|")[0] >= first}
+    quiet_scan(days)
     lines = []
-    limit = weekly_limit(state)[0]
-    for date, sessions in state.get("daily", {}).items():
-        if date < first:
-            continue
-        for key, row in sessions.items():
-            project, label = session_label_of(state, key)
-            for kind, share, detail, is_critical in problems(row, limit):
-                before = shown.get(f"{date}|{key}|{kind}")
-                if not is_critical or (before is not None and share < before * CRITICAL_GROWTH):
-                    continue
-                shown[f"{date}|{key}|{kind}"] = share
-                grown = f" (was {pct_text(before)} when last shown)" if before is not None else ""
-                lines.append((share, f"critical | {project_name(project)} | {label.replace('|', '/')} | {date} | "
-                                     f"{detail}{grown}"))
-    state["critical_shown"] = shown
-    save_state(folder, state)
+    with scan_lock(folder, LOCK_WAIT_FULL_S) as held:
+        if not held:
+            return 0
+        state = load_state(folder)
+        first = (datetime.date.fromisoformat(today()) - datetime.timedelta(days=CRITICAL_DAYS)).isoformat()
+        shown = {key: value for key, value in state.setdefault("critical_shown", {}).items()
+                 if key.split("|")[0] >= first}
+        limit = weekly_limit(state)[0]
+        for date, sessions in state.get("daily", {}).items():
+            if date < first:
+                continue
+            for key, row in sessions.items():
+                project, label = session_label_of(state, key)
+                for kind, share, detail, is_critical in problems(row, limit):
+                    before = shown.get(f"{date}|{key}|{kind}")
+                    if not is_critical or (before is not None and share < before * CRITICAL_GROWTH):
+                        continue
+                    shown[f"{date}|{key}|{kind}"] = share
+                    grown = f" (was {pct_text(before)} when last shown)" if before is not None else ""
+                    lines.append((share, f"critical | {project_name(project)} | {label.replace('|', '/')} | {date} | "
+                                         f"{detail}{grown}"))
+        state["critical_shown"] = shown
+        save_state(folder, state)
     for _, line in sorted(lines, key=lambda item: -item[0]):
         print(line, file=out)
+    return 0
+
+
+def project_for(directory):
+    """The retro project of a folder (default the current one), or None.
+
+    A bare name with no path part (`ClaudeDevKit`) is first looked up among the known retro projects by the repository
+    folder name of their recorded main checkout, ignoring case; no such project, it is a folder name as any other."""
+    mapper = Mapper()
+    name = str(directory or "")
+    if name and name not in (".", "..") and not any(char in name for char in "/\\:"):
+        known = known_roots().get(name.lower())
+        if known:
+            return mapper.project_of_cwd(known[1])
+    return mapper.project_of_cwd(str(Path(directory or Path.cwd()).resolve()))
+
+
+def project_folder(project):
+    return retro_dir() / project.folder
+
+
+def no_project(directory, err=None):
+    print(f"no retro project at {Path(directory or Path.cwd()).resolve()}: its main checkout needs a "
+          f"`{PROFILE_LINE}` line in .claude/dev-kit.md", file=err or sys.stderr)
+    return 2
+
+
+def state_busy():
+    print("the project state is locked by another command; run this again", file=sys.stderr)
+    return 1
+
+
+def read_item(path):
+    """`(status, kind, sightings, fix lines)` of one item file."""
+    status = kind = "?"
+    sightings = 0
+    fixes = []
+    for line in read_lines(path):
+        if line.startswith("- status:"):
+            status = line[len("- status:"):].strip() or "?"
+        elif line.startswith("- kind:"):
+            kind = line[len("- kind:"):].strip() or "?"
+        elif line.startswith("- seen:"):
+            sightings += 1
+        elif FIX_LINE.match(line):
+            fixes.append(line)
+    return status, kind, sightings, fixes
+
+
+def trivial_fixes(fixes, now=None):
+    """How many `- fix: <date> | ... | trivial` lines are dated in the last 7 days, today included."""
+    today_date = (now or datetime.datetime.now()).date()
+    count = 0
+    for line in fixes:
+        try:
+            stamp = datetime.date.fromisoformat(FIX_LINE.match(line).group(1))
+        except ValueError:  # a date like 2026-13-45
+            continue
+        count += (today_date - stamp).days < 7
+    return count
+
+
+def items(directory=None, out=None):
+    """Print the project's new findings and items, and record which `new/` files were shown (see the module doc)."""
+    out = out or sys.stdout
+    project = project_for(directory)
+    if not project:
+        return no_project(directory)
+    folder = project_folder(project)
+    with project_lock(folder) as held:
+        if not held:
+            return state_busy()
+        files = sorted((folder / "new").glob("*.md")) if (folder / "new").is_dir() else []
+        lines = [line for path in files for line in read_lines(path)]
+        state = load_project(folder)
+        state["shown"] = [path.name for path in files]
+        save_project(folder, state)
+    urgent = [line for line in lines if URGENT_LINE.search(line)]
+    print(folder, file=out)
+    reviewed = parse_time(state.get("last_review", ""))
+    print("last review: " + (reviewed.astimezone().strftime("%Y-%m-%d %H:%M") if reviewed else "never"), file=out)
+    print("\n## Priority: token problems (read first; the retro asks them before the rest)", file=out)
+    print("\n".join(urgent) or "(none)", file=out)
+    print("\n## New findings", file=out)
+    print("\n".join(line for line in lines if line not in urgent) or "(none)", file=out)
+    print("\n## Items", file=out)
+    fixes = []
+    rows = []
+    for path in sorted((folder / "items").glob("*.md")) if (folder / "items").is_dir() else []:
+        status, kind, sightings, found = read_item(path)
+        fixes += found
+        rows.append(f"{path.stem} | {status} | {kind} | sightings {sightings}")
+    print("\n".join(rows) or "(none)", file=out)
+    print(f"\ntrivial fixes in the last 7 days: {trivial_fixes(fixes)} of {FIXES_PER_WEEK}", file=out)
+    return 0
+
+
+def done(directory=None, out=None):
+    """Move the `new/` files the last `items` showed to `seen/`, stamp `last_review`, drop old files of `seen/`."""
+    out = out or sys.stdout
+    project = project_for(directory)
+    if not project:
+        return no_project(directory)
+    folder = project_folder(project)
+    seen = folder / "seen"
+    moved = 0
+    with project_lock(folder) as held:
+        if not held:
+            return state_busy()
+        state = load_project(folder)
+        for name in state.pop("shown", None) or []:
+            source = folder / "new" / Path(str(name)).name
+            if not source.is_file():
+                continue
+            seen.mkdir(parents=True, exist_ok=True)
+            target = seen / source.name
+            while target.exists():
+                target = seen / f"{source.stem}-{secrets.token_hex(3)}{source.suffix}"
+            os.replace(source, target)
+            os.utime(target)  # the age counts from the review, not from the finding
+            moved += 1
+        state["last_review"] = now_utc().isoformat()
+        save_project(folder, state)
+    limit = time.time() - SEEN_DAYS * 86400
+    for old in seen.iterdir() if seen.is_dir() else []:
+        with contextlib.suppress(OSError):
+            if old.is_file() and old.stat().st_mtime < limit:
+                old.unlink()
+    print(f"marked reviewed: {moved} file(s) moved to seen", file=out)
+    return 0
+
+
+def add(text, sender=None, directory=None, out=None):
+    """Add one finding line to the project's `new/` as a file of its own."""
+    out = out or sys.stdout
+    project = project_for(directory)
+    if not project:
+        return no_project(directory)
+    if not sender:
+        origin = Mapper().root_of(str(Path.cwd().resolve()))
+        sender = origin.name
+    stamp = datetime.datetime.now()
+    line = f"- {stamp.date().isoformat()} | from {sender} | {' '.join(str(text).split())}"
+    name = f"add-{stamp.date().isoformat()}-{stamp.strftime('%H%M%S')}-{secrets.token_hex(3)}.md"
+    path = write_new(project.folder, name, [line])
+    print(f"added to {path}", file=out)
+    return 0
+
+
+def due_line(directory=None, session_id=None):
+    """The `retro: ...` line the lead sees, or "" (see the module doc)."""
+    project = project_for(directory)
+    if not project:
+        return ""
+    folder = retro_dir(create=False) / project.folder
+    state = load_project(folder)
+    if session_id is not None and (not session_id or state.get("lead_session") != session_id):
+        return ""
+    urgent = other = 0
+    for path in sorted((folder / "items").glob("*.md")) if (folder / "items").is_dir() else []:
+        status = read_item(path)[0].lower()
+        urgent += status == "urgent"
+        other += status in ("disputed", "trivial-fixed")
+    last_ask = parse_time(state.get("asked_at", ""))
+    waited = (now_utc() - last_ask) if last_ask else None
+    weekly = bool(other) and (waited is None or waited >= datetime.timedelta(days=7)
+                              or (state.get("answer") == "no" and waited >= datetime.timedelta(days=1)))
+    if not urgent and not weekly:
+        return ""
+    return f"retro: {urgent + (other if weekly else 0)} items due ({urgent} urgent)"
+
+
+def due(session_id=None, directory=None, out=None):
+    line = due_line(directory, session_id)
+    if line:
+        print(line, file=out or sys.stdout)
+    return 0
+
+
+def asked(answer, directory=None, out=None):
+    """Stamp the weekly question to the owner and his answer in the project state."""
+    out = out or sys.stdout
+    project = project_for(directory)
+    if not project:
+        return no_project(directory)
+    folder = project_folder(project)
+    with project_lock(folder) as held:
+        if not held:
+            return state_busy()
+        state = load_project(folder)
+        state["asked_at"] = now_utc().isoformat()
+        state["answer"] = answer
+        save_project(folder, state)
+    print(f"asked stamped: {answer}", file=out)
+    return 0
+
+
+def spawn(argv, cwd=None):
+    """Start a command detached from this process (no window, no console, outlives the caller)."""
+    options = {"stdin": subprocess.DEVNULL, "stdout": subprocess.DEVNULL, "stderr": subprocess.DEVNULL,
+               "close_fds": True, "cwd": cwd}
+    if not WINDOWS:
+        subprocess.Popen(argv, start_new_session=True, **options)
+        return
+    # Not DETACHED_PROCESS: with it CREATE_NO_WINDOW is ignored and every console child (git) opens a window. The
+    # breakaway lets the child outlive the session's job object; a job that forbids it makes Popen raise: retry without.
+    flags = CREATE_NO_WINDOW | CREATE_NEW_PROCESS_GROUP
+    try:
+        subprocess.Popen(argv, creationflags=flags | CREATE_BREAKAWAY_FROM_JOB, **options)
+    except OSError:
+        subprocess.Popen(argv, creationflags=flags, **options)
+
+
+def script_command(*args):
+    return [sys.executable, "-X", "utf8", str(Path(__file__).resolve()), *args]
+
+
+def hook_end(payload):
+    """SessionEnd: scan the ending session's transcript when its project is a retro project."""
+    transcript = payload.get("transcript_path")
+    if not isinstance(transcript, str) or not transcript or not Path(transcript).is_file():
+        return
+    if Mapper().project_of_cwd(payload.get("cwd")):
+        spawn(script_command("scan", "--transcript", transcript))
+
+
+def hook_start(payload):
+    """SessionStart in a retro project: record the lead, start the daily scan and the retro session (module doc)."""
+    project = Mapper().project_of_cwd(payload.get("cwd"))
+    title = str(payload.get("session_title") or "").strip()
+    if not project or title.startswith(RETRO_TITLE):
+        return
+    folder = project_folder(project)
+    retro = retro_dir()
+    if load_state(retro)["last_scan"] != today() and lock_free(retro):
+        spawn(script_command("scan"))
+    command = None
+    with project_lock(folder) as held:  # two sessions starting at once must not both start a retro session
+        if not held:
+            return
+        state = load_project(folder)
+        state["root"] = str(project.root)
+        session_id = payload.get("session_id")
+        if title.startswith("P: ") and isinstance(session_id, str) and session_id:
+            state["lead_session"] = session_id
+        save_project(folder, state)
+        command = retro_start_command(project, folder, state)
+    if command:
+        spawn(command, cwd=str(project.root))
+
+
+def retro_start_command(project, folder, state):
+    """The command that starts the retro session when findings wait, the review is old and no start is recent; it
+    stamps `retro_started` (the caller holds the project lock). None otherwise, and with env DEV_KIT_RETRO_NO_START=1."""
+    new = folder / "new"
+    if not (new.is_dir() and any(new.iterdir())):
+        return None
+    for key, hours in {"last_review": REVIEW_HOURS, "retro_started": START_GUARD_HOURS}.items():
+        stamp = parse_time(state.get(key, ""))
+        if stamp and now_utc() - stamp < datetime.timedelta(hours=hours):
+            return None
+    import sessions  # late: only this hook needs it
+    claude = sessions.find_claude()
+    if not claude:
+        return None
+    state["retro_started"] = now_utc().isoformat()
+    save_project(folder, state)
+    if os.environ.get(NO_START_ENV) == "1":
+        return None
+    return [claude, "--bg", "--name", f"{RETRO_TITLE} {project.name}", "--model", "opus", "--effort", "medium",
+            "--permission-mode", "bypassPermissions", "--", "/dev-kit:retro"]
+
+
+def hook_main(kind):
+    """Run a hook from the JSON on stdin; never fails and prints nothing."""
+    try:
+        payload = json.loads(sys.stdin.buffer.read().decode("utf-8-sig"))
+        if isinstance(payload, dict):
+            (hook_start if kind == "start" else hook_end)(payload)
+    except Exception:  # a hook must never block a session
+        pass
     return 0
 
 
@@ -855,10 +1501,6 @@ def read_log():
         if pct is not None:
             readings.append({"ts": stamp, "pct": pct, "resets": entry.get("week_resets")})
     return sorted(readings, key=lambda reading: reading["ts"])
-
-
-def now_utc():
-    return datetime.datetime.now(datetime.timezone.utc)
 
 
 def window_spans(readings, now=None):
@@ -986,11 +1628,15 @@ def calibrate(out=None):
     folder = retro_dir()
     state = load_state(folder)
     print(refit(state), file=out)
-    fresh = load_state(folder)  # a scan may have finished meanwhile: keep its offsets, set only the fit keys
-    for key in ("fit", "fit_checked", "fit_windows"):
-        if key in state:
-            fresh[key] = state[key]
-    save_state(folder, fresh)
+    with scan_lock(folder, LOCK_WAIT_FULL_S) as held:
+        if not held:
+            print("scan busy: the fit was not saved, run calibrate again", file=sys.stderr)
+            return 1
+        fresh = load_state(folder)  # a scan may have finished meanwhile: keep its offsets, set only the fit keys
+        for key in ("fit", "fit_checked", "fit_windows"):
+            if key in state:
+                fresh[key] = state[key]
+        save_state(folder, fresh)
     return 0
 
 
@@ -1049,33 +1695,30 @@ def session(session_id=None, path=None, subagents=True, out=None, err=None):
     return 0
 
 
-def done(out=None):
-    """Mark reviewed what the last `check` or `list` showed (not findings added after it)."""
-    out = out or sys.stdout
-    folder = retro_dir()
-    state = load_state(folder)
-    shown = state.pop("shown", None) or snapshot(folder)
-    reviewed = state["reviewed"]
-    state["reviewed"] = {"scans_until": max(shown["scans_until"], reviewed.get("scans_until", "")),
-                         "notes_lines": max(shown["notes_lines"], reviewed.get("notes_lines", 0))}
-    save_state(folder, state)
-    print("marked reviewed", file=out)
-    return 0
-
-
 def main(argv=None):
     for stream in (sys.stdout, sys.stderr):  # transcripts hold any language; a Windows console code page cannot
         if hasattr(stream, "reconfigure"):
             stream.reconfigure(encoding="utf-8", errors="replace")
     parser = argparse.ArgumentParser(prog="dev-kit-retro")
     sub = parser.add_subparsers(dest="command", required=True)
-    for name in ("check", "scan", "critical"):
+    for name in ("scan", "critical"):
         command = sub.add_parser(name)
         command.add_argument("--days", type=float, default=1)
         if name == "scan":
             command.add_argument("--force", action="store_true")
-    sub.add_parser("list")
-    sub.add_parser("done")
+            command.add_argument("--transcript")
+    for name in ("items", "done", "due", "asked", "add"):
+        command = sub.add_parser(name)
+        command.add_argument("--project", help="any folder of the project (default: the current folder)")
+        if name == "due":
+            command.add_argument("--session")
+        if name == "asked":
+            command.add_argument("--answer", choices=("yes", "no"), required=True)
+        if name == "add":
+            command.add_argument("--text", required=True)
+            command.add_argument("--from", dest="sender")
+    sub.add_parser("hook-start")
+    sub.add_parser("hook-end")
     sub.add_parser("calibrate")
     one = sub.add_parser("session")
     which = one.add_mutually_exclusive_group()
@@ -1083,19 +1726,25 @@ def main(argv=None):
     which.add_argument("--path")
     one.add_argument("--no-subagents", action="store_true")
     args = parser.parse_args(argv)
+    if args.command in ("hook-start", "hook-end"):
+        return hook_main(args.command[len("hook-"):])
     if args.command == "calibrate":
         return calibrate()
     if args.command == "session":
         return session(args.id, args.path, not args.no_subagents)
-    if args.command == "check":
-        return check(days=args.days)
     if args.command == "critical":
         return critical(days=args.days)
     if args.command == "scan":
-        return scan(days=args.days, force=args.force)
-    if args.command == "list":
-        return list_findings()
-    return done()
+        return scan(days=args.days, force=args.force, transcript=args.transcript)
+    if args.command == "items":
+        return items(args.project)
+    if args.command == "due":
+        return due(args.session, args.project)
+    if args.command == "asked":
+        return asked(args.answer, args.project)
+    if args.command == "add":
+        return add(args.text, args.sender, args.project)
+    return done(args.project)
 
 
 if __name__ == "__main__":

@@ -8,7 +8,8 @@ You are the CEO of the project: one session per project, the project lead (P), s
 each in its own worktree, merges their finished work into main and tells you the result. It does no task
 work itself. P collects what needs you in a queue, so you get decisions in order instead of a flood of
 messages. The same epic holds the sessions you start yourself, the changes every project must make after
-a dev-kit update (migrations) and the daily retro that proposes fixes to the process.
+a dev-kit update (migrations) and each project's retro, which fixes small gaps in the rules by itself and
+brings you the rest once a week.
 
 The plugin covers work inside one repository. Starting P, the project list, the phone flow and the list of
 all your sessions belong to [Run all projects from the phone](run-all-projects-from-the-phone.md).

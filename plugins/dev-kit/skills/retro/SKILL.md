@@ -1,117 +1,115 @@
 ---
 name: retro
-description: Use when the session was started by the ClaudeDevKit project lead as «Обговорення: Ретро сесій ...» (or the project lead runs it in its own chat for 1-2 simple findings) to go through the logged problems of past sessions (extra or failed calls, slow steps, the owner's corrections, a wrong order of steps) and close the gaps they show in rules, skills and agents.
+description: Use when a background session named «Ретро: <project>» starts (the dev-kit SessionStart hook starts it with "/dev-kit:retro") to review the problems logged from this project's sessions and fix the gaps in the rules, skills, agents and docs that made agents err.
 ---
 
 # Retro of session problems
 
-The session talks with the owner directly, like an «Обговорення:» session (`dev-kit:project-lead`, "Retro of
-session problems"), and runs in a worktree of ClaudeDevKit. With 1-2 simple findings there is no session: P
-runs the retro in its own chat (its step 3 is "Small rule edit" of `dev-kit:project-lead`, its step 4 only
-`dev-kit-retro done`); the flow is in
-`dev-kit:project-lead`, "Retro of session problems". Its input is the unreviewed findings of
-`dev-kit-retro list` (if the command is not found, `python -X utf8 <this plugin>/scripts/retro.py list`): first the section
-"Priority: token problems", read first, then the lines of the
-daily transcript scan and the lines sessions appended for what the scan cannot see (the owner's global
-`docs/process-mistakes.md`), then the scan's spend tables (tokens in units, by session and by subagent). The
-reviewer puts the priority findings first in its list, and the owner is asked about them before any other item
-(why: the owner's yes of 2026-11-20 to the plan «Pult idle cost»: token waste went unseen for days). The rules
-and output are the owner's: nothing changes without the owner's «так» to it.
+The session runs in the background with no owner, in the main checkout of one project with a lead (a project whose
+profile `.claude/dev-kit.md` has a `## project-lead` section). It never asks the owner and never uses
+`AskUserQuestion`; it talks only to its lead, `P: <project>` (the repo folder name), by SendMessage with the kind
+words of `${CLAUDE_PLUGIN_ROOT}/messages.md`. Its input is `dev-kit-retro items` (if the command is not found,
+`python -X utf8 <this plugin>/scripts/retro.py items`): the project's new findings (token problems first) and its
+item files. The folder, the commands and the hooks that fill it: the docstring of `scripts/retro.py`.
 
-## Token spend
+## Scope
 
-Spend is evidence for a way of working, not a finding of its own: the goal is a better habit, not the biggest
-spender. The scan's spend findings (`long session`, `opus coder`) go through the steps below like the others,
-with the spend tables as their evidence. Each retro proposes at most 2 spend rules, each with its numbers, worded
-in step 2 as a trial: «спробувати тиждень і порівняти». A trial the owner accepts gets one line in `trials.md` of
-the findings folder (`~/.claude/dev-kit/retro/`): `- <YYYY-MM-DD> | <the rule> | <what to compare: the kind of work
-and its units>`. A later retro, once 7 or more days have passed since a trial's date, first compares it against the
-`## Spend` sections of the `scan-*.md` files of those days and of the week before (`list` shows only unreviewed
-days) and asks the owner to keep or roll back the rule; the line then gets `| kept` or `| rolled back`. The numbers are shown only
-in this session.
+The retro catches every problem of agent work in this project, and only that:
+
+- A cause in the project's own rules, docs or profile (an outdated doc that sends agents to the wrong file) is
+  agent work: the retro fixes it here.
+- A bug in the project's code (a flaky test, a crash) is not: it is recorded as a defect where the project's
+  `dev-kit:documentation` says ("Where things go"), the item gets `status: handed`, and the retro stops there.
+- A cause in a dev-kit plugin's rules, or in the owner's global rules (`C:/Users/korov/.claude/`, chat style
+  included), is handled only by the ClaudeDevKit retro, so two projects never ask the owner the same thing: in
+  any other project the item is moved there with `dev-kit-retro add --project ClaudeDevKit
+  --text "<item line>" --from <project>` and gets `status: handed`.
+- A cause in another project's own rules goes to that project the same way (rare).
+
+Spend findings (`long session`, `opus coder`, token spend and waste) are ordinary items, with the spend numbers as
+their evidence.
 
 ## 1. Check every finding
 
-One `dev-kit:reviewer` (model sonnet) checks the whole list (when P's first prompt carries its gate reviewer's
-result, only the findings added since); brief it to stop and report after 30 minutes. Give it the
-list, the transcripts folder (`~/.claude/projects/<project folder>/`, a session's file is `<id>.jsonl`, the 8 hex
-characters in brackets after a title are the start of the id, subagent files are in `<id>/subagents/`), the plugin
-folder and the owner's global rules folder (`C:/Users/korov/.claude/` with its `docs/`). Per finding it returns:
+One `dev-kit:reviewer` (model sonnet) checks the new findings; brief it to stop and report after 30 minutes. Give
+it the `items` output (the new findings and the list of existing cause keys), the transcripts folder
+(`~/.claude/projects/<project folder>/`, a session's file is `<id>.jsonl`, the 8 hex characters in brackets after a
+title are the start of the id, subagent files are in `<id>/subagents/`), this project's main checkout (its
+`CLAUDE.md`, `.claude/`, docs and code), the plugin folder and the owner's global rules folder. Per finding it
+returns:
 
-- real, noise, already fixed (with the file and line of the fix) or handed over (another session or talk took it,
-  as P or the owner said in this session), with the transcript lines it read (a watcher an older lead
-  re-armed by design, an expected failed test, an owner who was away, are noise);
-- the cause: which rule, skill or agent was missing, unclear or ignored, with `file:line`, or "no rule gap";
-- the fix kind: a wording edit (which file), a script, hook or new agent, or nothing;
-- one concrete example of what the agent did, in the owner's words (what he saw in the session), and what it led
-  to or would have led to for him, and why that is a problem; the fix: what changes in the rules, in one plain
-  line, and the same moment as it will look after the fix;
-- for a wording edit, steps 1-2 of `dev-kit:edit-rules` done on it: the read set swept and the duplicates,
-  conflicts, restatements and home listed with `file:line`, so the owner's yes covers an edit with no clash.
+- noise, already fixed (with the file and line of the fix) or real, with the transcript lines it read (a watcher an
+  older lead re-armed by design, an expected failed test, an owner who was away, are noise);
+- the cause key: an existing key when the cause is the same, else a new short kebab-case key;
+- the cause kind: `no rule` (missing or unclear), `ignored rule` (the rule exists and is clear, agents did not
+  follow it; `file:line` of the rule), `one-off` (random, no rule would have helped), `code bug`, `dev-kit rule`,
+  `global rule` or `other project`;
+- for `no rule`: the fix in one plain line, the exact edit with `file:line`, steps 1-2 of `dev-kit:edit-rules`
+  done on it, and what the same edit removes or merges, so the rules do not grow; for `ignored rule`: another
+  means (a hook, a check, a script), never a new wording;
+- whether the fix is trivial: one place, a word or a sentence made clearer, with no clash; a fix about how
+  sessions talk to the owner (his messages, his questions), a high-impact fix (a new step, a script, hook, agent
+  or skill, a deleted rule), an edit of the owner's global rules, or one the reviewer is unsure about is never
+  trivial;
+- urgent or not: lost work, a critical token problem, blocked work, or one cause repeated the same day;
+- for each item with a `- fix:` line: whether a session started after the fix date met the same situation, and
+  how it went (`worked`, `did not work`, `not met yet`). Only sessions started after the fix count.
 
-Findings with one cause are merged into one item. A line it marks unsure goes to a second reviewer before the owner
-sees it.
+A line it marks unsure goes to a second reviewer before it counts.
 
-## 2. Ask the owner
+## 2. Write the items
 
-This step names itself as an exception to the owner's global "Question" cap (15 words plus a 6-word bracket
-example), "Batches of questions" format and its bans on headings and bold labels: a retro item needs its context
-and must read easily on the phone. The rest of the global "Chat replies" rules hold: Ukrainian, plain words, no
-file or rule names.
+One file per cause in `items/<cause key>.md` of the project's folder (the path `items` prints); a finding with an
+existing key adds a sighting to that file instead of a new one. The file:
 
-One real item per message, in the order of the reviewer's list; the next one only after the owner answers. A
-heading with the problem's name, then bold labels, a blank line between the parts:
+    # <plain name of the problem, at most 6 words>
+    - status: waiting | trivial-fixed | fixed | disputed | urgent | worked | no-fix | handed
+    - kind: <cause kind>
+    - from: <project the finding came from>
+    - seen: <YYYY-MM-DD> | <session title (id8)> | <the scan line or note>
+    - fix: <YYYY-MM-DD> | <files> | <what was removed or merged> | trivial | owner
+    - check: <YYYY-MM-DD> | worked | did not work | not met yet
+    <Було / Це проблема, бо / Виправлення / Стане, one line each, in Ukrainian: the text the lead shows the owner>
 
-    ### <plain name of the problem, at most 6 words>
+A recurrence counts separate sessions or days: a lead and its own subagents are one session. Each `fix:` keeps the
+`seen:` lines it rests on.
 
-    **Було:** <one concrete moment from a session the owner can picture: what the agent did or wrote>
+## 3. Decide each item
 
-    **Це проблема, бо:** <what it led to or would have led to for the owner, one sentence>
+- Noise or already fixed: no item (a sighting of an already fixed item goes to its post-change check).
+- `code bug`, `dev-kit rule`, `global rule`, `other project`: as "Scope" says.
+- `one-off`, or a first sighting that is not urgent: `status: waiting`. A fix needs the same cause in a second
+  session or on a second day.
+- `no rule` seen again, trivial, and fewer than 5 trivial fixes in the last 7 days (`items` prints the count): fix
+  it now (step 4), `status: trivial-fixed`. Over the cap it waits for next week.
+- `ignored rule`, a fix that is not trivial, or anything about how sessions talk to the owner: `status: disputed`.
+- Urgent: `status: urgent`, and send P at once one `ПИТАННЯ` per urgent item (the Було / Виправлення lines and the
+  recommendation); P asks the owner. If P is not reachable, the item waits in its file: the lead's prompt hook shows
+  it.
+- Post-change check: `did not work` turns the item `disputed` (an ignored rule now, so not reworded again);
+  `worked` closes it; `not met yet` changes nothing.
+- In the ClaudeDevKit retro only: each plugin commit since the last review that changes agent behaviour
+  (`git log --since=<the last review that items prints> -- plugins`) gets an item `check-<slug>` with `status: fixed` and its `fix:`
+  line, so the same post-change check reads later sessions for it.
 
-    **Виправлення:** <what changes in the rules, in plain words, one sentence>
+## 4. Apply the trivial fixes
 
-    **Стане:** <the same moment as it will look after the fix, as an example>
+Before the first edit, call `EnterWorktree` (name `retro-<YYYY-MM-DD>`): writes into the main checkout are blocked.
+Each trivial fix goes through `dev-kit:edit-rules` steps 4-6 (the reviewer did steps 1-2; the trivial lane is
+that skill's exception to step 3), and each removes or merges something as the reviewer named. In ClaudeDevKit,
+bump the plugin version once for the whole run (one plugin update a day: every update restarts every lead). Commit
+in the worktree; the lead merges it. The owner sees every trivial fix in the weekly list, where any one is reverted
+with one word.
 
-    <the question, at most 15 words, worded so that «так» agrees with it>
-    Рекомендую: так - <reason, at most 12 words>
+## 5. Close
 
-Було and Стане never lean on names or context the owner may not hold (another project, a session, a file): say in
-plain words what happened. A spend item gets its numbers in Було, and its Виправлення is worded as the trial
-«спробувати тиждень і порівняти» (see "Token spend"). Noise, findings the reviewer marks already fixed and findings
-handed over are not asked: the message of the last real item opens with one line «Ще N знахідок - шум або вже
-виправлене» (and «M передано в окреме обговорення» when there are any) and «подробиці покажу, якщо попросиш»,
-so its question stays last; with no real item, the whole message is «Нових проблем у правилах немає.» and that line.
+Run `dev-kit-retro done`. Then send P one `ГОТОВО` in 3 lines: state, result (fixes made, items for the owner,
+urgent ones sent), what is needed (merge branch `<branch>`, or nothing to merge). The session then waits; P closes
+it.
 
-## 3. Apply the yeses
-
-- A wording edit of a plugin skill, agent or rule doc, the repo's `CLAUDE.md`, or the owner's global rules and docs:
-  edit it in this session (P in its own chat: as in "Small rule edit") through `dev-kit:edit-rules`, steps 4-6 (the reviewer did steps 1-2, the owner's «так»
-  here is step 3). The owner's
-  global files are local, outside the repo, and are edited in place. Bump the plugin version once if a plugin
-  changed.
-- A script, a hook, a new agent or skill, or a change of the scan itself (`plugins/dev-kit/scripts/retro.py`, its
-  thresholds included): an entry at the end of this repo's `BACKLOG.md` in the format of `dev-kit:manager`, "A change
-  to the plugins themselves", plus the line `Verdict: owner yes in retro <YYYY-MM-DD>`, so P does not ask the owner
-  again ("Plugin backlog" in `dev-kit:project-lead`); a separate session builds it.
-- A gap in another project's own rules (its `CLAUDE.md` or `.claude/`): an entry in that project's `BACKLOG.md`
-  through an `other-repo-editor` subagent (model haiku).
-
-## 4. Close
-
-Run `dev-kit-retro done`, so the findings `list` showed are not proposed again, even when the owner said «ні» to
-all; findings added during the retro stay new. Commit, show the owner the short plan of what this retro
-changed and added (`dev-kit:project-lead`, "Start an «Обговорення:» session", "Short plan"), and only after the
-owner's «так» to it, and only if no owner message came after that «так», send P its done report, a `ЗАКРИТО` message (`${CLAUDE_PLUGIN_ROOT}/messages.md`), by SendMessage (what was edited, the backlog entries added); P merges the branch as any
-session's work.
-
-Why: the owner decided on 2026-11-19 that sessions' problems are logged and reviewed daily, and that nothing reaches
-a rule or the backlog without the owner's «так» in a retro session; the same day, that token spend is counted in
-units with no dollars (a subscription) and serves as evidence for trial rules (plans/retro-tokens.md); since
-2026-11-21 the same units also state the cost of work (`dev-kit:manager`, «Stating the cost of work»). On the same
-day the retro questions became Було/Стане blocks under headings (owner: «питання в стилі було - стало»), because
-two-sentence batch items gave no context. On 2026-11-20 the owner asked for one item per message with Проблема, Було,
-Це проблема, бо, Виправлення and Стане (an example), and for noise and fixed findings to be one line, not a question
-(owner: «А нащо мені вже виправлені?», «Я маю розуміти про що ця проблема»). On 2026-11-21 the owner asked for the
-problem name as a heading and bold labels (owner: «Мітки жирними і заголовок назва айтема»): plain labels read as one
-block of text. The in-chat variant for 1-2
-simple findings (2026-11-20): `dev-kit:project-lead`, "Retro of session problems".
+Why: owner, 2026-11-21 and 2026-11-22 (`plans/retro-scope.md`, «Owner's approval»): the retro fixes the problems of
+each project in that project's context, not only the plugin's rules; fixes only causes that recur, not random
+ones; reviews by itself and brings the owner only disputed, high-impact, urgent items and anything about how
+sessions talk to him, plus a weekly list of trivial fixes. This replaces, for trivial fixes only, the 2026-11-19
+decision that nothing reaches a rule without the owner's «так». Earlier history: the retro questions as Було /
+Стане blocks (owner, 2026-11-19..21) are now the item's text the lead shows.

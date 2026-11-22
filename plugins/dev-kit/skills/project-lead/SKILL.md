@@ -117,7 +117,7 @@ these messages follow this form; P's other replies keep the global caps.
 ```
 
 P's own questions («від мене») include its proposals: start a new C, close a task or session, take
-over a session, restart a crashed session, start a retro, the docs migration offer, new plugin backlog
+over a session, restart a crashed session, the weekly retro ask, the docs migration offer, new plugin backlog
 entries. P makes at most one «Запустити нову сесію «C: <name>»?» proposal for a plan item at a time
 (the docs migration offer is apart): the most important plan item, among close ones the one that needs
 nothing from the owner. After the owner's «ні» to it, the next item becomes the proposal; with none,
@@ -294,7 +294,8 @@ before a paid API call that would take its API total past 1 USD.
 
 One more item always enters the queue: «Взяти «<name>» під керування?» for each session the owner
 started that P has not offered yet (see "Take over a session the owner started"). It is a normal
-item, never critical. The same holds for the retro item of "Retro of session problems".
+item, never critical. The same holds for the weekly retro ask of "Retro of session problems"; an urgent retro
+item is critical.
 
 Why: the owner decided on 2026-11-15 that he is the CEO: six messages about three sessions in
 minutes were noise, and spend under 1 USD or a decision inside the criteria needs no owner.
@@ -768,7 +769,7 @@ design state), it re-reads the file after each edit and checks that the edit ful
 committing it. This is a stopgap: the cause, the host's worktree guard that blocks such edits, is out
 of reach (seen in P: Zhratva, 2026-11-18: shell edits half-applied).
 
-For an «Обговорення:» session (a retro too), before the merge and before `claude rm`, P reads its
+For an «Обговорення:» session, before the merge and before `claude rm`, P reads its
 transcript and finds the owner's «так» to the short plan. If an owner message follows it, P does not
 merge or close the session and sends it back: «ВКАЗІВКА - Власник писав після «так»: дообговори і покажи план
 знову». An owner message is a plain-text user entry; tool results and messages from sessions or agents
@@ -903,10 +904,10 @@ exception to "no task work"; any other rule edit P makes follows `dev-kit:edit-r
 
 - Up to 3 items at once: one `dev-kit:reviewer`, whose brief carries steps 1-2 of `dev-kit:edit-rules`,
   reviews them together and returns, per item, a recommendation with its reason, the idea in one plain
-  line and the exact edit (a retro item already has this from the gate reviewer).
+  line and the exact edit (a retro item already has this from its «Ретро:» session).
 - A backlog entry gets a `Verdict:` line with the recommendation and is removed after the edit (in the
   worktree's commit) or on «ні». An owner-chat, process-mistake or retro item has no entry.
-- P asks the owner a yes/no batch on the ideas, not the wording (an in-chat retro item is asked as in
+- P asks the owner a yes/no batch on the ideas, not the wording (a retro item is asked as in
   "Retro of session problems"). On «так» P makes a throwaway worktree of main (`git worktree add`, as for a
   C); one `dev-kit:coder`, its brief naming that worktree's path, applies the edits there, bumps the plugin
   version if a plugin changed and runs the repo's lint; P runs steps 5-6 of `dev-kit:edit-rules` on the diff,
@@ -921,46 +922,39 @@ edits. This widens the 2026-11-14 backlog decision (a C for every simple rule ed
 source. The worktree: owner, 2026-11-21, retro: a coder sent to edit the main checkout was blocked
 four times in a minute while the owner was told to wait 12 minutes, and P then edited around the guard.
 
-## Retro of session problems (plugin repo only)
+## Retro of session problems
 
-In the plugin repo P also runs `dev-kit-retro check` at the same moments as the backlog check above.
-It scans the transcripts of all sessions with no model at most once a day (a later run the
-same day only counts) and prints `new findings: <N>` or `no new findings`; the findings stay in a local folder
-outside any repo. A trial of `dev-kit:retro`, "Token spend", is due when its line in `trials.md` is 7 or
-more days old with no `| kept` or `| rolled back`. With new findings or a due trial, and no retro item
-in the queue, no retro session, no gate review and no in-chat retro running, P first launches one
-`dev-kit:reviewer` (sonnet), the gate reviewer, with the brief of `dev-kit:retro`, step 1 (and, for a due
-trial, its comparison). It counts only the findings it marks real; a due trial counts as one item. No
-real finding and no due trial (all already fixed, noise or handed over): P runs `dev-kit-retro done`
-itself, with no item and no message. Otherwise:
+Every project with a lead has its own retro (`dev-kit:retro`); no P runs a scan. dev-kit hooks log each ending
+session's problems into the project's local item folder and start a background session «Ретро: <project>» when new
+findings wait (the docstring of `scripts/retro.py` has the folder, the commands and the hooks). That session
+reviews them with the project's rules, docs and code in view, applies trivial fixes itself and ends with a
+`ГОТОВО` to this P. Dev-kit rule and global-rule items of every project go to the ClaudeDevKit folder, so only P
+of ClaudeDevKit brings them to the owner.
 
-- 1-2 items, each a wording edit in one place with no clash (the reviewer's step-2 list) or a trial
-  comparison: P runs the retro in its own chat, with no session. P first adds one question of its own:
-  «Розібрати <N> знахідок ретро зараз?»; after its «так» the items come as normal P questions in the question
-  form of "Message templates" (the fix in one plain line, its consequence in brackets, `Рекомендую:`), never
-  in the long format of `dev-kit:retro`, step 2; details only on the owner's ask. Each «так» is applied as in
-  "Small rule edit". Why: owner, 2026-11-20: a retro item sent unasked in the long format was «полотно
-  неформатованого тексту»; he wants to be asked first, then short questions. After the last answer P runs
-  `dev-kit-retro done`; no short plan and no done report (each edit was merged in "Small rule edit"). A finding that needs a script, a hook, a new
-  agent or skill, a spend rule or a change of the scan makes the retro complex.
-- More items, or a complex one: P adds one question of its own: «Запустити ретро сесій? (<N> нових
-  знахідок)», where <N> is the real count after the gate reviewer.
+- `ГОТОВО` from «Ретро: <project>»: P merges its branch as in "Acceptance and merge" with no «Approved design»
+  check and no follow-up C, then closes the session as after any merge; with nothing to merge, P only closes it.
+  In ClaudeDevKit the merge bumps the plugin version once a day at most (each bump restarts every lead).
+- `ПИТАННЯ` from «Ретро: <project>» (an urgent item: lost work, a critical token problem, blocked work, one cause
+  repeated the same day): a critical queue item, asked at once.
+- The line `retro: <N> items due` in P's context (the prompt hook adds it when urgent items are open, or when
+  disputed items and trivial fixes wait and the last weekly ask is a week old, a day old after a «ні»): P adds
+  one queue question of its own, «Розібрати <N> пунктів ретро?», a normal item. On the answer P runs
+  `dev-kit-retro asked --answer yes|no`. On «так» P reads the items with `dev-kit-retro items` and goes through
+  them in its own chat: first the trivial fixes as one list, each line the fix in plain words, «скасувати 2» reverts
+  one (as a "Small rule edit"); then each disputed or urgent item as a normal P question of "Message templates",
+  built from the item's Було / Виправлення lines (the long form only on the owner's ask). Each «так» is applied
+  as a "Small rule edit"; a script, hook, new agent or skill becomes a backlog entry with `Verdict: owner yes in
+  retro <YYYY-MM-DD>` in ClaudeDevKit, or a C elsewhere. P then sets each item's `status:` line in its file (a
+  trivial fix the owner kept and a disputed item he said «так» to: `fixed`; a reverted one or a «ні»: `no-fix`); the files are local, outside any repo. With more than 5 disputed items, P offers an
+  «Обговорення: Ретро сесій <YYYY-MM-DD>» session instead, started as in "Start an «Обговорення:» session".
+- The owner may ask for a retro at any time («ретро», «розбери проблеми сесій»): P goes through the open items as
+  above, or offers that session for the owner's own cases.
 
-The owner may also ask for a retro at any time («ретро», «розбери проблеми сесій»); P then starts a session
-even with no new findings, and the owner brings their own cases there.
-
-- «ні»: P runs `dev-kit-retro done`, so the same findings are not proposed again.
-- «так»: P starts it as in "Start an «Обговорення:» session", with these differences: the name is
-  `Обговорення: Ретро сесій <YYYY-MM-DD>`; the first prompt is the owner's words (if any), "run
-  `dev-kit:retro`" and the gate reviewer's result (retro step 1 then checks only findings added since); with no feature file and no discovery, mockup or «Approved design» lines; the session may edit rule text after the owner's yes and ends, after
-  the owner's «так» to its short plan with no owner message after it, with a done report and its branch, which P merges as in "Acceptance and merge" with no «Approved design»
-  check and no follow-up C. The one line after the launch is the same, with this session's name.
-
-Why: the owner decided on 2026-11-19 that sessions' problems are found daily, but a retro starts
-only after the owner's «так»: a review agent writing straight into the backlog was rejected.
-Owner, 2026-11-20, retro (quotes in "Small rule edit"): fixed findings need no question, and one or two
-simple ones are handled in P's chat with subagents. A due trial forces a retro so a trial is never left
-uncompared.
+Why: owner, 2026-11-21 and 2026-11-22 (`plans/retro-scope.md`): the retro covers every project with a lead and
+fixes its problems in its own context; the owner gets only disputed, high-impact and urgent items and those about
+how sessions talk to him, once a week, and trivial fixes as a list he can revert. This replaces the 2026-11-19
+rejection of a review agent writing straight into the rules, for trivial fixes only; the 2026-11-20 decision that
+retro questions are short P questions in P's chat stays.
 
 ## API credit check (plugin repo only)
 

@@ -7,9 +7,9 @@ skills' rule (`dev-kit:project-lead`, `dev-kit:manager`); this file only sets th
 
 | Kind | Sent by | When | Receiver does |
 |---|---|---|---|
-| `ГОТОВО` | a C | its task is done and its branch is ready; 3 lines: state, result, what is needed | merges ("Acceptance and merge") |
-| `ЗАКРИТО` | an «Обговорення:» session, a retro session | the owner said «так» to its short plan and wrote nothing after it; this is its done report | merges and closes it |
-| `ПИТАННЯ` | a C to its own P; a lead or an «Обговорення:» session to a lead | it needs a decision or a consent; it waits for the answer | answers with `ВІДПОВІДЬ`, or puts it in the owner queue |
+| `ГОТОВО` | a C; a «Ретро:» session (`dev-kit:retro`) | its task is done and its branch is ready; 3 lines: state, result, what is needed | merges ("Acceptance and merge") |
+| `ЗАКРИТО` | an «Обговорення:» session | the owner said «так» to its short plan and wrote nothing after it; this is its done report | merges and closes it |
+| `ПИТАННЯ` | a C or a «Ретро:» session to its own P; a lead or an «Обговорення:» session to a lead | it needs a decision or a consent; it waits for the answer | answers with `ВІДПОВІДЬ`, or puts it in the owner queue |
 | `ЗАСТРЯГ` | a C | it cannot go on, and no choice by P would unblock it (a crash of a tool, a queue timeout) | shows it as `чекає на тебе` or `стоїть, сесія впала` with its own question |
 | `ВЛАСНИК ВІДПОВІВ` | a session the owner talks with | the owner answered or decided there something its lead may ask or show (a question the lead put to the owner, a change of scope; the closing «так» is `ЗАКРИТО` instead); the owner's words verbatim | drops the matching queue item, never asks the owner again |
 | `ВІДПОВІДЬ` | the session that was asked | the answer to a `ПИТАННЯ` (the owner's words verbatim, or the lead's own decision) or a `ВКАЗІВКА`'s reply | goes on |

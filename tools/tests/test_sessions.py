@@ -194,6 +194,7 @@ class SessionsTestCase(unittest.TestCase):
         agents = [
             {"sessionId": "me", "name": "C: me", "cwd": str(repo), "kind": "background", "status": "busy"},
             {"sessionId": "lead", "name": "P: repo", "cwd": str(repo), "kind": "background", "status": "idle"},
+            {"sessionId": "r1", "name": "Ретро: repo", "cwd": str(repo), "kind": "background", "status": "busy"},
             {"sessionId": "c1", "name": "C: side", "cwd": str(wt), "kind": "background", "status": "busy",
              "state": "working"},
             {"sessionId": "o1", "name": "Own idea", "cwd": str(repo), "kind": "interactive", "status": "idle"},
@@ -221,7 +222,7 @@ class SessionsTestCase(unittest.TestCase):
         code, output = self.run_main("others", "--json")
         self.assertEqual(0, code)
         rows = {row["sessionId"]: row for row in json.loads(output)}
-        self.assertEqual({"c1", "o1"}, set(rows))  # not the caller, the lead or another repo's session
+        self.assertEqual({"c1", "o1"}, set(rows))  # not the caller, the lead, the retro or another repo's session
         self.assertEqual("lead", rows["c1"]["startedBy"])
         self.assertEqual("owner", rows["o1"]["startedBy"])
         self.assertEqual("side", rows["c1"]["branch"])

@@ -13,6 +13,7 @@ from unittest import mock
 PLUGIN = Path(__file__).resolve().parents[2] / "plugins" / "dev-kit"
 SCRIPT = PLUGIN / "hooks" / "owner-session-note.py"
 sys.path.insert(0, str(PLUGIN / "scripts"))
+import dev_kit_state  # noqa: E402
 import sessions  # noqa: E402
 
 OWNER_ID = "11111111-aaaa-bbbb-cccc-000000000001"
@@ -35,7 +36,8 @@ class OwnerSessionNoteTests(unittest.TestCase):
         git(self.repo, "commit", "-q", "--allow-empty", "-m", "i")
         self.worktree = tmp / "wt"
         git(self.repo, "worktree", "add", "-q", str(self.worktree), "-b", "side")
-        self.env = {**os.environ, "DEV_KIT_STATE_DIR": str(self.state)}
+        self.retro = tmp / "retro"
+        self.env = {**os.environ, "DEV_KIT_STATE_DIR": str(self.state), "DEV_KIT_RETRO_DIR": str(self.retro)}
         self.register(OWNER_ID, "Own idea", owner=True)
         self.register(LEAD_ID, "C: task", owner=False)
 
@@ -100,6 +102,38 @@ class OwnerSessionNoteTests(unittest.TestCase):
         for registry in self.state.glob("*/sessions.json"):
             registry.write_text("{nope", encoding="utf-8")
         self.assertEqual("", self.run_hook(OWNER_ID))
+
+    def retro_project(self, lead, statuses):
+        """Make the repo a retro project whose recorded lead session is `lead`, with one item per status."""
+        (self.repo / ".claude").mkdir()
+        (self.repo / ".claude" / "dev-kit.md").write_text("## project-lead\n", encoding="utf-8")
+        folder = self.retro / dev_kit_state.folder_name(self.repo)
+        (folder / "items").mkdir(parents=True)
+        (folder / "state.json").write_text(json.dumps({"lead_session": lead}), encoding="utf-8")
+        for number, status in enumerate(statuses):
+            (folder / "items" / f"item{number}.md").write_text(f"- status: {status}\n", encoding="utf-8")
+
+    def test_the_recorded_lead_gets_the_retro_line_and_nobody_else(self):  # Flow
+        self.retro_project(LEAD_ID, ["urgent", "open"])
+        self.assertEqual("retro: 1 items due (1 urgent)", self.note(self.run_hook(LEAD_ID)))
+        self.assertEqual("", self.run_hook("99999999-aaaa-bbbb-cccc-000000000009"))  # not the lead
+        self.assertIn("«Роботу завершено»", self.note(self.run_hook(OWNER_ID)))  # an owner session: its note only
+        self.assertNotIn("retro:", self.note(self.run_hook(OWNER_ID)))
+
+    def test_a_lead_that_is_also_an_owner_session_gets_both(self):  # Rule
+        self.retro_project(OWNER_ID, ["urgent"])
+        text = self.note(self.run_hook(OWNER_ID))
+        self.assertIn("«Роботу завершено»", text)
+        self.assertIn("retro: 1 items due (1 urgent)", text)
+
+    def test_a_lead_with_nothing_due_gets_nothing(self):  # Rule
+        self.retro_project(LEAD_ID, ["open", "done"])
+        self.assertEqual("", self.run_hook(LEAD_ID))
+
+    def test_a_broken_retro_state_never_blocks_and_keeps_the_owner_note(self):  # Edge
+        self.retro_project(OWNER_ID, ["urgent"])
+        (self.retro / dev_kit_state.folder_name(self.repo) / "state.json").write_text("{nope", encoding="utf-8")
+        self.assertNotIn("retro:", self.note(self.run_hook(OWNER_ID)))
 
 
 if __name__ == "__main__":
