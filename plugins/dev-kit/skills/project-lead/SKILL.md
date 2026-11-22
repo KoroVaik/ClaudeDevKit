@@ -69,16 +69,22 @@ these messages follow this form; P's other replies keep the global caps.
   plus the «ще працюють» line ("Which sessions a message lists"). A
   wake-up that changes nothing gets no text; the one exception is the keep-warm ping ("Wake-up"),
   answered with the forced-output state below.
-- Forced output: wherever this skill says no text or no message (a wake-up that changes nothing,
-  an event line that needs nothing, the restart handshake, a skill update) and the
-  host still demands visible output, P sends the short current state in this form: «Питання без
+- Forced output: a turn in which nothing changed for the owner ends with no text at all, also after
+  P's own tool calls (a subagent finished, a merge clean-up, a restart handshake, an internal step).
+  A background-task or subagent notification, an event message or a finished tool call is NOT the
+  host demanding visible output. P sends the forced-output state only when the host's own reminder
+  explicitly asks P to tell the user something (for example «The user hasn't heard from you...»),
+  and for the keep-warm ping ("Wake-up"). Then P sends the short current state in this form: «Питання без
   відповіді» with its count lines (no question written out, so it ends with «Показати всі питання?»
   when one is open, case 1 of the closing line; with a critical question open, the critical form
   below, case 2) and «Статуси сесій» with every session. With no session
   and no open question, it is one line: «Зараз нічого не працює і нічого не чекає на тебе.» Never a
-  filler phrase («No response requested.») and never an old question sent again, except the open critical question (case 2). Why: Claude Code
-  does not accept an empty turn, so P invented fillers (P: Zhratva, 2026-11-19); the owner decided on
-  2026-11-20 that P shows the current state instead.
+  filler phrase («No response requested.»), never an unchanged status sent again and never an old
+  question sent again, except the open critical question (case 2). Why: a turn with tool calls can end
+  with no text, but a turn the host forces to answer with nothing got fillers from P (P: Zhratva,
+  2026-11-19), so the owner decided on 2026-11-20 that P shows the current state then; owner,
+  2026-11-22, a screenshot of five identical «Статуси сесій» messages in a row: «чи можна зробить щоб
+  писалось пусте повідомлення замість спаму повторів?».
 - Every event that needs the owner (an overlap, a blocked merge, a failed step) becomes a status line
   or P's own question; P never writes a free-text note beside the two blocks.
 - Exceptions: the one line after P starts an «Обговорення:» session (see "Start an «Обговорення:»
@@ -736,8 +742,8 @@ Event lines:
   overfull C"). Each C is reported once.
 - `restart requested: <version>`: the handshake of "Restart for a plugin update".
 - "No text" for `stale` means no news about the event (seen in P: Zhratva, 2026-11-15:
-  text on watcher exits confused the owner); if the host then demands visible output, P sends the
-  forced-output state of "Message templates".
+  text on watcher exits confused the owner); P sends the forced-output state of "Message templates"
+  only under the condition set there (the host's own reminder asks P to tell the user something).
 - A C still in the session list but with no process (Claude Code closed it, or it crashed) is reported
   `gone` only after 5 minutes: meanwhile the Pult watcher brings it back with `claude respawn`. Such a
   `gone` means that failed; handle it as above.
@@ -886,8 +892,8 @@ the version.
   starts no new step (no new C, no merge, no new subagent). A step already running is brought
   to a point where a stop breaks nothing: a merge and its clean-up are finished, an edit P began is
   committed, a running subagent is waited for. C sessions keep working on their own. Then P runs
-  `dev-kit-sessions restart ready --version <the new version>` and ends the turn with no text to the owner; if the host demands output, P sends
-  the forced-output state of "Message templates". An owner message that arrives before
+  `dev-kit-sessions restart ready --version <the new version>` and ends the turn with no text to the owner; the forced-output state of "Message
+  templates" follows only under its narrowed condition (the host's own reminder). An owner message that arrives before
   the restart is answered after it. The hold ends by itself 10 minutes after `ready` with no restart
   (the Pult watcher drops an older `ready` too); P then works as usual and says nothing about it.
 - First prompt after the restart: `/dev-kit:project-lead restart: plugin update`. P goes on where it
