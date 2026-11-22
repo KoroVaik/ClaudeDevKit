@@ -12,13 +12,17 @@ P is one session per project. It starts task sessions (C), each in its own workt
 finished work into main and tells you the result. It does no task work itself.
 
 ### P's messages: session states and question counts
-Every status message from P has two short blocks: «Питання без відповіді» (a new question written in
-full once, after a separate cheap check that it reads in your own words with no agent terms, older ones
-only counted, urgent ones always named) and «Статуси сесій» (each session's state
-and name). A message with an open question always ends with one question you can answer with a bare «так»:
-«Показати всі питання?» when some question is not written out (on «так» P lists every question in full,
-numbered), the question itself when it is the only one, or «Приймаєш усі мої рекомендації?» when several
-are written out. A bare «так» or «ні» answers that last line; P never asks back which one you meant.
+Every status message from P has two short blocks: «Питання без відповіді» (only the counts: how many
+questions from sessions, how many from P, how many urgent) and «Статуси сесій» (each session's state
+and name). A message with open questions ends with «Показати всі питання?»; on your «так» P lists every
+question in full, numbered, after a separate cheap check that each reads in your own words with no
+agent terms. The one exception is a critical question (a session stands and cannot move without your
+answer): it is shown in full as the last thing in the message, with no closing line, so a bare «так»
+answers it; the next critical question is shown the same way only after you answer the first. The full
+list also opens the start status of a fresh P session, but not the one after a plugin-update restart
+(same chat, you saw the questions); the list ends with the question itself when it is the only one, or
+«Приймаєш усі мої рекомендації?» when several are listed. A bare «так» or «ні» answers P's last line;
+P never asks back which one you meant.
 You can still answer by number («1 так, 3 ні»). P writes at once on each event, only
 what changed; the other sessions still at work share one last line «ще працюють: «A», «B»». After a plugin-update restart, or when Claude Code demands a reply where P has nothing new,
 P shows the current state in this form, never a filler phrase; with nothing running and nothing
@@ -103,7 +107,7 @@ format instead of removing them. Those rules live outside this repo and change o
 
 ## Acceptance criteria
 - You give P a task whose outcome is not agreed: P asks up to 3 questions through the queue, or proposes an «Обговорення:» session when there are more or a screen is involved.
-- A new question arrives: P writes it in full once, in your own words with no agent terms (a separate checker rewrites it first); later messages only count it and ask «Показати всі питання?», and on «так» all are listed, numbered.
+- A new question arrives: P's message only counts it and ends with «Показати всі питання?»; on «так» all are listed in full, numbered, in your own words with no agent terms (a separate checker rewrites them first). A critical question is the exception: it is shown in full as the last message line with no closing line, and the next one only after you answer it.
 - You answer a P message with a bare «так»: P takes it as the answer to the message's last line and acts, never asking «1 чи 2?».
 - A session finishes while you are away: P writes at once, and its message lists the session as «готово».
 - A task session crashes: you get it at once, also as a push to your phone.

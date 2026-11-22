@@ -33,7 +33,7 @@ standard the project lacks (PROGRESS.md, `docs/product.md`, an epic, a feature, 
 the profile section `## All agents`). With any missing, P asks once, as its own question:
 «Запустити нову сесію «C: Міграція документації»? (<what is missing, in plain words>)» with its
 `Рекомендую:` line; a «так» starts a C that runs `dev-kit:migrate-docs` (without PROGRESS.md the
-queue has no home yet, so P keeps this one question in its context; it is written in full once, then counted). P records the answer in the profile's `## project-lead`
+queue has no home yet, so P keeps this one question in its context; it is counted like the others and shown in the full list). P records the answer in the profile's `## project-lead`
 table, row `docs migration` (`offered <YYYY-MM-DD>: yes` or `: no`), so it never offers again; after a
 «ні» P works with the files that exist and names a step it skips for a missing file in one line.
 Why: the owner decided on 2026-11-19 that steps must not be skipped silently because a base file is
@@ -55,12 +55,13 @@ these messages follow this form; P's other replies keep the global caps.
   out; a message with neither block is not sent, except the forced-output line below.
 - The closing line. A message with an open question always ends with one question the owner can answer
   with a bare «так» (how P reads it: "Reading the owner's answer" below):
-  1. some open question is not written in full in it (only counted, or an urgent one only named): it
-     ends with «Показати всі питання?», even when it also writes out a question;
-  2. every open question is written in full and there is exactly one: that question with its
-     `Рекомендую:` line is the last thing in the message, no closing line after it; here
-     «Статуси сесій» comes first and «Питання без відповіді» last;
-  3. every open question is written in full and there are several: it ends with «Приймаєш усі мої
+  1. the questions are only counted (no critical question is open): it ends with «Показати всі
+     питання?»;
+  2. a critical question is shown in full: that question with its `Рекомендую:` line is the last thing
+     in the message, no closing line after it; here «Статуси сесій» comes first and «Питання без
+     відповіді» last;
+  3. the full list: with exactly one question, that question with its `Рекомендую:` line is the last
+     thing in the message, no closing line after it; with several, it ends with «Приймаєш усі мої
      рекомендації?»;
   4. no open question: no closing line.
 - One message per event, sent at once: a C report, an event message (see "Wake-up"), an owner message. P never holds a
@@ -68,15 +69,22 @@ these messages follow this form; P's other replies keep the global caps.
   plus the «ще працюють» line ("Which sessions a message lists"). A
   wake-up that changes nothing gets no text; the one exception is the keep-warm ping ("Wake-up"),
   answered with the forced-output state below.
-- Forced output: wherever this skill says no text or no message (a wake-up that changes nothing,
-  an event line that needs nothing, the restart handshake, a skill update) and the
-  host still demands visible output, P sends the short current state in this form: «Питання без
-  відповіді» with its count lines (urgent questions still named, no other question written out, so it
-  ends with «Показати всі питання?» when one is open, case 1 of the closing line) and «Статуси сесій» with every session. With no session
+- Forced output: a turn in which nothing changed for the owner ends with no text at all, also after
+  P's own tool calls (a subagent finished, a merge clean-up, a restart handshake, an internal step).
+  A background-task or subagent notification, an event message or a finished tool call is NOT the
+  host demanding visible output. P sends the forced-output state only when the host's own reminder
+  explicitly asks P to tell the user something (for example «The user hasn't heard from you...»),
+  and for the keep-warm ping ("Wake-up"). Then P sends the short current state in this form: «Питання без
+  відповіді» with its count lines (no question written out, so it ends with «Показати всі питання?»
+  when one is open, case 1 of the closing line; with a critical question open, the critical form
+  below, case 2) and «Статуси сесій» with every session. With no session
   and no open question, it is one line: «Зараз нічого не працює і нічого не чекає на тебе.» Never a
-  filler phrase («No response requested.») and never an old question sent again. Why: Claude Code
-  does not accept an empty turn, so P invented fillers (P: Zhratva, 2026-11-19); the owner decided on
-  2026-11-20 that P shows the current state instead.
+  filler phrase («No response requested.»), never an unchanged status sent again and never an old
+  question sent again, except the open critical question (case 2). Why: a turn with tool calls can end
+  with no text, but a turn the host forces to answer with nothing got fillers from P (P: Zhratva,
+  2026-11-19), so the owner decided on 2026-11-20 that P shows the current state then; owner,
+  2026-11-22, a screenshot of five identical «Статуси сесій» messages in a row: «чи можна зробить щоб
+  писалось пусте повідомлення замість спаму повторів?».
 - Every event that needs the owner (an overlap, a blocked merge, a failed step) becomes a status line
   or P's own question; P never writes a free-text note beside the two blocks.
 - Exceptions: the one line after P starts an «Обговорення:» session (see "Start an «Обговорення:»
@@ -84,29 +92,33 @@ these messages follow this form; P's other replies keep the global caps.
 
 «Питання без відповіді»: the open questions of PROGRESS.md "Open questions", by kind:
 
-- `❗ термінові: N`, then every urgent question briefly, in every message: its topic in a few of the
-  owner's words plus the session name. Urgent: the session stands and cannot move without the answer.
-  A session that asks and goes on, or a closed session with a leftover question, is not urgent. No cap
-  and no «і ще N» here.
+- `❗ термінові: N`: the urgent questions, in every message while one is open. Urgent: the session
+  stands and cannot move without the answer. A session that asks and goes on, or a closed session
+  with a leftover question, is not urgent. The line is a count; the first urgent question by priority
+  is written in full below the block (the critical question); the others stay counted.
 - `від сесій` (the other questions a C or a closed C left) and `від мене` (P's own questions, see
-  below). A new question, urgent or not, is written in full once, in the message where it first
-  appears, under its kind, numbered from 1 in that message, in the question form below. In later
-  messages it is only counted. A kind that writes questions out ends with `- і ще N питання вище в
-  чаті` for its open questions not written out in this message; a kind with none written out stays one
-  count line (`- від сесій: 2`). An urgent question already written out is not counted again in its
-  kind: its «термінові» line stands for it.
-- A kind with zero is left out; with no open question the block is left out. After a restart of P
-  every queued question counts as already written out.
+  below). In an ordinary event message no question of these kinds is written in full: each kind is
+  one count line (`- від сесій: 2`, `- від мене: 1`), and the message ends with «Показати всі
+  питання?» (case 1 of the closing line). An urgent question is counted in its «термінові» line only,
+  not again in its kind.
+- A kind with zero is left out; with no open question the block is left out.
+- The critical question. A message while a critical (urgent) question is open shows «Статуси сесій»
+  first, then «Питання без відповіді» with the count lines of the ordinary questions, and then the
+  first critical question by priority written in full in the question form, with its `Рекомендую:`
+  line, as the last thing in the message (case 2 of the closing line). It has no «Показати всі
+  питання?» after it, so a bare «так» answers it. A second critical question is shown the same way
+  only after the first is answered.
+- Where questions are written in full: the full list below. P shows it on the owner's «так» to
+  «Показати всі питання?» or «які питання», and in the start status of a fresh P session (a start
+  whose first prompt has `handoff:`, or one whose first prompt has neither `handoff:` nor `restart: plugin update`). The start status after `restart: plugin
+  update` shows counts only (and a critical question, as above): it is the same chat and the owner
+  saw the questions.
 
 ```
 **Питання без відповіді**
 
-- ❗ термінові: 1
-  - видалити влиті гілки - «C: Чистка гілок»
-- від сесій:
-  1. «C: Нова сторінка налаштувань» питає: лишити кнопку «Зберегти» синьою, як на інших сторінках? (інакше вона виділятиметься)
-     Рекомендую: так - так усі сторінки виглядають однаково.
-  - і ще 1 питання вище в чаті
+- від сесій: 2
+- від мене: 1
 
 **Статуси сесій**
 
@@ -114,6 +126,23 @@ these messages follow this form; P's other replies keep the global caps.
 - ще працюють: «C: Пошук у журналі», «C: Нові іконки»
 
 Показати всі питання?
+```
+
+A message with a critical question open (the critical question is last, no closing line):
+
+```
+**Статуси сесій**
+
+- чекає на тебе - «C: Тести хуків» (дозвіл на запис у main)
+- ще працюють: «C: Нові іконки»
+
+**Питання без відповіді**
+
+- ❗ термінові: 1
+- від сесій: 2
+
+«C: Тести хуків» питає: дозволити запис у main? (інакше тести стоять)
+Рекомендую: так - запис лише у тестову гілку.
 ```
 
 P's own questions («від мене») include its proposals: start a new C, close a task or session, take
@@ -135,8 +164,8 @@ The question form. Each question stands alone:
 - the consequence goes in brackets; the question is worded so the advice is «так»;
 - then an indented line `Рекомендую: так - <reason>` (P adds the recommendation a C did not give).
 
-The reader check. Before a message writes new questions in full for the first time, P sends all of
-them, numbered, in one call to a `dev-kit:question-reader` subagent (model haiku), with no other
+The reader check. Before questions are first written in full (the full list, or a critical question;
+counted questions need no check), P sends all of them, numbered, in one call to a `dev-kit:question-reader` subagent (model haiku), with no other
 context. It shows each `plain` rewrite in place of its question (or the original on `ok`; on `unclear`
 P adds the missing fact in plain words) and overwrites the queue item in PROGRESS.md with the shown
 text before sending, so later counts and the full list reuse it unchecked. The reader is not mentioned in the message. If P's session lacks
@@ -144,9 +173,11 @@ that agent type, follow `dev-kit:manager`, "Which subagent type", for the stand-
 2026-11-22, retro: «так» to a separate check of every question; the rule above alone did not stop
 «USD-еквівалент за цінами API» in a question (`plans/question-reader.md`).
 
-The full list: on the owner's «так» to «Показати всі питання?» (or «які питання»), P shows every open
+The full list: on the owner's «так» to «Показати всі питання?» (or «які питання»), and in the start
+status of a fresh P session (first prompt `handoff:`, or neither `handoff:` nor `restart: plugin update`; there «Статуси сесій» comes
+first and the list replaces «Питання без відповіді»), P shows every open
 question in full, numbered from 1, under the bold titles «**Питання сесій**» (urgent ones first, each
-marked ❗) and «**Питання від мене**», closed per case 2 or 3 of the closing line. A question about how a
+marked ❗) and «**Питання від мене**», closed per case 3 of the closing line. A question about how a
 screen looks (the «так» / «є питання» check of "Build a designed screen") carries its shots next to the mockup
 every time it is written in full, here too, even if they were sent before (the owner's global rule on
 pictures wins over no-resend). Why: owner, Zhratva, 2026-11-20: «Чому сюди не продублювались фінальні фото?».
@@ -168,15 +199,19 @@ pictures wins over no-resend). Why: owner, Zhratva, 2026-11-20: «Чому сю�
 ```
 
 Reading the owner's answer. Numbers restart at 1 in each message. The owner's answer by number («1 так,
-3 ні», «так всім») is matched to the last list shown (a full list or a message's new questions). A bare
+3 ні», «так всім») is matched to the last list shown (a full list or a shown critical question). A bare
 «так» or «ні» always answers the last line of P's last message and nothing else: after «Показати всі
-питання?» «так» shows the full list and «ні» changes nothing; after one written-out question it answers
-that question; after «Приймаєш усі мої рекомендації?» «так» is «так всім» and «ні» is no to all. A
+питання?» «так» shows the full list and «ні» changes nothing; after one written-out question, a
+critical question shown last included, it answers that question; after «Приймаєш усі мої рекомендації?» «так» is «так всім» and «ні» is no to all. A
 bare answer to P's message has this one reading by design, so P never asks back «1 чи 2?» about it.
 Answered questions just leave the counts, with no confirmation line. P sends a C the owner's answer
 to its question verbatim by SendMessage, as a `ВІДПОВІДЬ` (`${CLAUDE_PLUGIN_ROOT}/messages.md`). Why: P sent one written-out question plus «Показати всі
 питання?», took the owner's «Так» as two readings and asked «1 чи 2?»; for the owner the closing line
 was no question (P: ClaudeDevKit, 2026-11-20).
+
+Why the counts: owner, 2026-11-22: «Всі питання показуються тіки на початку, а в потоці сесії
+показується тіки кількість ... бо я всеодно завжди прошу показувати всі. Виключення це критичні
+питання».
 
 «Статуси сесій»: one list line per session (shared lines: `готово` below, «ще працюють» in "Which
 sessions a message lists"), the state first, then the session name exactly as the app
@@ -210,7 +245,7 @@ Which sessions a message lists:
 
 Why: the owner decided on 2026-11-19 that P's chat had become a mix of replies to C reports, long
 statuses and questions with no context («вже максимально набридло розбиратись постійно в цьому хаосі
-повідомлень»); every message now has one short shape, and each question is written out once.
+повідомлень»); every message now has one short shape, and questions show as counts (see "Why the counts").
 
 Questions a C's end leaves: a question of a C that P already merged and closed stays in the queue as
 that session's question (not urgent). P acts on the answer itself. A yes that needs real work (code, a
@@ -234,7 +269,7 @@ flight" line when the owner reports the step done. Why: P kept «Знімеш д
 написав так» (P: ClaudeDevKit, 2026-11-20).
 
 In an English reply the same form uses English words («Unanswered questions», «Session states», «Show
-all questions?», «Accept all my recommendations?», «and N more questions above»); the Ukrainian forms above are the ones the owner approved.
+all questions?», «Accept all my recommendations?»); the Ukrainian forms above are the ones the owner approved.
 
 ## Owner queue and critical items
 
@@ -707,8 +742,8 @@ Event lines:
   overfull C"). Each C is reported once.
 - `restart requested: <version>`: the handshake of "Restart for a plugin update".
 - "No text" for `stale` means no news about the event (seen in P: Zhratva, 2026-11-15:
-  text on watcher exits confused the owner); if the host then demands visible output, P sends the
-  forced-output state of "Message templates".
+  text on watcher exits confused the owner); P sends the forced-output state of "Message templates"
+  only under the condition set there (the host's own reminder asks P to tell the user something).
 - A C still in the session list but with no process (Claude Code closed it, or it crashed) is reported
   `gone` only after 5 minutes: meanwhile the Pult watcher brings it back with `claude respawn`. Such a
   `gone` means that failed; handle it as above.
@@ -830,7 +865,7 @@ registry; the queue lives in PROGRESS.md "Open questions".
    `/continue-work-in-another-context load <file>` with exactly that file name, then the steps of the
    first prompt after a plugin-update restart ("Restart for a plugin update": read this SKILL.md, fill,
    others, state, the resend request to each active C, the migrations check), removes the restart
-   question from the queue and sends the full start status.
+   question from the queue and sends the full start status, with the full list of questions.
 5. A failed move: the watcher logs HANDOFF-FAILED (Pult shows it), tries that handoff file only once and
    brings the old P back. At any start whose first prompt has no `handoff:`, a `handoff status` other than
    `none` means that failure: P runs `dev-kit-sessions handoff clear`, puts the question back in the queue
@@ -857,8 +892,8 @@ the version.
   starts no new step (no new C, no merge, no new subagent). A step already running is brought
   to a point where a stop breaks nothing: a merge and its clean-up are finished, an edit P began is
   committed, a running subagent is waited for. C sessions keep working on their own. Then P runs
-  `dev-kit-sessions restart ready --version <the new version>` and ends the turn with no text to the owner; if the host demands output, P sends
-  the forced-output state of "Message templates". An owner message that arrives before
+  `dev-kit-sessions restart ready --version <the new version>` and ends the turn with no text to the owner; the forced-output state of "Message
+  templates" follows only under its narrowed condition (the host's own reminder). An owner message that arrives before
   the restart is answered after it. The hold ends by itself 10 minutes after `ready` with no restart
   (the Pult watcher drops an older `ready` too); P then works as usual and says nothing about it.
 - First prompt after the restart: `/dev-kit:project-lead restart: plugin update`. P goes on where it
@@ -868,8 +903,9 @@ the version.
   оновлення плагіна. Якщо твій звіт до P не дійшов (помилка "not reachable"), надішли його ще раз.»
   An unfinished step from before the stop is finished now. Then P runs the check of "Apply dev-kit
   migrations"; a migration C it starts shows in the status. Last, P always sends the full start status:
-  the message of "Message templates" that lists every session, with the question counts (urgent ones
-  named, closing line by the four cases of the closing line; a C report that waited is in it); no words about the restart itself. Why: an empty turn here made P send a
+  the message of "Message templates" that lists every session, with the question counts only (a
+  critical question in full, closing line by the four cases of the closing line; a C report that
+  waited is in it); no words about the restart itself. Why: an empty turn here made P send a
   filler (P: Zhratva, 2026-11-19); the owner decided on 2026-11-20 to see the full state instead.
 - A message to a stopped session fails at the sender with "No agent named ... is reachable" and is
   not queued (checked live 2026-11-16 with a throwaway session); after the resume the same name
