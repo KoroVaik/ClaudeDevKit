@@ -20,6 +20,12 @@ accepted rules. Open `docs/product.md` or a plan in `plans/` only for the area t
 `BACKLOG.md` entries of that area; a part with an "Owner said:" line is already answered, so do not ask it
 again. Record it as accepted when the words are an explicit yes, and ask only what is left open.
 
+When the talk is about how an existing mechanism behaves (a script, a hook, a watcher, who starts or
+restarts what), check how it works now in its code and rules before a recommendation, a weak spot or a
+plan line rests on it; a sweep over about 100 lines goes to a `dev-kit:investigator` (sonnet). Why:
+ClaudeDevKit, 2026-11-22: a discussion told the owner a project lead may stay closed for days and wrote it
+into the plan; Pult's watcher restarts leads.
+
 ## 2. Map the answers
 
 The owner answers by number, sometimes with **their own numbering** that differs from the
