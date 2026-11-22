@@ -5,7 +5,7 @@ Epic: [Run a task through the process](../epics/run-a-task.md)
 ## Purpose
 On Windows a shell command with one of three known traps fails after it runs and costs the agent a turn or more.
 The command is stopped before it runs, with the working form named, so the next call works. The rule itself
-lives in the owner's `docs/tools.md` (Python section); the hook enforces the narrower forms below, the ones the
+lives in the owner's global `tools.md` (Python section, in the `docs` folder of the owner's `.claude`); the hook enforces the narrower forms below, the ones the
 2026-11-20/21 sessions showed to fail.
 
 ## Rules
