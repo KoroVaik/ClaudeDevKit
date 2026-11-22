@@ -46,3 +46,9 @@ What: one small client (or wrapper) that every project and script uses for Claud
 Why: owner, 2026-11-20: API credit (the monthly Max credit, $89.95 left of $100, expiring Dec 5) is spent almost wholly by the Zhratva «Zhratva test» keys ($81.63 in 30 days, about $43 on Nov 4, about $7 on Nov 20), seen only in the Console; owner: «Клієнт має буть спільний для всього, помісти в беклог». The weekly Console check (project-lead, «API credit check») is the stopgap.
 Cheapest test: one Zhratva call through the client writes one log line whose cost matches the Console's for that minute.
 Verdict (2026-11-21): built, dev-kit side ([plans/api-client.md](plans/api-client.md)); Zhratva appends the line itself.
+
+## A background task session cannot run check-ui or check-usability
+
+What: sessions the project lead starts with `claude --bg` have no `mcp__Claude_Browser__*` tools, so the web-kit `ui-tester` and `user` subagents (web-kit:e2e-check, web-kit:user-walk) cannot run there. No route is documented: `web-kit/browser-checks.md:14-15` and `38-43` require the in-app browser; dev-kit project-lead SKILL.md "Build a designed screen" (around lines 534-541) tells the C to run check-ui and check-usability itself. Seen live in Zhratva on 2026-11-21 («C: Обід на справжніх акаунтах») and 2026-11-22 («C: Огляд телефонного застосунку»): both had to skip the owner-approved walk and e2e check.
+Why: owner-approved checks are silently skipped; the lead has no way to run them.
+Cheapest test: start one `claude --bg` session and list its tools for `mcp__Claude_Browser__*`; then decide between a headless scenario route (e.g. Playwright via a web-kit command) or a documented hand-off to a session that has the browser pane.
