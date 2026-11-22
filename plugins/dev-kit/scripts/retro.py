@@ -6,6 +6,9 @@
                                        notes, then the spend tables)
     dev-kit-retro done                 mark what the last check or list showed as reviewed (after a retro, or a no)
     dev-kit-retro critical [--days N]  scan if not yet scanned today, then print the critical token problems
+    dev-kit-retro session [--id SESSION_ID | --path TRANSCRIPT.jsonl] [--no-subagents]
+                                       the units of one session as a share of the weekly limit (see below)
+    dev-kit-retro calibrate            refit the weekly limit from the status line log and print the result
 
 Findings folder: env DEV_KIT_RETRO_DIR, else `~/.claude/dev-kit/retro` (local, outside any repository, one for all
 projects). Transcripts: every `*.jsonl` under env DEV_KIT_PROJECTS_DIR, else `~/.claude/projects`, subagent ones in
@@ -58,8 +61,8 @@ per message, in this order:
   a 1-hour write, as the previous message wrote it) since the previous message of that file;
 - bloated context: the cache read above BLOAT_CONTEXT tokens of a message, at the cache read weight.
 A session's day is a problem when it spent NOTE_SPEND_PCT or wasted NOTE_WASTE_PCT of the weekly limit
-(WEEKLY_LIMIT_UNITS, calibrated on WEEKLY_LIMIT_DATE; one place to change), and critical from CRITICAL_SPEND_PCT or
-CRITICAL_WASTE_PCT. When a scan runs on a later day, each finished day's problems become scan lines
+(`weekly_limit()`: the fit kept in `state.json`, else the seed WEEKLY_LIMIT_UNITS; one place), and critical from
+CRITICAL_SPEND_PCT or CRITICAL_WASTE_PCT. When a scan runs on a later day, each finished day's problems become scan lines
 `- <project folder> | <session> | token spend|token waste | <date>: <detail>[; critical (shown in Pult's status)]`
 (once per day); `list` prints them first, under "Priority". `critical` prints, for today and CRITICAL_DAYS days
 before, one line per critical problem not shown before, or grown to CRITICAL_GROWTH times the share shown (shown
@@ -70,6 +73,27 @@ shares are kept in `state.json`; `list`, `check` and `done` do not touch them), 
         cold restarts 0.00%, bloated context 0.00%[ (was 0.5% when last shown)]
 
 (each on one line.)
+
+The weekly limit in units is fitted from the status line log (`usage-log.jsonl`, written by `dev-kit-statusline`, env
+DEV_KIT_USAGE_LOG for its folder): its readings are grouped by weekly window (`week_resets`); in each window the
+first and last reading give the per cent used between them, and the units are those of all assistant messages of ALL
+transcripts (every project, subagents included, a message id once) dated after the first reading up to the last (the
+per cent is account-wide). limit = units * 100 / per cent, summed over the windows with a positive delta, used when
+the deltas total FIT_MIN_POINTS or more points; else the last fit stays, else the seed. Reset times under an hour
+apart are one window; readings without a numeric reset time, windows that began over FIT_DAYS days ago and windows
+that began before the oldest transcript file are left out (deleted transcripts would drag the limit down). The units
+of a closed window (a later window has readings) are kept in `state.json` (`fit_windows`), so a refit reads only
+the transcripts of the current window. The fit is kept in
+`state.json`; `scan` refits when the log has readings newer than the last check, `calibrate` always does.
+
+`session` sums the units of one session (default: env CLAUDE_CODE_SESSION_ID; `--path` names a transcript file) over
+its transcript and its subagents (`<session>/subagents/*.jsonl`, left out by `--no-subagents`), a message id once,
+with the scan's weights, and prints the share of the weekly limit, the one an agent quotes in a report:
+
+    ~2.3% of the weekly limit, estimate
+    main 1.1%, subagents 1.2% (4 runs); 15.9M units; limit 690M units (fit 2026-11-20)
+
+It reads no state but the fit and changes nothing. Exit code 2 when the session or its file is not found.
 
 New findings are the lines of scan files dated after the last `done` plus the lines of `notes.md` past the count
 recorded at that `done`. `check` and `list` record what they showed; `done` marks only that, so findings that came
@@ -88,6 +112,9 @@ import sys
 import time
 from collections import Counter, defaultdict
 from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))  # the launcher runs this file with runpy, which adds nothing
+import statusline  # noqa: E402  the status line script owns the usage log file
 
 RETRO_ENV = "DEV_KIT_RETRO_DIR"
 PROJECTS_ENV = "DEV_KIT_PROJECTS_DIR"
@@ -109,8 +136,12 @@ SHORT_TURNS = 50
 USUAL_MIN = 10
 RUNS_KEPT = 50
 SPEND_ROWS = 15
-WEEKLY_LIMIT_UNITS = 690e6  # the owner's weekly limit in units, fit at Opus weight 1.5 from `/usage` on 2026-11-20
-WEEKLY_LIMIT_DATE = "2026-11-20"  # (plans/retro-tokens.md, "Opus weight check"; about 30% uncertain): recalibrate here
+WEEKLY_LIMIT_UNITS = 690e6  # the seed of the weekly limit in units: a hand fit at Opus weight 1.5 from `/usage` on
+WEEKLY_LIMIT_DATE = "2026-11-20"  # 2026-11-20 (plans/retro-tokens.md, "Opus weight check"; about 30% uncertain). The
+# fit from the status line log (usage-log.jsonl, see `fit_limit`) replaces it once it has FIT_MIN_POINTS points
+FIT_MIN_POINTS = 10  # the weekly per cent points the log must span, summed over windows, before the fit is used
+FIT_DAYS = 28  # only windows that began within this many days count: older transcripts are deleted
+WINDOW_ROUND_S = statusline.SAME_WINDOW_S  # reset times of one weekly window differing by less are one window
 CRITICAL_SPEND_PCT = 2.0  # a session's day: spent this share of the weekly limit, or ...
 CRITICAL_WASTE_PCT = 0.5  # ... wasted this share (idle wakes, cold restarts, bloated context)
 NOTE_SPEND_PCT = 0.5  # below the critical shares but from these: a priority item for the retro
@@ -482,6 +513,7 @@ def scan(days=1, force=False, out=None):
                              f"script candidate | {short(command)}")
     spend_findings, table = spend(windows, titles, state)
     out_lines += spend_findings
+    refit_if_new(state)
     out_lines += priority_lines(state, day)
     if out_lines or table:
         report = folder / f"scan-{day}.md"
@@ -497,29 +529,40 @@ def scan(days=1, force=False, out=None):
     return 0
 
 
-def percent(units):
-    """Units as a share of the weekly limit, in per cent."""
-    return units * 100 / WEEKLY_LIMIT_UNITS
+def weekly_limit(state=None):
+    """`(units, date)` of the weekly limit: the fit kept in the state, else the seed constants."""
+    if state is None:
+        state = load_state(retro_dir())
+    fit = state.get("fit")
+    if isinstance(fit, dict) and number(fit.get("units")) > 0:
+        return fit["units"], str(fit.get("date") or "")
+    return WEEKLY_LIMIT_UNITS, WEEKLY_LIMIT_DATE
+
+
+def percent(units, limit=None):
+    """Units as a share of the weekly limit (`limit` in units, default the current one), in per cent."""
+    return units * 100 / (limit or weekly_limit()[0])
 
 
 def pct_text(value):
     return f"{value:.1f}%" if value >= 1 else f"{value:.2f}%"
 
 
-def problems(row):
+def problems(row, limit=None):
     """The token problems of one session's day, from the note shares up: `(kind, share, detail, critical)`.
 
     kind is `spend` (units spent) or `waste` (idle wakes, cold restarts, bloated context)."""
+    limit = limit or weekly_limit()[0]
     found = []
-    spend = percent(row["units"])
+    spend = percent(row["units"], limit)
     if spend >= NOTE_SPEND_PCT:
         found.append(("spend", spend, f"spent {pct_text(spend)} of the weekly limit ({amount(row['units'])} units)",
                       spend >= CRITICAL_SPEND_PCT))
-    waste = percent(row["idle"] + row["cold"] + row["bloat"])
+    waste = percent(row["idle"] + row["cold"] + row["bloat"], limit)
     if waste >= NOTE_WASTE_PCT:
         found.append(("waste", waste, f"wasted {pct_text(waste)} of the weekly limit: idle wakes "
-                      f"{pct_text(percent(row['idle']))} ({row['wakes']}), cold restarts "
-                      f"{pct_text(percent(row['cold']))}, bloated context {pct_text(percent(row['bloat']))}",
+                      f"{pct_text(percent(row['idle'], limit))} ({row['wakes']}), cold restarts "
+                      f"{pct_text(percent(row['cold'], limit))}, bloated context {pct_text(percent(row['bloat'], limit))}",
                       waste >= CRITICAL_WASTE_PCT))
     return found
 
@@ -544,6 +587,7 @@ def priority_lines(state, day):
     for old in [path for path, (stamp, _) in last.items() if parse_time(stamp) < parse_time(stale)]:
         del last[old]
     written = state.setdefault("noted_days", [])
+    limit = weekly_limit(state)[0]
     lines = []
     for date in sorted(date for date in daily if date < day and date not in written):
         written.append(date)
@@ -552,7 +596,7 @@ def priority_lines(state, day):
             project, label = session_label_of(state, key)
             found += [(share, f"- {project} | {label.replace('|', '/')} | token {kind} | {date}: {detail}"
                        + ("; critical (shown in Pult's status)" if critical else ""))
-                      for kind, share, detail, critical in problems(row)]
+                      for kind, share, detail, critical in problems(row, limit)]
         lines += [line for _, line in sorted(found, key=lambda item: -item[0])]
     state["noted_days"] = written[-DAILY_KEPT:]
     return lines
@@ -749,12 +793,13 @@ def critical(days=1, out=None):
     first = (datetime.date.fromisoformat(today()) - datetime.timedelta(days=CRITICAL_DAYS)).isoformat()
     shown = {key: value for key, value in state.setdefault("critical_shown", {}).items() if key.split("|")[0] >= first}
     lines = []
+    limit = weekly_limit(state)[0]
     for date, sessions in state.get("daily", {}).items():
         if date < first:
             continue
         for key, row in sessions.items():
             project, label = session_label_of(state, key)
-            for kind, share, detail, is_critical in problems(row):
+            for kind, share, detail, is_critical in problems(row, limit):
                 before = shown.get(f"{date}|{key}|{kind}")
                 if not is_critical or (before is not None and share < before * CRITICAL_GROWTH):
                     continue
@@ -766,6 +811,241 @@ def critical(days=1, out=None):
     save_state(folder, state)
     for _, line in sorted(lines, key=lambda item: -item[0]):
         print(line, file=out)
+    return 0
+
+
+def usage_messages(path):
+    """`(time, message id, units)` of every assistant message with usage in a transcript, in file order.
+
+    Lines without usage are skipped before parsing, so a week of transcripts reads fast."""
+    try:
+        with open(path, "rb") as handle:
+            for raw in handle:
+                if b'"usage"' not in raw or b'"assistant"' not in raw:
+                    continue
+                try:
+                    entry = json.loads(raw)
+                except ValueError:
+                    continue
+                message = entry.get("message") if isinstance(entry, dict) else None
+                if entry.get("type") != "assistant" or not isinstance(message, dict):
+                    continue
+                usage, model = message.get("usage"), message.get("model")
+                if isinstance(usage, dict) and model != "<synthetic>":
+                    yield parse_time(entry.get("timestamp")), message.get("id"), units_of(usage, model)
+    except OSError:
+        return
+
+
+def read_log():
+    """The readings of the status line log with a valid time and weekly per cent, oldest first."""
+    readings = []
+    try:
+        with open(statusline.log_file(), "rb") as handle:
+            lines = handle.read().splitlines()
+    except OSError:
+        return readings
+    for raw in lines:
+        try:
+            entry = json.loads(raw)
+        except ValueError:
+            continue
+        stamp = parse_time(entry.get("ts")) if isinstance(entry, dict) else None
+        pct = statusline.number(entry.get("week_pct")) if stamp else None
+        if pct is not None:
+            readings.append({"ts": stamp, "pct": pct, "resets": entry.get("week_resets")})
+    return sorted(readings, key=lambda reading: reading["ts"])
+
+
+def now_utc():
+    return datetime.datetime.now(datetime.timezone.utc)
+
+
+def window_spans(readings, now=None):
+    """`(first time, last time, per cent between, closed)` of each weekly window of the log with a positive delta.
+
+    Readings without a numeric reset time are left out. Readings whose reset times differ by under WINDOW_ROUND_S
+    (one window, the time jitters) are one window; a window whose first reading is older than FIT_DAYS is left out.
+    A window is closed once a later window has readings: no reading will be added to it."""
+    since = (now or now_utc()) - datetime.timedelta(days=FIT_DAYS)
+    numbered = sorted((reading for reading in readings if statusline.number(reading["resets"]) is not None),
+                      key=lambda reading: reading["resets"])
+    windows = []
+    for reading in numbered:
+        if windows and reading["resets"] - windows[-1][-1]["resets"] < WINDOW_ROUND_S:
+            windows[-1].append(reading)
+        else:
+            windows.append([reading])
+    spans = []
+    for index, rows in enumerate(windows):
+        rows.sort(key=lambda reading: reading["ts"])
+        delta = rows[-1]["pct"] - rows[0]["pct"]
+        if delta > 0 and rows[0]["ts"] >= since:
+            spans.append((rows[0]["ts"], rows[-1]["ts"], delta, index < len(windows) - 1))
+    return sorted(spans)
+
+
+def transcripts(root):
+    """`(path, mtime)` of every transcript under `root`."""
+    found = []
+    for path in root.rglob("*.jsonl") if root.is_dir() else []:
+        try:
+            found.append((path, path.stat().st_mtime))
+        except OSError:
+            continue
+    return found
+
+
+def units_in_spans(spans, files):
+    """The units of the transcripts `files` (a message id once) per span, for messages in (first, last]."""
+    totals = [0.0] * len(spans)
+    if not spans:
+        return totals
+    earliest = min(span[0] for span in spans).timestamp()
+    seen = set()
+    for path, mtime in files:
+        if mtime < earliest:
+            continue  # last written before the first window began
+        for stamp, mid, units in usage_messages(path):
+            if stamp is None or (mid and mid in seen):
+                continue
+            for index, (first, last, *_) in enumerate(spans):
+                if first < stamp <= last:
+                    totals[index] += units
+                    if mid:
+                        seen.add(mid)
+                    break
+    return totals
+
+
+def fit_limit(readings, root, now=None, cache=None):
+    """`(fit, why)`: the fitted weekly limit as `{"units", "date", "points", "windows"}` or None, and a sentence.
+
+    A window that began before the oldest transcript is left out: its units are partly deleted, which would drag the
+    limit down. `cache` (the state's `fit_windows`) keeps the units of each closed window, by the time of its first
+    reading: a cached window is not read again (and stays usable after its transcripts are deleted); the cache is
+    updated here and loses the windows older than FIT_DAYS."""
+    cache = {} if cache is None else cache
+    files = transcripts(root)
+    oldest = min((mtime for _, mtime in files), default=None)
+    usable = []  # (span, cached units or None)
+    for span in window_spans(readings, now):
+        first, last, delta, closed = span
+        kept = cache.get(first.isoformat())
+        if closed and kept and kept.get("last") == last.isoformat() and kept.get("points") == delta:
+            usable.append((span, kept["units"]))
+        elif oldest is not None and first.timestamp() >= oldest:
+            usable.append((span, None))
+    points = sum(span[2] for span, _ in usable)
+    if points < FIT_MIN_POINTS:
+        return None, (f"the log spans {points:.1f} per cent points in {len(usable)} usable window(s) "
+                      f"(the last {FIT_DAYS} days, inside the kept transcripts); "
+                      f"need {FIT_MIN_POINTS} before the limit is refitted")
+    fresh = [span for span, kept in usable if kept is None]
+    counted = iter(units_in_spans(fresh, files))
+    total = 0.0
+    for span, kept in usable:
+        units = kept if kept is not None else next(counted)
+        total += units
+        if kept is None and span[3] and units > 0:
+            cache[span[0].isoformat()] = {"last": span[1].isoformat(), "points": span[2], "units": units}
+    since = ((now or now_utc()) - datetime.timedelta(days=FIT_DAYS)).isoformat()
+    for old in [key for key in cache if key < since]:
+        del cache[old]
+    spans = [span for span, _ in usable]
+    units = total
+    if units <= 0:
+        return None, "no transcript messages between the log readings"
+    fit = {"units": round(units * 100 / points), "date": today(), "points": round(float(points), 1), "windows": len(spans)}
+    return fit, f"{amount(fit['units'])} units from {fit['points']} points in {len(spans)} window(s)"
+
+
+def refit(state):
+    """Refit the weekly limit from the log into `state`; a sentence on the result."""
+    readings = read_log()
+    state["fit_checked"] = readings[-1]["ts"].isoformat() if readings else ""
+    if not readings:
+        return f"kept {amount(weekly_limit(state)[0])} units: the usage log has no readings yet"
+    fit, why = fit_limit(readings, projects_dir(), cache=state.setdefault("fit_windows", {}))
+    if not fit:
+        return f"kept {amount(weekly_limit(state)[0])} units ({weekly_limit(state)[1]}): {why}"
+    state["fit"] = fit
+    return f"weekly limit fitted: {why}"
+
+
+def refit_if_new(state):
+    """`scan` refits only when the log has readings newer than the last check."""
+    readings = read_log()
+    checked = parse_time(state.get("fit_checked", ""))
+    if readings and (checked is None or readings[-1]["ts"] > checked):
+        refit(state)
+
+
+def calibrate(out=None):
+    out = out or sys.stdout
+    folder = retro_dir()
+    state = load_state(folder)
+    print(refit(state), file=out)
+    fresh = load_state(folder)  # a scan may have finished meanwhile: keep its offsets, set only the fit keys
+    for key in ("fit", "fit_checked", "fit_windows"):
+        if key in state:
+            fresh[key] = state[key]
+    save_state(folder, fresh)
+    return 0
+
+
+def share_text(pct, tilde=True):
+    if pct < 0.1:
+        return "<0.1%"
+    return f"{'~' if tilde else ''}{pct:.1f}%"
+
+
+def session_files(session_id, path):
+    """The main transcripts of a session (a resumed copy is another file) from an id or a path; [] when none."""
+    if path:
+        return [Path(path)] if Path(path).is_file() else []
+    root = projects_dir()
+    return sorted(root.glob(f"*/{session_id}.jsonl")) if root.is_dir() else []
+
+
+def session(session_id=None, path=None, subagents=True, out=None, err=None):
+    """Print a session's units as a share of the weekly limit (see the module doc); exit code 2 when not found."""
+    out, err = out or sys.stdout, err or sys.stderr
+    session_id = session_id or os.environ.get("CLAUDE_CODE_SESSION_ID")
+    if not session_id and not path:
+        print("no session: give --id or --path, or run inside a Claude Code session (CLAUDE_CODE_SESSION_ID)", file=err)
+        return 2
+    mains = session_files(session_id, path)
+    if not mains:
+        print(f"no transcript found for {path or session_id} under {projects_dir()}", file=err)
+        return 2
+    seen = set()
+
+    def total(files):
+        units, used = 0.0, 0
+        for file in files:
+            before = units
+            for _, mid, value in usage_messages(file):
+                if mid and mid in seen:
+                    continue
+                if mid:
+                    seen.add(mid)
+                units += value
+            used += units > before
+        return units, used
+
+    main_units, _ = total(mains)
+    sub_units, runs = 0.0, 0
+    if subagents:
+        subs = sorted({file for main in mains for file in (main.with_suffix("") / "subagents").rglob("*.jsonl")})
+        sub_units, runs = total(subs)
+    limit, date = weekly_limit()
+    both = main_units + sub_units
+    print(f"{share_text(percent(both, limit))} of the weekly limit, estimate", file=out)
+    parts = [f"main {share_text(percent(main_units, limit), False)}"]
+    if subagents:
+        parts.append(f"subagents {share_text(percent(sub_units, limit), False)} ({runs} run{'' if runs == 1 else 's'})")
+    print(f"{', '.join(parts)}; {amount(both)} units; limit {limit / 1e6:.0f}M units (fit {date})", file=out)
     return 0
 
 
@@ -796,7 +1076,17 @@ def main(argv=None):
             command.add_argument("--force", action="store_true")
     sub.add_parser("list")
     sub.add_parser("done")
+    sub.add_parser("calibrate")
+    one = sub.add_parser("session")
+    which = one.add_mutually_exclusive_group()
+    which.add_argument("--id")
+    which.add_argument("--path")
+    one.add_argument("--no-subagents", action="store_true")
     args = parser.parse_args(argv)
+    if args.command == "calibrate":
+        return calibrate()
+    if args.command == "session":
+        return session(args.id, args.path, not args.no_subagents)
     if args.command == "check":
         return check(days=args.days)
     if args.command == "critical":

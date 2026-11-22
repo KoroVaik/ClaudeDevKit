@@ -1,4 +1,5 @@
 import io
+import datetime
 import json
 import os
 import shutil
@@ -10,6 +11,7 @@ from unittest import mock
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent / "plugins" / "dev-kit" / "scripts"))
 import retro  # noqa: E402
+import statusline  # noqa: E402
 
 
 def call(tool_id, name, tool_input, stamp):
@@ -50,8 +52,10 @@ class RetroTestCase(unittest.TestCase):
         self.projects = tmp / "projects"
         (self.projects / "proj").mkdir(parents=True)
         patcher = mock.patch.dict(os.environ, {retro.RETRO_ENV: str(self.retro),
-                                               retro.PROJECTS_ENV: str(self.projects)})
+                                               retro.PROJECTS_ENV: str(self.projects),
+                                               statusline.USAGE_ENV: str(tmp / "usage")})
         patcher.start()
+        os.environ.pop("CLAUDE_CODE_SESSION_ID", None)  # restored with the patch
         self.addCleanup(patcher.stop)
 
     def write(self, rel, entries, mode="w"):
@@ -275,6 +279,271 @@ class RetroTestCase(unittest.TestCase):
         path = self.write("proj/old.jsonl", self.session())
         os.utime(path, (0, 0))
         self.assertIn("scanned 0 transcript(s)", self.run_cmd("scan"))
+
+    def run_code(self, *args):
+        """(exit code, stdout, stderr) of a command."""
+        out, err = io.StringIO(), io.StringIO()
+        with mock.patch("sys.stdout", out), mock.patch("sys.stderr", err):
+            code = retro.main(list(args))
+        return code, out.getvalue(), err.getvalue()
+
+    def millions(self, mid, stamp, tokens_m=1):
+        """A Sonnet message of `tokens_m` million output tokens = 5 * tokens_m million units."""
+        return assistant(mid, "claude-sonnet-5-5", {"output_tokens": tokens_m * 1_000_000}, stamp)
+
+    # protects: Flow
+    def test_session_sums_main_and_subagents_once_per_message_id(self):
+        stamp = "2026-11-19T10:00:00Z"
+        self.write("proj/sess1.jsonl", [self.millions("m1", stamp), self.millions("m1", stamp),
+                                        self.millions("m2", stamp)])
+        self.write("proj/sess1/subagents/agent-a.jsonl", [self.millions("s1", stamp, 2), self.millions("m2", stamp)])
+        self.write("proj/sess1/subagents/agent-b.jsonl", [self.millions("s2", stamp)])
+        with mock.patch.object(retro, "WEEKLY_LIMIT_UNITS", 200e6):
+            code, out, _ = self.run_code("session", "--id", "sess1")
+            _, main_only, _ = self.run_code("session", "--id", "sess1", "--no-subagents")
+        self.assertEqual(code, 0)
+        self.assertEqual(out.splitlines(), [
+            "~12.5% of the weekly limit, estimate",
+            "main 5.0%, subagents 7.5% (2 runs); 25.0M units; limit 200M units (fit 2026-11-20)"])
+        self.assertEqual(main_only.splitlines()[0], "~5.0% of the weekly limit, estimate")
+        self.assertNotIn("subagents", main_only)
+
+    # protects: Flow
+    def test_session_defaults_to_the_env_id_and_counts_a_resumed_copy_once(self):
+        stamp = "2026-11-19T10:00:00Z"
+        self.write("proj/sess1.jsonl", [self.millions("m1", stamp)])
+        self.write("other/sess1.jsonl", [self.millions("m1", stamp), self.millions("m3", stamp)])  # resumed copy
+        self.write("proj/sess2.jsonl", [self.millions("x", stamp, 50)])
+        with mock.patch.dict(os.environ, {"CLAUDE_CODE_SESSION_ID": "sess1"}), \
+                mock.patch.object(retro, "WEEKLY_LIMIT_UNITS", 100e6):
+            _, out, _ = self.run_code("session")
+        self.assertEqual(out.splitlines()[0], "~10.0% of the weekly limit, estimate")
+
+    # protects: Edge
+    def test_session_without_id_or_file_is_an_error_and_a_tiny_share_is_not_zero(self):
+        code, _, err = self.run_code("session")
+        self.assertEqual(code, 2)
+        self.assertIn("no session", err)
+        code, _, err = self.run_code("session", "--id", "missing")
+        self.assertEqual(code, 2)
+        self.assertIn("no transcript found", err)
+        path = self.write("proj/tiny.jsonl", [assistant("t", "claude-sonnet-5-5", {"output_tokens": 100},
+                                                        "2026-11-19T10:00:00Z")])
+        code, out, _ = self.run_code("session", "--path", str(path))
+        self.assertEqual(out.splitlines()[0], "<0.1% of the weekly limit, estimate")
+
+    def log(self, *readings):
+        """Write the usage log: `(time, per cent, reset)` per reading."""
+        folder = Path(os.environ[retro.statusline.USAGE_ENV])
+        folder.mkdir(parents=True, exist_ok=True)
+        with open(folder / retro.statusline.LOG_NAME, "w", encoding="utf-8") as handle:
+            for stamp, pct, resets in readings:
+                handle.write(json.dumps({"ts": stamp, "week_pct": pct, "week_resets": resets,
+                                         "five_hour_pct": None}) + "\n")
+
+    def week_clock(self, oldest="2026-11-01"):
+        """Fix the clock at 2026-11-20 and add an empty transcript last written on `oldest`: the oldest transcript
+        kept, so the log readings of 2026-11-10..19 lie inside the kept range."""
+        now = datetime.datetime(2026, 11, 20, 12, tzinfo=datetime.timezone.utc)
+        patcher = mock.patch.object(retro, "now_utc", return_value=now)
+        patcher.start()
+        self.addCleanup(patcher.stop)
+        stamp = datetime.datetime.fromisoformat(oldest).replace(tzinfo=datetime.timezone.utc).timestamp()
+        path = self.write("ancient/oldest.jsonl", [])
+        os.utime(path, (stamp, stamp))
+
+    def two_windows(self):
+        """A log of two closed windows (4 and 6 points; a third has one reading) and their transcripts, 5M units a
+        message: 25M units over 10 points = a limit of 250M."""
+        week1, week2 = 7 * 86400, 14 * 86400
+        self.log(("2026-11-10T00:00:00Z", 10, week1), ("2026-11-11T00:00:00Z", 12, week1),
+                 ("2026-11-12T00:00:00Z", 14, week1),
+                 ("2026-11-17T00:00:00Z", 20, week2), ("2026-11-18T00:00:00Z", 26, week2),
+                 ("2026-11-19T00:00:00Z", 30, 21 * 86400))  # a lone reading of another window: no delta
+        self.write("proj/a.jsonl", [self.millions("before", "2026-11-10T00:00:00Z"),  # at the first reading: excluded
+                                    self.millions("w1a", "2026-11-11T10:00:00Z"),
+                                    self.millions("w1b", "2026-11-12T00:00:00Z"),  # at the last reading: included
+                                    self.millions("gap", "2026-11-14T00:00:00Z"),  # between windows: excluded
+                                    self.millions("w2a", "2026-11-17T12:00:00Z")])
+        self.write("other/b.jsonl", [self.millions("w2a", "2026-11-17T12:00:00Z"),  # a resumed copy: once
+                                     self.millions("w2b", "2026-11-17T13:00:00Z")])
+        self.write("other/b/subagents/agent-x.jsonl", [self.millions("w2c", "2026-11-18T00:00:00Z")])
+
+    # protects: Flow
+    def test_calibrate_fits_the_limit_from_log_windows_over_all_transcripts(self):
+        self.two_windows()
+        self.week_clock()
+        code, out, _ = self.run_code("calibrate")
+        self.assertEqual(out.strip(), "weekly limit fitted: 250.0M units from 10.0 points in 2 window(s)")
+        state = json.loads((self.retro / "state.json").read_text(encoding="utf-8"))
+        self.assertEqual(state["fit"], {"units": 250_000_000, "date": retro.today(), "points": 10.0, "windows": 2})
+        self.assertEqual(retro.weekly_limit(), (250_000_000, retro.today()))
+        self.write("proj/s.jsonl", [self.millions("z", "2026-11-19T10:00:00Z", 10)])
+        _, out, _ = self.run_code("session", "--id", "s")
+        self.assertEqual(out.splitlines()[0], "~20.0% of the weekly limit, estimate")  # 50M of 250M
+
+    # protects: Rule
+    def test_a_closed_window_is_cached_and_not_read_again(self):
+        self.two_windows()
+        self.week_clock()
+        self.run_cmd("calibrate")
+        state = json.loads((self.retro / "state.json").read_text(encoding="utf-8"))
+        self.assertEqual(sorted(window["units"] for window in state["fit_windows"].values()), [10e6, 15e6])
+        shutil.rmtree(self.projects / "proj")  # the transcripts of both closed windows are gone
+        shutil.rmtree(self.projects / "other")
+        _, out, _ = self.run_code("calibrate")
+        self.assertEqual(out.strip(), "weekly limit fitted: 250.0M units from 10.0 points in 2 window(s)")
+
+    # protects: Edge
+    def test_a_window_older_than_the_fit_days_is_ignored(self):
+        self.log(("2026-10-01T00:00:00Z", 10, 100 * 86400), ("2026-10-02T00:00:00Z", 40, 100 * 86400),  # 30 points
+                 ("2026-11-10T00:00:00Z", 10, 107 * 86400), ("2026-11-12T00:00:00Z", 14, 107 * 86400))  # 4 points
+        self.write("proj/a.jsonl", [self.millions("old", "2026-10-01T10:00:00Z"),
+                                    self.millions("new", "2026-11-11T10:00:00Z")])
+        self.week_clock(oldest="2026-09-01")
+        _, out, _ = self.run_code("calibrate")
+        self.assertIn("kept 690.0M units", out)
+        self.assertIn("4.0 per cent points in 1 usable window(s)", out)
+
+    # protects: Rule
+    def test_a_window_that_began_before_the_oldest_transcript_is_ignored(self):
+        self.log(("2026-11-10T00:00:00Z", 10, 7 * 86400), ("2026-11-12T00:00:00Z", 30, 7 * 86400),  # 20 points
+                 ("2026-11-17T00:00:00Z", 20, 14 * 86400), ("2026-11-18T00:00:00Z", 26, 14 * 86400))  # 6 points
+        self.write("proj/a.jsonl", [self.millions("w1", "2026-11-11T10:00:00Z"),
+                                    self.millions("w2", "2026-11-17T12:00:00Z")])
+        self.week_clock(oldest="2026-11-11")  # transcripts older than this are deleted: window 1 is partly lost
+        _, out, _ = self.run_code("calibrate")
+        self.assertIn("6.0 per cent points in 1 usable window(s)", out)
+        self.assertEqual(retro.weekly_limit()[0], retro.WEEKLY_LIMIT_UNITS)
+
+    # protects: Edge
+    def test_reset_times_seconds_apart_are_one_window(self):
+        edge = 7 * 86400 + 1795  # round(x / 3600) would put these 10 s apart on two sides of a half hour
+        self.log(("2026-11-10T00:00:00Z", 10, edge), ("2026-11-12T00:00:00Z", 20, edge + 10))
+        self.write("proj/a.jsonl", [self.millions("w1", "2026-11-11T10:00:00Z")])
+        self.week_clock()
+        _, out, _ = self.run_code("calibrate")
+        self.assertEqual(out.strip(), "weekly limit fitted: 50.0M units from 10.0 points in 1 window(s)")
+
+    # protects: Rule
+    def test_readings_without_a_numeric_reset_time_are_skipped_by_the_fit(self):
+        self.log(("2026-11-10T00:00:00Z", 10, None), ("2026-11-12T00:00:00Z", 40, None),
+                 ("2026-11-13T00:00:00Z", 10, "tomorrow"), ("2026-11-14T00:00:00Z", 40, "tomorrow"))
+        self.write("proj/a.jsonl", [self.millions("w1", "2026-11-11T10:00:00Z")])
+        self.week_clock()
+        _, out, _ = self.run_code("calibrate")
+        self.assertIn("0.0 per cent points in 0 usable window(s)", out)
+
+    # protects: Rule
+    def test_a_stored_fit_sets_the_share_that_critical_shows(self):
+        self.retro.mkdir(parents=True, exist_ok=True)
+        (self.retro / "state.json").write_text(
+            json.dumps({"fit": {"units": 100000, "date": "2026-11-15", "points": 12.0, "windows": 1}}), encoding="utf-8")
+        self.write("proj/big12345.jsonl", self.spending_session("2099-01-01T12:00:00Z", 500, "a"))
+        with mock.patch.object(retro, "today", return_value="2099-01-01"):
+            self.assertIn("spent 2.5% of the weekly limit (2.5k units)", self.run_cmd("critical"))  # seed: 0.0004%
+
+    # protects: Rule
+    def test_calibrate_keeps_the_old_limit_below_the_minimum_points(self):
+        self.log(("2026-11-10T00:00:00Z", 10, 604800), ("2026-11-12T00:00:00Z", 19, 604800))
+        self.write("proj/a.jsonl", [self.millions("w1", "2026-11-11T10:00:00Z")])
+        self.week_clock()
+        _, out, _ = self.run_code("calibrate")
+        self.assertIn("kept 690.0M units (2026-11-20)", out)
+        self.assertEqual(retro.weekly_limit(), (retro.WEEKLY_LIMIT_UNITS, retro.WEEKLY_LIMIT_DATE))
+        state = {"fit": {"units": 123_000_000, "date": "2026-11-15", "points": 12.0, "windows": 1}}
+        (self.retro / "state.json").write_text(json.dumps(state), encoding="utf-8")
+        _, out, _ = self.run_code("calibrate")
+        self.assertIn("kept 123.0M units (2026-11-15): the log spans 9.0 per cent points", out)
+        self.assertEqual(retro.weekly_limit(), (123_000_000, "2026-11-15"))
+
+    # protects: Flow
+    def test_scan_refits_only_when_the_log_has_readings_newer_than_the_last_check(self):
+        self.log(("2026-11-10T00:00:00Z", 10, 604800), ("2026-11-12T00:00:00Z", 20, 604800))
+        self.write("proj/a.jsonl", [self.millions("w1", "2026-11-11T10:00:00Z")])  # 5M units over 10 points
+        self.week_clock()
+        self.run_cmd("scan")
+        state = json.loads((self.retro / "state.json").read_text(encoding="utf-8"))
+        self.assertEqual(state["fit"]["units"], 50_000_000)
+        state["fit"]["units"] = 77_000_000  # a marker: a second scan with the same log must not touch the fit
+        (self.retro / "state.json").write_text(json.dumps(state), encoding="utf-8")
+        self.run_cmd("scan", "--force")
+        self.assertEqual(retro.weekly_limit()[0], 77_000_000)
+        self.log(("2026-11-10T00:00:00Z", 10, 604800), ("2026-11-12T00:00:00Z", 20, 604800),
+                 ("2026-11-13T00:00:00Z", 30, 604800))
+        self.run_cmd("scan", "--force")
+        self.assertEqual(retro.weekly_limit()[0], 25_000_000)  # 5M units over 20 points
+
+
+class StatuslineTestCase(unittest.TestCase):
+    def setUp(self):
+        tmp = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, tmp, True)
+        self.folder = tmp / "dev-kit"
+        patcher = mock.patch.dict(os.environ, {statusline.USAGE_ENV: str(self.folder)})
+        patcher.start()
+        self.addCleanup(patcher.stop)
+
+    def run_line(self, data):
+        out = io.StringIO()
+        code = statusline.main(io.BytesIO(data if isinstance(data, bytes) else json.dumps(data).encode("utf-8")), out)
+        return code, out.getvalue()
+
+    def payload(self, pct, resets, five=None):
+        limits = {"seven_day": {"used_percentage": pct, "resets_at": resets}}
+        if five is not None:
+            limits["five_hour"] = {"used_percentage": five, "resets_at": resets - 100}
+        return {"rate_limits": limits}
+
+    def entries(self):
+        path = self.folder / statusline.LOG_NAME
+        return [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines()] if path.exists() else []
+
+    # protects: Flow
+    def test_it_prints_the_week_and_logs_only_when_the_per_cent_rises_or_a_new_window_begins(self):
+        week, next_week = 10_000_000, 10_000_000 + 604800
+        self.assertEqual(self.run_line(self.payload(23.4, week, five=41)), (0, "тиждень: 23%\n"))
+        self.run_line(self.payload(23.4, week, five=50))  # the same week reading: not logged again
+        self.run_line(self.payload(24, week))
+        self.run_line(self.payload(24, next_week))  # a new window with the same per cent
+        rows = self.entries()
+        self.assertEqual([(row["week_pct"], row["week_resets"], row["five_hour_pct"]) for row in rows],
+                         [(23.4, week, 41), (24, week, None), (24, next_week, None)])
+        self.assertRegex(rows[0]["ts"], r"^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\dZ$")
+
+    # protects: Rule
+    def test_a_lower_per_cent_in_the_same_window_and_an_older_window_are_not_logged(self):
+        week = 10_000_000
+        self.run_line(self.payload(30, week))
+        self.assertEqual(self.run_line(self.payload(25, week + 20)), (0, "тиждень: 25%\n"))  # an idle session, stale
+        self.run_line(self.payload(31, week + 20))  # a rise in the same window (reset time jitters): logged
+        self.run_line(self.payload(90, week - 3600))  # an older window by an hour: stale
+        self.run_line(self.payload(5, week + 604800))  # the next window starts low: logged
+        self.assertEqual([(row["week_pct"], row["week_resets"]) for row in self.entries()],
+                         [(30, week), (31, week + 20), (5, week + 604800)])
+
+    # protects: Edge
+    def test_the_last_line_is_found_in_a_log_longer_than_the_tail(self):
+        self.folder.mkdir(parents=True)
+        with open(self.folder / statusline.LOG_NAME, "w", encoding="utf-8") as handle:
+            for n in range(200):
+                handle.write(json.dumps({"ts": "2026-11-10T00:00:00Z", "week_pct": n % 50, "week_resets": 1000,
+                                         "five_hour_pct": None}) + "\n")
+        last = self.entries()[-1]["week_pct"]
+        self.run_line(self.payload(last, 1000))
+        self.assertEqual(len(self.entries()), 200)
+
+    # protects: Rule
+    def test_no_rate_limits_or_bad_input_prints_an_empty_line_and_writes_nothing(self):
+        for data in ({"model": "x"}, {"rate_limits": {}}, {"rate_limits": {"seven_day": {"used_percentage": "7"}}},
+                     b"not json", b"", b"[1, 2]"):
+            self.assertEqual(self.run_line(data), (0, "\n"))
+        self.assertFalse((self.folder / statusline.LOG_NAME).exists())
+
+    # protects: Rule
+    def test_a_log_that_cannot_be_written_does_not_raise(self):
+        self.folder.write_text("a file where the folder should be", encoding="utf-8")
+        self.assertEqual(self.run_line(self.payload(5, 1000)), (0, "\n"))
 
 
 if __name__ == "__main__":

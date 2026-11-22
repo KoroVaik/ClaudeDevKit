@@ -22,7 +22,9 @@
 
 - [Shared Claude API client](plans/api-client.md): dev-kit side built (dev-kit 0.1.87); next: the deny lines for the owner and the Zhratva handoff (both in the plan).
 
-- [Retro for project problems](plans/retro-scope.md): discussion; agreed (plan, «Owner's approval»): dev-kit projects only, agent-work problems only, per-project local item folders, a daily background check of every plugin change, owner sees only disputed or high-impact items in a weekly ask; the reviewer applies trivial fixes itself (weekly list, one-word revert); collection on session end and retro start on session start by dev-kit hooks, no Pult; next: the short plan.
+- [Retro for project problems](plans/retro-scope.md): discussion; agreed (plan, «Owner's approval»): dev-kit projects only, agent-work problems only, per-project local item folders, a background check of every plugin change, owner sees only disputed or high-impact items in a weekly ask; the reviewer applies trivial fixes itself (weekly list, one-word revert); collection on session end and retro start on session start by dev-kit hooks, no Pult; discussion closed 2026-11-22; next: build (start with the hook check, then the scan split).
+
+- [Cost as a share of the subscription limit](plans/cost-share.md): built (dev-kit 0.1.91): cost in % of the weekly limit, `dev-kit-retro session`, status line calibration.
 
 Open work of the features: `dev-kit-check-docs --open`.
 

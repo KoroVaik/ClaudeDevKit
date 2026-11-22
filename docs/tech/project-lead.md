@@ -46,4 +46,6 @@ model, for repeated, failed, slow and very many calls, for commands worth a scri
 (too-long sessions, Opus coder subagents). A subagent first checks the findings: with none real, P closes them itself; with
 1-2 simple ones P asks the owner in its own chat; otherwise it proposes a retro session (`dev-kit:retro`).
 The owner says yes or no to each fix. Token problems come first in the list and in the retro; the critical
-ones (`dev-kit-retro critical`) also show in Pult's «статус».
+ones (`dev-kit-retro critical`) also show in Pult's «статус». `dev-kit-retro session` gives one session's
+units as a share of the weekly limit; the limit is refitted by `scan` and `calibrate` from the log that the status
+line script `dev-kit-statusline` keeps (`usage-log.jsonl` in the dev-kit folder of the user's .claude folder).

@@ -1,0 +1,13 @@
+#!/bin/sh
+"""": # Shell part (PATH launch). Git Bash may run it with path conversion off (as seen in
+# background sessions), so cygpath hands Windows python a path it can open.
+here=$(dirname "$(readlink -f "$0" 2>/dev/null || echo "$0")")
+command -v cygpath >/dev/null 2>&1 && here=$(cygpath -m "$here")
+exec python "$here/../scripts/statusline.py" "$@"
+"""
+# Python part: `python dev-kit-statusline` runs the script directly.
+import os
+import runpy
+
+script = os.path.join(os.path.dirname(os.path.realpath(__file__)), "..", "scripts", "statusline.py")
+runpy.run_path(os.path.normpath(script), run_name="__main__")

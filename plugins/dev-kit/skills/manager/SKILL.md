@@ -29,9 +29,9 @@ nothing: the merge is P's step, so the owner sees in this chat why the session c
   `fix-bug`, `test-change` and the extension plugins (`web-kit`, `unity-kit`). P decides or asks the
   owner. A screen's approved mockup already gives the consent for its checks (`dev-kit:test-change`).
 - It asks P first before: starting the owner's app in the main checkout, loosening a validation or
-  safety guard, deleting tracked files, a paid call that would take the task's total past 1 USD (P also
-  lists these in the first prompt). The C keeps a running total of paid spend in its task file; spend
-  below 1 USD is never asked.
+  safety guard, deleting tracked files, a paid API call (`dev-kit-api`) that would take the task's API
+  total past 1 USD (P also lists these in the first prompt). The C keeps the task's spend line in its
+  task file (see "Stating the cost of work"); API spend below 1 USD and subscription use are never asked.
 - Within the approved acceptance criteria it decides alone. Before handing in, it checks the result
   against the feature's criteria (and its «Approved design», if any) and fixes the gaps.
 - An independent part found mid-work goes to P as a new task, in one line. Dependent parts stay in
@@ -172,7 +172,7 @@ check that confirms or disproves it, and only after it the fix.
 ## Less of the owner's involvement over time
 
 The plugin's main goal is autonomous development: the owner's involvement shrinks step by step.
-Decisions on what the owner gets, money (over 1 USD per task) and hard-to-undo steps stay with the owner. Checks, hand
+Decisions on what the owner gets, API money (over 1 USD per task) and hard-to-undo steps stay with the owner. Checks, hand
 actions and small questions move to the agents: before asking the owner to check or do something,
 look for a way an agent can do it (a test, a headless or emulator run, a script). Where none exists
 yet, do the step with the owner and name the missing tool as a follow-up item in the project's plans.
@@ -262,6 +262,21 @@ The call needs the project's own API key in env `DEV_KIT_API_KEY` and its Consol
 then bill that key with no log line; without it, `claude -p` runs on the subscription and is not such a call.
 Deny rules back this where the owner added them. Why: owner, 2026-11-21 (`plans/api-client.md` in the plugin
 repo): the API credit was spent unseen by one project's keys; every call is to be logged and reconciled weekly.
+
+## Stating the cost of work
+
+Work on the owner's subscription (sessions, subagents, `claude -p` on the subscription login) is not billed
+in money: a report or plan states its cost as a share of the owner's weekly subscription limit, marked as an
+estimate, never in USD: «~2% тижневого ліміту, оцінка» (in English «~2% of the weekly limit, estimate»). The
+figure comes from `dev-kit-retro session` (the session that runs it and its subagents; `--id` or `--path` for
+another). Its uncertainty, about a third, is carried by the word «оцінка», not by a number. Claude Code's own
+USD figure (`/cost`, `costUSD` in session records) prices tokens at API rates and is never quoted, labelled or
+not. Real money, calls through `dev-kit-api`, stays in USD; a report with both writes them apart: «~1%
+тижневого ліміту, оцінка; API: 0.40 USD». A task file's spend line takes the same form: `Spend: ~N% of the
+weekly limit, estimate; API: N USD`. Finished plans keep their old lines.
+
+Why: owner, 2026-11-21 (`plans/cost-share.md`): the retro counts tokens closely enough to state cost as a
+share of the subscription, and an API-priced dollar figure is not what the subscription costs.
 
 ## Quiet about background work
 

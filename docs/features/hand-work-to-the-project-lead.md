@@ -38,7 +38,8 @@ hour and the next answer costs its whole context again; one push per wait.
 
 ### What P decides alone
 P decides alone within the approved acceptance criteria. You get a product choice, a hard-to-undo step,
-or paid spend over $1 in total per task.
+or API spend (real money through `dev-kit-api`) over $1 in total per task; sessions and subagents on your
+subscription never ask you.
 
 ### P sorts each task
 P sorts each task: the C alone; P and the C (an agreed feature, technical details); or, for what you get
