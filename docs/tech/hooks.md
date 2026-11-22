@@ -24,6 +24,26 @@ session is registered with `--owner`; only then it adds the note. Any error in t
 failing hook never blocks a message. The rule the user sees:
 [Take over a session I started](../features/take-over-a-session-i-started.md).
 
+The same hook adds the line of `dev-kit-retro due` to the context of the project's recorded lead session
+(P), for example `retro: 3 items due (1 urgent)`: urgent items always count, the others only when the
+weekly question to the owner is due. A session that is not the recorded lead gets no line. The line is
+built in `retro.due_line` (`plugins/dev-kit/scripts/retro.py`); a broken registry or retro state hides only
+its own part, never the other. See [project lead](project-lead.md), section "Retro".
+
+## Retro (dev-kit, SessionStart and SessionEnd)
+
+`plugins/dev-kit/hooks/retro-start.py` and `retro-end.py` call `retro.hook_main("start")` and
+`retro.hook_main("end")` in `plugins/dev-kit/scripts/retro.py`. Both act only in a project that has a
+lead, print nothing and always exit 0, so a failure never blocks a session. Any other project is left alone.
+
+- SessionEnd (`retro-end.py`): starts a detached scan of the ending session's transcript and returns at once.
+- SessionStart (`retro-start.py`): records the lead's session id (a session titled «P: ...»), starts the
+  daily scan when it has not run today, and, when new findings wait and the last review is old, starts the
+  background «Ретро:» session; once a week it starts the «Документація:» session instead. The «Ретро:» and
+  «Документація:» sessions themselves do not trigger it.
+
+What retro finds and does with it: [project lead](project-lead.md), section "Retro".
+
 ## Hub rules (pult, SessionStart)
 
 `plugins/pult/hooks/hub-rules.py` adds the hub rules to a session whose cwd is exactly the home folder and

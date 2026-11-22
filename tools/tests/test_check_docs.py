@@ -222,6 +222,25 @@ class LinkTests(DocsTestCase):
         self.assertEqual([".claude/skills/own/SKILL.md", ".claude/skills/third/SKILL.md"], files)
 
 
+@unittest.skipUnless(HAS_GIT, "git is not installed")
+class GitIgnoreTests(DocsTestCase):
+    def test_ignored_docs_file_is_not_checked_and_tracked_one_is(self):
+        # Flow: a local untracked draft listed in .gitignore must not produce errors
+        self.write(".gitignore", "docs/plan.md\n")
+        self.write("docs/plan.md", "[a](nope.md)\n")
+        self.write("docs/README.md", "# Index\n\n[b](nope.md)\n")
+        self.init_git()
+        files = sorted(line.split(":")[0] for line in self.errors("link"))
+        self.assertEqual(["docs/README.md"], files)
+
+    def test_without_a_git_repo_the_ignore_file_changes_nothing(self):
+        # Edge: not a git repository, so nothing is dropped
+        self.write(".gitignore", "docs/plan.md\n")
+        self.write("docs/plan.md", "[a](nope.md)\n")
+        files = sorted(line.split(":")[0] for line in self.errors("link"))
+        self.assertEqual(["docs/plan.md"], files)
+
+
 class AnchorTests(DocsTestCase):
     def setUp(self):
         super().setUp()

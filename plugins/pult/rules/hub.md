@@ -28,7 +28,7 @@ Read only. Sources, per project:
   `critical | <project> | <session> | <date> | spent X% of the weekly limit ...` or `... | wasted X% ...` is a
   problem under its project, in plain words (which session, that day, how much of the weekly limit spent or
   wasted). The command prints a problem once and again only when it grew; nothing printed: show nothing.
-  Why: the owner's yes of 2026-11-20 (plan «Pult idle cost»): idle wakes burned tokens for days unseen.
+  Why: the owner's yes of 2026-11-20 (`docs/findings/idle-wake-cost.md` of the dev-kit repo): idle wakes burned tokens for days unseen.
 
 Traps (checked 2026-11-14):
 - In `claude agents --json`, state "blocked" with status "idle" only means the turn ended. It is not a block or a denial; show it as idle. Exception: a session with a LIMIT line in the server history and no LIMIT-END or "WATCH started" after it stopped on the usage limit (see "Server history"). Name a session's state only as idle or busy ("вільна" / "зайнята"); never "працює", which the owner reads as busy on a task.
@@ -36,7 +36,7 @@ Traps (checked 2026-11-14):
 - Pult server alive: a running `claude.exe` process whose command line has ` remote-control ` and "Pult" (PowerShell `Get-CimInstance Win32_Process -Filter "Name='claude.exe'"`).
 
 - Names shown to the owner: the hub's own session (cwd = the home folder) has a system name like «<user>-f1» in `claude agents --json`. Never show that name to the owner; sessions in the home folder are «Pult».
-- Server history: the last lines of `~/.claude/pult/logs/servers.log` (the health log, written by the watcher, see "Servers"). A HEAL line followed by UP, or a HEAL-TASK line with no HEAL-TASK-FAILED after it, is fixed: show it in one line as "впав о <time>, піднявся сам". A GIVEUP, GIVEUP-TASK, HEAL-FAILED or HEAL-TASK-FAILED line with no UP after it is a problem: show when it happened and the cause the log gives, and propose the fix. A LIMIT line with no LIMIT-END and no "WATCH started" line after it means that session stopped on the usage limit: show it as "стоїть на ліміті до <reset time>" and propose no fix (a restart hits the same limit). UNLOCK lines (a stale lock removed) are shown only when asked. A WATCH-RESTART line means the watcher took new code and started a fresh copy of itself (the new copy's "WATCH started" line comes just before it; nothing to do); WATCH-RESTART-SKIPPED means its new code did not parse or the new copy did not start, so it still runs the old code: show the reason in one line and propose the fix. HOLD on means a stop on purpose: the watcher restarts nothing until `start-servers.ps1` runs. A NO-BANS line with no later MODE line for that project means its lead is blocked (see "Missing hard bans"): show it as «не стартує: немає жорстких заборон», not as a crash.
+- Server history: the last lines of `~/.claude/pult/logs/servers.log` (the health log, written by the watcher, see "Servers"). A HEAL line followed by UP, or a HEAL-TASK line with no HEAL-TASK-FAILED after it, is fixed: show it in one line as "впав о <time>, піднявся сам". A GIVEUP, GIVEUP-TASK, HEAL-FAILED or HEAL-TASK-FAILED line with no UP after it is a problem: show when it happened and the cause the log gives, and propose the fix. A LIMIT line with no LIMIT-END and no "WATCH started" line after it means that session stopped on the usage limit: show it as "стоїть на ліміті до <reset time>" and propose no fix (a restart hits the same limit). UNLOCK lines (a stale lock removed) are shown only when asked. A WATCH-RESTART line means the watcher took new code and started a fresh copy of itself (the new copy's "WATCH started" line comes just before it; nothing to do); WATCH-RESTART-SKIPPED means its new code did not parse or the new copy did not start, so it still runs the old code: show the reason in one line and propose the fix. HOLD on means a stop on purpose, or a lead restart still running: the watcher restarts nothing until HOLD off, which a full `start-servers.ps1` run writes. A NO-BANS line with no later MODE line for that project means its lead is blocked (see "Missing hard bans"): show it as «не стартує: немає жорстких заборон», not as a crash.
 
 Status page: run `python -X utf8 {PLUGIN}/scripts/status-page.py` (read only; writes `~/.claude/pult/status.html`, all projects' sessions and open questions on one page) and send that file with SendUserFile, then give the reply below.
 
@@ -85,16 +85,17 @@ writes to `~/.claude/pult/logs/servers.log` (outside any repository): STATE, DOW
 crash event, UP, LIMIT for a live lead or task session that stopped on the usage limit (once per stop, with the reset time;
 LIMIT-END when it goes on). Each Remote Control server's window adds an EXIT line with its exit code. It fixes
 five mechanical problems itself, with no yes (the owner's yes, 2026-11-16; the own-code one was added 2026-11-19, P's yes):
-- An entry of `servers.psd1` down for two checks in a row: it runs `start-servers.ps1 -Only <name>`
+- An entry of `servers.psd1` that is down (when and how often: the feature [Start leads at logon and heal
+  them](../../../docs/features/start-leads-at-logon-and-heal-them.md)): it runs `start-servers.ps1 -Only <name>`
   (the same resume as at logon) and logs HEAL (HEAL-FAILED with the script's words when it did not
-  start it); at most 3 tries per hour per entry, then GIVEUP until
-  the entry is up again. A lead whose project has no hard-ban lines on main is not HEAL'd: it is blocked, not
+  start it); GIVEUP when it gives up, until the entry is up again. A lead whose project has no hard-ban lines on main is not HEAL'd: it is blocked, not
   broken (log NO-BANS, no HEAL-FAILED, no GIVEUP; see "Missing hard bans"). Other sessions it never restarts, except the next item. `stop-servers.ps1` and `restart-leads.ps1` leave a hold file (`~/.claude/pult/hold`);
-  while it exists the watcher restarts nothing (HOLD on); a full `start-servers.ps1` run removes it.
+  while it exists the watcher restarts nothing (HOLD on); a full `start-servers.ps1` run removes it
+  (`restart-leads.ps1` ends with such a run itself).
 - A task session a project lead registered as active (dev-kit `sessions.json`; not a taken-over owner session) that Claude Code
   closed (no process, and not stopped on purpose: a `stopped` one counts only after a `bg retire` line
   in `~/.claude/daemon.log`) for two checks in a row: `claude respawn <id>`, log HEAL-TASK
-  (HEAL-TASK-FAILED when respawn fails); at most 3 per hour per session, then GIVEUP-TASK; held by the hold file too. Why: on low
+  (HEAL-TASK-FAILED when respawn fails); GIVEUP-TASK when it gives up; held by the hold file too. Why: on low
   memory Claude Code closes idle background sessions (2026-11-16, a C waiting on the owner vanished).
 - A lead that runs an older dev-kit version than `plugin.json` of the main checkout (log LEAD-VERSION
   when it sees a lead's process first): an idle lead is restarted at once with `restart-leads.ps1`
@@ -113,10 +114,8 @@ five mechanical problems itself, with no yes (the owner's yes, 2026-11-16; the o
 - A dev-kit lock file whose owner is gone (`~/.claude/dev-kit/*/watch.lock`, `app.lock` of a removed
   worktree, leftover `app.lock.takeover` and `*.tmp`): removed, log UNLOCK.
 Everything else (GIVEUP, GIVEUP-TASK, HEAL-FAILED, HEAL-TASK-FAILED, RESTART-LEAD-FAILED, HANDOFF-FAILED, START-FAILED, WATCH-RESTART-SKIPPED, a lead that comes back and falls again) stays a problem Pult
-shows and proposes a fix for. A project with no hard-ban lines (NO-BANS) is shown too, as blocked, with the question of "Missing hard bans". A stop with only `claude stop` is undone by the watcher: `stop-servers.ps1`
-stops all entries until the next `start-servers.ps1` run; to retire one entry, remove its row from
-`servers.psd1` (the watcher reads the list when it starts). While a full `start-servers.ps1` run goes on,
-the watcher restarts nothing.
+shows and proposes a fix for. A project with no hard-ban lines (NO-BANS) is shown too, as blocked, with the question of "Missing hard bans". A stop with only `claude stop` is undone by the watcher; to retire one entry,
+remove its row from `servers.psd1` (the watcher reads the list when it starts).
 
 No Claude session keeps a watcher of its own: this watcher wakes Pult and the leads (dev-kit 0.1.78 or
 later) by a cross-session message that starts `[EVT-<id>] Pult server watcher:`, only when something needs
@@ -129,8 +128,8 @@ that did not take the message. Its log lines: WAKE (a message queued, with its c
 (no live session to push them; tried again in 10 minutes), PUSH-SIZE and SIZE (each live session's
 conversation size, every 10 minutes); "статус" shows them only when asked (a fallback already reached the
 phone). Why: the
-owner's yes of 2026-11-20 to the plan «Pult idle cost»: Pult and the leads were woken every 2 hours only
-to arm their watchers again.
+owner's yes of 2026-11-20 (`docs/findings/idle-wake-cost.md` of the dev-kit repo): Pult and the leads were woken
+every 2 hours only to arm their watchers again.
 
 ## Missing hard bans
 

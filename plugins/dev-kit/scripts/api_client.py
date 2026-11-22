@@ -8,8 +8,9 @@
 
 Agents call the Claude API only through this client (rule: `dev-kit:manager`, "Claude API calls"), so every paid
 call leaves a line in one local log. Other programs that call the API from their own single call point (Zhratva's
-AiProviderClient and tools/ai-api) append the same line themselves; the format is below and in
-`docs/features/log-and-reconcile-api-spend.md`.
+AiProviderClient and tools/ai-api) append the same line themselves; the format is below (the one home of the format and the cost rule;
+`docs/tech/api-spend.md` of the plugin repo links here). `call` uses only the Messages API: it writes no line for
+Message Batches.
 
 The log: one file, `~/.claude/dev-kit/api-calls.jsonl` (next to the weekly credit-check log `credits.md`), or the
 path in env `DEV_KIT_API_LOG`. One JSON object per line, UTF-8 without BOM, `\\n` at the end, appended (never

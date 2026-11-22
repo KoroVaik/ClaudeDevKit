@@ -22,6 +22,8 @@ Python 3.13 and Node 22.
 ## Docs check
 
 `dev-kit-check-docs` lives in `plugins/dev-kit/bin` and is on the Bash tool PATH while dev-kit is enabled.
-A git pre-commit hook outside Claude Code runs `plugins/dev-kit/scripts/check_docs.py --pre-commit`,
-finding this folder through `~/.claude/plugins/known_marketplaces.json`. The rules of the check are in the
-`dev-kit:documentation` skill.
+No git hook runs it: this repo's `.githooks/pre-commit` runs only the lint and `claude plugin validate`, and no
+plugin installs a hook in other projects. Agents run it on demand, and the skills `fix-bug`, `new-feature` and
+`maintain-project-docs` run `dev-kit-check-docs --pre-commit` before finishing (the flag adds the advisory
+lists for staged code files). The rules of the check are in the `dev-kit:documentation` skill. The check skips files that `.gitignore` ignores (all files are read outside a
+git repository), so local untracked drafts raise no errors.

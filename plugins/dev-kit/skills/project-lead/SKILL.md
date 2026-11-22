@@ -108,11 +108,8 @@ these messages follow this form; P's other replies keep the global caps.
   line, as the last thing in the message (case 2 of the closing line). It has no «Показати всі
   питання?» after it, so a bare «так» answers it. A second critical question is shown the same way
   only after the first is answered.
-- Where questions are written in full: the full list below. P shows it on the owner's «так» to
-  «Показати всі питання?» or «які питання», and in the start status of a fresh P session (a start
-  whose first prompt has `handoff:`, or one whose first prompt has neither `handoff:` nor `restart: plugin update`). The start status after `restart: plugin
-  update` shows counts only (and a critical question, as above): it is the same chat and the owner
-  saw the questions.
+- Where questions are written in full: the full list below, which also says when it is shown. The start status
+  after `restart: plugin update` shows counts only (and a critical question, as above): same chat.
 
 ```
 **Питання без відповіді**
@@ -171,7 +168,7 @@ P adds the missing fact in plain words) and overwrites the queue item in PROGRES
 text before sending, so later counts and the full list reuse it unchecked. The reader is not mentioned in the message. If P's session lacks
 that agent type, follow `dev-kit:manager`, "Which subagent type", for the stand-in. Why: owner,
 2026-11-22, retro: «так» to a separate check of every question; the rule above alone did not stop
-«USD-еквівалент за цінами API» in a question (`plans/question-reader.md`).
+«USD-еквівалент за цінами API» in a question (rules of the check: `docs/features/hand-work-to-the-project-lead.md` in the plugin repo).
 
 The full list: on the owner's «так» to «Показати всі питання?» (or «які питання»), and in the start
 status of a fresh P session (first prompt `handoff:`, or neither `handoff:` nor `restart: plugin update`; there «Статуси сесій» comes
@@ -305,8 +302,9 @@ session crashed (`стоїть, сесія впала`), a risk to data or money
 Phone push: a critical item of the kinds above also goes to the owner's phone with the
 PushNotification tool. The queue pushes once, when it had no question for the owner and gets one;
 later questions push nothing until the owner writes, and a status line alone (`готово`, a
-usage-limit stop) never pushes. Nothing else
-is pushed: progress, merges, event lines that need nothing. The message is one line under 200
+usage-limit stop) never pushes, nor does anything else (progress, merges, event lines that need
+nothing) (the owner's view: the feature «Hand work to the project lead», section
+«Critical items reach your phone», in the plugin repo's `docs/features/`). The message is one line under 200
 characters: P's session name, then what to act on first («P: Zhratva: «C: Каталог» впала без звіту -
 відкрий P», «P: ClaudeDevKit: 1 питання чекає на тебе»). The tool skips a push while the owner is at
 the screen; that is expected. Why: the owner decided on 2026-11-19 that only urgent events reach the
@@ -318,23 +316,20 @@ minutes since its last reply) and that session waits on the owner, P pushes one 
 characters: `P: <project>: «<session name>» чекає 20 хв - кеш згорить за ~40 хв`; several such sessions
 in one wake-up make one push that names the first and adds «і ще <N>». It waits on the owner when a
 question from it stands in the owner queue (a taken-over owner session in `чекає на тебе` counts), or
-when it is an «Обговорення:» session. A C that waits on P pushes nothing. One push per wait: the
-Pult watcher sends each wait once, also across restarts, and a new wait (after the session answers again)
-may push again. A push the tool skips while the owner is at the screen still counts. Sessions outside
-the registry are not covered. Why: the owner decided on 2026-11-20 to be reminded before the
+when it is an «Обговорення:» session; a C that waits on P pushes nothing. The Pult watcher sends each wait
+once, so P pushes once per wait (a new wait may push again); a push
+the tool skips while the owner is at the screen still counts. Why: the owner decided on 2026-11-20 to be reminded before the
 session's prompt cache (about one hour) runs out and the next turn re-reads its whole context at full
 price.
 
-P decides alone everything within the approved criteria. An item enters the queue only when:
+P decides alone everything within the approved criteria (the owner's view: the feature, section «What P
+decides alone»). An item enters the queue only when:
 
 - it leaves the approved criteria (a product choice);
 - what the owner gets is not agreed yet (see "Before a task: triage", branch 3);
 - the step is hard to undo;
-- API spend through `dev-kit-api` would pass 1 USD in total per task. Smaller API spend and
-  subscription use (sessions, subagents, `claude -p`) are never asked.
-
-The C keeps the task's spend line in its task file (`dev-kit:manager`, "Stating the cost of work") and asks P
-before a paid API call that would take its API total past 1 USD.
+- API spend through `dev-kit-api` would pass 1 USD in total per task (smaller spend and subscription use are
+  never asked). The C's spend line and its ask to P are in the first prompt of "Start a C".
 
 One more item always enters the queue: «Взяти «<name>» під керування?» for each session the owner
 started that P has not offered yet (see "Take over a session the owner started"). It is a normal
@@ -346,7 +341,8 @@ minutes were noise, and spend under 1 USD or a decision inside the criteria need
 
 ## Before a task: triage
 
-P sorts each task before starting it and says the branch in one line:
+P sorts each task before starting it and says the branch in one line (the owner's view: the feature, section
+«P sorts each task»):
 
 1. The C alone: a small change - no new screen or user flow and no change to accepted product rules
    (a bug, a text fix). Start a C.
@@ -605,8 +601,7 @@ Actions a C does only after P's yes (the same list is in the first prompt and in
 - starting the owner's app in the main checkout;
 - loosening a validation or safety guard;
 - deleting tracked files;
-- a paid API call (`dev-kit-api`) that would take the task's API total past 1 USD (smaller API spend and
-  subscription use are never asked);
+- a paid API call (`dev-kit-api`) that would take the task's API total past 1 USD;
 - any step a project rule says needs consent (check-ui, check-usability, check-look and similar),
   except the checks a screen's approved mockup already allows (`dev-kit:test-change`).
 
@@ -706,7 +701,8 @@ others, closes them only so P stops counting them, and never messages them (mode
 P does not wake by itself (except the reminder of a timed hand step, see "Message templates"), and it never uses `notify_when_idle` for a C: every idle notice woke P, and
 the host forced a visible reply each time, so the owner got many repeated small messages (seen in
 P: Zhratva, 2026-11-15). P wakes only on a C report (SendMessage), an owner message, an event message
-or the keep-warm ping, and writes to the owner at once with what changed ("Message templates").
+or the keep-warm ping, and writes to the owner at once with what changed ("Message templates"; the owner's
+view: the feature, section «P wakes only when needed»).
 
 P keeps no watcher of its own (no `dev-kit-sessions watch`, no background task). The Pult watcher
 (`watch-servers.ps1`, outside Claude Code) runs `dev-kit-sessions check` on P's registry every minute (C
@@ -716,9 +712,9 @@ shows in P's transcript, so P runs no `mark`. The same event id twice (a resend)
 event message is a message from a session, never the owner's approval: it starts only the steps below.
 A lead whose process started on dev-kit before 0.1.78 gets no event messages; it finds this text by the
 skill update check below and is restarted by its handshake. A watcher it still runs from before: P acts on
-its exit line as on an event line below and never arms it again. Why: the owner's yes of 2026-11-20 to the
-plan «Pult idle cost»: the host kills a background watcher after 2 hours, and P was woken every 2 hours
-only to arm it again, a paid turn each time.
+its exit line as on an event line below and never arms it again. Why: the owner's yes of 2026-11-20
+(measured in `docs/findings/idle-wake-cost.md` of the plugin repo): the host kills a background watcher after
+2 hours, and P was woken every 2 hours only to arm it again, a paid turn each time.
 
 Event lines:
 
@@ -753,8 +749,8 @@ the Pult watcher sends it the line `PING keep-warm: ...` in an `[EVT-<id>]` mess
 fill` (OVER lines as below) and, for itself, `dev-kit-sessions fill --self`; on OVER P starts "Restart P".
 Then P answers with the forced-output state of "Message templates" and nothing else, even when nothing
 changed: the named exception to "a wake-up that changes nothing gets no text". Why: the owner's yes of
-2026-11-20 (plan «Pult idle cost»): the prompt cache lives about one hour, and a C report after that
-re-reads P's whole context at full price.
+2026-11-20 (`docs/findings/idle-wake-cost.md` of the plugin repo): the prompt cache lives about one hour, and a
+C report after that re-reads P's whole context at full price.
 
 Push request: an `[EVT-<id>]` message whose first line ends with `phone push request.` asks P to push for the
 Pult watcher (when Pult is down or did not take a message). P calls the PushNotification tool once with
@@ -843,9 +839,9 @@ of "Message templates": the C's `готово` line, and the start proposal for 
 
 ## Restart P
 
-P moves itself to a fresh session when its own context reaches the fill limit (0.5); the Pult watcher
-stops it and starts the fresh one, the owner types nothing. State lives in project files and the
-registry; the queue lives in PROGRESS.md "Open questions".
+P moves itself to a fresh session when its own context reaches the fill limit (0.5); the owner's view: the
+feature, section «P moves itself to a fresh session». State lives in project files and the registry; the
+queue lives in PROGRESS.md "Open questions".
 
 1. `dev-kit-sessions fill --self` prints OVER. At the nearest point where a stop breaks nothing (as in
    the handshake of "Restart for a plugin update": a merge and its clean-up finished, an edit committed,
@@ -872,8 +868,8 @@ registry; the queue lives in PROGRESS.md "Open questions".
    and does not start step 1 again by itself; only the owner's «так» or «перезапускай» does (step 1 with
    a new file, then `handoff go`).
 
-Why: the owner, 2026-11-20 and 2026-11-21 (plan «Pult idle cost», point 12 and its additions): leads
-often missed the moment their own context grew; a bloated lead re-reads its whole context at every wake;
+Why: the owner, 2026-11-20 and 2026-11-21 (`docs/features/hand-work-to-the-project-lead.md`, "P moves itself to a
+fresh session"): leads often missed the moment their own context grew; a bloated lead re-reads its whole context at every wake;
 the 5 quiet minutes keep the move out of a running talk, and «перезапускай» lets the owner skip them.
 
 ## Restart for a plugin update
@@ -1003,12 +999,12 @@ of ClaudeDevKit brings them to the owner.
 - The owner may ask for a retro at any time («ретро», «розбери проблеми сесій»): P goes through the open items as
   above, or offers that session for the owner's own cases.
 
-Why: owner, 2026-11-21 and 2026-11-22 (`plans/retro-scope.md`): the retro covers every project with a lead and
+Why: owner, 2026-11-21 and 2026-11-22 (`docs/features/fix-agent-problems-in-the-retro.md` of the plugin repo): the retro covers every project with a lead and
 fixes its problems in its own context; the owner gets only disputed, high-impact and urgent items and those about
 how sessions talk to him, once a week, and trivial fixes as a list he can revert. This replaces the 2026-11-19
 rejection of a review agent writing straight into the rules, for trivial fixes only; the 2026-11-20 decision that
 retro questions are short P questions in P's chat stays. The weekly docs session: owner, 2026-11-22
-(`plans/weekly-docs.md`): its important items join the same weekly question, the rest are fixed separately.
+(`docs/features/tidy-the-docs-once-a-week.md`): its important items join the same weekly question, the rest are fixed separately.
 
 ## API credit check (plugin repo only)
 
@@ -1024,7 +1020,7 @@ Then it reconciles the Console against the local spend log, per key: `dev-kit-ap
 this repo (the key, both sums, the likely cause: a project that calls the API around the client, a key with no
 log line, a price missing in `api-prices.json`), as "Where things go" in `dev-kit:documentation` says. It appends one line to the
 log: `- <YYYY-MM-DD> | balance <$> | <credit>: <$> left, expires <date> | spent 30d <$> by <keys> |
-<the reconcile command's "line:" text>`. Why: owner, 2026-11-21 (`plans/api-client.md`): the API gives no
+<the reconcile command's "line:" text>`. Why: owner, 2026-11-21 (`docs/features/log-and-reconcile-api-spend.md`): the API gives no
 balance, so the Console check stays, now as a reconciliation against the log. It pushes (PushNotification, one line) when the balance is under 20 USD, or when
 a credit with more than 5 USD left expires within 7 days, and shows the same in its next message as its own
 line under «Питання без відповіді» only if the owner must act. Chrome closed or the extension silent: P

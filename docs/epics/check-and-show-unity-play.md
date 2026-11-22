@@ -6,8 +6,9 @@ Part of the [ClaudeDevKit product](../product.md).
 
 The `unity-kit` plugin works with the owner's open Unity editor: it checks play, sketches a moment of play
 and shows it. It fills `show-idea` with `unity-kit:scene-sketch`, a temporary storyboard of one moment of
-play, and `check-look` with `unity-kit:game-view-check`, one screenshot of the Game view at its current
-size for the owner to judge ([slots](../../plugins/unity-kit/slots.md)).
+play, `check-look` with `unity-kit:game-view-check`, one screenshot of the Game view at its current
+size for the owner to judge, and `check-ui` with `unity-kit:user-check`, a recipe of play run in the
+editor ([slots](../../plugins/unity-kit/slots.md)).
 
 `unity-kit:unity-editor` holds the permissions and the order of every Unity action in the owner's open
 editor (no batchmode, no restart, one operator at a time); it fills no slot, so a project fills `run-app`

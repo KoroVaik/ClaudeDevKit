@@ -108,7 +108,7 @@ session waits for that branch's merge, so it runs on the fixed rules. Then send 
 urgent ones sent), what is needed (merge branch `<branch>`, or nothing to merge). The session then waits; P closes
 it.
 
-Why: owner, 2026-11-21 and 2026-11-22 (`plans/retro-scope.md`, «Owner's approval»): the retro fixes the problems of
+Why: owner, 2026-11-21 and 2026-11-22 (`docs/features/fix-agent-problems-in-the-retro.md` of the plugin repo): the retro fixes the problems of
 each project in that project's context, not only the plugin's rules; fixes only causes that recur, not random
 ones; reviews by itself and brings the owner only disputed, high-impact, urgent items and anything about how
 sessions talk to him, plus a weekly list of trivial fixes. This replaces, for trivial fixes only, the 2026-11-19

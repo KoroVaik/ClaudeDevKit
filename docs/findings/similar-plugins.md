@@ -3,7 +3,7 @@ Marks: [R] read in source, [I] inferred, [S] secondhand (blog/search snippet, no
 Method: raw files + api.github.com listings + issue search API. WebFetch summaries are small-model output, so [R] means "read via fetch of the file", not a byte check.
 
 ## 1. Projects
-| Project | Link | Relevance to our plan | Maturity |
+| Project | Link | Relevance to dev-kit | Maturity |
 |---|---|---|---|
 | feature-dev, pr-review-toolkit, claude-md-management, plugin-dev | github.com/anthropics/claude-plugins-official/tree/main/plugins | High: closest to our core agents, reviewer and docs audit. plugin-dev/skills/plugin-settings is the per-project config pattern [R] | Official, stable |
 | obra/superpowers | github.com/obra/superpowers | High: process skills, subagent roles, skill-writing rules, evals [R] | Mature, v6 (2026-06), 2 eval repos |
@@ -27,21 +27,13 @@ Method: raw files + api.github.com listings + issue search API. WebFetch summari
 - ccpm [R]: SKILL.md routes 5 phases to references/*.md; deterministic reads go to bash scripts, LLM only for reasoning.
 - SuperClaude [R]: KNOWLEDGE.md admits: docs drift (README described a plugin system that did not exist), version files disagree, only 1 skill; headline savings numbers lack method.
 
-## 2. Improvement ideas (max 8)
-1. Mechanical lint in the repo: names = dir, description has "Use when", agent frontmatter, slot named in every extension skill description. Source: the authoring guide in wshobson/agents, BMAD tools/skill-validator.md. Changes: stage 0 (done criterion), stage 1+. Cost low (one Python script, we already port check-docs). Risk low.
-2. Description rule: triggers only ("Use when..."), never a workflow summary (agent follows summary and skips body). Source: superpowers skills/writing-skills/SKILL.md. Changes: README contract, stage 3 manager/new-feature. Cost low. Risk low.
-3. Explicit slot wiring as data, not description matching: slot -> skill table in the profile, extension declares its slot in frontmatter, manager reads both. Source: BMAD menu `code/id` dispatch, spec-kit extensions.yml hooks. Changes: Slots section, stage 3 pilot. Cost medium. Risk: lowers the "untested slot idea" risk; descriptions stay as fallback.
-4. Files for hand-offs: brief in a file, subagent writes report to a file and returns status + one line; reviewer gets a pre-built diff file; one reviewer returns two verdicts (spec + quality). Source: superpowers subagent-driven-development, Superpowers 6 post (about -15% to -25% cost [S]). Changes: stage 1 coder/reviewer text, stage 3 new-feature. Cost low. Risk: low.
-5. Reviewer output contract: confidence 0-100, report only >=80, Critical/Important groups, "state what you reviewed". Source: feature-dev/agents/code-reviewer.md. Changes: stage 1 reviewer. Cost low. Risk: may hide real minor findings; keep threshold in profile.
-6. Docs skills with provenance: managed block with date + SHA, "audit ends smaller", adopt mode with a ledger mapping each old instruction to a decision, "would a hook/lint enforce this better than prose?". Source: bmad-project-context/SKILL.md, claude-md-improver. Changes: stage 4 migrate-docs, maintain-project-docs. Cost medium. Risk: more ceremony for a large migration.
-7. Two-layer profile: `.claude/dev-kit.md` committed + optional gitignored `dev-kit.local.md`; sparse override. Source: BMAD customize (team/user toml), plugin-dev plugin-settings. Changes: stage 0 profile contract. Cost low. Risk: low (hooks need restart).
-8. Compat field and drift check: `requires: dev-kit >=X` in profile, semver bump per change in plugin.json, one test that the projects' profiles still satisfy the contract. Source: spec-kit `requires.speckit_version`, wshobson patch-bump CI. Changes: Decided section (no pinning), stage 0. Cost low-medium. Risk: need discipline; no pinning stays, this only detects breakage.
-
-## 3. Things in our draft that these projects suggest are wrong or solved better
-- No automated check of skills/agents: every stage "done" is a manual launch. All mature projects have a validator or evals (wshobson plugin-eval, BMAD validate_skills, superpowers-evals) [R]. Add a lint (idea 1) and one routing eval for the manager [I].
-- Slot matching by description is the weakest link [I]. BMAD and spec-kit wire it declaratively [R]. Skills not triggering is the top complaint class [R #54, #58, #446; S description budget ~15k chars, dropped silently] - with 3 plugins of skills the budget matters; check `/doctor` in the pilot (not checked: exact current limit).
-- A manager + new-feature + fix-bug orchestration layer is what agent-os v3 removed ("tools now do it") and v2.1 retired Roles as too complex [R changelog]. Our manager adds model routing, which nobody else does, but its value over plain skills is unproven [I]: keep it thin, measure on the stage 3 task.
-- "No version pinning, live folder" is accepted, but every large project guards drift with versions, CI or compat fields [R]. One edit can break three projects with no signal (idea 8).
-- Plans in new-feature "plan to docs": superpowers #895 shows over-specified plans (code in plan) hurt; plan = contracts + acceptance, not code [R issue]. Token cost of heavy process is the main user complaint (#743, #512, [S] #190); small tasks should skip the chain [S: Reddit/V2EX comments seen in search results].
-- Draft says third-party skills are installed, not copied: consistent with plugins-official practice [I]. Name collisions across plugins are a real bug class (wshobson #500, #643) - our `<plugin>:<agent>` naming already avoids it [R].
-- Not found: any project that splits "generic core + stack extension + per-project profile" exactly as ours; closest is spec-kit (core + extensions + presets) [I]. So the profile contract is our own design risk.
+## 2. Facts that bear on a plugin set like dev-kit
+- Every mature project checks its skills and agents by script, not by hand: wshobson `plugin-eval`, BMAD `validate_skills`, superpowers-evals [R]. A hand-checked plugin set has no signal when one edit breaks a skill.
+- A description that summarises the workflow makes the agent follow the summary and skip the skill body (superpowers `skills/writing-skills/SKILL.md`) [R]. A description names its trigger only ("Use when ...").
+- BMAD and spec-kit wire extensions to slots declaratively (menu `code/id` dispatch, `extensions.yml` hooks) [R]; matching a slot by description is the weakest link [I]. Skills not triggering is the top complaint class [R #54, #58, #446]; the description budget is about 15k chars and the overflow is dropped silently [S]. With several plugins the budget matters; the exact current limit is not checked.
+- agent-os v3 removed its orchestration layer ("tools now do it") and v2.1 retired Roles as too complex [R changelog]. A manager over plain skills adds model routing, which no other project does, but its value over plain skills is unproven [I]; keep it thin.
+- Every large project guards drift with versions, CI or compat fields (spec-kit `requires.speckit_version`, wshobson patch bump and CI drift check) [R]. With no version pinning, one edit can break several projects with no signal.
+- superpowers #895 shows that over-specified plans (code in the plan) hurt [R issue]; a plan is contracts and acceptance, not code. The token cost of a heavy process is the main user complaint (#743, #512, [S] #190), so small tasks should skip the chain [S: Reddit/V2EX comments seen in search results].
+- Handing work over through files (brief in a file, report in a file with status and one line back, a pre-built diff for the reviewer) is superpowers practice (subagent-driven-development); the Superpowers 6 post claims about -15% to -25% cost [S].
+- Installing third-party skills instead of copying them is plugins-official practice [I]. Name collisions across plugins are a real bug class (wshobson #500, #643) [R]; `<plugin>:<agent>` naming avoids it.
+- Not found: any project that splits "generic core + stack extension + per-project profile" exactly as dev-kit does; the closest is spec-kit (core + extensions + presets) [I]. The profile contract is dev-kit's own design.

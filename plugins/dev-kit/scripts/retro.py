@@ -137,7 +137,7 @@ The scan file also gets a `## Spend` section of `| `-table lines (sessions by ti
 not findings; they stay in the scan files only). "Usual" is the median units per run of one
 subagent type on one model over the last RUNS_KEPT runs (`state.json`), shown only with USUAL_MIN or more runs.
 
-Token problems (owner, 2026-11-20, plans/pult-idle-cost.md point 9): `state.json` keeps, per local day (by message
+Token problems (owner, 2026-11-20, docs/features/fix-agent-problems-in-the-retro.md): `state.json` keeps, per local day (by message
 time, DAILY_KEPT days) and per session (its subagents summed), the units and the waste in them. Waste is counted once
 per message, in this order:
 - idle wake: the whole turn that a background task notification started (not a finished subagent) when it had at most
@@ -249,14 +249,14 @@ SCRIPT_MIN_CHARS = 30  # shorter Bash commands (git status, ls) are not worth a 
 DETAIL_CHARS = 160
 WEIGHTS = {"input": 1, "output": 5, "cache_read": 0.1, "cache_5m": 1.25, "cache_1h": 2}
 MODEL_WEIGHTS = {"opus": 1.5, "sonnet": 1, "haiku": 1 / 3}  # matched as a part of the model id; Opus set from the
-# owner's subscription meter (`/usage`, two 5-hour windows on 2026-11-19/20, fit 1.2-1.8), plans/retro-tokens.md
+# owner's subscription meter (`/usage`, two 5-hour windows on 2026-11-19/20, fit 1.2-1.8), docs/findings/token-weights-and-weekly-limit.md
 LONG_TURNS = 100
 SHORT_TURNS = 50
 USUAL_MIN = 10
 RUNS_KEPT = 50
 SPEND_ROWS = 15
 WEEKLY_LIMIT_UNITS = 690e6  # the seed of the weekly limit in units: a hand fit at Opus weight 1.5 from `/usage` on
-WEEKLY_LIMIT_DATE = "2026-11-20"  # 2026-11-20 (plans/retro-tokens.md, "Opus weight check"; about 30% uncertain). The
+WEEKLY_LIMIT_DATE = "2026-11-20"  # 2026-11-20 (docs/findings/token-weights-and-weekly-limit.md; about 30% uncertain). The
 # fit from the status line log (usage-log.jsonl, see `fit_limit`) replaces it once it has FIT_MIN_POINTS points
 FIT_MIN_POINTS = 10  # the weekly per cent points the log must span, summed over windows, before the fit is used
 FIT_DAYS = 28  # only windows that began within this many days count: older transcripts are deleted

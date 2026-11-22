@@ -13,8 +13,10 @@ At Windows logon each project's lead and the Remote Control server are started; 
 
 ### A dead lead comes back
 A lead or server that is down for two checks of the watcher is brought back, at most 3 tries an hour, then
-the watcher gives up. A task session a project lead registered, closed by Claude Code and not stopped on
-purpose, comes back too.
+the watcher gives up until that lead or server is seen up again. A task session a project lead registered,
+closed by Claude Code and not stopped on purpose, comes back too, after two checks and with the same
+limit of 3 tries an hour. A lead whose project has no hard-ban lines on main is not brought back: it is
+blocked, not broken.
 
 ### A lead on an old version is restarted when idle
 A lead that runs on an older dev-kit version than the installed one, or whose extension plugin (web-kit,
@@ -30,14 +32,18 @@ shown in Pult and pushed to your phone; the old lead comes back.
 The watcher never touches your own sessions, taken-over ones included.
 
 ### A stop on purpose stays stopped
-After you stop the servers or restart the leads on purpose, the watcher brings nothing back until the next
-start.
+After you stop the servers on purpose (`stop-servers.ps1`), the watcher brings nothing back until the next
+full start. Restarting the leads (`restart-leads.ps1`) pauses the watcher only while the restart runs: the
+restart's own start run brings the leads back and lifts the pause. The watcher also restarts nothing while
+a full start runs. A lead stopped only with `claude stop` is not a stop on purpose: it comes back; to retire
+one project, remove its row from the project list.
 
 ## Acceptance criteria
 - Windows starts: each project's lead and the Pult server are running without you starting them.
 - A lead is killed: after about two checks it is back.
 - dev-kit is updated: an idle lead restarts and runs on the new version; a busy one waits for a safe point.
-- You stop the servers on purpose: nothing is brought back until the next start.
+- You stop the servers on purpose: nothing is brought back until the next full start.
+- You restart the leads on purpose: they come back through the restart itself, and the watcher goes on as usual.
 
 ## Built in
 - `plugins/pult/scripts/start-servers.ps1`
@@ -54,4 +60,5 @@ start.
 ## Open
 - [ ] Defect: a HEAL has no timeout, so a hung `claude --bg` stalls the watcher loop; `plugins/pult/scripts/watch-servers.ps1`
 - [ ] Defect: a hold file left by a crashed `restart-leads.ps1` stays until the next full `start-servers.ps1`; `plugins/pult/scripts/restart-leads.ps1`
+- [ ] Check from the watcher's logs and the transcripts that Pult and a lead with no events show no wakes for a day, that one forced GIVEUP gives one push and the fix line in Pult, and that a push relayed by a live lead (Pult down) reaches the phone; the lead relay is untested
 - [ ] Check whether you can still attach to a P from a terminal with `claude attach <id>`, and the exact wording of the session list in the phone app

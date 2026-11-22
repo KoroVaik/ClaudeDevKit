@@ -19,10 +19,11 @@ all your sessions belong to [Run all projects from the phone](run-all-projects-f
 - [Hand work to the project lead](../features/hand-work-to-the-project-lead.md)
 - [Take over a session I started](../features/take-over-a-session-i-started.md)
 - [Log and reconcile API spend](../features/log-and-reconcile-api-spend.md)
+- [State cost as a share of the weekly limit](../features/state-cost-as-a-share-of-the-weekly-limit.md)
+- [Fix agent problems in the retro](../features/fix-agent-problems-in-the-retro.md)
 
 ## Not written yet
 
-Migrations (`dev-kit-migrations`, `plugins/dev-kit/migrations.md`) and the retro (`dev-kit-retro`, the
-`dev-kit:retro` skill) have no feature files of their own; the README sentences about them are kept in
-[project lead tools](../tech/project-lead.md). The rules for P stay in
-`plugins/dev-kit/skills/project-lead/SKILL.md` until features are written from them.
+Migrations (`dev-kit-migrations`, `plugins/dev-kit/migrations.md`) have no feature file of their own; the README
+sentences about them are kept in [project lead tools](../tech/project-lead.md). The rules for P live in
+[Hand work to the project lead](../features/hand-work-to-the-project-lead.md); the skill keeps the how.

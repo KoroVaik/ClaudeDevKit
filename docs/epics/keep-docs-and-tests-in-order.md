@@ -10,12 +10,13 @@ docs against it; `--structure` lists the base docs files a project lacks. `dev-k
 project's existing docs onto the standard. `dev-kit-check-tests` and the `dev-kit:test-change` and
 `dev-kit:prune-tests` skills keep the tests honest.
 
-A git pre-commit hook outside Claude Code runs the docs check before a commit (how it finds the plugin:
+The docs check runs before a task's commit as a skill step, not as a git hook (see
 [repo checks](../tech/repo-checks.md)).
 
 ## Features
 
 - [Check that a test says what it protects](../features/check-that-a-test-says-what-it-protects.md)
+- [Tidy the docs once a week](../features/tidy-the-docs-once-a-week.md)
 
 ## Not written yet
 

@@ -21,7 +21,12 @@ approved by the owner on 2026-11-19.
 | Show a GIF of play | Feature: a short GIF of a moment of play for the owner to judge. | - |
 | Play a recipe as a user | Feature: a scripted recipe of play run in the editor, with a report. | - |
 | Start leads at logon and heal them | Feature: the Pult hub starts the leads at Windows logon and brings a dead one back. | - |
+| Stop the known Windows shell traps | Feature: a shell command with a known Windows trap is stopped before it runs, with the working form named. | - |
+| Log and reconcile API spend | Feature: every paid API call leaves one line in one local log, and a weekly check compares the log with the Console. | - |
+| Fix agent problems in the retro | Feature: each project's problems of agent work are collected and fixed by a background retro session; the owner decides only the few that are his. | - |
+| State cost as a share of the weekly limit | Feature: agents state the cost of subscription work as a share of the weekly limit, never in dollars. | - |
+| Tidy the docs once a week | Feature: a background session audits a project's docs weekly, fixes the trivial and leaves the rest as items. | - |
 | Project lead (P) | The one session per project that starts task sessions and merges their work; it does no task work itself. | - |
 | Task session (C) | A session the project lead starts for one task, in its own worktree. | - |
-| Owner queue | What waits on the owner, kept in PROGRESS.md "Open questions"; P's messages write a new question in full once, then only count it. | - |
+| Owner queue | What waits on the owner, kept in PROGRESS.md "Open questions"; P's messages only count the open questions and write one in full on «так» to «Показати всі питання?», at the start of a new P session, or when it is critical. | - |
 | Discussion session («Обговорення:») | A session where the owner settles the meaning and the mockup of a feature with one agent. | - |

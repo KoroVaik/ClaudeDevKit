@@ -13,6 +13,11 @@ lives in the owner's global `tools.md` (Python section, in the `docs` folder of 
 A command that launches `python`, `python3` or `py` without `-X utf8` is refused: the console uses cp1252, so
 Cyrillic text fails with UnicodeEncodeError. `PYTHONUTF8=1` counts only without `-I` or `-E`, which ignore it.
 `PYTHONIOENCODING` does not count: it fixes printing, not reading files.
+Why: owner, retro of 2026-11-21: every launch without `-X utf8` is refused, working ones too (about 1390 of 7201
+calls in the 2026-11-20/21 sessions, about one refusal per context since agents adapt); the owner approved this
+wording, and it stops 129 of the 130 encoding failures. The hook is on Bash
+only: PowerShell had 0 encoding failures in 302 calls. The plugin's own docs say `python -X utf8 ...`, so the hook
+never refuses the plugin's commands.
 
 ### A large heredoc
 A heredoc body over 7000 characters is refused with "write the file with the Write tool": such commands fail
@@ -41,3 +46,6 @@ How the hook works: [hooks](../tech/hooks.md).
 - `plugins/dev-kit/hooks/windows-traps.py`
 - `plugins/dev-kit/hooks/hooks.json`
 - `tools/tests/test_windows_traps.py`
+
+## Open
+- [ ] Run a 20-call batch of the catalogue judge in Zhratva with the hook on and count the failed shell calls, the live half of the check that the refusals cut the failures; needs a Zhratva run

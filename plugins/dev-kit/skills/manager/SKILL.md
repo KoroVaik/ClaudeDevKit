@@ -260,11 +260,11 @@ finds the entries itself, and a session messages only its own P (owner, 2026-11-
 An agent (main session or subagent) calls the paid Claude API only through `dev-kit-api call`, never by
 `curl`, a fetch tool or its own script, so each call leaves a spend line in the one local log
 (`dev-kit-api report` sums it). A project's own program that calls the API from its single call point
-appends the same line itself (format: `docs/features/log-and-reconcile-api-spend.md` in the plugin repo).
+appends the same line itself (format: the docstring of `scripts/api_client.py` in this plugin; rules: `docs/features/log-and-reconcile-api-spend.md` in the plugin repo).
 The call needs the project's own API key in env `DEV_KIT_API_KEY` and its Console name (`--key-name` or env
 `DEV_KIT_API_KEY_NAME`). Never set `ANTHROPIC_API_KEY` in an agent's environment: a headless `claude -p` would
 then bill that key with no log line; without it, `claude -p` runs on the subscription and is not such a call.
-Deny rules back this where the owner added them. Why: owner, 2026-11-21 (`plans/api-client.md` in the plugin
+Deny rules back this where the owner added them. Why: owner, 2026-11-21 (`docs/features/log-and-reconcile-api-spend.md` in the plugin
 repo): the API credit was spent unseen by one project's keys; every call is to be logged and reconciled weekly.
 
 ## Stating the cost of work
@@ -279,7 +279,7 @@ not. Real money, calls through `dev-kit-api`, stays in USD; a report with both w
 тижневого ліміту, оцінка; API: 0.40 USD». A task file's spend line takes the same form: `Spend: ~N% of the
 weekly limit, estimate; API: N USD`. Finished plans keep their old lines.
 
-Why: owner, 2026-11-21 (`plans/cost-share.md`): the retro counts tokens closely enough to state cost as a
+Why: owner, 2026-11-21 (`docs/features/state-cost-as-a-share-of-the-weekly-limit.md` in the plugin repo): the retro counts tokens closely enough to state cost as a
 share of the subscription, and an API-priced dollar figure is not what the subscription costs.
 
 ## Quiet about background work

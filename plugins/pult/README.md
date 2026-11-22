@@ -21,10 +21,12 @@ problem it proposes a fix and acts after an explicit yes.
   no agent removes or edits a ban; `undo` (the latest add only) you type yourself.
 - Logs: `~/.claude/pult/logs/servers.log` (written by `start-servers.ps1` and `watch-servers.ps1`; nothing is
   written inside the plugin folder).
-- The watcher (`scripts/watch-servers.ps1`, started at logon) checks every minute. A lead or server of
-  `servers.psd1` that is down for two checks is brought back the same way as at logon (log HEAL; at most 3
-  tries an hour, then GIVEUP). A task session a project lead registered, closed by Claude Code (no
-  process, not stopped on purpose), comes back with `claude respawn` (log HEAL-TASK). A live lead or task session that stopped on the
+- The watcher (`scripts/watch-servers.ps1`, started at logon) checks every minute. The rules of what it
+  brings back, how often, and what a stop on purpose does are in the feature
+  [Start leads at logon and heal them](../../docs/features/start-leads-at-logon-and-heal-them.md); this
+  file holds its logs, files and parameters. A lead or server of `servers.psd1` that is down is brought back
+  the same way as at logon (log HEAL; GIVEUP when it gave up). A task session a project lead registered,
+  closed by Claude Code (no process, not stopped on purpose), comes back with `claude respawn` (log HEAL-TASK). A live lead or task session that stopped on the
   usage limit is logged once per stop (LIMIT, with the reset time; LIMIT-END when it goes on). It also removes
   dev-kit lock files whose owner is gone (log UNLOCK). It restarts a lead that runs on an older dev-kit version
   than the installed `plugins/dev-kit/.claude-plugin/plugin.json`, with no message from the hub: an idle lead
@@ -46,9 +48,9 @@ problem it proposes a fix and acts after an explicit yes.
   changed on disk and stayed the same for two checks, it checks that the new file parses and starts a fresh
   copy of itself; once the new copy has written its own "WATCH started" line it logs WATCH-RESTART and exits
   (a broken file, or a new copy that dies at start-up, is logged once as WATCH-RESTART-SKIPPED and the old
-  copy keeps running). It never touches your own sessions, taken-over ones included. `stop-servers.ps1` and `restart-leads.ps1` pause it
-  (a hold file) until the next `start-servers.ps1` run, so a stop on purpose stays stopped. A lead stopped
-  only with `claude stop` comes back; to retire one project, remove its row from `servers.psd1`.
+  copy keeps running). It never touches your own sessions, taken-over ones included. `stop-servers.ps1` and
+  `restart-leads.ps1` pause it with a hold file (`~/.claude/pult/hold`; log HOLD on, HOLD off) that a full
+  `start-servers.ps1` run removes. To retire one project, remove its row from `servers.psd1`.
 - No Claude session keeps a watcher of its own. Each minute the watcher also runs `dev-kit-sessions check`
   for every lead on dev-kit 0.1.78 or later and sends each new event (a task session gone, finished, on the
   usage limit, waiting 20 minutes, past half its context, or a restart request) to the lead as a
@@ -56,8 +58,8 @@ problem it proposes a fix and acts after an explicit yes.
   only the SendMessage tool, `bypassPermissions`). GIVEUP, GIVEUP-TASK, RESTART-LEAD-FAILED and HANDOFF-FAILED go to
   the Pult session the same way; Pult pushes them to your phone. A lead silent 50 minutes while one of its
   task sessions works gets a keep-warm ping. A lead past half its own context that saved a handoff
-  (`dev-kit-sessions handoff save`) is moved to a fresh session of the same name once it has been idle and
-  quiet for 5 minutes, or at once after `handoff go`; HANDOFF in the log. A message counts as delivered once its id shows in the
+  (`dev-kit-sessions handoff save`) is moved to a fresh session of the same name (when: the feature above;
+  HANDOFF in the log). A message counts as delivered once its id shows in the
   target's transcript; until then it is sent again, then pushed to your phone (for Pult: «Pult не піднявся -
   запусти його на комп'ютері»). A push also goes once per session when a conversation passes 0.7 of its
   window. The watcher cannot push by itself (a fresh session's push is refused: «Not sent - this terminal

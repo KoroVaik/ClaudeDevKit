@@ -11,6 +11,7 @@
 - Features: the files in [features](features/), each linked from its epic
 - Standards: [Plugin authoring](standards/plugin-authoring.md)
 - Tech: [Map](tech/map.md), [Project profile](tech/project-profile.md), [Hooks](tech/hooks.md), [Project lead tools](tech/project-lead.md),
-  [Repo checks](tech/repo-checks.md)
-- Findings: [Plugins similar to dev-kit](findings/similar-plugins.md)
+  [Repo checks](tech/repo-checks.md), [API spend](tech/api-spend.md)
+- Findings: [Plugins similar to dev-kit](findings/similar-plugins.md), [Token units and the weekly limit](findings/token-weights-and-weekly-limit.md),
+  [Idle wakes of Pult and the leads](findings/idle-wake-cost.md)
 - Status: [PROGRESS.md](../PROGRESS.md); ideas: [BACKLOG.md](../BACKLOG.md); work in flight: [plans](../plans/)

@@ -179,8 +179,9 @@ to exactly one epic.
 
 ## Docs check
 
-`dev-kit-check-docs`, run by the pre-commit hook (`--pre-commit`) and on demand. Without flags it runs
-the full check; `--structure` lists the base files of this standard the project lacks (the project
+`dev-kit-check-docs`, run before a task's commit (`--pre-commit`, a step of `fix-bug`, `new-feature` and
+`maintain-project-docs`) and on demand. Without flags it runs
+the full check (files git ignores are skipped); `--structure` lists the base files of this standard the project lacks (the project
 lead runs it at start). Its project specifics (code folders, folders to scan, size limits) live in the project
 profile `.claude/dev-kit.md`, section `## documentation`, a `| Setting | Value |` table.
 

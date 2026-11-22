@@ -9,13 +9,13 @@ Code: `plugins/dev-kit/scripts/sessions.py`, `plugins/dev-kit/scripts/migrations
 ## Sessions: `dev-kit-sessions`
 
 - `others` lists the other live sessions of the repository, one the owner started included, without reading
-  code. P, and any session through the manager skill, runs it before a task starts; the
-  `dev-kit:overlap-checker` agent then compares them with the task.
+  code; the `dev-kit:overlap-checker` agent then compares them with the task (who runs it and when: the
+  feature, section "No two sessions on the same task").
 - `check` is one round of the watch, run by the Pult watcher each minute for each lead: one line per event
   not delivered yet (gone, finished, limited, stale, fill, restart), marks nothing. The Pult watcher sends the
   lines to the lead as a cross-session message and, once the message reached the lead, runs `mark` for each
-  (`delivered.json`, `limits.json`, `stale.json` or the restart file beside the registry). P wakes only on a
-  task session's report, the owner's message, such an event message, or a keep-warm ping.
+  (`delivered.json`, `limits.json`, `stale.json` or the restart file beside the registry). When P wakes: the
+  feature, section "P wakes only when needed".
 - `watch` is the older background watcher, kept for leads on dev-kit before 0.1.78: silent while its sessions
   live, it exits when one ends, writes the line "Роботу завершено", stops on the usage limit, or has waited
   `--stale-minutes` (20) since its last reply.
@@ -29,7 +29,7 @@ Code: `plugins/dev-kit/scripts/sessions.py`, `plugins/dev-kit/scripts/migrations
 - `add --owner` registers a session the owner started.
 
 Why: the host kills a background watcher after 2 hours, and the leads and Pult were woken only to re-arm
-theirs; the owner approved on 2026-11-20 that no Claude session keeps a watcher (plan «Pult idle cost»). The
+theirs ([measured](../findings/idle-wake-cost.md)); the owner approved on 2026-11-20 that no Claude session keeps a watcher. The
 Pult watcher, which runs outside Claude Code, also brings back task sessions that Claude Code closed
 ([Start leads at logon and heal them](../features/start-leads-at-logon-and-heal-them.md)).
 

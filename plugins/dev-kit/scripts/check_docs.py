@@ -43,8 +43,8 @@ Acceptance criteria, Built in); a Markdown link, a docs path mentioned in text o
 resolve; a backticked path in a feature's "Built in" section or in the tech map that matches nothing.
 Warnings never change the exit code: a feature or tech file over the size limit (silenced by a size-ok
 marker comment with a reason) and a tech map over the map limit.
-Skipped: the skip-dirs, external links, fenced code in Markdown, third-party skills named in the
-skills lock. The docs-path mention rule is skipped for CHANGELOG.md and for a Markdown file containing
+Skipped: the skip-dirs, files that git ignores (.gitignore; all files are read outside a git repository),
+external links, fenced code in Markdown, third-party skills named in the skills lock. The docs-path mention rule is skipped for CHANGELOG.md and for a Markdown file containing
 the comment docs-check: no-path-mentions. A date placeholder such as YYYY-MM-DD cuts a mentioned path.
 
 Order of paths in the output follows the Windows PowerShell culture sort (case-insensitive, punctuation
@@ -681,7 +681,23 @@ class Checker:
             result.extend(f for f in files if file_extension(os.path.basename(f)) in exts)
             if recurse:
                 stack.extend(d for d in dirs if not self._skipped(d))
-        return result
+        return self._without_ignored(result)
+
+    def _without_ignored(self, files):
+        """The files git does not ignore. Without git or outside a repository nothing is dropped."""
+        if not files:
+            return files
+        try:
+            result = subprocess.run(
+                ["git", "-C", self.root, "check-ignore", "-z", "--stdin"],
+                input="\0".join(files) + "\0", capture_output=True, encoding="utf-8", errors="replace", check=False,
+            )
+        except OSError:
+            return files
+        if result.returncode != 0:
+            return files
+        ignored = set(result.stdout.split("\0"))
+        return [f for f in files if f not in ignored]
 
     def subdirs(self, directory):
         _, dirs = self._entries(directory)

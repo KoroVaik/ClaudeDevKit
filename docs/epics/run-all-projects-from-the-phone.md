@@ -17,10 +17,9 @@ exactly the home folder; everywhere else it prints nothing. How to operate it:
 The lead's rules (queue, task sessions, merge) are in the epic
 [Work through a project lead](work-through-a-project-lead.md).
 
-1. At Windows logon, the start script starts each P ("P: Zhratva", "P: Prishch", "P: ClaudeDevKit") as a
-   background session with Remote Control. Its first prompt is `/dev-kit:project-lead`, so P is ready when
-   you open it. You do not start it yourself
-   ([Start leads at logon and heal them](../features/start-leads-at-logon-and-heal-them.md)).
+1. Each P ("P: Zhratva", "P: Prishch", "P: ClaudeDevKit") is up and ready when you open it; you do not
+   start it yourself. How it starts and comes back:
+   [Start leads at logon and heal them](../features/start-leads-at-logon-and-heal-them.md).
 2. On the phone, open the Claude app and pick the session "P: <project>" from the session list. Give P work
    in your own words: "add X", "fix Y". P may show what it understood and ask "так".
 3. P starts a C named "C: <task>". It has no Remote Control, so it does not show in the phone app and
@@ -30,9 +29,9 @@ The lead's rules (queue, task sessions, merge) are in the epic
 5. Ask the "Pult" session for "статус": it also sends you the status page, one HTML file with every
    project's sessions (free, busy or ended) and the open questions from its PROGRESS.md. The page is a
    snapshot: it does not refresh itself. Ask P "що зараз іде?" to see what runs and what waits on you.
-6. After a dev-kit plugin update, a running P keeps the old skill. The watcher notices the new version by
-   itself and restarts each P; each P continues its previous conversation (resumed, not fresh), reloading
-   the skill.
+6. After a dev-kit plugin update, a running P keeps the old skill until it is restarted; each P then
+   continues its previous conversation (resumed, not fresh), reloading the skill. When and how the restart
+   happens: [Start leads at logon and heal them](../features/start-leads-at-logon-and-heal-them.md).
 7. Only urgent events reach your phone: a P pushes when a C crashed or cannot go on without you, a risk to
    data or money, and once when its first question waits on you; Pult pushes when the watcher gave up on a
    server or session (the watcher tells Pult by message; when Pult is down, a running P pushes for it).

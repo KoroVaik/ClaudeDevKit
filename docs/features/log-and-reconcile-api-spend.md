@@ -10,41 +10,31 @@ project and key spent without opening the Console, and the weekly Console check 
 ### One log, one line per call
 The log is one file, `api-calls.jsonl` in the dev-kit folder of the user's `.claude` folder, next to the weekly
 credit-check log `credits.md` (env `DEV_KIT_API_LOG` points elsewhere, for tests or a container). Each call
-appends one JSON object on one line, UTF-8 without BOM, ending in `\n`, written by one append of the whole
-line; the file is never rewritten. A Message Batches run writes one line per succeeded request.
+appends one JSON object on one line, written by one append of the whole line; the file is never rewritten. A
+line holds the time, the project, the API key's Console name, the model, the token counts and the cost. The
+format and every field: [API spend](../tech/api-spend.md). Readers skip a line that is not valid JSON or has no
+valid time, and say how many they skipped.
 
-```json
-{"v": 1, "ts": "2026-11-21T14:03:05Z", "project": "Zhratva", "key": "Zhratva test", "model": "claude-sonnet-5-5", "batch": false, "input": 1234, "output": 567, "cache_write_5m": 0, "cache_write_1h": 0, "cache_read": 0, "cost_usd": null, "source": "AiProviderClient", "request_id": "msg_01..."}
-```
-
-| Field | Value |
-|---|---|
-| `v` | 1 (the format version) |
-| `ts` | UTC time, `YYYY-MM-DDTHH:MM:SSZ` (readers also take fractional seconds or an offset, never a time with no zone); for a batch, when its results were collected |
-| `project` | the repository name (`Zhratva`, `ClaudeDevKit`) |
-| `key` | the API key's name as the Console shows it (Settings, API keys); the weekly check reconciles by it |
-| `model` | the response's `model` field (the model that ran) |
-| `batch` | true for a Message Batches result |
-| `input`, `output` | `usage.input_tokens`, `usage.output_tokens` |
-| `cache_write_5m`, `cache_write_1h` | `usage.cache_creation.ephemeral_5m_input_tokens` / `ephemeral_1h_input_tokens`; with no breakdown, all of `usage.cache_creation_input_tokens` goes to 5m |
-| `cache_read` | `usage.cache_read_input_tokens` |
-| `cost_usd` | dollars from the shared price table, or `null` when the writer computes none |
-| `source` | optional: the program or command that called |
-| `request_id` | optional: the message id or the batch request's custom id |
-
-A missing token field counts as 0. Readers skip a line that is not valid JSON or has no valid `ts`, and say how many they skipped.
+Known limits: `dev-kit-api call` uses only the Messages API, so it writes no line for Message Batches; a
+program that runs Batches from its own call point appends one line per succeeded request itself.
 
 ### Agents call the API only through the client
 An agent calls the API only with `dev-kit-api call`, which sends the request, writes the line and prints the
 answer (rule: `dev-kit:manager`, "Claude API calls"). A project's own program that calls the API from its single
-call point appends the same line itself instead of switching to the client.
+call point appends the same line itself instead of switching to the client; a failed write is a warning and
+never fails the call, since the money is spent. Deny rules on the API host back the rule where the owner added them.
+Why: owner, 2026-11-21: the API credit was spent unseen on the keys of one project; every call is to be logged
+and reconciled weekly. The shared part is the line format and the one file, not a code library, so a project
+keeps its own client where it has one.
+
+Known limits: a project's worker that is not running (Zhratva's home Docker worker, stopped for two weeks on
+2026-11-21) is not joined to the log yet; it keeps its per-call records in its own database until it runs again.
 
 ### Cost from one price table
 The API returns tokens, not dollars. `plugins/dev-kit/api-prices.json` holds the USD per million tokens of each
-model; cache writes cost 1.25 (5 minutes) or 2 (1 hour) times the input price, cache reads the model's own
-price, a batch half of all that, and a model's long-prompt prices apply above its threshold. `dev-kit-api report`
-and `reconcile` compute every line's cost from this table, so a line with `cost_usd: null` still counts; a
-model missing from the table is named, never counted silently as free.
+model, and `dev-kit-api report` and `reconcile` compute every line's cost from this table, so a line with
+`cost_usd: null` still counts; a model missing from the table is named, never counted silently as free. How a
+line is priced (cache, batch and long-prompt rates): [API spend](../tech/api-spend.md).
 
 ### Each project its own key
 Each project calls with its own API key, named in the Console, and the line carries that name, so spend is
@@ -67,6 +57,11 @@ missed (rule: `dev-kit:project-lead`, "API credit check").
 - `plugins/dev-kit/bin/dev-kit-api`
 - `plugins/dev-kit/scripts/api_client.py`
 - `plugins/dev-kit/api-prices.json`
+- `docs/tech/api-spend.md`
 - `plugins/dev-kit/skills/manager/SKILL.md`
 - `plugins/dev-kit/skills/project-lead/SKILL.md`
 - `tools/tests/test_api_client.py`
+
+## Open
+- [ ] Zhratva appends one line per paid call from its own call points (`AiProviderClient` for runtime calls, `tools/ai-api` for `run` and, one line per succeeded request with `batch: true`, `batch-collect`), with no switch of client and no dollars computed there; the key name comes from its config next to the key; handed to `P: Zhratva` as its task; `dev-kit-api report --days 1 --by project` shows it after one cheap call
+- [ ] The owner adds the deny lines `Bash(*api.anthropic.com*)`, `PowerShell(*api.anthropic.com*)` and `WebFetch(domain:api.anthropic.com)` to the user-level `permissions.deny` (all projects at once); whether a leading `*` works in Bash and PowerShell rules is not checked (the hard bans use a middle `*`)

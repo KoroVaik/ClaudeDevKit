@@ -10,12 +10,10 @@ A reviewed entry gets a `Verdict:` line (the project lead's recommendation) and 
 
 ## Pult: own remote client for agents
 
-What: a custom remote interface for agents, maybe an own Claude client app without the extra features and with the missing ones (grouping by project, what waits on me, health). A self-updating status page instead of a chat list is the first step.
-Why: idea from the Pult repo, 2026-11; the phone app's session list does not group by project or show what waits on the owner.
-Cheapest test: one static page that reads `claude agents --json` and the projects' PROGRESS.md files and shows them grouped by project.
-Built (2026-11-16): first step, `plugins/pult/scripts/status-page.py`; the Pult session sends the page on "статус". Still an idea: a page that refreshes itself, and the own client app. Deferred by the owner (2026-11-19): the attached HTML is a snapshot and cannot refresh itself; first decide where a live page lives (served by the PC or published) and how the owner opens it from the phone.
-Merged (2026-11-20, owner's yes): «P status built by a script, with a history of finished tasks»: `dev-kit-sessions` (or the watcher) keeps a status file per project (live sessions, open questions by kind, finished tasks); P pastes its ready lines, and the history is a page. Owner, 2026-11-19: «Чи можна написати скрипт який формуватиме хтмл статус? Відповідно буде видно історію готових задач».
-Verdict (2026-11-20): keep as an idea; owner: yes. Both wait on one open point: where a live page lives and how the phone opens it; the own client app is parked behind that.
+What: a status page that refreshes itself (the built `plugins/pult/scripts/status-page.py` page is a snapshot), built by a script from a status file per project that also keeps a history of finished tasks; then maybe an own Claude client app with grouping by project, what waits on me and health.
+Why: the phone app's session list does not group by project or show what waits on the owner; the attached snapshot goes stale.
+Cheapest test: serve the page from the PC (or publish it) and open it from the phone once; the own client waits on that answer.
+Verdict (2026-11-20): keep as an idea; owner: yes. Both the live page and its task history wait on one open point: where a live page lives and how the phone opens it; the own client app is parked behind it.
 
 ## A manager (C) with its own sub-sessions
 
@@ -30,3 +28,15 @@ What: sessions the project lead starts with `claude --bg` have no `mcp__Claude_B
 Why: owner-approved checks are silently skipped; the lead has no way to run them.
 Cheapest test: start one `claude --bg` session and list its tools for `mcp__Claude_Browser__*`; then decide between a headless scenario route (e.g. Playwright via a web-kit command) or a documented hand-off to a session that has the browser pane.
 Verdict (2026-11-22): complex (web-kit browser route and the lead flow): one C after the owner's yes.
+
+## Retro: decision items reused across projects
+
+What: every retro decision (a "no, the rule is not to blame" too) becomes a local file with a short cause key; another project's retro reads only the list of keys and opens the matching decisions; one that worked in two projects becomes a dev-kit rule and its file is deleted. Needs a way to keep the number of decision files manageable over time.
+Why: owner, 2026-11-21: reuse of experience between projects; today each project's retro starts from its own items only.
+Cheapest test: replay one real case, e.g. a decision of the Zhratva retro, and see whether the ClaudeDevKit retro would have found it by its cause key.
+
+## Retro: one-off items expire
+
+What: an item whose cause was seen once and not urgent expires after about 2 weeks if it does not recur (lost work is fixed at once, never waits).
+Why: first sightings stay as `waiting` items with no end today; the 2-week expiry of one-off causes had no explicit yes (owner, 2026-11-21).
+Cheapest test: count the `waiting` items older than 14 days in the three projects' item folders and see how many the expiry would drop.
