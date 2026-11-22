@@ -46,3 +46,16 @@ Goal (owner, 2026-11-21): a self-sufficient process with the owner's part kept t
 6. The fewer auto-fixes the owner reverts, the more the retro decides by itself (start strict, loosen over time).
 7. Decision items: every retro decision (a «no, the rule is not to blame» too) becomes a local file with a short cause key; another project's retro reads only the list of keys and opens the matching decisions. A decision that worked in 2 projects becomes a dev-kit rule and its file is deleted. A first sighting is only recorded; a fix needs a repeat and a named rule gap; lost work and big spend are fixed on first sight.
 Known weak spot: a project's retro runs only while its P is live; with P closed for days its items, urgent ones too, wait.
+
+## Implementation research (2026-11-22, investigator, for builders; not yet owner-approved where it changes a point)
+- Leads never wake by themselves (`plugins/dev-kit/skills/project-lead/SKILL.md:657-660`: only an owner message, a C report or a watcher event). So a daily or weekly step «started by the lead» does not fire while the owner is silent. Proposed: Pult's watcher runs the no-model `dev-kit-retro scan` daily and sends the lead an event (`plugins/pult/scripts/watch-servers.ps1:748`, `Send-Wake`); the watcher is then the only scanner, which also removes the scan race (`retro.py:155-159` rewrites `state.json` with no lock; Pult's hub already calls `critical`, `hub.md:216`).
+- Only 3 projects have a lead (`plugins/pult/scripts/servers.psd1`: Zhratva, Prishch, ClaudeDevKit). Pult, KnowledgeBase and Zhratva-design-sandbox enable dev-kit with no lead.
+- Every plugin version bump restarts every lead (93 RESTART-LEAD lines in 6 days). Trivial plugin fixes must be batched into one bump; project-rule fixes bump nothing.
+- Leads restart and hand off often: «asked today», «weekly» marks and decision records live in files, not in a lead's memory.
+- Project detection: dev-kit is enabled per project in `<repo>/.claude/settings.json`; map a transcript to its project by the `cwd` of its lines, not the encoded folder name (`retro.py:188,584`). The per-project state folder from `dev_kit_state.py` (`~/.claude/dev-kit/<name>-<hash>/`) avoids name clashes (Zhratva vs Zhratva-design-sandbox); builders may put the item folders there instead of under `retro/`.
+- The scan gives only mechanical lines; the cause key (item id) is made by the reviewer.
+- A background review session starts only when the scan finds new lines for that project, so idle days cost nothing.
+- `trials.md` does not exist yet; the spend-trial flow is only wording in `skills/retro/SKILL.md`.
+- `dev-kit:edit-rules` step 3 asks the owner for a yes; the trivial-fix lane needs one line there.
+- Not checked: how long Claude Code keeps old transcripts (the post-change check relies on them).
+- Rough split: 1 scan (lock, project mapping, per-project split and done; small), 2 retro skill rewrite (medium), 3 project-lead per-project retro, weekly list, urgent path, trivial auto-apply (medium), 4 Pult watcher trigger (small-medium), 5 remove trials, code bugs to project backlog (small). 1, 2 and 4 can ship alone; 3 needs 1 and 2.
