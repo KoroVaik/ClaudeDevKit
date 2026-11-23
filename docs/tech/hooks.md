@@ -17,6 +17,14 @@ and size checks. Any error in the hook lets the command run (no `onFailure: bloc
 the shell. On other systems it does nothing. The rule the user sees:
 [Stop the known Windows shell traps](../features/stop-the-known-windows-shell-traps.md).
 
+## Long commands (dev-kit, PreToolUse on the `Bash` and `PowerShell` tools)
+
+`plugins/dev-kit/hooks/long-commands.py` runs before each shell command and denies a known long one unless the
+call sets `run_in_background`. It adds up the waits (`sleep`, `Start-Sleep`, `timeout /t`) in command position and
+reads the rows of the profile's `## long commands` section. It cuts heredoc bodies out with the windows-traps
+reader, so text in a file body or a commit message is not a command. Any error lets the command run. The rule the
+user sees: [Run long commands in the background](../features/run-long-commands-in-the-background.md).
+
 ## Owner session note (dev-kit, UserPromptSubmit)
 
 `plugins/dev-kit/hooks/owner-session-note.py` runs at each of the owner's messages and checks whether the

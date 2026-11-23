@@ -22,6 +22,7 @@ approved by the owner on 2026-11-19.
 | Play a recipe as a user | Feature: a scripted recipe of play run in the editor, with a report. | - |
 | Start leads at logon and heal them | Feature: the Pult hub starts the leads at Windows logon and brings a dead one back. | - |
 | Stop the known Windows shell traps | Feature: a shell command with a known Windows trap is stopped before it runs, with the working form named. | - |
+| Run long commands in the background | Feature: a known long command run in the foreground is refused, so the owner can still talk to the session. | - |
 | Log and reconcile API spend | Feature: every paid API call leaves one line in one local log, and a weekly check compares the log with the Console. | - |
 | Fix agent problems in the retro | Feature: each project's problems of agent work are collected and fixed by a background retro session; the owner decides only the few that are his. | - |
 | State cost as a share of the weekly limit | Feature: agents state the cost of subscription work as a share of the weekly limit, never in dollars. | - |

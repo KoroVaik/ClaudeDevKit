@@ -14,6 +14,8 @@ project facts. Code: `plugins/dev-kit` (the profile is read by its skills, agent
   `copy` or `link` (a junction to the main checkout's folder). A `| Setting | Value |` table there holds
   `migrations applied`: the last entry of `plugins/dev-kit/migrations.md` the project has applied (written
   by `dev-kit-migrations record`).
+- `## long commands` - optional table `| Pattern | Why |`: Python regexes of the project's long commands, refused in
+  the foreground ([feature](../features/run-long-commands-in-the-background.md)).
 - `## documentation` - table `| Setting | Value |` for the docs check (code folders, scanned folders, size
   limits); the setting names are listed in `plugins/dev-kit/scripts/check_docs.py`.
 
