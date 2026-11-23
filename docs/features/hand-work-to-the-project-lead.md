@@ -21,7 +21,7 @@ answer): it is shown in full as the last thing in the message, with no closing l
 answers it; the next critical question is shown the same way only after you answer the first. The full
 list also opens the start status of a fresh P session, but not the one after a plugin-update restart
 (same chat, you saw the questions); the list ends with the question itself when it is the only one, or
-«Приймаєш усі мої рекомендації?» when several are listed. A bare «так» or «ні» answers P's last line;
+«Приймаєш усі мої рекомендації?» when several are listed. With more than 3 open questions the list shows only 2 at a time, with «ще N питань» for the rest, and the next 2 come after you answer. A bare «так» or «ні» answers P's last line;
 P never asks back which one you meant.
 You can still answer by number («1 так, 3 ні»). P writes at once on each event, only
 what changed; the other sessions still at work share one last line «ще працюють: «A», «B»». After a plugin-update restart, or when Claude Code demands a reply where P has nothing new,

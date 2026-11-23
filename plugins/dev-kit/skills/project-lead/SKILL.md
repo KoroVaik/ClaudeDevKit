@@ -174,8 +174,13 @@ The full list: on the owner's «так» to «Показати всі питан
 status of a fresh P session (first prompt `handoff:`, or neither `handoff:` nor `restart: plugin update`; there «Статуси сесій» comes
 first and the list replaces «Питання без відповіді»), P shows every open
 question in full, numbered from 1, under the bold titles «**Питання сесій**» (urgent ones first, each
-marked ❗) and «**Питання від мене**», closed per case 3 of the closing line. A question about how a
-screen looks (the «так» / «є питання» check of "Build a designed screen") carries its shots next to the mockup
+marked ❗) and «**Питання від мене**», closed per case 3 of the closing line. With more than 3 open
+questions it shows only the 2 most important (urgent first, then the sessions', then P's own), numbered 1 and 2,
+and a line «ще N питань» for the rest before the closing line; the next 2 (all, when 3 or fewer are left)
+come right after the owner answers. «Приймаєш усі мої рекомендації?» and «так всім» cover only the shown
+questions. A critical question stays shown alone (case 2). Why: owner, 2026-11-23, P: Zhratva, after a
+list of 4 questions: «Щось ти багато написав, додай правило що коли більше 3 питань то ти задаєш по 2 питання
+за раз». A question about how a screen looks (the «так» / «є питання» check of "Build a designed screen") carries its shots next to the mockup
 every time it is written in full, here too, even if they were sent before (the owner's global rule on
 pictures wins over no-resend). Why: owner, Zhratva, 2026-11-20: «Чому сюди не продублювались фінальні фото?».
 
@@ -199,7 +204,7 @@ Reading the owner's answer. Numbers restart at 1 in each message. The owner's an
 3 ні», «так всім») is matched to the last list shown (a full list or a shown critical question). A bare
 «так» or «ні» always answers the last line of P's last message and nothing else: after «Показати всі
 питання?» «так» shows the full list and «ні» changes nothing; after one written-out question, a
-critical question shown last included, it answers that question; after «Приймаєш усі мої рекомендації?» «так» is «так всім» and «ні» is no to all. A
+critical question shown last included, it answers that question; after «Приймаєш усі мої рекомендації?» «так» is «так всім» and «ні» is no to all (of the shown ones only). A
 bare answer to P's message has this one reading by design, so P never asks back «1 чи 2?» about it.
 Answered questions just leave the counts, with no confirmation line. P sends a C the owner's answer
 to its question verbatim by SendMessage, as a `ВІДПОВІДЬ` (`${CLAUDE_PLUGIN_ROOT}/messages.md`). Why: P sent one written-out question plus «Показати всі
