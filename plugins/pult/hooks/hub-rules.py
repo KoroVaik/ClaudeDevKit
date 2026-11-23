@@ -1,6 +1,7 @@
 """SessionStart hook: give the Pult hub rules to a session that runs in the home folder.
 
-The plugin is enabled at user scope, so this hook runs in every session on the machine. It stays silent unless the
+This hook runs in every session on the machine (plugins/dev-kit/claude-facts.md, "A `SessionStart` hook of a
+user-scope plugin runs in every session on the machine"). It stays silent unless the
 session's cwd is exactly the home folder (a project folder under home gets nothing). The rules are `rules/hub.md`;
 `{PLUGIN}` in them is replaced with this plugin's folder, `{VERSION}` with its version (`.claude-plugin/plugin.json`,
 `unknown` when unreadable) and `{DEVKIT}` with the dev-kit plugin's folder (a sibling

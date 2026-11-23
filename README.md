@@ -46,9 +46,9 @@ standard: the `dev-kit:documentation` skill (`plugins/dev-kit/skills/documentati
 
 ## After enabling a plugin
 
-The install rewrites `.claude/settings.json`; check that existing hook fields (e.g. `onFailure`)
-survived. Projects load the plugins in place from this folder (`claude plugin list --json` shows
-`readFromFolder` and `folderVersion`), so a change reaches every project at its next session start;
-no `claude plugin update` is needed. The `version` that the list and `installed_plugins.json` show only
-records the install and may lag behind. A session that was already running sees a new agent or skill
-only after `/reload-plugins`.
+Check that existing hook fields (e.g. `onFailure`) in `.claude/settings.json` survived the install
+(`plugins/dev-kit/claude-facts.md`, "Plugin install rewrites `.claude/settings.json`"). Projects load the
+plugins in place from this folder, so a change reaches every project at its next session start; no
+`claude plugin update` is needed (`plugins/dev-kit/claude-facts.md`, "Plugins load in place from the repo folder;
+the shown version only records the install"). Run `/reload-plugins` in a session that was already running
+(`plugins/dev-kit/claude-facts.md`, "A running session sees a new agent or skill only after `/reload-plugins`").

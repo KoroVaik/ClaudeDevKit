@@ -1,8 +1,8 @@
 # Helpers for start-servers.ps1 (ASCII only; dot-source to test).
 
 # Full sessionId of the newest background session with this exact name and folder, or $null.
-# Works for stopped and finished sessions: `claude --bg --resume <sessionId>` with no other flags
-# wakes it under the same id with its saved options (name, Remote Control, model, permission mode).
+# Works for stopped and finished sessions: `claude --bg --resume <sessionId>` wakes it under the same id
+# (plugins/dev-kit/claude-facts.md, "`claude --bg --resume <id>` with any other flag starts a copy").
 function Get-ResumeSessionId([string]$Name, [string]$Path, $Sessions) {
     if ($null -eq $Sessions) {
         $Sessions = claude agents --json --all | Out-String | ConvertFrom-Json
@@ -18,8 +18,8 @@ function Get-ResumeSessionId([string]$Name, [string]$Path, $Sessions) {
 }
 
 # The note a lead gets after the skill name in its first prompt when it was restarted for a plugin
-# update (the project-lead skill, "Restart for a plugin update"). No double quotes: Windows
-# PowerShell cuts an argument passed to a native command at its first double quote.
+# update (the project-lead skill, "Restart for a plugin update"). No double quotes
+# (plugins/dev-kit/claude-facts.md, "Windows PowerShell 5.1 cuts a prompt at the first double quote").
 $RestartNote = 'restart: plugin update'
 
 # The word that, followed by the handoff file name, ends the first prompt of a lead started for a handoff (the
@@ -43,7 +43,7 @@ function Get-LeadStartArgs([string]$SessionName, [string]$SessionId, [switch]$Re
     }
     if ($SessionId) {
         if ($Restarted) { $Prompt += ' ' + $RestartNote }
-        # No flags besides the prompt: any flag makes claude start a copy instead of waking this one.
+        # No flags besides the prompt (plugins/dev-kit/claude-facts.md, "`claude --bg --resume <id>` with any other flag starts a copy").
         return @('--bg', '--resume', $SessionId, '--', $Prompt)
     }
     return @('--bg', '--remote-control', $SessionName, '--name', $SessionName,
@@ -53,10 +53,8 @@ function Get-LeadStartArgs([string]$SessionName, [string]$SessionId, [switch]$Re
 # Process ids of a background session that still runs: its pty host and its worker. Both command lines
 # hold the full session id (`--session-id <id>`, or `--resume <transcript folder>\<id>.jsonl` once resumed;
 # the job's short id in the pty pipe name may differ from the id's first 8 characters). A copy forked from
-# it (`--fork-session`) is another session and is left out. After `claude stop`, `claude agents` drops the
-# pid about a second before these exit; a `claude --bg --resume` in that gap says "already running" and
-# starts a copy without the saved flags (default model and mode). Checked live 2026-11-19: 2 copies in 3
-# resumes right after the pid left the list.
+# # it (`--fork-session`) is another session and is left out. After `claude stop` the processes outlive the
+# pid in `claude agents` (plugins/dev-kit/claude-facts.md, "A just-stopped session keeps its processes for about 1 s").
 function Get-SessionProcessIds([string]$SessionId, $Processes) {
     if (-not $SessionId) { return @() }
     if ($null -eq $Processes) { $Processes = Get-CimInstance Win32_Process -Filter "Name = 'claude.exe'" }
@@ -76,7 +74,8 @@ function Wait-SessionGone([string]$SessionId, [int]$TimeoutSec = 60) {
 }
 
 # The short id of the copy `claude --bg --resume` started instead of waking the session, from its note
-# "... is already running in the background, so this started a copy as <id>. ...", else $null.
+# "... so this started a copy as <id>. ..." (plugins/dev-kit/claude-facts.md, "A just-stopped session keeps its
+# processes for about 1 s"), else $null.
 function Get-ResumeCopyId([string]$Output) {
     if ($Output -match 'started a copy as ([0-9a-f]{8})') { return $Matches[1] }
     return $null
@@ -89,7 +88,8 @@ $LeadEffort = 'medium'
 $LeadPermissionMode = 'bypassPermissions'
 
 # A resumed session takes its model and permission mode from the saved options of its job
-# (~/.claude/jobs/<short id>/state.json, "respawnFlags"). Set --model, --effort and --permission-mode
+# (~/.claude/jobs/<short id>/state.json, "respawnFlags"; plugins/dev-kit/claude-facts.md, "`claude --bg --resume <id>`
+# with any other flag starts a copy"). Set --model, --effort and --permission-mode
 # there before resuming, so the lead wakes on $LeadModel / $LeadEffort (or -Model / -Effort) and in
 # $LeadPermissionMode. Returns $true when the file was changed.
 function Set-LeadRespawnModel([string]$SessionName, [string]$SessionId, [string]$JobsDir,
@@ -128,8 +128,8 @@ function Get-AddBansCommand([string]$ProjectPath) {
 # and no fallback. A lead starts only when the settings committed on main of its project hold the
 # hard-ban deny rules for both shells (a Bash and a PowerShell deny line of the hard-ban set: git push,
 # rm -rf / Remove-Item, docker) and the owner has accepted the bypass disclaimer on this machine
-# (skipDangerousModePermissionPrompt in the user settings; without it `claude --bg` with
-# bypassPermissions exits 1). Returns @{ Start; Mode; Reason }: Start $true and Mode bypassPermissions when
+# (skipDangerousModePermissionPrompt in the user settings; plugins/dev-kit/claude-facts.md, "`claude --bg` with
+# `bypassPermissions` fails until the owner accepts a disclaimer once"). Returns @{ Start; Mode; Reason }: Start $true and Mode bypassPermissions when
 # the gate passes, else Start $false, Mode empty and the reason: the lead is then not started and the owner is
 # told (start-servers.ps1: NO-BANS).
 function Get-LeadPermissionMode([string]$Path, [string]$UserSettings) {

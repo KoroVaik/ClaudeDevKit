@@ -1,6 +1,8 @@
 # Own docs of Claude quirks and workarounds across apps
 
-Status: discussion done, plan approved by the owner (2026-11-23); next a C builds it.
+Status: built by a C (2026-11-23); waits for P's merge.
+
+Spend: ~1.1% of the weekly limit, estimate; API: 0 USD
 
 ## Owner's words
 
@@ -44,3 +46,13 @@ Agreed points in detail:
   - Re-check: weekly in the ClaudeDevKit retro and after the Claude Code version changes; the facts agent re-runs only checks that are safe (no phone push, no paid API, no owner app); a failed re-check marks the fact `doubtful`, and agents treat a doubtful fact as a hypothesis.
   - How agents find it: one line in the owner's global `C:/Users/korov/.claude/CLAUDE.md`, in its own form «Before <action>, read <path>»: before relying on how a Claude app behaves (sessions, Remote Control, background runs, hooks, desktop or phone app), read the matching section of `C:/Users/korov/MyRepositories/ClaudeDevKit/plugins/dev-kit/claude-facts.md`. Why there: it is loaded in every session and subagent on the machine, every project and the home folder included; dev-kit has no rule text loaded in every session (its hooks inject none at start, checked in `plugins/dev-kit/hooks/hooks.json`), and a skill line reaches only sessions that run that skill. The file opens with a short "how to use" part: find the section, trust `checked`, treat `doubtful` as a hypothesis, report a new quirk by the one-line command. Edited through `dev-kit:edit-rules`.
 - Facts only the owner can check (phone push arrived, what the phone app shows): the project lead `P: ClaudeDevKit` brings the doubtful ones to the owner as one batch at most once a week. A doubtful fact is dropped from the batch when a session meanwhile adds a fresh observation of it (through the same collection route) and the facts agent settles it from that (owner: «або ж інша сесія внесе факт по цьом питанню, а так ок», 2026-11-23).
+
+## Built (2026-11-23)
+
+- `plugins/dev-kit/claude-facts.md`: 80+ entries moved in from skills, Pult rules and scripts, web-kit docs and the owner's `tools.md` / `fable-subagents.md`; each old place keeps its rule and points to the entry by exact title. `plans/` and `docs/findings/` stay as sources. The 2026-11-23 Remote Control facts of `plans/push-noise.md` are in.
+- `plugins/dev-kit/agents/facts-keeper.md`: the only writer (sonnet); adds candidates, re-checks only safe checks, returns at most 5 owner-only questions.
+- `retro.py`: kind `claude app` (failed SendMessage, refused Agent / session start) routed to ClaudeDevKit from every transcript; `updated <old> -> <new>` on a version rise; `weekly re-check due` once in 7 days. Tests in `tools/tests/test_retro.py`.
+- `retro` skill step 4 hands these lines to the facts keeper after `EnterWorktree`; owner-only questions go to item `claude-facts-owner-check` (disputed) for P's weekly question; P passes answers back with `dev-kit-retro add ... "owner check ..."`.
+- Owner's global `CLAUDE.md`: section "Claude app facts" (local git commit done). Feature doc `docs/features/keep-claude-app-facts.md`.
+- Versions: dev-kit 0.1.105 (routine mark), pult 0.1.23, web-kit 0.4.1, unity-kit 0.2.2.
+- Left for the push-noise C: project-lead "Start a C" still says a C without `--remote-control` gets no RC push (its Why line); the facts file already has the new behaviour.

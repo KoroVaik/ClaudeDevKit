@@ -28,7 +28,7 @@ Code: `plugins/dev-kit/scripts/sessions.py`, `plugins/dev-kit/scripts/migrations
   question), so the lead never asks him what he already answered there.
 - `add --owner` registers a session the owner started.
 
-Why: the host kills a background watcher after 2 hours, and the leads and Pult were woken only to re-arm
+Why: the host kills a background watcher after a cap ([Claude facts](../../plugins/dev-kit/claude-facts.md), "The host kills a background Bash run after 2 hours"), and the leads and Pult were woken only to re-arm
 theirs ([measured](../findings/idle-wake-cost.md)); the owner approved on 2026-11-20 that no Claude session keeps a watcher. The
 Pult watcher, which runs outside Claude Code, also brings back task sessions that Claude Code closed
 ([Start leads at logon and heal them](../features/start-leads-at-logon-and-heal-them.md)).

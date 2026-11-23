@@ -25,8 +25,8 @@ the defaults here.
 ## Roles
 
 The main session (the one the owner talks with) decides, writes briefs, makes small spec edits, commits and
-writes the message to the owner. It never opens a PNG itself: in the phone app every image it reads shows in
-the owner's chat, unnumbered next to the set. The evidence is the designer's verdict and the size `web-kit-shot`
+writes the message to the owner. It never opens a PNG itself: every image it reads shows in
+the owner's chat (`plugins/dev-kit/claude-facts.md`, "Every image the main session opens shows in the owner's phone chat"). The evidence is the designer's verdict and the size `web-kit-shot`
 prints; a shot that may be cut off, empty or illegible goes to `web-kit:shot-taker`, which opens it and reports.
 Why: owner, Zhratva, 2026-11-20: a spot-check picture reached the chat beside a numbered set of two. Agents
 run one after another, with the full brief each time (they remember nothing).
@@ -104,8 +104,8 @@ remarks outrank the mockup walk.
   бачив" or "on the earlier shots" about anything not on screen in this message. For this case the rule wins
   over the global question format (no bracket example, no batch of text questions, no "Рекомендую" list) and
   over every no-resend rule (the global "never re-send", "One set per answer" in browser-checks.md).
-- **Delivery.** A board goes as a file attachment (in Claude Code: `SendUserFile` with `display: render`);
-  one click opens it in the built-in browser, and the page carries its styles inside, so send the file from
+- **Delivery.** A board goes as a file attachment (in Claude Code: `SendUserFile` with `display: render`; how it opens: `plugins/dev-kit/claude-facts.md`, "A board sent with
+  `SendUserFile` and `display: render` may not show as a page"), and the page carries its styles inside, so send the file from
   the mockups folder as it is. Do not open the browser pane yourself. Shots go **one `SendUserFile` call
   per image**, each with its own numbered caption naming what differs on screen; never one call or one
   shared caption over several images (close-ups and whole-page shots too). The one exception: a mockup and

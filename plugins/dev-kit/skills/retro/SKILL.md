@@ -32,7 +32,9 @@ their evidence.
 
 ## 1. Check every finding
 
-One `dev-kit:reviewer` (model sonnet) checks the new findings; brief it to stop and report after 30 minutes. Give
+One `dev-kit:reviewer` (model sonnet) checks the new findings (in ClaudeDevKit not the `claude app` lines and the
+added `claude app:` and `owner check` lines: step 4 hands them to the facts keeper); brief it to stop and report
+after 30 minutes. Give
 it the `items` output (the new findings and the list of existing cause keys), the transcripts folder
 (`~/.claude/projects/<project folder>/`, a session's file is `<id>.jsonl`, the 8 hex characters in brackets after a
 title are the start of the id, subagent files are in `<id>/subagents/`), this project's main checkout (its
@@ -98,9 +100,19 @@ A recurrence counts separate sessions or days: a lead and its own subagents are 
 Before the first edit, call `EnterWorktree` (name `retro-<YYYY-MM-DD>`): writes into the main checkout are blocked.
 Each trivial fix goes through `dev-kit:edit-rules` steps 4-6 (the reviewer did steps 1-2; the trivial lane is
 that skill's exception to step 3), and each removes or merges something as the reviewer named. In ClaudeDevKit,
-bump the plugin version once for the whole run, with its release mark (`.claude/dev-kit.md`). Commit
+bump the plugin version once for the whole run, with its release mark (`.claude/dev-kit.md`); the facts keeper's
+edits go in the same commit and alone need no bump. Commit
 in the worktree; the lead merges it. The owner sees every trivial fix in the weekly list, where any one is reverted
 with one word.
+
+In the ClaudeDevKit retro, after `EnterWorktree`, one `dev-kit:facts-keeper` (model sonnet) gets the `claude app`
+lines (the scan routes them here from every project) and the added `claude app:` and `owner check` lines as
+candidates and writes `plugins/dev-kit/claude-facts.md` in the worktree; it runs even when the run has no other
+fix. Its brief also says "re-check", with `claude --version`, when a line reads `updated <old> -> <new>` or `weekly
+re-check due`, or the file's `Last re-check:` line is `none yet`. The owner-only questions it returns replace the
+body of the item `items/claude-facts-owner-check.md` (`status: disputed`, `kind: owner check`, its Було /
+Виправлення lines one plain question per fact), so they reach the owner in P's weekly question; with none, the
+item gets `status: fixed`.
 
 ## 5. Close
 

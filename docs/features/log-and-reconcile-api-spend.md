@@ -38,7 +38,7 @@ line is priced (cache, batch and long-prompt rates): [API spend](../tech/api-spe
 
 ### Each project its own key
 Each project calls with its own API key, named in the Console, and the line carries that name, so spend is
-known per key and per project. The client reads the key from env `DEV_KIT_API_KEY`, never `ANTHROPIC_API_KEY`: a headless `claude -p` bills that one with no line.
+known per key and per project. The client reads the key from env `DEV_KIT_API_KEY`, never `ANTHROPIC_API_KEY` ([Claude facts](../../plugins/dev-kit/claude-facts.md), "A headless `claude -p` bills `ANTHROPIC_API_KEY` if it is set").
 
 ### The weekly check reconciles per key
 The project lead of the plugin repo reads the Console's spend per key for 30 days once a week and runs

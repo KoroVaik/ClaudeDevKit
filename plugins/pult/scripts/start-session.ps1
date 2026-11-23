@@ -1,6 +1,6 @@
 # Starts a background session with Remote Control in a project folder, with a long first prompt
-# read from a file. Windows PowerShell 5.1 does not escape double quotes inside an argument to a
-# native program, so a prompt with " was cut at the first quote. This script escapes them.
+# read from a file. A prompt with " is cut at the first quote (plugins/dev-kit/claude-facts.md,
+# "Windows PowerShell 5.1 cuts a prompt at the first double quote"). This script escapes them.
 # Usage: start-session.ps1 -Name 'C: <task>' -Path <project folder> -PromptFile <file>
 #        [-Model opus] [-Effort medium]   (sessions the owner talks with run on Opus, medium)
 
@@ -31,8 +31,8 @@ if (-not $gate.Start) {
 }
 Push-Location $Path
 try {
-    # Capture all output first: `| Select-Object -First 1` cut the pipe and left exit code -1 or 255
-    # although the session had started.
+    # Capture all output first (plugins/dev-kit/claude-facts.md, "`| Select-Object -First 1` on a native command
+    # leaves a wrong exit code").
     $said = @(claude --bg --remote-control $Name --name $Name --permission-mode $LeadPermissionMode --model $Model `
         --effort $Effort -- (ConvertTo-NativeArg $prompt) 2>&1 | ForEach-Object { "$_" })
     $code = $LASTEXITCODE

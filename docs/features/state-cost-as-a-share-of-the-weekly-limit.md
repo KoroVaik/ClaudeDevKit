@@ -10,8 +10,8 @@ that are not billed. Real API money stays in dollars.
 ### Subscription work is a share of the weekly limit, marked as an estimate
 An agent states the cost of its own work (sessions, subagents, `claude -p` on the subscription login) as «~2%
 тижневого ліміту, оцінка» (in English «~2% of the weekly limit, estimate»), never in USD. The uncertainty (about a
-third) is carried by the word «оцінка», not by a number. Claude Code's own dollar figure (`/cost`, `costUSD`) prices
-tokens at API rates; it is never quoted, labelled or not. A task file's spend line has the same form.
+third) is carried by the word «оцінка», not by a number. Claude Code's own dollar figure (`/cost`, `costUSD`) is never quoted, labelled or not
+([Claude facts](../../plugins/dev-kit/claude-facts.md), "Claude Code's own USD figure prices tokens at API rates"). A task file's spend line has the same form.
 Why: owner, 2026-11-21: the retro counts tokens closely enough to state cost in per cent of the subscription.
 
 ### Real money stays in dollars, apart
@@ -28,7 +28,7 @@ The status line script `dev-kit-statusline` shows «тиждень: N%» and log
 parallel sessions) when it rises. The retro refits the weekly limit in units from windows of the last 28 days with
 at least 10 points; with fewer it keeps the last value. Manual `/usage` readings are no longer needed.
 Why: owner, 2026-11-21: «треба подумать як краще відкалібрувать витрати»; the status line JSON carries the weekly
-per cent of subscribers, so no typing of `/usage`.
+per cent ([Claude facts](../../plugins/dev-kit/claude-facts.md), "The status line JSON holds the subscription limits"), so no typing of `/usage`.
 
 ## Acceptance criteria
 - An agent reports its task: the report says «~N% тижневого ліміту, оцінка», no dollar figure of `/cost`.

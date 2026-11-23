@@ -14,7 +14,7 @@ import sys
 import time
 from pathlib import Path
 
-# Layout of the desktop app data checked on 2026-11-15.
+# Layout of the desktop app data: plugins/dev-kit/claude-facts.md, "Desktop app data layout".
 DESKTOP_DIR = Path(os.environ.get("DEV_KIT_DESKTOP_SESSIONS_DIR") or
                    Path.home() / "AppData" / "Local" / "Claude-Data" / "claude_pzs8sxrjxfjjc" / "claude-code-sessions")
 DESKTOP_GLOB = "*/*/local_*.json"  # <accountUuid>/<orgUuid>/local_<id>.json

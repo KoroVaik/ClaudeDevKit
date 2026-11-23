@@ -32,12 +32,17 @@ with a line `## project-lead`. A transcript belongs to the project of the `cwd` 
 git fails, a deleted worktree, the path is cut at `/.claude/worktrees/` and the part before it is the checkout).
 Only the findings of retro projects are routed: transcripts of other projects (the home folder, Pult, a project with
 no lead) are still read for the token statistics, the spend tables and `critical`, which stay global, and their
-findings stay in `scan-<date>.md` only. The findings of a session whose title starts with `Ретро:` (a retro session)
+findings stay in `scan-<date>.md` only. One exception: the `claude app` findings (see Kinds) of every transcript, a
+project with no lead, Pult and the home folder included, go to the retro project named `ClaudeDevKit` (found by its
+repository folder name among the known retro projects and this scan's projects, never by the place of this script) and
+not to the project of their transcript; with no such project they stay in the log. The findings of a session whose title starts with `Ретро:` (a retro session)
 or `Документація:` (the weekly docs session) and of its subagents are dropped everywhere (log included), so the retro
 never feeds on these hook-started sessions; their token statistics still count.
 
 Folders: the retro folder is env DEV_KIT_RETRO_DIR, else `~/.claude/dev-kit/retro` (local, outside any repository).
-It holds the global `state.json` (byte offsets, token statistics, the fitted weekly limit), `scan.lock`, the human
+It holds the global `state.json` (byte offsets, token statistics, the fitted weekly limit, `claude_version`: the
+highest Claude Code version seen in the transcripts, a string like `2.1.330`; `facts_recheck`: the day of the
+last weekly facts re-check line), `scan.lock`, the human
 log `scan-<date>.md` (all findings of a full scan and the `## Spend` tables) and the owner's `notes.md`. Each project
 has `<retro folder>/<repo-folder-name>-<10 hex>/` (`dev_kit_state.folder_name`, the name of its state folder) with:
 - `new/`: findings no review has seen, one file per writer and run, never shared: `scan-<date>-<HHMMSS>.md` (full
@@ -79,7 +84,8 @@ per-transcript kinds and token statistics (merged into the global state), no cro
 priority lines, no notes; its findings go to one `new/<date>-<id8>-<HHMMSS>.md` and are appended to `scan-<date>.md`;
 nothing found, no file.
 
-`items` prints: the folder path; `last review: <local date and time of last_review, or never>`; the new findings of
+`items` prints: the folder path; `last review: <local date and time of last_review, or never>`; `claude code:
+<claude_version>` when the global state has it; the new findings of
 `new/` (token problems first, under "Priority"); one line per
 `items/*.md` file `<cause-key> | <status> | <kind> | sightings <N>` (N = the lines starting `- seen:`); and `trivial
 fixes in the last 7 days: <N> of FIXES_PER_WEEK` (the `- fix:` lines marked trivial and dated in the last 7 days, today
@@ -118,6 +124,18 @@ Kinds, per transcript and per scan window (the subagents of one type in one sess
 - `slow call`: a tool result that came SLOW_CALL_MIN or more minutes after its call (tools that wait on the owner
   by design, WAITING_TOOLS, are left out);
 - `long pause`: SLOW_MODEL_MIN or more minutes between a tool result and the next assistant message;
+- `claude app`: the Claude app itself failed a call, found by the tool's name, never by text (the same words stand in
+  docs and plans): a `SendMessage` result whose JSON text has `"success": false` (not marked as an error: no such
+  agent, a session not active, not delivered) or an error result of `Agent` or a session start tool
+  (APP_START_TOOLS: a subagent limit, an unknown agent type, a refused folder). No threshold; ids are replaced
+  (`cse_<id>`) and one line per distinct tool and text with `x<count>` when repeated, detail `<tool>[ x<N>]: <text>`.
+  Results with APP_SKIP (`Re-send with the ref`, a one-time confirm, a hook error: normal flow or the project's own
+  hook) are left out; lines older than the previous scan (a resumed session copies them) are not counted. Routed to
+  ClaudeDevKit (see above). The full scan also reads `version` of every line (the highest of the scan, before
+  anything else is read) and, when it is higher than `claude_version` of the global state, stores it and adds
+  `- ClaudeDevKit | - | claude app | updated <old> -> <new>` (the first run stores it with no line);
+  once in 7 days (global state `facts_recheck`, the day of the last one) it also adds
+  `- ClaudeDevKit | - | claude app | weekly re-check due`, so the ClaudeDevKit retro starts and re-checks the facts;
 and across transcripts:
 - `script candidate`: the same Bash command of SCRIPT_MIN_CHARS or more in SCRIPT_SESSIONS or more sessions (subagents
   count with their session).
@@ -247,6 +265,15 @@ WAITING_TOOLS = {"AskUserQuestion"}
 OWN_COMMAND = "dev-kit-"  # the plugin's own commands, run by its rules at fixed moments (P's checks)
 SCRIPT_MIN_CHARS = 30  # shorter Bash commands (git status, ls) are not worth a script
 DETAIL_CHARS = 160
+CLAUDE_APP_KIND = "claude app"  # a finding about the Claude app itself, not about the session: routed to DEVKIT_NAME
+DEVKIT_NAME = "claudedevkit"  # the retro project (lower-case repository folder name) that gets every `claude app` line
+APP_SEND_TOOLS = {"SendMessage"}  # a failure is a JSON result with "success": false, not marked as an error
+APP_START_TOOLS = {"Agent", "mcp__ccd_session__start_session", "mcp__ccd_session__hand_off_to_session",
+                   "mcp__ccd_session__spawn_task", "mcp__ccd_session__move_to_cloud"}  # a refusal is an error result
+APP_SKIP = re.compile(r"Re-send with the ref|needs a one-time confirm|hook error")  # normal flow, the project's own hook
+APP_IDS = ((re.compile(r"\b(cse|local)_[\w-]+"), r"\1_<id>"), (re.compile(r"cc-msg-\w+"), "cc-msg-<id>"),
+           (re.compile(r"\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b", re.IGNORECASE), "<id>"))
+# ids and hashes of a failure text, replaced so that the same failure of two sessions or two calls is one line
 WEIGHTS = {"input": 1, "output": 5, "cache_read": 0.1, "cache_5m": 1.25, "cache_1h": 2}
 MODEL_WEIGHTS = {"opus": 1.5, "sonnet": 1, "haiku": 1 / 3}  # matched as a part of the model id; Opus set from the
 # owner's subscription meter (`/usage`, two 5-hour windows on 2026-11-19/20, fit 1.2-1.8), docs/findings/token-weights-and-weekly-limit.md
@@ -616,8 +643,52 @@ def close_turn(turn, days):
         day_row(days, turn["msgs"][0]["stamp"])["wakes"] += 1
 
 
+def result_text(block):
+    """The text of a tool result block (a string, or a list of text blocks)."""
+    content = block.get("content")
+    if isinstance(content, str):
+        return content
+    if isinstance(content, list):
+        return "\n".join(str(part.get("text") or "") for part in content
+                         if isinstance(part, dict) and part.get("type") == "text")
+    return ""
+
+
+def app_error(name, block):
+    """The text of a failure of the Claude app in a tool result (see `claude app` in the module doc), with its ids
+    replaced and cut to DETAIL_CHARS; None for any other result. Matched by the tool's name, never by the text: the same
+    words stand in docs, plans and the output of other tools."""
+    if name in APP_SEND_TOOLS:
+        try:
+            data = json.loads(result_text(block))
+        except ValueError:
+            return None
+        if not isinstance(data, dict) or data.get("success") is not False:
+            return None
+        text = data.get("message") or data.get("display")
+    elif name in APP_START_TOOLS and block.get("is_error"):
+        text = result_text(block)
+    else:
+        return None
+    text = " ".join(re.sub(r"</?tool_use_error>", "", str(text or "")).split())
+    if APP_SKIP.search(text):
+        return None
+    for pattern, replacement in APP_IDS:
+        text = pattern.sub(replacement, text)
+    return short(text or "(no text)")
+
+
+def version_of(value):
+    """A Claude Code version string like `2.1.330` as a tuple of numbers, or None."""
+    try:
+        return tuple(int(part) for part in value.split("."))
+    except (AttributeError, ValueError):
+        return None
+
+
 def analyse(lines, seen=None, since=None, last=None):
-    """Counters of one transcript window: calls, repeats, errors, slow calls, pauses, Bash commands, title, spend.
+    """Counters of one transcript window: calls, repeats, errors, slow calls, pauses, Bash commands, title, spend,
+    app failures (`app`) and the highest Claude Code version of its lines (`version`).
 
     `seen` is the set of message ids already counted in this scan; lines dated before `since` are not counted.
     `last` is `(time, cache lifetime in minutes)` of the previous assistant message of this file, from an earlier scan;
@@ -636,6 +707,8 @@ def analyse(lines, seen=None, since=None, last=None):
     slow = []
     pauses = []
     bash = set()
+    app = Counter()  # (tool, failure text) -> times
+    version = None
     title = ""
     last_result_time = None
     for raw in lines:
@@ -643,6 +716,9 @@ def analyse(lines, seen=None, since=None, last=None):
             entry = json.loads(raw)
         except ValueError:
             continue
+        found_version = version_of(entry.get("version"))
+        if found_version and (version is None or found_version > version):
+            version = found_version  # the highest, never the last: a resumed session copies lines of older versions
         kind = entry.get("type")
         if kind == "custom-title":
             title = entry.get("customTitle") or title
@@ -722,6 +798,9 @@ def analyse(lines, seen=None, since=None, last=None):
                 if block.get("is_error"):
                     errors += 1
                     error_tools[name] += 1
+                text = app_error(name, block) if fresh else None  # a resumed session copies old lines: not again
+                if text:
+                    app[(name, text)] += 1
                 if called and stamp and name not in WAITING_TOOLS:
                     minutes = (stamp - called).total_seconds() / 60
                     if minutes >= SLOW_CALL_MIN:
@@ -733,6 +812,7 @@ def analyse(lines, seen=None, since=None, last=None):
         "title": title, "calls": len(calls), "repeats": repeats, "first_input": first_input, "errors": errors,
         "error_tools": error_tools, "slow": slow, "pauses": pauses, "bash": bash, "units": units, "turns": turns,
         "runs": 1 if units else 0, "run_units": [(units.most_common(1)[0][0], sum(units.values()))] if units else [],
+        "app": app, "version": version,
     }
 
 
@@ -747,6 +827,7 @@ def merge(a, b):
         "error_tools": a["error_tools"] + b["error_tools"], "slow": a["slow"] + b["slow"],
         "pauses": a["pauses"] + b["pauses"], "bash": a["bash"] | b["bash"], "units": a["units"] + b["units"],
         "turns": a["turns"] + b["turns"], "runs": a["runs"] + b["runs"], "run_units": a["run_units"] + b["run_units"],
+        "app": a["app"] + b["app"], "version": max(filter(None, (a["version"], b["version"])), default=None),
     }
 
 
@@ -767,6 +848,8 @@ def findings_of(result):
     if result["pauses"]:
         longest = max(result["pauses"])
         found.append(("long pause", f"{len(result['pauses'])} pause(s) before the next reply, longest {longest:.0f} min"))
+    for (name, text), count in result["app"].most_common():  # no threshold: one failure of the app is a fact
+        found.append((CLAUDE_APP_KIND, f"{name}{f' x{count}' if count > 1 else ''}: {text}"))
     return found
 
 
@@ -859,6 +942,14 @@ def scan_locked(folder, days, force, out, transcript):
         if homes[(project, session)]:
             routed[homes[(project, session)].folder].append(line)
 
+    devkit = project_folders(mapper).get(DEVKIT_NAME)  # None: ClaudeDevKit is not a known project, the log only
+
+    def route_app(line):
+        """A `claude app` line to the scan log and to ClaudeDevKit, whatever project its transcript belongs to."""
+        out_lines.append(line)
+        if devkit:
+            routed[devkit].append(line)
+
     for (project, session, sub), result in windows.items():
         if retro_session(project, session):
             continue
@@ -866,7 +957,11 @@ def scan_locked(folder, days, force, out, transcript):
         if sub:
             label += " / " + sub
         for kind, detail in findings_of(result):
-            route(project, session, f"- {project} | {label} | {kind} | {detail}")
+            line = f"- {project} | {label} | {kind} | {detail}"
+            if kind == CLAUDE_APP_KIND:
+                route_app(line)
+            else:
+                route(project, session, line)
         for command in result["bash"]:
             commands[command].add((project, session))
     if not transcript:  # the same command in several sessions needs the sessions of all transcripts
@@ -887,6 +982,17 @@ def scan_locked(folder, days, force, out, transcript):
             route(project, session, line)
     if not transcript:
         refit_if_new(state)
+        newest = max(filter(None, (result["version"] for result in windows.values())), default=None)
+        if newest:
+            old = state.get("claude_version")
+            if version_of(old) is None or newest > version_of(old):
+                state["claude_version"] = ".".join(map(str, newest))
+                if version_of(old):  # the first run stores the version silently
+                    route_app(f"- ClaudeDevKit | - | {CLAUDE_APP_KIND} | updated {old} -> {state['claude_version']}")
+        last = state.get("facts_recheck")  # the day the last weekly re-check line was routed
+        if devkit and (not last or (datetime.date.fromisoformat(day) - datetime.date.fromisoformat(last)).days >= 7):
+            state["facts_recheck"] = day
+            route_app(f"- ClaudeDevKit | - | {CLAUDE_APP_KIND} | weekly re-check due")
         for key, line in priority_lines(state, day):
             if state.get("titles", {}).get(key, "").strip().startswith((RETRO_TITLE, DOCS_TITLE)):
                 continue
@@ -916,6 +1022,18 @@ def scan_locked(folder, days, force, out, transcript):
     save_state(folder, state)
     print(f"scanned {len(windows)} transcript(s), {len(out_lines)} finding(s)", file=out)
     return 0
+
+
+def project_folders(mapper, plugin=None):
+    """Retro projects by lower-case repository folder name -> item folder name: the known ones, the ones this scan's
+    transcripts belong to and `plugin` (the project that holds this plugin, when given)."""
+    projects = known_projects()
+    for owner in mapper.projects.values():
+        if owner:
+            projects.setdefault(owner.name.lower(), owner.folder)
+    if plugin:
+        projects.setdefault(plugin.name.lower(), plugin.folder)
+    return projects
 
 
 def write_new_all(routed, make_name):
@@ -959,12 +1077,7 @@ def sort_notes(state, folder, mapper, plugin, routed):
     lines, state["notes_offset"] = read_new_lines(path, offset)
     if not lines:
         return
-    projects = known_projects()
-    for owner in mapper.projects.values():
-        if owner:
-            projects.setdefault(owner.name.lower(), owner.folder)
-    if plugin:
-        projects.setdefault(plugin.name.lower(), plugin.folder)
+    projects = project_folders(mapper, plugin)
     for raw in lines:
         line = raw.decode("utf-8-sig", errors="replace").strip()
         fields = [field.strip() for field in line.split("|")]
@@ -1279,6 +1392,9 @@ def items(directory=None, out=None):
     print(folder, file=out)
     reviewed = parse_time(state.get("last_review", ""))
     print("last review: " + (reviewed.astimezone().strftime("%Y-%m-%d %H:%M") if reviewed else "never"), file=out)
+    version = load_state(retro_dir(create=False)).get("claude_version")  # the global state, read only
+    if version:
+        print(f"claude code: {version}", file=out)
     print("\n## Priority: token problems (read first; the retro asks them before the rest)", file=out)
     print("\n".join(urgent) or "(none)", file=out)
     print("\n## New findings", file=out)

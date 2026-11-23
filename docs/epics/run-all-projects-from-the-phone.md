@@ -22,7 +22,8 @@ The lead's rules (queue, task sessions, merge) are in the epic
    [Start leads at logon and heal them](../features/start-leads-at-logon-and-heal-them.md).
 2. On the phone, open the Claude app and pick the session "P: <project>" from the session list. Give P work
    in your own words: "add X", "fix Y". P may show what it understood and ask "так".
-3. P starts a C named "C: <task>". It has no Remote Control, so it does not show in the phone app and
+3. P starts a C named "C: <task>". It has no Remote Control, so it does not show in the phone app
+   ([Claude facts](../../plugins/dev-kit/claude-facts.md), "A background session started without Remote Control does not show in the phone app") and
    sends no push; it reports to P when it is done, stuck or needs your decision, and P tells you. For a
    talk about the details P proposes an "Обговорення:" session, which does show in the app.
 4. P checks the finished work, merges it into main, removes the C and tells you the result.
@@ -36,8 +37,8 @@ The lead's rules (queue, task sessions, merge) are in the epic
    data or money, and once when its first question waits on you; Pult pushes when the watcher gave up on a
    server or session (the watcher tells Pult by message; when Pult is down, a running P pushes for it).
    You also get one push when a session's conversation grows past 0.7 of its window, so you move it to a
-   new session. The watcher cannot push by itself (a new session's push is refused), so it asks Pult, or a
-   running P when Pult is down, to send each push. Nothing is shown while the Claude app is open on screen.
+   new session. The watcher cannot push by itself (a new session's push is refused: [Claude facts](../../plugins/dev-kit/claude-facts.md), "A push from a fresh session is refused"), so it asks Pult, or a
+   running P when Pult is down, to send each push. Nothing is shown while the Claude app is open on screen ("No push shows while the Claude app is open on the phone").
 
 The commands behind steps 5 and 6 (`status-page.py`, `list-sessions.py`, `restart-leads.ps1`) are in the
 plugin README.

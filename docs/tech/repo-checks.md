@@ -6,7 +6,7 @@ Code: `tools/lint.py`, `.githooks/pre-commit`, `.github/workflows/ci.yml`, `plug
 
 `python -X utf8 tools/lint.py` checks manifests, skills, agents, slot tables and the profiles of the projects in
 `tools/projects.json` (local, not in git: `{"name": "folder"}`). It also fails on `$<digit>` or `$ARGUMENTS` in a
-skill or agent body: Claude Code replaces them with the call's arguments, so a sum is written as `1 USD`.
+skill or agent body (`plugins/dev-kit/claude-facts.md`, "Claude Code replaces `$1` and `$ARGUMENTS` in a skill or agent body"), so a sum is written as `1 USD`.
 
 ## Pre-commit
 

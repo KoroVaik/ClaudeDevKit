@@ -238,8 +238,8 @@ ARG_PLACEHOLDER = re.compile(r"\$(?:\d|ARGUMENTS)")
 
 
 def check_placeholders(where, text, findings):
-    # Claude Code replaces $1, $ARGUMENTS and the like in a skill or agent body with the
-    # call's arguments, so "past $1" read "past plugin" after "/project-lead restart: plugin update".
+    # Claude Code replaces argument placeholders in a skill or agent body: plugins/dev-kit/claude-facts.md,
+    # "Claude Code replaces `$1` and `$ARGUMENTS` in a skill or agent body".
     for number, line in enumerate(text.splitlines(), 1):
         if ARG_PLACEHOLDER.search(line):
             findings.error(where, f"line {number}: argument placeholder ($<digit> or $ARGUMENTS) is replaced on a call; write money as '1 USD'")

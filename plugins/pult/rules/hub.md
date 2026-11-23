@@ -9,7 +9,7 @@ These rules are from pult {VERSION}. Rules update check, on every owner message:
 above, or the one it noted at its last re-read), read `{PLUGIN}/rules/hub.md` whole with the Read tool,
 note its version and follow it from then on (in that file the placeholder PLUGIN in braces stands for
 `{PLUGIN}`, DEVKIT for `{DEVKIT}` and VERSION for its version). No message to the owner about it. Why: the hub server resumes the same conversation
-for days, and the rules reach it only at its start (owner, 2026-11-16).
+for days, and hook output reaches a session only at its start (`{DEVKIT}/claude-facts.md`, "A `SessionStart` hook of a user-scope plugin runs in every session on the machine"; owner, 2026-11-16).
 
 ## Projects in scope
 
@@ -21,7 +21,7 @@ All use the dev-kit plugin. Each has a project lead "P: <project>": a background
 
 Read only. Sources, per project:
 - Sessions and state: `claude agents --json --cwd <project path>` (add `--all` to include finished ones). Worktrees of the project sit under that path or next to it; group by project.
-- Task sessions registered by the lead and their context fill: `dev-kit-sessions --project <project path> list` and `dev-kit-sessions --project <project path> fill`. In the home folder `dev-kit-sessions` is not on PATH, so run `python -X utf8 {DEVKIT}/bin/dev-kit-sessions ...` with that path.
+- Task sessions registered by the lead and their context fill: `dev-kit-sessions --project <project path> list` and `dev-kit-sessions --project <project path> fill`. In the home folder run `python -X utf8 {DEVKIT}/bin/dev-kit-sessions ...` with that path (`{DEVKIT}/claude-facts.md`, "Plugin `bin` commands run only in the Bash tool").
 - Desktop-app sessions of all projects (title, project folder, state, age): `python -X utf8 {PLUGIN}/scripts/list-sessions.py`.
 - What waits on the owner: the "Open questions" section of `<project path>/PROGRESS.md` (written by the lead P and task sessions C). "None." means nothing waits.
 - Critical token problems, all projects at once: `python -X utf8 {DEVKIT}/bin/dev-kit-retro critical`. Each line
@@ -30,12 +30,12 @@ Read only. Sources, per project:
   wasted). The command prints a problem once and again only when it grew; nothing printed: show nothing.
   Why: the owner's yes of 2026-11-20 (`docs/findings/idle-wake-cost.md` of the dev-kit repo): idle wakes burned tokens for days unseen.
 
-Traps (checked 2026-11-14):
-- In `claude agents --json`, state "blocked" with status "idle" only means the turn ended. It is not a block or a denial; show it as idle. Exception: a session with a LIMIT line in the server history and no LIMIT-END or "WATCH started" after it stopped on the usage limit (see "Server history"). Name a session's state only as idle or busy ("вільна" / "зайнята"); never "працює", which the owner reads as busy on a task.
+Traps:
+- In `claude agents --json`, state "blocked" with status "idle" is not a block or a denial (`{DEVKIT}/claude-facts.md`, "In `claude agents --json`, `blocked` with status `idle` only means the turn ended"); show it as idle. Exception: a session with a LIMIT line in the server history and no LIMIT-END or "WATCH started" after it stopped on the usage limit (see "Server history"). Name a session's state only as idle or busy ("вільна" / "зайнята"); never "працює", which the owner reads as busy on a task.
 - P alive: `claude agents --json --cwd <project path>` lists a live background session named "P: <project>" (the same check `start-servers.ps1` uses). None means P is down.
 - Pult server alive: a running `claude.exe` process whose command line has ` remote-control ` and "Pult" (PowerShell `Get-CimInstance Win32_Process -Filter "Name='claude.exe'"`).
 
-- Names shown to the owner: the hub's own session (cwd = the home folder) has a system name like «<user>-f1» in `claude agents --json`. Never show that name to the owner; sessions in the home folder are «Pult».
+- Names shown to the owner: the hub's own session (cwd = the home folder) has a system name in `claude agents --json` (`{DEVKIT}/claude-facts.md`, "The Remote Control server's own session has a system name"). Never show that name to the owner; sessions in the home folder are «Pult».
 - Server history: the last lines of `~/.claude/pult/logs/servers.log` (the health log, written by the watcher, see "Servers"). A HEAL line followed by UP, or a HEAL-TASK line with no HEAL-TASK-FAILED after it, is fixed: show it in one line as "впав о <time>, піднявся сам". A GIVEUP, GIVEUP-TASK, HEAL-FAILED or HEAL-TASK-FAILED line with no UP after it is a problem: show when it happened and the cause the log gives, and propose the fix. A LIMIT line with no LIMIT-END and no "WATCH started" line after it means that session stopped on the usage limit: show it as "стоїть на ліміті до <reset time>" and propose no fix (a restart hits the same limit). UNLOCK lines (a stale lock removed) are shown only when asked. A WATCH-RESTART line means the watcher took new code and started a fresh copy of itself (the new copy's "WATCH started" line comes just before it; nothing to do); WATCH-RESTART-SKIPPED means its new code did not parse or the new copy did not start, so it still runs the old code: show the reason in one line and propose the fix. HOLD on means a stop on purpose, or a lead restart still running: the watcher restarts nothing until HOLD off, which a full `start-servers.ps1` run writes. A NO-BANS line with no later MODE line for that project means its lead is blocked (see "Missing hard bans"): show it as «не стартує: немає жорстких заборон», not as a crash.
 
 Status page: run `python -X utf8 {PLUGIN}/scripts/status-page.py` (read only; writes `~/.claude/pult/status.html`, all projects' sessions and open questions on one page) and send that file with SendUserFile, then give the reply below.
@@ -48,27 +48,25 @@ Pult only informs. A project's open question is only shown, never asked here: Pu
 
 Pult owns the start of the Remote Control servers and project leads: `{PLUGIN}/scripts/start-servers.ps1`
 (run at Windows logon by the Startup folder shortcut "Pult - project servers") and
-`{PLUGIN}/scripts/stop-servers.ps1` (graceful stop; never kill these processes; it refuses while a session under a server's folder is busy, `-Force` overrides, `-CheckOnly` only lists). The list of servers is
+`{PLUGIN}/scripts/stop-servers.ps1` (graceful stop; never kill these processes: `{DEVKIT}/claude-facts.md`, "Stopping a Remote Control server: Ctrl-C is graceful, a kill can lock the folder"; it refuses while a session under a server's folder is busy, `-Force` overrides, `-CheckOnly` only lists). The list of servers is
 `{PLUGIN}/scripts/servers.psd1`. Windows runs them; a Pult session runs them only after the owner's
 explicit yes. A lead is resumed, not started fresh: `start-servers.ps1` takes the newest background
 session with the lead's name and folder (`claude agents --json --all`) and runs
 `claude --bg --resume <sessionId> -- '/dev-kit:project-lead'` (helpers in `{PLUGIN}/scripts/resume-lib.ps1`;
-the log gets RESUMED instead of STARTED). No other flag may be added to that command: a flag makes
-claude start a copy, so before resuming it rewrites `--model` / `--effort` / `--permission-mode` in the job's saved
+the log gets RESUMED instead of STARTED). No other flag may be added to that command (`{DEVKIT}/claude-facts.md`, "`claude --bg --resume <id>` with any other
+flag starts a copy"), so before resuming it rewrites `--model` / `--effort` / `--permission-mode` in the job's saved
 options (`~/.claude/jobs/<short id>/state.json`, "respawnFlags"; log MODEL): leads run on Opus,
 medium reasoning (`$LeadModel` / `$LeadEffort` in `resume-lib.ps1`), in `bypassPermissions`, the one mode of every
 session the plugin starts (the hub, leads, `start-session.ps1`); there is no fallback to `auto`. A lead starts only when
 its project has hard-ban deny lines on main (`Get-LeadPermissionMode`, log MODE; "Missing hard bans"). Without an earlier session
-it starts fresh with the same model and mode. `claude` exiting non-zero is logged START-FAILED, not STARTED. A lead stopped a moment ago keeps its processes about a
-second after `claude agents` drops its pid, and a resume then starts a copy without the saved options;
+it starts fresh with the same model and mode. `claude` exiting non-zero is logged START-FAILED, not STARTED. A lead stopped a moment ago still has processes after `claude agents` drops its pid, and a resume then starts a copy without the saved options (`{DEVKIT}/claude-facts.md`, "A just-stopped session keeps its processes for about 1 s");
 so `start-servers.ps1` first waits until they are gone (up to 60 s, else log STILL-RUNNING and no
 resume), and if claude still reports a copy it stops and removes it and retries once (log COPY-REMOVED,
 NOT-RESUMED after a second copy). Then it pins every
-live lead in `~/.claude/jobs/pins.json` (log PINNED): Claude's background service closes an
-unpinned background session after 8 h of waiting (daemon.log "bg retire ... idle-prompt"). A Remote Control
-server first tries `claude remote-control --continue` (no `--spawn`: they cannot be combined);
-if that fails within 20 s, the log gets CONTINUE-FAILED and the server starts fresh. The hub server runs with cwd = the home folder and is matched by the command line ` remote-control ` and "Pult". Not yet
-checked on a real restart.
+live lead in `~/.claude/jobs/pins.json` (log PINNED), so Claude's background service does not close it while it waits
+(`{DEVKIT}/claude-facts.md`, "Claude closes an idle background session after 8 h of waiting, 1 h without Remote Control"). A Remote Control
+server first tries `claude remote-control --continue` (no `--spawn`: `{DEVKIT}/claude-facts.md`, "`claude remote-control --continue` cannot be combined with `--spawn`");
+if that fails within 20 s, the log gets CONTINUE-FAILED and the server starts fresh. The hub server runs with cwd = the home folder and is matched by the command line ` remote-control ` and "Pult".
 
 `{PLUGIN}/scripts/restart-leads.ps1` restarts leads so they load a new dev-kit version (stop, then
 `start-servers.ps1` resumes them with the first prompt `/dev-kit:project-lead restart: plugin update`).
@@ -76,8 +74,8 @@ checked on a real restart.
 `-Force` (a lead on dev-kit before 0.1.78 keeps a background watcher, so it always shows busy while it only waits).
 
 Start any other session (a task for the owner) only with `{PLUGIN}/scripts/start-session.ps1 -Name -Path
--PromptFile`: Windows PowerShell cuts a prompt passed straight to `claude` at its first double
-quote; the script escapes it and uses Opus, medium, `bypassPermissions` (not in a project with no hard-ban lines on
+-PromptFile`: a prompt passed straight to `claude` is cut at its first double
+quote (`{DEVKIT}/claude-facts.md`, "Windows PowerShell 5.1 cuts a prompt at the first double quote"); the script escapes it and uses Opus, medium, `bypassPermissions` (not in a project with no hard-ban lines on
 main: `NO-BANS`, exit 2). The prompt names whom the session reports to: Pult (the hub) or the project's P.
 
 `{PLUGIN}/scripts/watch-servers.ps1` (started by `start-servers.ps1`, hidden) checks every minute and
@@ -95,8 +93,8 @@ five mechanical problems itself, with no yes (the owner's yes, 2026-11-16; the o
 - A task session a project lead registered as active (dev-kit `sessions.json`; not a taken-over owner session) that Claude Code
   closed (no process, and not stopped on purpose: a `stopped` one counts only after a `bg retire` line
   in `~/.claude/daemon.log`) for two checks in a row: `claude respawn <id>`, log HEAL-TASK
-  (HEAL-TASK-FAILED when respawn fails); GIVEUP-TASK when it gives up; held by the hold file too. Why: on low
-  memory Claude Code closes idle background sessions (2026-11-16, a C waiting on the owner vanished).
+  (HEAL-TASK-FAILED when respawn fails); GIVEUP-TASK when it gives up; held by the hold file too. Why: Claude Code
+  closes idle background sessions on low memory (`{DEVKIT}/claude-facts.md`, "A low-memory spell closes idle background sessions").
 - A lead that runs an older dev-kit version than `plugin.json` of the main checkout (log LEAD-VERSION
   when it sees a lead's process first): the release's mark in `plugins/dev-kit/releases.json` decides when
   (dev-kit project-lead skill, "Restart for a plugin update"). A routine release waits for a later day and a
@@ -123,15 +121,14 @@ No Claude session keeps a watcher of its own: this watcher wakes Pult and the le
 later) by a cross-session message that starts `[EVT-<id>] Pult server watcher:`, only when something needs
 them (the lead's side: the project-lead skill, "Wake-up"; Pult's side: "Phone push"). It resends a message
 whose id does not show in the target's transcript, then has its lines pushed to the phone. It cannot push by
-itself: a fresh session's PushNotification is refused («Not sent - this terminal is active», live test
-2026-11-20), so it asks a relay session by message: Pult when it is live, else a live lead, never the session
+itself: a fresh session's PushNotification is refused (`{DEVKIT}/claude-facts.md`, "A push from a fresh session is refused"), so it asks a relay session by message: Pult when it is live, else a live lead, never the session
 that did not take the message. Its log lines: WAKE (a message queued, with its cause), WAKE-SENT, WAKE-TAKEN
 (it reached the session), WAKE-FAILED, WAKE-FALLBACK (its lines go to the phone instead), WAKE-FALLBACK-NONE
 (no live session to push them; tried again in 10 minutes), PUSH-SIZE and SIZE (each live session's
 conversation size, every 10 minutes); "статус" shows them only when asked (a fallback already reached the
 phone). Why: the
 owner's yes of 2026-11-20 (`docs/findings/idle-wake-cost.md` of the dev-kit repo): Pult and the leads were woken
-every 2 hours only to arm their watchers again.
+every 2 hours only to arm their watchers again (`{DEVKIT}/claude-facts.md`, "The host kills a background Bash run after 2 hours").
 
 ## Missing hard bans
 
@@ -149,8 +146,8 @@ prepares the set and, on the owner's «так», adds it:
 - The hub never runs `dev-kit-bans add` or `undo`, and never removes or edits bans. A wrong set:
   the owner types `! python -X utf8 {DEVKIT}/bin/dev-kit-bans undo <project path>` (reverts only the latest ban-adding
   commit); older bans only the owner removes by hand.
-Why: owner, 2026-11-21: he cannot type a `!` command in a lead's or the hub's chat (from the phone it arrives as a
-plain message); an agent running `add-approved` in `bypassPermissions` passed with no guard refusal.
+Why: owner, 2026-11-21: he cannot type a `!` command in a lead's or the hub's chat (`{DEVKIT}/claude-facts.md`, "A lead is not a local session
+in the desktop app, so the owner cannot type a `!` command in its chat"); an agent running `add-approved` in `bypassPermissions` passed with no guard refusal.
 
 ## Phone push
 
@@ -170,12 +167,12 @@ cannot push by itself (see "Servers"): Pult calls the PushNotification tool once
 of the message and writes nothing else (no cause line, no status). It comes when a lead did not take its event lines («<lead> не взяв повідомлення» or «<lead> не на зв'язку» and
 the events) and, once per session, when a conversation passes 0.7 of its window (move it to a new
 session). When Pult is down or does not take a message, the watcher asks a live lead to push instead
-(«Pult не піднявся - запусти його на комп'ютері» and the event). Why: the live test of 2026-11-20, only a
-session the owner is attached to can push.
+(«Pult не піднявся - запусти його на комп'ютері» and the event). Why: only a
+session the owner is attached to can push (`{DEVKIT}/claude-facts.md`, "A push from a fresh session is refused").
 When the host still demands visible output after a "no text" message, Pult gives the short "статус" reply
 (sessions by project and what waits on the owner, no status page); with no session and nothing
 waiting, one line «Зараз нічого не працює і нічого не чекає на тебе.» Never a filler phrase («No
-response requested.»). Why: Claude Code does not accept an empty turn; the owner decided on
+response requested.»). Why: Claude Code does not accept an empty turn (`{DEVKIT}/claude-facts.md`, "The host forces a visible reply on some wake-ups, and an empty turn is not accepted"); the owner decided on
 2026-11-20 that a forced turn shows the state (the same rule as the project lead's "Forced output").
 Why: the owner decided on 2026-11-19 that only urgent events reach the phone (why Pult keeps no watcher:
 "Servers").

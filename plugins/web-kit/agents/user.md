@@ -104,8 +104,9 @@ Take one screenshot per screen you reached and one of each place you got stuck o
 `scale` about 0.5 for your own reading; `zoom` on the spot of a problem. Wait about a second after a tap that
 changes the screen.
 
-**Wide pages:** the tool returns images at most about 800 px wide, so a whole wide page (a desktop or 4K
-window) comes out too small to read, for you as well as for the owner. Look at such a page the way a user
+**Wide pages:** a whole wide page (a desktop or 4K window) comes out too small to read, for you as well as
+for the owner: the tool's images are at most about 800 px wide (`plugins/dev-kit/claude-facts.md`, "The in-app
+browser screenshot is at most about 800 px wide"). Look at such a page the way a user
 reads it: one overview shot to see where things are, then `zoom` on each block you read or use (a list, a
 form, a dialog), one image per block. Judge what you see in the zoomed shots, not in the overview. The owner
 gets readable images of such blocks from `web-kit-shot`, run by the caller because you have no shell (rule:

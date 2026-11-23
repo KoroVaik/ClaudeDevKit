@@ -14,7 +14,8 @@ other folders are skipped. A cause in the project's own rules, docs or profile (
 wrong file) is agent work and is fixed there. A bug in the project's code (a flaky test) is not: it goes to the
 project as a defect and the retro stops there. A cause in a dev-kit plugin's rules or in your global rules
 (`C:/Users/korov/.claude/`, chat style included) is handled only by the ClaudeDevKit retro, so two projects never
-ask you the same thing. Projects with no lead (Pult, KnowledgeBase, a design sandbox) are not covered.
+ask you the same thing. Projects with no lead (Pult, KnowledgeBase, a design sandbox) are not covered, except
+their Claude app errors, which go to ClaudeDevKit ([Keep Claude app facts](keep-claude-app-facts.md)).
 Why: owner, 2026-11-21 and 2026-11-22: the retro stays in dev-kit (no separate plugin) and fixes the problems of the
 projects, not only of the plugin; it does not run on sessions with no dev-kit, since they would give little (the
 scans of 2026-11-19..21 named only dev-kit projects).

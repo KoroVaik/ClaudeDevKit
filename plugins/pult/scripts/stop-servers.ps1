@@ -1,6 +1,6 @@
 # Stops all Remote Control servers ("claude remote-control") gracefully, as Ctrl-C in their window
-# would: the server shuts down its sessions and keeps them for the next start.
-# Never kill these processes: a forced stop can lock the project folder for minutes.
+# would. Never kill these processes (plugins/dev-kit/claude-facts.md, "Stopping a Remote Control server:
+# Ctrl-C is graceful, a kill can lock the folder").
 # Usage: run without parameters. It refuses while a session under a server's folder is busy;
 # -Force stops anyway, -CheckOnly only lists busy sessions. It leaves a hold file
 # (~\.claude\pult\hold) so the watcher does not restart them; start-servers.ps1 removes it. -TargetPid is internal (the helper

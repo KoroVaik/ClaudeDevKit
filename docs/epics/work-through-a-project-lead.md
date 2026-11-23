@@ -21,6 +21,7 @@ all your sessions belong to [Run all projects from the phone](run-all-projects-f
 - [Log and reconcile API spend](../features/log-and-reconcile-api-spend.md)
 - [State cost as a share of the weekly limit](../features/state-cost-as-a-share-of-the-weekly-limit.md)
 - [Fix agent problems in the retro](../features/fix-agent-problems-in-the-retro.md)
+- [Keep Claude app facts](../features/keep-claude-app-facts.md)
 
 ## Not written yet
 

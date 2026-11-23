@@ -24,7 +24,7 @@ proposal (see "Message templates", «від мене») and replies with the sta
 "Message templates" that lists every session.
 Before the status P runs the check of "Apply dev-kit migrations", so a migration C it starts shows
 in the status.
-The desktop app folds that turn's tool calls into one line and shows the status below it.
+The status is the turn's text, shown below the folded tool calls (a known app behaviour: `plugins/dev-kit/claude-facts.md`, "The desktop app folds a turn's tool calls into one line").
 A first prompt with `restart: plugin update` sends this start status at the end of its own steps (see "Restart for a plugin update"); so does one with `handoff: <file>` (see "Restart P").
 A question the owner leaves unanswered is not asked again: it stays in the queue and in the counts.
 
@@ -80,9 +80,9 @@ these messages follow this form; P's other replies keep the global caps.
   below, case 2) and «Статуси сесій» with every session. With no session
   and no open question, it is one line: «Зараз нічого не працює і нічого не чекає на тебе.» Never a
   filler phrase («No response requested.»), never an unchanged status sent again and never an old
-  question sent again, except the open critical question (case 2). Why: a turn with tool calls can end
-  with no text, but a turn the host forces to answer with nothing got fillers from P (P: Zhratva,
-  2026-11-19), so the owner decided on 2026-11-20 that P shows the current state then; owner,
+  question sent again, except the open critical question (case 2). Why: a turn the host forces to answer
+  with nothing got fillers from P (`plugins/dev-kit/claude-facts.md`, "The host forces a visible reply on some
+  wake-ups, and an empty turn is not accepted"), so the owner decided on 2026-11-20 that P shows the current state then; owner,
   2026-11-22, a screenshot of five identical «Статуси сесій» messages in a row: «чи можна зробить щоб
   писалось пусте повідомлення замість спаму повторів?».
 - Every event that needs the owner (an overlap, a blocked merge, a failed step) becomes a status line
@@ -263,8 +263,7 @@ aside, or hand to another C. A step the owner must do by hand is a question too:
 where>?». The owner's «так» answers it: the item leaves the queue and
 the counts at once; P tracks the pending step in PROGRESS.md "In flight" (with its time, if any) and,
 for a timed step, sets a one-shot CronCreate reminder at that time; after a P restart P first checks CronList and
-re-creates it only if it is gone (a job can outlive the restart; re-creating it blindly made one
-reminder fire 4 times, 2026-11-20) that sends one push and one chat line; this is the one timer exception to "Wake-up". P
+re-creates it only if it is gone (a job can outlive the restart: `plugins/dev-kit/claude-facts.md`, "A CronCreate job can outlive a lead restart") that sends one push and one chat line; this is the one timer exception to "Wake-up". P
 never asks it again; it comes back only if the owner says the step did not work. P removes the "In
 flight" line when the owner reports the step done. Why: P kept «Знімеш другий показник /usage
 близько 19:15?» in the queue after the owner's «так» to all, and showed it again; owner: «Я ж
@@ -311,8 +310,7 @@ usage-limit stop) never pushes, nor does anything else (progress, merges, event 
 nothing) (the owner's view: the feature «Hand work to the project lead», section
 «Critical items reach your phone», in the plugin repo's `docs/features/`). The message is one line under 200
 characters: P's session name, then what to act on first («P: Zhratva: «C: Каталог» впала без звіту -
-відкрий P», «P: ClaudeDevKit: 1 питання чекає на тебе»). The tool skips a push while the owner is at
-the screen; that is expected. Why: the owner decided on 2026-11-19 that only urgent events reach the
+відкрий P», «P: ClaudeDevKit: 1 питання чекає на тебе»). A skipped push is expected (`plugins/dev-kit/claude-facts.md`, "The push tool skips a push while the owner is at the screen"). Why: the owner decided on 2026-11-19 that only urgent events reach the
 phone, so he need not open chats to check. The exceptions to both limits are the reminder push below and
 a push request of the Pult watcher ("Wake-up").
 
@@ -324,8 +322,8 @@ question from it stands in the owner queue (a taken-over owner session in `че�
 when it is an «Обговорення:» session; a C that waits on P pushes nothing. The Pult watcher sends each wait
 once, so P pushes once per wait (a new wait may push again); a push
 the tool skips while the owner is at the screen still counts. Why: the owner decided on 2026-11-20 to be reminded before the
-session's prompt cache (about one hour) runs out and the next turn re-reads its whole context at full
-price.
+session's prompt cache runs out and the next turn re-reads its whole context at full price
+(`plugins/dev-kit/claude-facts.md`, "A main session's prompt cache lives about one hour").
 
 P decides alone everything within the approved criteria (the owner's view: the feature, section «What P
 decides alone»). An item enters the queue only when:
@@ -395,27 +393,23 @@ proposed, not opened, because «краще перепитать, бо я мож�
   `git worktree add .claude/worktrees/<slug> -b c/<slug> main`, then in one PowerShell call
   `Push-Location <worktree>; claude --bg --name "C: <feature>" --permission-mode bypassPermissions --model <model> --effort <level> -- "<first prompt>"; Pop-Location`.
   A C gets no `--remote-control` (an «Обговорення:» session does, see below). Why: every
-  `--remote-control` launch pushes «Remote control enabled» to the owner's phone and no setting turns it
-  off; the owner does not talk with a C (owner, 2026-11-20).
-  The `Pop-Location` returns P's shell to the main checkout: the PowerShell tool keeps its folder
-  between calls, and a shell left inside the worktree locks the folder, so `git worktree remove`
-  later leaves it behind with "Permission denied" (seen live in Zhratva, 2026-11-15).
-  Never `claude -w`: it cuts the worktree from the remote's default branch, which can be far behind
-  the local main (seen live: 6 weeks old, without `.claude/dev-kit.md`).
+  `--remote-control` launch pushes «Remote control enabled» to the owner's phone (`plugins/dev-kit/claude-facts.md`,
+  "The phone gets one push when a brand-new session first gets Remote Control"); the owner does not talk with a C (owner, 2026-11-20).
+  The `Pop-Location` returns P's shell to the main checkout: a shell left inside the worktree locks the
+  folder (`plugins/dev-kit/claude-facts.md`, "The PowerShell tool keeps its folder between calls").
+  Never `claude -w` (`plugins/dev-kit/claude-facts.md`, "`claude -w` cuts the worktree from the remote's default branch").
 - Permission mode: every session P starts runs in `bypassPermissions` (no prompts), never `auto`.
   With no Bash and PowerShell hard-ban deny lines on main (`dev-kit-bans check <main checkout>`
   fails) P starts no session and first prepares the bans; P adds them after the owner's «так» (see "Hard bans"). P also checks that C's
-  fresh worktree holds them. A refresh or a restart uses the same mode. Checked live 2026-11-15: after the owner
-  accepted the disclaimer below, a bg session with `bypassPermissions` ran a shell command with no
-  prompt.
+  fresh worktree holds them. A refresh or a restart uses the same mode. What a bg session in `bypassPermissions` does after the
+  disclaimer below: `plugins/dev-kit/claude-facts.md`, "After the disclaimer, a background session in `bypassPermissions` runs commands with no prompt".
   P itself runs in this mode too: Pult starts no lead without the bans on main (and the disclaimer
   below) and logs the mode as `MODE P: <project> <mode>` in `~/.claude/pult/logs/servers.log`, a
   record only. The Pult watcher sends its event messages to P in that mode too.
-  Why: a session holds a message from a session in another mode for the owner's approval (seen live
-  in Zhratva, 2026-11-19, and between two projects, 2026-11-20), so all sessions run in one mode
-  (owner, 2026-11-20).
-  `--bg` with `bypassPermissions` fails with exit 1 until the owner accepts a disclaimer once per
-  machine (seen live, 2026-11-15). On that error P starts nothing and asks the owner once, as a hand
+  Why: a session may hold a message from a session in another mode for the owner's approval
+  (`plugins/dev-kit/claude-facts.md`, "A message between sessions in different permission modes may be held"),
+  so all sessions run in one mode (owner, 2026-11-20).
+  On the `--bg` start error of the disclaimer (exit 1; `plugins/dev-kit/claude-facts.md`, "`claude --bg` with `bypassPermissions` fails until the owner accepts a disclaimer once") P starts nothing and asks the owner once, as a hand
   action, to run `claude --dangerously-skip-permissions` interactively and accept. With no prompts,
   the deny rules are the lock and the ask-P list is the discipline.
 - `--model` and `--effort` are always given. C runs on `--model opus --effort medium` (it decides
@@ -429,21 +423,21 @@ proposed, not opened, because «краще перепитать, бо я мож�
   (`New-Item -ItemType Junction -Path <worktree>/<path> -Target <main>/<path>`, PowerShell tool;
   folders only). A junction's real path is outside C's worktree, so for each `link` row P adds
   `--add-dir=<main>/<path>` to C's `claude` command, always with `=`: the flag takes several values,
-  so `--add-dir <path> -- "<prompt>"` swallows the prompt as a path and C starts idle (seen live in
-  Zhratva, 2026-11-15). C must never need the owner's permission for a path P set up. Prefer `copy` where C writes and the result need
+  so `--add-dir <path> -- "<prompt>"` swallows the prompt as a path (`plugins/dev-kit/claude-facts.md`,
+  "`--add-dir <path> -- "<prompt>"` swallows the prompt as a path"). C must never need the owner's permission for a path P set up. Prefer `copy` where C writes and the result need
   not reach the main checkout. Without that table, copy what the project needs (for example `.env*`, `.agent-env/`,
   `.claude/settings.local.json`, `local.properties`), never build output or dependencies (C installs
   those); `git status --ignored --short` in the main checkout lists the candidates. The first prompt
   names the main checkout path, so C can copy what P missed.
-- Start it with the PowerShell tool: Git Bash rewrites a prompt that starts with `/` and any `C:/...`
-  path in it. The command prints only the 8-hex short id. "Workspace not trusted" means the owner must run `claude` once in
-  that folder and accept the prompt.
-- The first prompt holds no double quote (`"`): Windows PowerShell 5.1 does not escape it for a
-  native command, so the prompt is cut at the first one (seen live 2026-11-15: C got only the first
-  word). Quote the owner's words with «» and use single quotes elsewhere. Put the prompt in a
+- Start it with the PowerShell tool (`plugins/dev-kit/claude-facts.md`, "Git Bash rewrites a prompt that starts
+  with `/` and `C:/` paths"). The command prints only the 8-hex short id (`plugins/dev-kit/claude-facts.md`,
+  "`claude --bg` prints only a short id"). "Workspace not trusted" means the owner must run `claude` once in
+  that folder and accept the prompt (`plugins/dev-kit/claude-facts.md`, ""Workspace not trusted" blocks a background session in a new folder").
+- The first prompt holds no double quote (`"`): the prompt is cut at the first one (`plugins/dev-kit/claude-facts.md`,
+  "Windows PowerShell 5.1 cuts a prompt at the first double quote"). Quote the owner's words with «» and use single quotes elsewhere. Put the prompt in a
   single-quoted here-string (`@'...'@`), which keeps `$` and backticks as text.
-- Run `dev-kit-sessions` and `dev-kit-app` in the Bash tool, where the plugin bin folder is on the
-  PATH; PowerShell cannot run these files.
+- Run `dev-kit-sessions` and `dev-kit-app` in the Bash tool (`plugins/dev-kit/claude-facts.md`, "Plugin `bin`
+  commands run only in the Bash tool").
 - «Статуси сесій» lists the C sessions in P's registry (`dev-kit-sessions list`) and the taken-over
   ones; `claude agents --json --cwd <repo>` only adds their state. Other sessions of this repository
   are not listed; they go only to the takeover offer and the overlap check (from `dev-kit-sessions others`). Sessions of other projects are not P's business (Pult).
@@ -460,8 +454,8 @@ it on `c/<slug>`, so the merge and the worktree removal see no stray file. C kee
   file; each message starts with its kind word `ГОТОВО`, `ПИТАННЯ`, `ЗАСТРЯГ` or `ВІДПОВІДЬ`, see
   `${CLAUDE_PLUGIN_ROOT}/messages.md`); "before handing in, pull main and resolve conflicts yourself". The report rule names the
   channel: "send each report with the SendMessage tool to `<P's own session name>`; text in your own
-  chat never reaches P". Seen live: without it both C wrote their reports only in their own chat and
-  P waited forever. A C messages only its own P (sessions, not its subagents); it messages another
+  chat never reaches P" (`plugins/dev-kit/claude-facts.md`, "A C's text in its own chat never reaches the
+  lead"). A C messages only its own P (sessions, not its subagents); it messages another
   session only when the first prompt names it in a separate line «May message: <sessions>», not in
   the ask-P list (that list holds actions needing P's yes). Why: only leads and «Обговорення:»
   sessions message other sessions freely (owner, 2026-11-21). Also in the prompt:
@@ -513,8 +507,8 @@ setup, registration) with these differences:
 
 - Name `Обговорення: <feature>` (no guillemets in the name) (add `--remote-control "Обговорення: <feature>"` to the command of "Start a C", unlike a C,
   plus `--name`), `--permission-mode bypassPermissions` ("Permission mode"), `--model opus --effort medium` (the owner
-  talks with it). Why: its done report to a P in another mode was held for the owner's approval (seen
-  live, 2026-11-19); the owner does not want to relay between sessions. It may message other sessions
+  talks with it). Why: its done report to a P in another mode may be held for the owner's approval
+  (`plugins/dev-kit/claude-facts.md`, "A message between sessions in different permission modes may be held"); the owner does not want to relay between sessions. It may message other sessions
   (a C only its own P, see "Start a C"); a message to a session the owner started stays banned (see
   "Take over a session the owner started").
 - The owner's «сабсесія», «саб-сесія», «сесія для обговорення», or «саб» to talk something over,
@@ -622,8 +616,8 @@ the main checkout and runs `dev-kit-bans add-approved <main checkout>` itself (t
 makes one commit on main per run, with both files; it never pushes). When no P runs, the Pult hub does the same.
 No agent runs `dev-kit-bans add` or `undo`, and no agent removes or edits a ban: that stays the owner's alone. To
 take back a wrong set the owner types `! dev-kit-bans undo` (only the latest add; a second step is refused).
-Why: owner, 2026-11-21: he cannot type a `!` command in a lead's chat (from the phone it arrives as a plain
-message; in the desktop app a lead is not a local session), and P running `add-approved` in
+Why: owner, 2026-11-21: he cannot type a `!` command in a lead's chat (`plugins/dev-kit/claude-facts.md`,
+"A lead is not a local session in the desktop app, so the owner cannot type a `!` command in its chat"), and P running `add-approved` in
 `bypassPermissions` passed with no guard refusal. The set is first proposed, as
 one question with the exact lines, by entry 4 of the plugin's `migrations.md` (see "Apply dev-kit
 migrations"; entry 3 is replaced by it); a new project gets it the same way, and it cannot be
@@ -679,12 +673,12 @@ and never offered it, so nobody closed it.
 On yes: `dev-kit-sessions add --id <sessionId> --name "<its name>" --worktree <path> --task <text> --owner`
 (full id from `claude agents --json`; `--worktree` is the session's `cwd` from that list, the main checkout
 for a session on main; `--task` holds the session's first owner message in short).
-P sends the session no message: a message to a session in another permission mode is held for the
-owner's approval and may expire. The session goes into «Статуси сесій» at once. The plugin itself
+P sends the session no message: a message to a session in another permission mode may be held for the
+owner's approval (`plugins/dev-kit/claude-facts.md`, "A message between sessions in different permission modes may be held"). The session goes into «Статуси сесій» at once. The plugin itself
 adds a note at each owner message to it: it is watched, it ends with the line «Роботу завершено» when
 fully done, and on main it commits its own work to main after each finished step, so P does not merge
-it. Known limit: the hook note reaches the
-session only at the owner's next message to it, so a session already idle at takeover may never write
+it. Known limit (`plugins/dev-kit/claude-facts.md`, "A `UserPromptSubmit` hook note reaches a session only at the
+owner's next message"): a session already idle at takeover may never write
 «Роботу завершено»; P then shows it as `чекає на тебе`.
 
 Watching: at every message to the owner P runs `dev-kit-sessions state` for these sessions (it reads
@@ -694,8 +688,9 @@ keeps talking to the session directly; P never answers for it and never relays i
 new tasks off its changed files (the overlap check in "Start a C" covers it).
 
 Finished: when `state` or an event message (`finished: <name> | <id>`, see "Wake-up") says finished, P runs
-`dev-kit-sessions end --id <id>` and tries `claude stop <id>`. If the stop fails (the session is open
-in the app window), P just stops counting it as active and asks the owner nothing. No merge, no
+`dev-kit-sessions end --id <id>` and tries `claude stop <id>`. If the stop fails (it can, for a session open in an
+app window: `plugins/dev-kit/claude-facts.md`, "`claude stop <id>` fails when the session is open in an app window"),
+P just stops counting it as active and asks the owner nothing. No merge, no
 worktree removal.
 
 Why: owner decided 2026-11-15 that P watches sessions he started so they do not get in the way of
@@ -703,9 +698,8 @@ others, closes them only so P stops counting them, and never messages them (mode
 
 ## Wake-up
 
-P does not wake by itself (except the reminder of a timed hand step, see "Message templates"), and it never uses `notify_when_idle` for a C: every idle notice woke P, and
-the host forced a visible reply each time, so the owner got many repeated small messages (seen in
-P: Zhratva, 2026-11-15). P wakes only on a C report (SendMessage), an owner message, an event message
+P does not wake by itself (except the reminder of a timed hand step, see "Message templates"), and it never uses `notify_when_idle` for a C: its idle notices wake P and the owner got many repeated small messages
+(`plugins/dev-kit/claude-facts.md`, "`notify_when_idle` wakes the lead on every idle notice"). P wakes only on a C report (SendMessage), an owner message, an event message
 or the keep-warm ping, and writes to the owner at once with what changed ("Message templates"; the owner's
 view: the feature, section «P wakes only when needed»).
 
@@ -719,7 +713,8 @@ A lead whose process started on dev-kit before 0.1.78 gets no event messages; it
 skill update check below and is restarted by its handshake. A watcher it still runs from before: P acts on
 its exit line as on an event line below and never arms it again. Why: the owner's yes of 2026-11-20
 (measured in `docs/findings/idle-wake-cost.md` of the plugin repo): the host kills a background watcher after
-2 hours, and P was woken every 2 hours only to arm it again, a paid turn each time.
+a cap (`plugins/dev-kit/claude-facts.md`, "The host kills a background Bash run after 2 hours"), and P was woken
+every 2 hours only to arm it again, a paid turn each time.
 
 Event lines:
 
@@ -754,20 +749,19 @@ the Pult watcher sends it the line `PING keep-warm: ...` in an `[EVT-<id>]` mess
 fill` (OVER lines as below) and, for itself, `dev-kit-sessions fill --self`; on OVER P starts "Restart P".
 Then P answers with the forced-output state of "Message templates" and nothing else, even when nothing
 changed: the named exception to "a wake-up that changes nothing gets no text". Why: the owner's yes of
-2026-11-20 (`docs/findings/idle-wake-cost.md` of the plugin repo): the prompt cache lives about one hour, and a
-C report after that re-reads P's whole context at full price.
+2026-11-20 (`docs/findings/idle-wake-cost.md` of the plugin repo): the prompt cache runs out, and a
+C report after that re-reads P's whole context at full price (`plugins/dev-kit/claude-facts.md`, "A main session's prompt cache lives about one hour").
 
 Push request: an `[EVT-<id>]` message whose first line ends with `phone push request.` asks P to push for the
 Pult watcher (when Pult is down or did not take a message). P calls the PushNotification tool once with
 exactly the text line of the message, with no owner yes, and writes nothing else: the named exception to
-"Phone push" and to the forced-output state. The same id twice is pushed once. Why: the live test of
-2026-11-20: a fresh session's push is refused («Not sent - this terminal is active»), and only a session the
-owner is attached to can push, so the watcher asks a running one.
+"Phone push" and to the forced-output state. The same id twice is pushed once. Why: a fresh session's push is refused, so the
+watcher asks a running one (`plugins/dev-kit/claude-facts.md`, "A push from a fresh session is refused").
 
 Skill update check, on every wake-up: read `version` from
 `.claude-plugin/plugin.json` two folders above this skill's base directory and compare it with the
 version P noted when it last read this skill (note it in the first status turn's tool output). If it
-changed, read this SKILL.md whole with the Read tool (the Skill tool only answers "already loaded")
+changed, read this SKILL.md whole with the Read tool (`plugins/dev-kit/claude-facts.md`, "The Skill tool answers "already loaded" for a skill already read")
 and follow the new text from then on. P's process still runs the old hooks and agents, but P does not
 restart for that by itself: the Pult watcher decides when a release restarts P and sends `restart requested`
 when it needs the handshake of "Restart for a plugin update". No message to the owner about it.
@@ -776,7 +770,7 @@ On an owner message or a C report run `dev-kit-sessions fill` and, for P itself,
 (an OVER line starts "Restart P").
 
 The fill limit is 0.33 (a third of the context window; owner, 2026-11-23: less spend on long sessions). The script takes the window from C's model as Claude Code runs it
-(1M for Fable, Sonnet 5+, Haiku 5.5, Opus 4.7+; 200K for older ones); `--window` overrides it. For each
+(`plugins/dev-kit/claude-facts.md`, "Context window by model"); `--window` overrides it. For each
 line marked OVER, refresh that C.
 
 ## Refresh an overfull C
@@ -789,9 +783,11 @@ line marked OVER, refresh that C.
 3. Only after the new C's «picked up» reaches P, register it with `dev-kit-sessions add ...
    --predecessor <old id>` (this ends the old record as `replaced`), then run `claude stop <old id>`.
 
-Checked live 2026-11-14: a fresh bg C started in an existing worktree loads the handoff from its first
-prompt and can write there. If a step fails, P adds its own question (retry or leave the old C) and keeps the old C running.
-Two C sessions share one name during a refresh; message the new one by its `[ref]` from ListAgents.
+The handoff of a fresh bg C in an existing worktree goes in its first prompt
+(`plugins/dev-kit/claude-facts.md`, "A fresh background C in an existing worktree loads a handoff from its first prompt").
+If a step fails, P adds its own question (retry or leave the old C) and keeps the old C running.
+During a refresh message the new C by its `[ref]` from ListAgents (`plugins/dev-kit/claude-facts.md`, "Two sessions can share one name
+during a refresh").
 Why: without the «picked up» check P could stop the old C before the new one held the work (owner,
 2026-11-18).
 
@@ -813,7 +809,7 @@ Otherwise `git merge --ff-only c/<slug>`. If it refuses (main moved since C pull
 When P edits a file in the main checkout from outside its own worktree (PROGRESS.md, a feature's
 design state), it re-reads the file after each edit and checks that the edit fully applied before
 committing it. This is a stopgap: the cause, the host's worktree guard that blocks such edits, is out
-of reach (seen in P: Zhratva, 2026-11-18: shell edits half-applied).
+of reach (`plugins/dev-kit/claude-facts.md`, "The host's worktree guard blocks writes to the main checkout from another worktree").
 
 For an «Обговорення:» session, before the merge and before `claude rm`, P reads its
 transcript and finds the owner's «так» to the short plan. If an owner message follows it, P does not
@@ -826,10 +822,11 @@ After a merge, without asking the owner, run `dev-kit-sessions end --id <id>` (t
 `dev-kit-app stop --project <that C's worktree>` (releases the app lock if C left the app running),
 `claude rm <id>` (the session's job state), then removes each `link` row's junction without following
 it (`cmd /c rmdir "<worktree>\<path>"`, PowerShell tool, no `/s`; never `Remove-Item`, `rm -r` or
-`--force` while a junction is there: they may delete the main checkout's data), then, from the main
+`--force` while a junction is there: `plugins/dev-kit/claude-facts.md`, "Removing a folder with a junction may
+delete the target's data"), then, from the main
 checkout (`Set-Location <main>` first if the PowerShell tool's folder is anywhere inside the worktree,
 or the folder stays behind locked), `git worktree remove <worktree>` and
-`git branch -d c/<slug>`: `claude rm` does not remove a worktree P made by hand. If `git worktree
+`git branch -d c/<slug>` (`plugins/dev-kit/claude-facts.md`, "`claude rm <id>` does not remove a worktree made by hand"). If `git worktree
 remove` refuses over untracked files, P looks at them: nothing from the task, `--force`; otherwise it
 asks the owner. A C that ended without a merge gets `dev-kit-sessions end --id <id> --status stopped`,
 then `claude stop <id>` (in this order, so no `gone` event reports it), and its worktree and branch stay.
@@ -901,7 +898,7 @@ repo): a restart per bump cut into talks with the owner several times an hour.
   committed, a running subagent is waited for. C sessions keep working on their own. Then P writes
   exactly the line «⚠ ЧЕРЕЗ 30 СЕК БУДЕ ПЕРЕЗАВАНТАЖЕННЯ (ОНОВЛЕННЯ ІНСТРУМЕНТІВ)» as its message, runs
   `dev-kit-sessions restart ready --version <the new version>` right after it and ends the turn with no
-  more text; the watcher restarts P 30 seconds after `ready`. An owner message that arrives before the restart is answered after it. The hold ends by itself 10 minutes after `ready` with no restart
+  more text; the watcher restarts P 30 seconds after `ready`. An owner message that arrives before the restart is answered after it (`plugins/dev-kit/claude-facts.md`, "The owner's message in a lead's chat during a restart is not lost"). The hold ends by itself 10 minutes after `ready` with no restart
   (the Pult watcher drops an older `ready` too); P then works as usual and says nothing about it.
 - First prompt after the restart: `/dev-kit:project-lead restart: plugin update`. P goes on where it
   stopped: it reads this SKILL.md whole, notes the new version (see
@@ -912,10 +909,9 @@ repo): a restart per bump cut into talks with the owner several times an hour.
   the message of "Message templates" that lists every session, with the question counts only (a
   critical question in full, closing line by the four cases of the closing line; a C report that
   waited is in it); no words about the restart itself. Why: an empty turn here made P send a
-  filler (P: Zhratva, 2026-11-19); the owner decided on 2026-11-20 to see the full state instead.
-- A message to a stopped session fails at the sender with "No agent named ... is reachable" and is
-  not queued (checked live 2026-11-16 with a throwaway session); after the resume the same name
-  receives messages again. So a C report sent during the stop is not lost in silence: the C sees the
+  filler (`plugins/dev-kit/claude-facts.md`, "The host forces a visible reply on some wake-ups, and an empty turn is not accepted"); the owner decided on 2026-11-20 to see the full state instead.
+- A message to a stopped session fails at the sender and is not queued (`plugins/dev-kit/claude-facts.md`,
+  "A send to a stopped session fails at the sender and is not queued"). So a C report sent during the stop is not lost in silence: the C sees the
   error and retries the send by itself (`dev-kit:manager`, "A task from the project lead"). A C that
   ended during the stop arrives as a `gone` event line; before the crash line P checks its task file and branch for a finished
   result, since its "done" report may have failed.
@@ -964,7 +960,7 @@ exception to "no task work"; any other rule edit P makes follows `dev-kit:edit-r
   version if a plugin changed (with its release mark, `.claude/dev-kit.md`) and runs the repo's lint; P runs steps 5-6 of `dev-kit:edit-rules` on the diff,
   commits, merges into main as in "Acceptance and merge" (its checks of the main checkout, `--ff-only`) and
   removes the worktree. A rule edit never goes into the main checkout directly or around its guard: the
-  harness blocks writes there by P and its subagents. The owner's global files (the local `.claude` folder) are edited in place and committed in that
+  harness blocks writes there by P and its subagents (`plugins/dev-kit/claude-facts.md`, "The host's worktree guard blocks writes to the main checkout from another worktree"). The owner's global files (the local `.claude` folder) are edited in place and committed in that
   folder's local git (step 6 of `dev-kit:edit-rules`).
 
 Why: owner, 2026-11-20, retro: a retro session was started for one finding already fixed; owner: «То нащо
@@ -1003,7 +999,11 @@ of ClaudeDevKit brings them to the owner.
   retro <YYYY-MM-DD>` in ClaudeDevKit, or a C elsewhere; a docs «так» larger than a small edit goes to a C. P then
   sets each item's `status:` line in its file (a
   trivial fix the owner kept and a disputed item he said «так» to: `fixed`; a reverted one or a «ні»: `no-fix`; a
-  docs item: `fixed` or `rejected`); the files are local, outside any repo. With more than 5 disputed items, P offers an
+  docs item: `fixed` or `rejected`); the files are local, outside any repo. The item `claude-facts-owner-check`
+  (plugin repo only) holds facts about the Claude apps only the owner can see: P asks its questions as one batch and
+  passes each answer on with `dev-kit-retro add --project ClaudeDevKit --text "owner check <YYYY-MM-DD>: <fact
+  title>: <answer>"`, for the facts keeper of the next retro (`dev-kit:retro`, step 4), then sets the item's
+  status to `fixed`; the next retro writes it again if questions remain. With more than 5 disputed items, P offers an
   «Обговорення: Ретро сесій <YYYY-MM-DD>» session instead, started as in "Start an «Обговорення:» session".
 - The owner may ask for a retro at any time («ретро», «розбери проблеми сесій»): P goes through the open items as
   above, or offers that session for the owner's own cases.
@@ -1030,7 +1030,7 @@ this repo (the key, both sums, the likely cause: a project that calls the API ar
 log line, a price missing in `api-prices.json`), as "Where things go" in `dev-kit:documentation` says. It appends one line to the
 log: `- <YYYY-MM-DD> | balance <$> | <credit>: <$> left, expires <date> | spent 30d <$> by <keys> |
 <the reconcile command's "line:" text>`. Why: owner, 2026-11-21 (`docs/features/log-and-reconcile-api-spend.md`): the API gives no
-balance, so the Console check stays, now as a reconciliation against the log. It pushes (PushNotification, one line) when the balance is under 20 USD, or when
+balance (`plugins/dev-kit/claude-facts.md`, "The Anthropic API gives no credit balance"), so the Console check stays, now as a reconciliation against the log. It pushes (PushNotification, one line) when the balance is under 20 USD, or when
 a credit with more than 5 USD left expires within 7 days, and shows the same in its next message as its own
 line under «Питання без відповіді» only if the owner must act. Chrome closed or the extension silent: P
 skips and tries at its next start; no question to the owner. Why: owner, 2026-11-20: «зробить хоч якийсь

@@ -21,7 +21,7 @@ full their context is.
 
 The registry is `sessions.json` in the project state folder (see dev_kit_state.py; the same folder for all worktrees
 of one repository). Ids (`--id`, `--parent`, `--predecessor`, `--self`) and the registry's ids are trimmed of spaces and
-line ends: an id pasted from `claude --bg` output once carried a CR and matched no session. `add --predecessor` marks the replaced session `replaced`. `add --owner` marks a session the
+line ends (plugins/dev-kit/claude-facts.md, "`claude --bg` prints only a short id"). `add --predecessor` marks the replaced session `replaced`. `add --owner` marks a session the
 owner started and the lead took over (the record gets `"owner": true`; the UserPromptSubmit hook
 hooks/owner-session-note.py reads it). `fill` finds the transcript of every
 active record (`<projects>/*/<id>.jsonl`, projects folder = env DEV_KIT_PROJECTS_DIR, else ~/.claude/projects) and
@@ -48,7 +48,8 @@ without trailing punctuation, is one of FINISHED_MARKERS and no owner message ca
 added with `--owner` (a C never reports finished); else `gone` when no
 matching entry has a `pid` (a session with none is closed, see `watch`); `limited` when its transcript ends with
 Claude Code's usage-limit notice (see `usage_limit`; the gist then starts with `resets <YYYY-MM-DD HH:MM>;`, local
-time, or `resets unknown;`): such a session keeps its process and is listed as blocked, so the list cannot tell;
+time, or `resets unknown;`): the session list cannot tell it (plugins/dev-kit/claude-facts.md, "Other sessions
+listed as `blocked` or `done` in `claude agents --json`");
 `working` when the status is busy; else `waiting`. Exit 3 when the list cannot be read.
 
 `answers` shows, per active registry record (or per `--id`, as in `state`), what the owner wrote in that session
@@ -66,8 +67,8 @@ runs it in the background wakes only then. Watched: the `--id` sessions (full or
 registry's active records, read again each round (a C added later is watched too; one ended with `end` is not).
 Every `--interval` seconds it reads `claude agents --json --all`: a session is live while an entry with its id has a
 `pid`; one with no `pid` is not live. A session not in the list is gone at once. An entry in the list with no
-`pid`, whatever its state (done, stopped and blocked all occur: Claude Code closes sessions on low memory or after
-8 h idle), is reported gone only after it stayed without a `pid` for CLOSED_GRACE seconds (300, counted by the
+`pid`, whatever its state (done, stopped and blocked all occur: plugins/dev-kit/claude-facts.md, "Claude closes an
+idle background session after 8 h of waiting, 1 h without Remote Control" and "A low-memory spell closes idle background sessions"), is reported gone only after it stayed without a `pid` for CLOSED_GRACE seconds (300, counted by the
 watcher across rounds; a `pid` again clears it), so the Pult watcher can bring it back with `claude respawn`
 first. Lines and exit codes:
 `gone: <name> | <id> | <state or 'not in the session list'>` (one per gone session) and
@@ -78,7 +79,7 @@ goes on and stops again) and `stale: <name> | <id> | waiting <N> min` (one per l
 assistant entry, see `wait_started`, is at least `--stale-minutes` old, default 20; each wait is reported once:
 STALE in the state folder keeps the wait start already reported, so the re-armed watcher stays quiet until the
 session answers again and a new wait passes the threshold; the lead decides whether the wait is on the owner and
-pushes a reminder, since the cache of a waiting session lives about one hour) exit 0; `time limit: <N> min,
+pushes a reminder, since the cache of a waiting session runs out: plugins/dev-kit/claude-facts.md, "A main session's prompt cache lives about one hour") exit 0; `time limit: <N> min,
 all alive` exit 4 (re-arm it); `nothing to watch` exit 5 (on the first round, or at the time limit when the registry
 has emptied meanwhile: a watcher whose last C ended keeps quiet); `already watching: pid <N>` exit 6 (in registry
 mode one watcher per project runs: a lock file in the state folder with a heartbeat; a new watcher waits until the
@@ -243,7 +244,7 @@ def load(path):
         raise Unreadable(f"{path} is unreadable: {exc}")
     if not isinstance(data, list):
         raise Unreadable(f"{path} is not a list of records")
-    for record in data:  # an id pasted from `claude --bg` output may carry a CR or spaces: it would match nothing
+    for record in data:  # trim ids (plugins/dev-kit/claude-facts.md, "`claude --bg` prints only a short id")
         if isinstance(record, dict):
             for key in ID_KEYS:
                 if isinstance(record.get(key), str):
@@ -365,9 +366,7 @@ def cmd_list(args, path, records):
 def window_for(model):
     """Context window of a model id as Claude Code runs it by default.
 
-    Claude Code docs (model-config, "Extended context"): Fable models, Sonnet 5 and later, Haiku 5.5 and
-    Opus 4.7 and later run with the 1M window by default, with no `[1m]` suffix; env
-    CLAUDE_CODE_DISABLE_1M_CONTEXT=1 makes them 200K. Older models get 200K unless the id carries `[1m]`.
+    The windows by model: plugins/dev-kit/claude-facts.md, "Context window by model".
     """
     name = (model or "").lower()
     if "[1m]" in name:
@@ -701,7 +700,8 @@ def usage_limit(path):
     """(key, resets_at) when the session stopped on the usage limit: the last entry of its transcript that is not a
     side chain or a meta note is the limit notice (any later reply, tool result, owner or peer message means it went
     on). key tells one stop from the next (the notice's uuid or time); resets_at is epoch seconds or None. Else
-    None. Claude Code keeps such a session's process and lists it as blocked, so the session list cannot tell."""
+    None. The session list cannot tell it (plugins/dev-kit/claude-facts.md, "Other sessions listed as `blocked` or
+    `done` in `claude agents --json`")."""
     try:
         for entry in tail_entries(path):
             if entry.get("isSidechain") or entry.get("isMeta"):

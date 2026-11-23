@@ -13,16 +13,17 @@
 #   way and the lead keeps running.
 # - A task session that a project lead registered as active (<DevKitStateDir>\<repo>-<hash>\sessions.json,
 #   not a lead) and that Claude Code closed is brought back by `claude respawn <id>`. It is closed when
-#   it is in `claude agents --json --all` with no pid and its state is not stopped (an idle session
-#   whose process died stays done; a low-memory close shows blocked), or its state is stopped and
+#   it is in `claude agents --json --all` with no pid and its state is not stopped (plugins/dev-kit/claude-facts.md,
+#   "Other sessions listed as `blocked` or `done` in `claude agents --json`"), or its state is stopped and
 #   ~\.claude\daemon.log (last 2000 lines) has a `bg retire <id>` line after the last `bg spawned <id>`
-#   line (a plain `claude stop` writes no retire line, so it is left alone). Two rounds in a row:
+#   line (plugins/dev-kit/claude-facts.md, "Claude closes an idle background session after 8 h of waiting, 1 h
+#   without Remote Control": a plain `claude stop` writes no retire line, so it is left alone). Two rounds in a row:
 #   HEAL-TASK (the same hold file pauses it; HEAL-TASK-FAILED when the command exits with an error). At
 #   most $MaxHeals respawns per hour per session, then GIVEUP-TASK (once, until it is seen alive again).
 #   The lead's own watcher (dev-kit-sessions watch) waits 300 s before it calls such a session gone,
 #   so this watcher gets its chance first.
 # - A live lead of the list or active task session that stopped on the usage limit (5-hour or weekly) keeps
-#   its process and shows as blocked, so it looks alive: LIMIT <name> <session id> (resets <time>) once per
+#   its process and shows as blocked (plugins/dev-kit/claude-facts.md, "Other sessions listed as `blocked` or `done` in `claude agents --json`"), so it looks alive: LIMIT <name> <session id> (resets <time>) once per
 #   stop, LIMIT-END when it goes on or is no longer live (a new watcher run logs a stop again). Its transcript tells (`sessions.py limited`, one call per round); the
 #   watcher only logs it: a respawn or restart would hit the same limit.
 # - A dev-kit lock file whose owner is gone is removed: UNLOCK (see Clear-StaleLocks).
@@ -70,8 +71,8 @@
 #   left-over one cleared (RESTART-CLEARED; checked once per pid). One try per lead per combined version (dev-kit
 #   plus extensions); a failure is logged as RESTART-LEAD-FAILED. The hold file and a running full start pause it,
 #   as for HEAL (staleSince is still recorded).
-# - Wakes: no Claude session keeps a watcher of its own (the host kills a background run after 2 h, and each
-#   re-arm is a paid cold turn); this watcher wakes Pult and the leads by a cross-session message only when
+# - Wakes: no Claude session keeps a watcher of its own (plugins/dev-kit/claude-facts.md, "The host kills a
+#   background Bash run after 2 hours"); this watcher wakes Pult and the leads by a cross-session message only when
 #   something needs them. A pass after the heal work each round (not with -Once):
 #   - Lead events: for each lead of the list with a Path that is live and whose process started on dev-kit
 #     $WakeMinDevKit or later (lead-versions.json; "older" counts as below), `sessions.py --project <Path> check`
@@ -99,7 +100,8 @@
 #   it waits until after the restart). The sends of a round stop after $WakeSendBudgetSec s; the rest wait for
 #   the next round. The output of every python call is read as UTF-8 (Cyrillic names). Send-Wake runs one
 #   hidden one-shot `claude -p` (haiku, safe mode, only the SendMessage tool, permission mode bypassPermissions, the
-#   one mode of every session of the plugin) in <StateDir>\wake, the
+#   one mode of every session of the plugin; plugins/dev-kit/claude-facts.md, "A one-shot `claude -p` delivers a
+#   message into a running session") in <StateDir>\wake, the
 #   prompt by stdin; it is stopped after $WakeWaitSec s; its json `result` says sent or failed. Logged: WAKE
 #   <target> <id> cause=event|ping|note kinds=<kinds> (first send), WAKE-SENT, WAKE-FAILED <reason>. A message
 #   is delivered when `[EVT-<id>]` shows in the tail of the target's transcript (<projects>\*\<session id>.jsonl,
@@ -108,8 +110,8 @@
 #   After that, or after $WakeDownSec s not live: WAKE-FALLBACK, and the event lines go to the phone (a lead's:
 #   «<lead> не взяв повідомлення» or «<lead> не на зв'язку»; Pult's: «Pult не піднявся - запусти його на
 #   комп'ютері»; and the events; under 200 characters). A phone push is never a one-shot's own PushNotification:
-#   a fresh session's push is refused («Not sent - this terminal is active»; live test 2026-11-20), only a
-#   session the owner is attached to pushes. So it is a message (`[EVT-<id>] Pult server watcher: phone push
+#   a fresh session's push is refused (plugins/dev-kit/claude-facts.md, "A push from a fresh session is
+#   refused"). So it is a message (`[EVT-<id>] Pult server watcher: phone push
 #   request.`, then the instruction to call PushNotification once with the next line and write nothing else,
 #   then the text) to a relay: Pult when it is live, else a live lead (an idle one first, any version, its MODE
 #   line for the mode, not one marked ready), never the session that did not take the original message (so a
@@ -169,7 +171,8 @@
 # dev-kit state folder and Claude Code daemon log (for tests with a throwaway lead).
 # -DevKitDir: the dev-kit plugin folder (default: ..\..\dev-kit next to this plugin); it holds
 # .claude-plugin\plugin.json (the installed version) and scripts\sessions.py.
-# Keep this file saved as UTF-8 with BOM.
+# Keep this file saved as UTF-8 with BOM (plugins/dev-kit/claude-facts.md, "Windows PowerShell 5.1 misreads
+# Cyrillic in a script saved without a BOM").
 param([int]$IntervalSec = 60, [switch]$Once, [int]$Rounds = 0, [int]$MaxHeals = 3,
     [string]$ConfigFile, [string]$StateDir, [string]$DevKitStateDir, [string]$DaemonLog, [string]$DevKitDir,
     [string]$RestartExe = 'powershell.exe', [string]$WakeExe, [string]$SessionsPy,
@@ -266,8 +269,8 @@ function Register-NoBans([string]$Name, [string]$Said) {
 }
 
 # Runs python with $PyArgs and returns @{ Code; Out } (stdout, and stderr unless -NoStderr). The output is read as
-# UTF-8 (env PYTHONIOENCODING and [Console]::OutputEncoding, both restored after): PowerShell decodes a native
-# program's output with the console code page, which turned Cyrillic session names into mojibake.
+# UTF-8 (env PYTHONIOENCODING and [Console]::OutputEncoding, both restored after; plugins/dev-kit/claude-facts.md,
+# "Windows PowerShell decodes a native program's output with the console code page").
 function Invoke-Python([string[]]$PyArgs, [switch]$NoStderr) {
     $oldEnc = $null; $oldIo = $env:PYTHONIOENCODING
     $env:PYTHONIOENCODING = 'utf-8'
@@ -950,7 +953,8 @@ function Get-PushRelay($Item, $Targets) {
 }
 
 # A phone push (a size push, or event lines whose target did not take them), sent as a message asking a relay
-# session (Get-PushRelay) to push it: a fresh session's PushNotification is refused («this terminal is active»).
+# session (Get-PushRelay) to push it: a fresh session's PushNotification is refused (plugins/dev-kit/claude-facts.md,
+# "A push from a fresh session is refused").
 # Delivered like any wake (its id in the relay's transcript, Test-WakeTaken), then the marks run. Not taken: sent
 # again after $WakeConfirmSec s, after $WakeMaxTries sends every $PhoneRetrySec s; never dropped.
 function Send-PhoneItem($Item, $Targets, $Handled) {

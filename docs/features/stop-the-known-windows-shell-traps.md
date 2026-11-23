@@ -10,8 +10,8 @@ lives in the owner's global `tools.md` (Python section, in the `docs` folder of 
 
 ## Rules
 ### Python without UTF-8 mode
-A command that launches `python`, `python3` or `py` without `-X utf8` is refused: the console uses cp1252, so
-Cyrillic text fails with UnicodeEncodeError. `PYTHONUTF8=1` counts only without `-I` or `-E`, which ignore it.
+A command that launches `python`, `python3` or `py` without `-X utf8` is refused ([Claude facts](../../plugins/dev-kit/claude-facts.md), "Python on Windows crashes printing Cyrillic, and `-I`
+ignores the UTF-8 variables"). `PYTHONUTF8=1` counts only without `-I` or `-E`, which ignore it.
 `PYTHONIOENCODING` does not count: it fixes printing, not reading files.
 Why: owner, retro of 2026-11-21: every launch without `-X utf8` is refused, working ones too (about 1390 of 7201
 calls in the 2026-11-20/21 sessions, about one refusal per context since agents adapt); the owner approved this
@@ -20,14 +20,13 @@ only: PowerShell had 0 encoding failures in 302 calls. The plugin's own docs say
 never refuses the plugin's commands.
 
 ### A large heredoc
-A heredoc body over 7000 characters is refused with "write the file with the Write tool": such commands fail
-with "unexpected EOF while looking for matching quote". The size, not non-ASCII text, decides: in the
+A heredoc body over 7000 characters is refused with "write the file with the Write tool" ([Claude facts](../../plugins/dev-kit/claude-facts.md), "A large heredoc
+in the shell fails with "unexpected EOF while looking for matching quote""). The size, not non-ASCII text, decides: in the
 2026-11-20/21 sessions every such failure was over that size, while hundreds of small heredocs and `python -c`
 strings with Cyrillic worked.
 
 ### /tmp inside Python code
-`/tmp` inside Python code (a heredoc fed to `python` or written to a `.py` file, or a `python -c` string) is refused: Python reads it as `C:\tmp`, the shell as its own
-temp folder. `/tmp` as a plain shell argument passes, since the shell maps it for every program.
+`/tmp` inside Python code (a heredoc fed to `python` or written to a `.py` file, or a `python -c` string) is refused ([Claude facts](../../plugins/dev-kit/claude-facts.md), "Git Bash's `/tmp` and Python's `/tmp` are different folders"). `/tmp` as a plain shell argument passes, since the shell maps it for every program.
 
 ### What passes
 Read-only inline Python with `-X utf8`, any command on other systems, and `python` written inside text (a heredoc

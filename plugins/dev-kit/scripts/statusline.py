@@ -3,7 +3,8 @@
     dev-kit-statusline        reads the status line JSON from stdin (Claude Code runs it on each turn)
 
 For subscribers the JSON holds `rate_limits.seven_day.used_percentage` (0-100) and `rate_limits.seven_day.resets_at`
-(Unix epoch seconds), and the same two for `five_hour` (checked in the Claude Code 2.1.330 bundle). The script prints
+(Unix epoch seconds), and the same two for `five_hour` (plugins/dev-kit/claude-facts.md, "The status line JSON holds
+the subscription limits"). The script prints
 one line, `тиждень: 23%`, and appends one line to `usage-log.jsonl` only when the weekly per cent rose within the
 window of the last log line (reset times under SAME_WINDOW_S apart) or a newer window began. A lower per cent in the
 same window, and a window older than the last line's by SAME_WINDOW_S or more (a stale reading from an idle parallel
@@ -13,7 +14,7 @@ session), are not logged:
 
 Log folder: env DEV_KIT_USAGE_LOG, else `~/.claude/dev-kit` (local, outside any repository). Parallel sessions may
 write at once: the last line is read from the end of the file and a new line is appended in one write. Without
-`rate_limits` (API login, old version) it prints an empty line and writes nothing. It never raises: any error gives an
+`rate_limits` it prints an empty line and writes nothing. It never raises: any error gives an
 empty line and exit 0. It reads no transcript, so it stays fast.
 """
 import datetime

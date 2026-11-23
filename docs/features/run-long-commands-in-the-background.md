@@ -23,9 +23,9 @@ refused before it runs, with the fix named, so the agent runs it again in the ba
 
 ### Both shells
 The hook is on the Bash and the PowerShell tools, on every system.
-Claude Code itself already blocks a lone long `sleep` or `Start-Sleep`; the hook adds a wait inside a longer
-command (`echo start; sleep 70; echo end`) and the project's own list. Live check, 2026-11-23: both refused, the
-same commands in the background ran.
+Claude Code itself already blocks a lone long `sleep` or `Start-Sleep` ([Claude facts](../../plugins/dev-kit/claude-facts.md),
+"Claude Code blocks a lone long `sleep`"); the hook adds a wait inside a longer
+command (`echo start; sleep 70; echo end`) and the project's own list.
 
 How the hook works: [hooks](../tech/hooks.md).
 

@@ -62,7 +62,7 @@ first; it is skipped while you look at the screen.
 
 A reminder push is the one time-based push. A session that has waited on you 20 minutes (a question from
 it in P's queue, a taken-over session of yours that shows `чекає на тебе`, or an «Обговорення:» session)
-gets one, before its cache runs out after about an hour and the next answer costs its whole context again.
+gets one, before its cache runs out and the next answer costs its whole context again ([Claude facts](../../plugins/dev-kit/claude-facts.md), "A main session's prompt cache lives about one hour").
 Several such sessions in one wake-up make one push that names the first and adds «і ще <N>». One push per
 wait, also across restarts; a new wait may push again. A C that waits on P pushes nothing, and sessions
 outside P's registry are not covered.
@@ -110,8 +110,8 @@ Code disclaimer once per machine. The Pult hub and the sessions Pult starts run 
 start by hand from the app keeps your own mode. ClaudeDevKit's own bans are `rm -rf` lines only (no push ban,
 since its P pushes main): a ticket for Pult's check more than real protection.
 Why: owner, 2026-11-20 and 2026-11-21: a question between two projects' sessions in different modes was held for
-approval and never delivered, since a background session cannot show the approval; one mode for all removes
-the hold, and the hard bans are what keeps it safe.
+approval and never delivered ([Claude facts](../../plugins/dev-kit/claude-facts.md), "A message between sessions
+in different permission modes may be held"); one mode for all removes the hold, and the hard bans are what keeps it safe.
 
 ### No two sessions on the same task
 Before a task starts, P (and any session through the manager skill) checks that no other live session of
@@ -124,8 +124,9 @@ context, or when a plugin update waits for a safe point to restart P; P keeps no
 a task session (not one you started) works and P has been silent 50 minutes, the Pult watcher pings P; P
 then shows its short status.
 Why: owner, 2026-11-20: P and Pult were woken every 2 hours only to re-arm a watcher
-([measured](../findings/idle-wake-cost.md)); the ping keeps P's cache warm, since a warm read costs about
-1/20 of a cold rewrite and P's next task report would otherwise find it cold.
+([measured](../findings/idle-wake-cost.md); [Claude facts](../../plugins/dev-kit/claude-facts.md), "The host kills a
+background Bash run after 2 hours"); the ping keeps P's cache warm, since P's next task report would otherwise find
+it cold ([Claude facts](../../plugins/dev-kit/claude-facts.md), "A main session's prompt cache lives about one hour").
 
 ### A report sent while P restarts
 A report a task session sends while P restarts (about 10 seconds) is not lost: the session sends it
@@ -147,7 +148,7 @@ Known limits: what the plugin covers and what lives in the `pult` plugin: see th
 [Run all projects from the phone](../epics/run-all-projects-from-the-phone.md).
 
 Known limits: P does not limit the number of parallel task sessions or heavy steps by memory.
-Why: on 2026-11-16 Claude Code stopped P's background watcher while Windows ran low on memory; the owner
+Why: on 2026-11-16 Claude Code closed idle sessions while Windows ran low on memory ([Claude facts](../../plugins/dev-kit/claude-facts.md), "A low-memory spell closes idle background sessions"); the owner
 decided memory is enough and Windows was the problem, so no queue or memory gate was added and the
 pagefile was fixed instead (48 GB initial, 64 GB max).
 

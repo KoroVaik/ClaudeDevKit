@@ -94,7 +94,7 @@ def is_home(cwd):
 
 
 def display_name(agent):
-    """The hub's Remote Control session has a system name like "korov-f1"; the owner sees it as "Pult" in the app."""
+    """The hub's Remote Control session has a system name (plugins/dev-kit/claude-facts.md, "The Remote Control server's own session has a system name"); the owner sees it as "Pult"."""
     if is_home(agent.get("cwd")):
         return "Pult"
     return agent.get("name") or "(без назви)"

@@ -48,6 +48,19 @@ def result(tool_id, stamp, error=False):
             "message": {"content": [{"type": "tool_result", "tool_use_id": tool_id, "is_error": error}]}}
 
 
+def app_result(tool_id, stamp, content, error=None):
+    """A tool result with content; `error` None leaves `is_error` out, as the host does for a failed SendMessage."""
+    block = {"type": "tool_result", "tool_use_id": tool_id, "content": content}
+    if error is not None:
+        block["is_error"] = error
+    return {"type": "user", "timestamp": stamp, "message": {"content": [block]}}
+
+
+def send_result(tool_id, stamp, success, message):
+    """The host's SendMessage result: a JSON text with `success`."""
+    return app_result(tool_id, stamp, [{"type": "text", "text": json.dumps({"success": success, "message": message})}])
+
+
 def assistant(message_id, model, usage, stamp):
     return {"type": "assistant", "timestamp": stamp,
             "message": {"id": message_id, "model": model, "usage": usage, "content": []}}
@@ -145,6 +158,7 @@ class RetroTestCase(RetroFixture):
 
     def test_second_scan_reads_only_new_lines_and_once_a_day(self):
         path = self.write("proj/s1.jsonl", self.session())
+        retro.write_json(self.retro / "state.json", {"facts_recheck": retro.today()})  # the weekly line is not this test's
         self.run_cmd("scan")
         self.project_cmd("items")
         self.project_cmd("done")
@@ -385,6 +399,96 @@ class RetroTestCase(RetroFixture):
         self.write("proj/abcdef01.jsonl", self.session(), mode="a", cwd=plain)
         self.run_cmd("scan", "--force")
         self.assertEqual(self.new_text(), text)
+
+    def devkit_project(self):
+        """The retro project named ClaudeDevKit, with its item folder `state.json` (what makes it a known project)."""
+        path = make_repo(self.tmp / "ClaudeDevKit")
+        folder = self.retro / dev_kit_state.folder_name(path)
+        retro.write_json(folder / "state.json", {"root": str(path)})
+        return path, folder
+
+    # protects: Flow
+    def test_claude_app_failures_of_any_transcript_go_to_claudedevkit_not_to_their_own_project(self):
+        _, devkit = self.devkit_project()
+        plain = make_repo(self.tmp / "plain", retro_project=False)
+        stamp = "2026-11-19T10:00:00Z"
+        failure = [call("s", "SendMessage", {"to": "x"}, stamp),
+                   send_result("s", stamp, False, "No agent named 'x' is reachable. Use ListAgents")]
+        self.write("proj/lead1234.jsonl", failure)  # a project with a lead
+        self.write("proj/home1234.jsonl", self.session() + failure, cwd=plain)  # a folder with no lead
+        self.run_cmd("scan")
+        text = self.new_text(devkit)
+        self.assertIn("- proj | lead1234 | claude app | SendMessage: No agent named 'x' is reachable.", text)
+        self.assertIn("- proj | C: Task (home1234) | claude app | SendMessage: No agent named 'x' is reachable.", text)
+        self.assertNotIn("failed calls", text)  # the other findings of a no-lead project keep their routing
+        self.assertNotIn("claude app", self.new_text())  # not the lead project that the transcript belongs to
+        log = (self.retro / f"scan-{retro.today()}.md").read_text(encoding="utf-8")
+        self.assertEqual(log.count("claude app | SendMessage"), 2)
+        self.assertIn("C: Task (home1234) | failed calls", log)
+
+    # protects: Rule
+    def test_claude_app_failures_are_found_by_the_tool_not_by_the_words(self):
+        stamp = "2026-11-19T10:00:00Z"
+        entries = []
+        for n in range(3):  # the same failure with another session id each time is one line
+            entries += [call(f"s{n}", "SendMessage", {}, stamp),
+                        send_result(f"s{n}", stamp, False, f"Failed to send to cse_0{n}ab: HTTP 409 - not active")]
+        entries += [call("a", "Agent", {}, stamp),
+                    app_result("a", stamp, "<tool_use_error>Concurrent subagent limit reached.</tool_use_error>", True)]
+        not_found = [
+            call("ok", "SendMessage", {}, stamp), send_result("ok", stamp, True, "Sent"),
+            call("b", "Bash", {}, stamp), app_result("b", stamp, '{"success": false, "message": "No agent named"}'),
+            call("h", "Agent", {}, stamp),
+            app_result("h", stamp, "PreToolUse:Agent hook error: subagent type 'x' is not a narrow agent", True),
+            call("r", "SendMessage", {}, stamp), send_result("r", stamp, False, "2 agents are named 'x'. Re-send with the ref"),
+            call("p", "Agent", {}, stamp), app_result("p", stamp, "Concurrent subagent limit reached.")]  # no is_error
+        found = [f for f in retro.findings_of(retro.analyse([json.dumps(e) for e in entries + not_found]))
+                 if f[0] == "claude app"]
+        self.assertEqual(found, [("claude app", "SendMessage x3: Failed to send to cse_<id>: HTTP 409 - not active"),
+                                 ("claude app", "Agent: Concurrent subagent limit reached.")])
+
+    # protects: Edge
+    def test_claude_app_failures_stay_in_the_log_when_claudedevkit_is_not_a_known_project(self):
+        stamp = "2026-11-19T10:00:00Z"
+        self.write("proj/lead1234.jsonl", [call("s", "SendMessage", {}, stamp), send_result("s", stamp, False, "gone")])
+        self.run_cmd("scan")
+        self.assertEqual(self.new_files(), [])
+        self.assertIn("| claude app | SendMessage: gone", (self.retro / f"scan-{retro.today()}.md").read_text(encoding="utf-8"))
+
+    # protects: Flow
+    def test_a_higher_claude_code_version_makes_one_line_and_the_first_run_none(self):
+        path, devkit = self.devkit_project()
+
+        def scan_with(version):
+            self.write("proj/s1.jsonl", [{"type": "system", "version": version}], mode="a")
+            self.run_cmd("scan", "--force")
+            return self.new_text(devkit).count("claude app | updated")
+
+        self.assertEqual(scan_with("2.1.330"), 0)  # the first run stores it silently
+        self.assertEqual(self.global_state()["claude_version"], "2.1.330")
+        self.assertEqual(scan_with("2.1.331"), 1)
+        self.assertIn("- ClaudeDevKit | - | claude app | updated 2.1.330 -> 2.1.331", self.new_text(devkit))
+        self.assertEqual(scan_with("2.1.331"), 1)  # not again
+        self.assertEqual(scan_with("2.1.99"), 1)  # a resumed old session lowers nothing
+        self.assertEqual(self.global_state()["claude_version"], "2.1.331")
+        self.assertIn("claude code: 2.1.331\n", self.project_cmd("items", project=path))
+
+    # protects: Flow
+    def test_the_weekly_recheck_line_goes_to_claudedevkit_once_in_seven_days(self):
+        _, devkit = self.devkit_project()
+        self.write("proj/s1.jsonl", [{"type": "system", "version": "2.1.330"}])
+
+        def scan_on(day):
+            with mock.patch.object(retro, "today", return_value=day):
+                self.run_cmd("scan", "--force")
+            return self.new_text(devkit).count("- ClaudeDevKit | - | claude app | weekly re-check due")
+
+        self.assertEqual(scan_on("2099-01-01"), 1)  # the first full scan asks for the re-check
+        self.assertEqual(scan_on("2099-01-01"), 1)  # not again on the same day
+        self.assertEqual(scan_on("2099-01-07"), 1)  # nor on day 6
+        self.assertEqual(self.global_state()["facts_recheck"], "2099-01-01")
+        self.assertEqual(scan_on("2099-01-08"), 2)  # day 7: due again
+        self.assertEqual(self.global_state()["facts_recheck"], "2099-01-08")
 
     # protects: Rule
     def test_critical_still_sees_the_tokens_of_a_project_that_is_not_a_retro_project(self):

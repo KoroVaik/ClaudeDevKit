@@ -44,8 +44,8 @@ nothing: the merge is P's step, so the owner sees in this chat why the session c
   only when its first prompt names it in a line «May message: <sessions>».
 - Every message to P starts with its kind word (`ГОТОВО`, `ПИТАННЯ`, `ЗАСТРЯГ`, `ВІДПОВІДЬ`), as
   `${CLAUDE_PLUGIN_ROOT}/messages.md` sets.
-- A SendMessage to P that fails, with any error («No agent named ... is reachable», «HTTP 409 ...
-  not active» or other), usually means P is being restarted (about 10 seconds). The C keeps the message,
+- A SendMessage to P that fails, with any error (the known ones: `plugins/dev-kit/claude-facts.md`, "A send to a
+  stopped session fails at the sender and is not queued"), usually means P is being restarted (about 10 seconds). The C keeps the message,
   goes on with its work and retries by itself: it starts `sleep 60` as a background command (never a
   foreground wait) and sends the message again when that ends, up to three retries. After the third
   failed retry it stops retrying, keeps the message and sends it, as a message of its own, right before
@@ -139,10 +139,10 @@ A slot nobody fills is told to the owner; do not guess a command for it.
 ## Which subagent type
 
 Always pass the type and `model` explicitly. Built-in types (`general-purpose`, `Explore`, no type)
-are blocked by the dev-kit hook: they load every session tool, about 67K tokens of cold start against
-15-25K for the types below. When no row fits, tell the owner which role is missing.
+are blocked by the dev-kit hook: they load every session tool, a far larger cold start than the types below
+(`plugins/dev-kit/claude-facts.md`, "Built-in agent types load every session tool"). When no row fits, tell the owner which role is missing.
 
-A session gets agent types only at its start, so one older than a plugin update may lack a newer type.
+A session may lack a type added by a plugin update after its start (`plugins/dev-kit/claude-facts.md`, "A running session sees a new agent or skill only after `/reload-plugins`").
 If the type is not available, launch the cheapest available dev-kit type whose tools cover the
 missing one's (the `tools:` line of `agents/<name>.md` in this plugin's folder; `dev-kit:investigator` covers
 the read-only ones), on the model the table gives, with the body of that file as its instructions
@@ -168,7 +168,7 @@ The project's own types come from its `## manager` section.
   profile lists commands); a failed check does not end the work. Run `dev-kit-app start` in the background:
   it may wait up to 15 minutes while another session uses the app. On a queue timeout (exit 3) report
   yourself stuck, naming the holder. Always run `stop`, so the next session can start.
-- A subagent cannot start other subagents. What it needs from another role, the manager does
+- A subagent cannot start other subagents (`plugins/dev-kit/claude-facts.md`, "A subagent cannot start other subagents"). What it needs from another role, the manager does
   between their turns.
 - Continue a subagent that has the context (`SendMessage`) instead of starting a new one.
 - Launch line and approval of an expensive model: the owner's global rules.
@@ -268,7 +268,8 @@ An agent (main session or subagent) calls the paid Claude API only through `dev-
 appends the same line itself (format: the docstring of `scripts/api_client.py` in this plugin; rules: `docs/features/log-and-reconcile-api-spend.md` in the plugin repo).
 The call needs the project's own API key in env `DEV_KIT_API_KEY` and its Console name (`--key-name` or env
 `DEV_KIT_API_KEY_NAME`). Never set `ANTHROPIC_API_KEY` in an agent's environment: a headless `claude -p` would
-then bill that key with no log line; without it, `claude -p` runs on the subscription and is not such a call.
+then bill that key with no log line (`plugins/dev-kit/claude-facts.md`, "A headless `claude -p` bills
+`ANTHROPIC_API_KEY` if it is set"); without it, `claude -p` is not such a call.
 Deny rules back this where the owner added them. Why: owner, 2026-11-21 (`docs/features/log-and-reconcile-api-spend.md` in the plugin
 repo): the API credit was spent unseen by one project's keys; every call is to be logged and reconciled weekly.
 
@@ -279,8 +280,8 @@ in money: a report or plan states its cost as a share of the owner's weekly subs
 estimate, never in USD: «~2% тижневого ліміту, оцінка» (in English «~2% of the weekly limit, estimate»). The
 figure comes from `dev-kit-retro session` (the session that runs it and its subagents; `--id` or `--path` for
 another). Its uncertainty, about a third, is carried by the word «оцінка», not by a number. Claude Code's own
-USD figure (`/cost`, `costUSD` in session records) prices tokens at API rates and is never quoted, labelled or
-not. Real money, calls through `dev-kit-api`, stays in USD; a report with both writes them apart: «~1%
+USD figure (`/cost`, `costUSD` in session records) is never quoted, labelled or
+not (`plugins/dev-kit/claude-facts.md`, "Claude Code's own USD figure prices tokens at API rates"). Real money, calls through `dev-kit-api`, stays in USD; a report with both writes them apart: «~1%
 тижневого ліміту, оцінка; API: 0.40 USD». A task file's spend line takes the same form: `Spend: ~N% of the
 weekly limit, estimate; API: N USD`. Finished plans keep their old lines.
 

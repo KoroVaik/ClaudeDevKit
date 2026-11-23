@@ -4,14 +4,14 @@
 # one P per project). Stop it with `claude stop <id>` (ids: `claude agents`).
 # Other entries get one Remote Control server each, in its own hidden PowerShell window; the window
 # closes when the server stops.
-# Stop the servers gracefully with stop-servers.ps1 (killing the process can lock
-# the folder for minutes).
+# Stop the servers gracefully with stop-servers.ps1 (plugins/dev-kit/claude-facts.md, "Stopping a Remote
+# Control server: Ctrl-C is graceful, a kill can lock the folder").
 # Run at Windows logon by the Startup folder shortcut "Pult - project servers"
-# (not a scheduled task: windows started by a task died after the task ended).
+# (not a scheduled task: plugins/dev-kit/claude-facts.md, "Windows scheduled tasks start hidden windows that die when the task ends").
 
 # The list of servers is servers.psd1 (shared with watch-servers.ps1).
 # Every start and every server exit (with its exit code) goes to ~\.claude\pult\logs\servers.log.
-# Keep this file saved as UTF-8 with BOM: Windows PowerShell 5.1 misreads Cyrillic otherwise.
+# Keep this file saved as UTF-8 with BOM (plugins/dev-kit/claude-facts.md, "Windows PowerShell 5.1 misreads Cyrillic in a script saved without a BOM").
 # -Restarted: names of leads that restart-leads.ps1 stopped for a plugin update; when resumed, their
 # first prompt carries the restart note (resume-lib.ps1, $RestartNote).
 # -Only: start only these entries and nothing else (no watcher start, hold kept); watch-servers.ps1
@@ -99,8 +99,8 @@ foreach ($p in $projects) {
             Pop-Location; continue
         }
         Write-Log "MODE $sessionName $($perm.Mode) ($($perm.Reason))"
-        # A lead stopped a moment ago may still have its processes; a resume then starts a flag-less copy
-        # (resume-lib.ps1, Get-SessionProcessIds). Wait until they are gone, before the saved flags are set.
+        # A lead stopped a moment ago may still have its processes (plugins/dev-kit/claude-facts.md, "A just-stopped
+        # session keeps its processes for about 1 s"; resume-lib.ps1, Get-SessionProcessIds). Wait until they are gone, before the saved flags are set.
         if ($resumeId -and -not (Wait-SessionGone $resumeId)) {
             Write-Log "STILL-RUNNING $sessionName $resumeId"
             Write-Output "Still running after the stop, not resumed: $sessionName"
@@ -119,9 +119,9 @@ foreach ($p in $projects) {
             $said | Where-Object { $_ -notlike 'note:*' } | Select-Object -First 1
             $copyLeft = if ($resumeId) { Get-ResumeCopyId ($said -join "`n") } else { $null }
             if (-not $copyLeft) { break }
-            # The resume started a copy without the saved flags: remove it, wait for the lead's process, retry once.
+            # The resume started a copy: remove it, wait for the lead's process, retry once.
             claude stop $copyLeft | Out-Null
-            $rmUntil = (Get-Date).AddSeconds(20)  # rm works only once the copy has exited
+            $rmUntil = (Get-Date).AddSeconds(20)  # rm works only once the copy has exited (see the facts entry above)
             do { Start-Sleep -Seconds 1; $rm = (claude rm $copyLeft 2>&1 | Out-String) }
             while ($rm -notmatch 'removed' -and (Get-Date) -lt $rmUntil)
             Write-Log "COPY-REMOVED $sessionName $copyLeft (try $try)"
@@ -134,7 +134,8 @@ foreach ($p in $projects) {
             continue
         }
         if ($exitCode) {
-            # claude refused to start or resume it (for example the bypass disclaimer is not accepted): not started.
+            # claude refused to start or resume it (for example the bypass disclaimer is not accepted, see
+            # plugins/dev-kit/claude-facts.md, "`claude --bg` with `bypassPermissions` fails until the owner accepts a disclaimer once"): not started.
             $first = ($said | Where-Object { $_ -notlike 'note:*' -and $_.Trim() } | Select-Object -First 1)
             Write-Log "START-FAILED $sessionName exit $exitCode ($first)"
             Write-Output "Start failed, exit ${exitCode}: ${sessionName}: $first"
@@ -159,8 +160,8 @@ foreach ($p in $projects) {
     }
     $base = "--name '$sessionName' --permission-mode $LeadPermissionMode"
     if ($p.Prefix) { $base += " --remote-control-session-name-prefix '$($p.Prefix)'" }
-    # First try to reattach to the server's last session (--continue cannot take --spawn; same-dir
-    # is the default). If that fails at once (nothing recorded in the last hours), start fresh.
+    # First try to reattach to the server's last session (no --spawn: plugins/dev-kit/claude-facts.md,
+    # "`claude remote-control --continue` cannot be combined with `--spawn`"). If that fails at once (nothing recorded in the last hours), start fresh.
     $cmd = "`$t = Get-Date; claude remote-control --continue $base; " +
         "if (`$LASTEXITCODE -ne 0 -and ((Get-Date) - `$t).TotalSeconds -lt 20) { " +
         "Add-Content -LiteralPath '$log' -Encoding UTF8 -Value ((Get-Date -Format s) + ' CONTINUE-FAILED $sessionName, starting fresh'); " +
@@ -173,10 +174,9 @@ foreach ($p in $projects) {
     Write-Output "Started: $sessionName"
 }
 
-# Pin every live lead: Claude's background service closes an unpinned background session that
-# waits for input for 8 h (1 h without Remote Control), and sooner on low memory. Pins live in
-# ~/.claude/jobs/pins.json, a JSON array of short ids (the `id` from `claude agents --json`),
-# the same list Ctrl+T toggles in `claude agents`. A long low-memory spell can still close them.
+# Pin every live lead, so Claude's background service does not close it while it waits (plugins/dev-kit/claude-facts.md,
+# "Claude closes an idle background session after 8 h of waiting, 1 h without Remote Control", "Pinned sessions are not
+# closed when idle"). Pins are a JSON array of short ids (the `id` from `claude agents --json`) in ~/.claude/jobs/pins.json.
 $leadNames = @($projects | Where-Object { $_.Lead } | ForEach-Object { $_.Session })
 if ($leadNames) {
     Start-Sleep -Seconds 3

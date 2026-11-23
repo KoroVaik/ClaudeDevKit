@@ -42,7 +42,7 @@ uses the board only to say where each fix belongs.
   checks inline"; a one-click check is still a subagent call. The caller only prepares data through the
   API or scripts and runs headless `web-kit-shot`; it never opens or drives the agents' browser.
 - **Two browsers.** An agent drives the in-app browser (`mcp__Claude_Browser__*`) when the session has
-  it (the desktop app). A session without it (`claude --bg`, `claude -p`) uses the headless browser web-kit
+  it (the desktop app; `plugins/dev-kit/claude-facts.md`, "`claude -p` and background sessions have no in-app browser; the web-kit headless server's tools load with `--plugin-dir`"). A session without it (`claude --bg`, `claude -p`) uses the headless browser web-kit
   ships (`.mcp.json` of this plugin, tools `mcp__plugin_web-kit_headless__browser_*`, a private Edge with an
   empty profile per session); the check is never skipped for want of the pane. With neither, the session
   reports the check as not run (a C asks its P with `ПИТАННЯ`), never passes over it. The caller knows which one
@@ -63,6 +63,9 @@ uses the board only to say where each fix belongs.
   - "These in-app lines do not apply: `scale` and `zoom`, the 800 px cap and the overview-then-zoom reading,
     the Glob for `.jpg` files, presets and the reset to `desktop`. A narrow window here has no touch or
     phone user-agent emulation: say so once in the report when the check is at a phone width."
+    (These lines go to agents that do not read the facts file; the behaviours behind them are in
+    `plugins/dev-kit/claude-facts.md`, "Headless MCP browser: dialogs stay open and a screenshot file lands in the
+    session's folder" and "A narrow headless browser window has no phone emulation".)
   - For `web-kit:ui-tester` and `web-kit:layout-checker` only: `browser_evaluate` in place of
     `javascript_tool`.
   Why: background task sessions have no in-app browser, so owner-approved checks were skipped (Zhratva,
@@ -80,9 +83,8 @@ uses the board only to say where each fix belongs.
   profile names the field). Delete only proven test-owned IDs, restore only settings the check changed,
   verify the API result. Data the owner asked to keep is not test data. Never expose credentials.
 - **Screenshots go to the owner, and they must be readable.** The in-app browser's screenshot tool
-  returns an image at most about 800 px wide whatever the viewport (measured 2026-11-10: a 3840x2160
-  window comes back 800x452, 1024 px wide 800 px, a phone 375 px wide 657 px, which is its real size),
-  and `zoom` only crops that already small image. So an in-app shot of a wide window is for the agent's
+  returns an image at most about 800 px wide whatever the viewport (`plugins/dev-kit/claude-facts.md`, "The
+  in-app browser screenshot is at most about 800 px wide"). So an in-app shot of a wide window is for the agent's
   own reading (`scale` about 0.5 there), never for the owner. A headless-browser agent shot ("Two browsers") of a wide window is
   readable, yet the owner still gets only section shots from `web-kit-shot`, never a bare wide window. For a phone width the in-app shot is
   readable and goes to the owner as it is.
@@ -116,7 +118,8 @@ uses the board only to say where each fix belongs.
     cut off, that its text is legible at 100%, and that the content fills most of the image: a shot that
     is mostly empty background gets a smaller selector and is captured again before sending. That is
     `web-kit:shot-taker` or the agent that judges the shots, never the session the owner talks with: in the
-    phone app every image that session opens shows in the owner's chat (owner, Zhratva, 2026-11-20). If it
+    phone app every image that session opens shows in the owner's chat (`plugins/dev-kit/claude-facts.md`, "Every
+    image the main session opens shows in the owner's phone chat"). If it
     fails, or a state cannot be reached from a URL, say so and send the agent's in-app shot marked
     "low resolution", never as the proof.
   - **Mockup boards: `--board`, no spec.** The caller runs `web-kit-shot --board <board.html> [--screens d1,u3]

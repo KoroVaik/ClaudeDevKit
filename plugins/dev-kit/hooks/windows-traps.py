@@ -2,9 +2,11 @@
 docs/tools.md (Python section) and names the working form in one line. The rule's home stays docs/tools.md; the hook
 checks the narrower forms that the 2026-11-20/21 sessions showed to fail (docs/features/stop-the-known-windows-shell-traps.md).
 
-(a) Python run without UTF-8 mode: the console is cp1252, so printing or reading Cyrillic dies with UnicodeEncodeError.
-(b) A large heredoc: the shell wrapper fails on it with "unexpected EOF while looking for matching quote".
-(c) /tmp inside Python code: Git Bash's /tmp and Python's /tmp are different folders.
+(a) Python run without UTF-8 mode (plugins/dev-kit/claude-facts.md, "Python on Windows crashes printing Cyrillic,
+    and `-I` ignores the UTF-8 variables").
+(b) A large heredoc (plugins/dev-kit/claude-facts.md, "A large heredoc in the shell fails with "unexpected EOF while looking for matching quote"").
+(c) /tmp inside Python code (plugins/dev-kit/claude-facts.md, "Git Bash's `/tmp` and Python's `/tmp` are different
+    folders").
 """
 import json
 import re

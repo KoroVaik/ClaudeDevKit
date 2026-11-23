@@ -11,7 +11,7 @@ A reviewed entry gets a `Verdict:` line (the project lead's recommendation) and 
 ## Pult: own remote client for agents
 
 What: a status page that refreshes itself (the built `plugins/pult/scripts/status-page.py` page is a snapshot), built by a script from a status file per project that also keeps a history of finished tasks; then maybe an own Claude client app with grouping by project, what waits on me and health.
-Why: the phone app's session list does not group by project or show what waits on the owner; the attached snapshot goes stale.
+Why: the phone app's session list lacks grouping by project and what waits on the owner (`plugins/dev-kit/claude-facts.md`, "The phone app's session list does not group by project or show what waits on the owner"); the attached snapshot goes stale.
 Cheapest test: serve the page from the PC (or publish it) and open it from the phone once; the own client waits on that answer.
 Verdict (2026-11-20): keep as an idea; owner: yes. Both the live page and its task history wait on one open point: where a live page lives and how the phone opens it; the own client app is parked behind it.
 

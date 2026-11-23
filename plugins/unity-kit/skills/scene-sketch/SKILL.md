@@ -26,7 +26,7 @@ use and the caption language, and overrides the defaults here.
 
 - Write the page to the session scratchpad, never to the repo. Render it to a PNG beside it (a headless
   browser screenshot with a temporary profile, not the owner's browser), look at the PNG yourself and fix
-  cut or overlapping text. Send the PNG, not the page (a client may not show HTML), with `SendUserFile`
+  cut or overlapping text. Send the PNG, not the page (`plugins/dev-kit/claude-facts.md`, "A board sent with `SendUserFile` and `display: render` may not show as a page"), with `SendUserFile`
   (`display: render`) and a one-line caption naming the idea; the page only when the owner asks.
 - A sketch (the page and its PNG) is temporary: delete it once the surviving ideas are in `BACKLOG.md` (the
   `dev-kit:brainstorm` rules). A sketch the owner wants kept goes where the owner says.

@@ -103,8 +103,9 @@ The owner reads screenshots more easily than text, so the report leans on them. 
 width and theme, plus one per defect. Use `scale` about 0.5 for your own reading; for a defect, also
 `zoom` on the spot.
 
-**Readable evidence.** The tool returns images at most about 800 px wide, so a wide window (tablet and up,
-4K above all) comes out too small to read, and `zoom` only crops that small image. Shots of a wide window
+**Readable evidence.** A wide window (tablet and up, 4K above all) comes out too small to read: the tool's
+images are at most about 800 px wide (`plugins/dev-kit/claude-facts.md`, "The in-app browser screenshot is at
+most about 800 px wide"). Shots of a wide window
 are for your own reading (`scale` about 0.5); the owner gets them from `web-kit-shot` (rule: "Screenshots go
 to the owner" in `browser-checks.md`), run by the caller, because you have no shell. So for every wide
 shot that is evidence, end the report with a **Shots** list, one line each: `name | URL | steps | CSS
