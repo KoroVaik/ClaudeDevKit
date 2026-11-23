@@ -12,7 +12,7 @@ Topics: whether and how child sessions learn that their lead is away (and for ho
 
 Result: the «Owner's approval» section in this file with every agreed point in builder detail.
 
-Spend: <0.1% of the weekly limit, estimate; API: 0 USD
+Spend: ~0.2% of the weekly limit, estimate; API: 0 USD
 
 ## Owner's approval
 
