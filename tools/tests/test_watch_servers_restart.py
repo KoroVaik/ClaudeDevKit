@@ -154,7 +154,7 @@ class WatcherEnv:
     def env(self):
         return dict(os.environ, PATH=str(self.bin) + os.pathsep + os.environ.get("PATH", ""),
                     DEV_KIT_PROJECTS_DIR=str(self.projects), DEV_KIT_STATE_DIR=str(self.state),
-                    TEST_COUNT_FILE=str(self.bin / "count"), TEST_CALLS_FILE=str(self.calls),
+                    DEV_KIT_JOBS_DIR=str(self.tmp / "jobs"), TEST_COUNT_FILE=str(self.bin / "count"), TEST_CALLS_FILE=str(self.calls),
                     TEST_LOG_FILE=str(self.tmp / "pult" / "logs" / "servers.log"),
                     TEST_STARTS_FILE=str(self.tmp / "starts.txt"))
 

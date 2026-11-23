@@ -30,9 +30,10 @@ idle. Why: owner, 2026-11-23 (`plans/update-timing.md`): updates restarted the l
 in the middle of talks.
 
 ### A lead past a third of its context moves to a fresh session
-A lead that saved its notes at a third of its context is stopped and started fresh under the same name, once it
-has been idle and quiet for 5 minutes, or at once after your «так» or «перезапускай». A failed move is
-shown in Pult and pushed to your phone; the old lead comes back.
+A lead that saved its notes at a third of its context is stopped and resumed with an empty context in the same
+session (no phone push), when it is quiet as for a release restart, or 30 seconds after its warning in a talk, or
+after your «перезапускай». If that resume fails, a fresh session of the same name loads the notes (one push). A
+failed move is shown in Pult and pushed to your phone; the old lead comes back.
 
 ### Your own sessions are never touched
 The watcher never touches your own sessions, taken-over ones included.

@@ -22,7 +22,8 @@ The lead's rules (queue, task sessions, merge) are in the epic
    [Start leads at logon and heal them](../features/start-leads-at-logon-and-heal-them.md).
 2. On the phone, open the Claude app and pick the session "P: <project>" from the session list. Give P work
    in your own words: "add X", "fix Y". P may show what it understood and ask "так".
-3. P starts a C named "C: <task>". It has no Remote Control, so it does not show in the phone app
+3. P starts a C named "C: <task>". P starts it with your Remote Control setting turned off for that session, so it has
+   no Remote Control and it does not show in the phone app
    ([Claude facts](../../plugins/dev-kit/claude-facts.md), "A background session started without Remote Control does not show in the phone app") and
    sends no push; it reports to P when it is done, stuck or needs your decision, and P tells you. For a
    talk about the details P proposes an "Обговорення:" session, which does show in the app.

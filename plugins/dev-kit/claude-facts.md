@@ -172,7 +172,7 @@ One entry per behaviour. A newer direct observation replaces an older one; the o
 
 ### The phone gets one push when a brand-new session first gets Remote Control
 - What happens: The phone push «Remote control enabled» comes once, when a brand-new session first gets Remote Control. It is not tied to the `--remote-control` flag (see the next entry). `claude --bg --resume <id>` of the same session gives no push, with or without a stored `--remote-control`. `CLAUDE_CLIENT_PRESENCE_FILE` in the environment of `claude --bg` did not stop the push of a new session.
-- Workaround: start the session with `--settings '{"remoteControlAtStartup":false}'`: it has no Remote Control (no `bridgeSessionId` in its job `state.json`) and no push; wake an existing session with `claude --bg --resume <id>` (no push).
+- Workaround: start the session with `--settings` holding `{"remoteControlAtStartup":false}` (file or inline form: see the next entry): it has no Remote Control (no `bridgeSessionId` in its job `state.json`) and no push; wake an existing session with `claude --bg --resume <id>` (no push).
 - App: phone app, Remote Control | Claude Code: unknown
 - Seen: 2026-11-23 | live test, the owner watched the phone with the Claude app closed | ClaudeDevKit, `plans/push-noise.md`
 - Re-check: start a throwaway background session, watch the phone; resume it, watch again | owner-only
@@ -181,17 +181,17 @@ One entry per behaviour. A newer direct observation replaces an older one; the o
 
 ### `remoteControlAtStartup: true` gives every new session Remote Control, with or without `--remote-control`
 - What happens: With `remoteControlAtStartup: true` in `~/.claude/settings.json`, every new session gets Remote Control (and its one push), whether or not it is started with `--remote-control`. So a session started without the flag still has Remote Control and pushes.
-- Workaround: `claude --bg --settings '{"remoteControlAtStartup":false}' ...` starts a session with no Remote Control; the user's own settings file stays as it is.
+- Workaround: `claude --bg --settings <path to a JSON file holding {"remoteControlAtStartup": false}> ...` starts a session with no Remote Control; the user's own settings file stays as it is. The file form works like the inline JSON (no `bridgeSessionId` in the job `state.json`; a session with no `--settings` had one) and is the safer form from Windows PowerShell 5.1. Inline from PowerShell 5.1 needs the inner quotes escaped: `--settings '{\"remoteControlAtStartup\":false}'` gave no `bridgeSessionId`, but the job's `respawnFlags` stored the value cut (`remoteControlAtStartup\":false}`). Not tested: whether the plain `'{"remoteControlAtStartup":false}'` fails in PowerShell 5.1 (the quote-cut entry under "Windows shell" suggests it does). `--settings` is kept in the job's `respawnFlags`, so `claude --bg --resume <id>` keeps it: confirmed 2026-11-23 by a resume with `/clear` of a job started with the file (no `bridgeSessionId` after it).
 - App: Remote Control, `claude` CLI | Claude Code: unknown
-- Seen: 2026-11-23 | live test, the owner watched the phone | ClaudeDevKit, `plans/push-noise.md`
-- Re-check: start a throwaway background session with and without the `--settings` override, look for `bridgeSessionId` in its job `state.json` | owner-only
+- Seen: 2026-11-23 | live test, the owner watched the phone; later three throwaway `claude --bg` sessions (haiku), each job's `state.json` read | ClaudeDevKit, `plans/push-noise.md`
+- Re-check: start a throwaway background session with and without the `--settings` file, look for `bridgeSessionId` in its job `state.json` | owner-only
 - Status: checked
 
 ### A resume with `/clear` as its prompt clears the context and keeps the job and the Remote Control link
-- What happens: `claude --bg --resume <id> -- "/clear"` clears the context: same job, same `sessionId` in the job state, same `bridgeSessionId` (the Remote Control link), no phone push. A later question showed the old context gone. The live transcript moves to a NEW `.jsonl` file (`linkScanPath` in the job's `state.json` points at it); `--resume <old id>` still wakes the job. `/compact` as the resume prompt works the same way but keeps the same transcript. `/remote-control` as a resume prompt was not retested.
+- What happens: `claude --bg --resume <id> -- "/clear"` clears the context: same job (same short id), same `sessionId` in the job's `state.json` (it keeps the OLD id and gains `resumeSessionId` = the new id), same `bridgeSessionId` (the Remote Control link), no phone push. A later question showed the old context gone. The live transcript moves to a NEW `.jsonl` file (`linkScanPath` in the job's `state.json` points at it); `--resume <old id>` still wakes the job. But `claude agents --json --all` lists the job (status idle) with `sessionId` = the NEW id, so the two sources differ; both processes (pty host and worker) keep the OLD id in their command line (`--resume ...<old id>.jsonl ... -- /clear`). `claude stop <short id>` stops it at once. `/compact` as the resume prompt works the same way but keeps the same transcript. `/remote-control` as a resume prompt was not retested.
 - Workaround: in Git Bash set `MSYS_NO_PATHCONV=1`, or `/clear` becomes a path (from PowerShell it needs nothing).
 - App: Remote Control, background sessions | Claude Code: unknown
-- Seen: 2026-11-23 | live test, the owner watched the phone | ClaudeDevKit, `plans/push-noise.md`
+- Seen: 2026-11-23 | live test, the owner watched the phone; later a throwaway job without Remote Control, `claude stop` then resume with `/clear`, `state.json` and `claude agents --json --all` compared | ClaudeDevKit, `plans/push-noise.md`
 - Re-check: throwaway background session with Remote Control, `claude stop`, then resume with `/clear`, read its `state.json` and watch the phone | owner-only
 - Status: checked
 

@@ -19,12 +19,30 @@
 # folder (for tests with a throwaway lead; defaults: servers.psd1 and ~\.claude\pult).
 # A full run (no -Only) removes the hold file that stop-servers.ps1 and restart-leads.ps1 leave, at its end;
 # the watcher restarts nothing while a full run is going on.
-# -Handoff <file>: only with exactly one -Only name (else an error and exit 1). That lead is started fresh, never
-# resumed (no Set-LeadRespawnModel, no wait for the old session to go), with the file name at the end of its first
+# -Handoff <file>: only with exactly one -Only name (else an error and exit 1). Without -HandoffSessionId (below), or
+# when that move fails, that lead is started fresh, never resumed (no Set-LeadRespawnModel, no wait for the old session
+# to go), with the file name at the end of its first
 # prompt (`handoff: <file>`, resume-lib.ps1 Get-LeadStartArgs); the file is a bare .md name. The log says
 # STARTED <name> handoff <file>, the output stays `Started lead: <name>`. The hard-ban gate and the pin are as for
 # any start. The watcher runs this when a lead left a handoff (watch-servers.ps1, Invoke-HandoffCheck).
-param([string[]]$Restarted, [string[]]$Only, [string]$ConfigFile, [string]$StateDir, [string]$Handoff)
+# -HandoffSessionId <id> (only with -Handoff): the session the watcher just stopped is moved without a new session, so
+# no phone push (plans/push-noise.md): after the hard-ban gate and the saved flags (Set-LeadRespawnModel) it is resumed
+# with `/clear` (resume-lib.ps1 Get-LeadClearArgs); the turn has ended once its job's linkScanPath names a new file and
+# the session list shows it idle (Test-ClearEnded, up to -HandoffClearWaitSec s, default 120); it is stopped again (a
+# resumed session stays alive while idle, and a resume of a running one starts a copy) and waited for up to
+# -HandoffStopWaitSec s (default 60); then it is resumed with the handoff prompt (Get-LeadStartArgs -ResumeHandoff).
+# After a /clear the session list shows the new transcript's id as the entry's sessionId, while the job keeps its first
+# one: every resume uses the job's own id (Get-JobResumeId; also for a plain resume above), the session's list entry is
+# found by the job's short id or any id of the session (Get-SessionEntries) and stopped by that short id. The move
+# resolves the job's own id once from the passed id, before the /clear moves resumeSessionId on, and looks everything
+# up by it; the stop waits also for the ids seen before the /clear.
+# Moved: the log says RESUMED <name> <id> handoff <file>, the output `Resumed lead: <name>`. Any failure on the way (no
+# job state, a resume that exits with an error or starts a copy, which is stopped and removed, the turn not ended in
+# time, a stop that does not finish): HANDOFF-FALLBACK <name> <reason> in the log, the session is stopped if it runs,
+# and the lead is started fresh as above (one push). A session still running after that stop: STILL-RUNNING <name>
+# <id>, output `Not started, still running after the stop: <name>`, and nothing is started (never two leads of one name).
+param([string[]]$Restarted, [string[]]$Only, [string]$ConfigFile, [string]$StateDir, [string]$Handoff,
+    [string]$HandoffSessionId, [int]$HandoffClearWaitSec = 120, [int]$HandoffStopWaitSec = 60)
 $Restarted = @($Restarted | ForEach-Object { $_ -split ',' } | ForEach-Object { $_.Trim() } | Where-Object { $_ })  # -File passes one comma-joined string
 $Only = @($Only | ForEach-Object { $_ -split ',' } | ForEach-Object { $_.Trim() } | Where-Object { $_ })
 if (-not $ConfigFile) { $ConfigFile = Join-Path $PSScriptRoot 'servers.psd1' }
@@ -33,6 +51,10 @@ if (-not $StateDir) { $StateDir = Join-Path $env:USERPROFILE '.claude\pult' }  #
 if ($Handoff) {
     if ($Only.Count -ne 1) { Write-Output 'Error: -Handoff needs exactly one -Only name.'; exit 1 }
     if ($Handoff -cnotmatch $HandoffNamePattern) { Write-Output "Error: -Handoff is not a bare .md file name: $Handoff"; exit 1 }
+}
+if ($HandoffSessionId) {
+    if (-not $Handoff) { Write-Output 'Error: -HandoffSessionId needs -Handoff.'; exit 1 }
+    if ($HandoffSessionId -cnotmatch '^[0-9A-Za-z-]+$') { Write-Output "Error: -HandoffSessionId is not a session id: $HandoffSessionId"; exit 1 }
 }
 $projects = (Import-PowerShellDataFile $ConfigFile).Servers
 foreach ($p in $projects) { if ($p.Hub) { $p.Path = $env:USERPROFILE } }  # the hub server runs in the home folder
@@ -45,6 +67,76 @@ function Write-Log($msg) {
 }
 if ($Only) { Write-Log "START-SCRIPT run for $($Only -join ', ')" } else { Write-Log 'START-SCRIPT run' }
 $hold = Join-Path $StateDir 'hold'
+
+# The parsed `claude agents --json --all`, or $null when it cannot be read.
+function Get-AgentList {
+    try { return @((claude agents --json --all | Out-String | ConvertFrom-Json) | ForEach-Object { $_ }) } catch { return $null }
+}
+
+# Stops the copy a resume started instead of waking the session, and removes it once it exited.
+function Remove-ResumeCopy([string]$Name, [string]$Copy, [string]$Note) {
+    claude stop $Copy | Out-Null
+    # rm works only once the copy has exited (plugins/dev-kit/claude-facts.md, "A just-stopped session keeps its processes for about 1 s").
+    $rmUntil = (Get-Date).AddSeconds(20)
+    do { Start-Sleep -Seconds 1; $rm = (claude rm $Copy 2>&1 | Out-String) }
+    while ($rm -notmatch 'removed' -and (Get-Date) -lt $rmUntil)
+    Write-Log "COPY-REMOVED $Name $Copy ($Note)"
+}
+
+# One `claude` resume of a lead for the handoff move: '' when it woke the session, else why not (an exit code, or a
+# copy, which is removed).
+function Invoke-HandoffResume([string]$Name, [string[]]$ResumeArgs) {
+    $said = @(claude @ResumeArgs 2>&1 | ForEach-Object { "$_" })
+    $code = $LASTEXITCODE
+    $copy = Get-ResumeCopyId ($said -join "`n")
+    if ($copy) { Remove-ResumeCopy $Name $copy 'handoff move'; return "claude started a copy $copy" }
+    if ($code) { return "exit $code ($($said | Where-Object { $_ -notlike 'note:*' -and $_.Trim() } | Select-Object -First 1))" }
+    return ''
+}
+
+# Stops the lead's session when it runs (by the short id of its list entry, Get-SessionEntries: after a /clear the
+# entry's sessionId is the new transcript's id) and waits until no list entry of that name has a pid and no process
+# holds one of its ids: those of its job now (Get-JobSessionIds) and $KnownIds (the ids seen before the /clear, which a
+# process started then may still carry). $JobId: the job's first sessionId (Get-JobResumeId), the one id that stays
+# across moves. '' when it is stopped, else the reason.
+function Stop-HandoffSession([string]$Name, [string]$JobId, [string[]]$KnownIds) {
+    $ids = @(@(Get-JobSessionIds $JobId) + @($KnownIds) | Where-Object { $_ } | Select-Object -Unique)
+    $until = (Get-Date).AddSeconds($HandoffStopWaitSec)
+    $stopped = $false
+    while ($true) {
+        $list = Get-AgentList
+        $live = @($list | Where-Object { $_ -and $_.kind -eq 'background' -and $_.name -ceq $Name -and $_.pid })
+        if ($null -ne $list -and -not $live.Count -and -not (Get-SessionProcessIds $ids).Count) { return '' }
+        if (-not $stopped -and $null -ne $list) {
+            foreach ($e in @(Get-SessionEntries $list $Name $JobId)) { $null = claude stop $e.id 2>&1 }
+            $stopped = $true
+        }
+        if ((Get-Date) -gt $until) { return "still running $HandoffStopWaitSec s after the stop" }
+        Start-Sleep -Milliseconds 500
+    }
+}
+
+# The handoff move without a new session (see the header, -HandoffSessionId). $JobId: the job's first sessionId
+# (Get-JobResumeId of the id the watcher passed). Every look-up goes by it: the /clear moves the job's resumeSessionId
+# and the list's sessionId to a new id, so the passed one (the list's, new after an earlier move) is lost. '' when the
+# lead was moved, else why not.
+function Invoke-HandoffClear([string]$Name, [string]$JobId, [string[]]$KnownIds, [string]$File, $Opt) {
+    $job = Get-JobState $JobId
+    if (-not $job) { return 'no job state for the session' }
+    $scanBefore = [string]$job.linkScanPath
+    $why = Invoke-HandoffResume $Name (Get-LeadClearArgs $JobId)
+    if ($why) { return "the /clear resume failed: $why" }
+    $until = (Get-Date).AddSeconds($HandoffClearWaitSec)
+    while (-not (Test-ClearEnded $Name $JobId $scanBefore (Get-AgentList))) {
+        if ((Get-Date) -gt $until) { return "the /clear turn did not end in $HandoffClearWaitSec s" }
+        Start-Sleep -Seconds 1
+    }
+    $why = Stop-HandoffSession $Name $JobId $KnownIds
+    if ($why) { return "after the /clear: $why" }
+    $why = Invoke-HandoffResume $Name (Get-LeadStartArgs $Name $JobId -Handoff $File -ResumeHandoff @Opt)
+    if ($why) { return "the handoff resume failed: $why" }
+    return ''
+}
 
 # The watcher restarts a dead entry of the list (watch-servers.ps1).
 $watching = Get-CimInstance Win32_Process -Filter "Name='powershell.exe'" |
@@ -83,6 +175,7 @@ foreach ($p in $projects) {
         $resumeId = $null
         if (-not $Handoff) {  # a handoff lead starts empty: it never resumes the full conversation
             try { $resumeId = Get-ResumeSessionId $sessionName $p.Path } catch { Write-Output "Could not look up a session to resume: $_" }
+            if ($resumeId) { $resumeId = Get-JobResumeId $resumeId }  # after a /clear the list shows another id than the job's
         }
         $opt = @{}  # optional per-lead Prompt, Model, Effort from the server list
         foreach ($k in 'Prompt', 'Model', 'Effort') { if ($p[$k]) { $opt[$k] = $p[$k] } }
@@ -99,6 +192,28 @@ foreach ($p in $projects) {
             Pop-Location; continue
         }
         Write-Log "MODE $sessionName $($perm.Mode) ($($perm.Reason))"
+        if ($Handoff -and $HandoffSessionId) {
+            # Resolved once, before the /clear changes the job's resumeSessionId (Invoke-HandoffClear).
+            $jobId = Get-JobResumeId $HandoffSessionId
+            $knownIds = @(@($HandoffSessionId) + @(Get-JobSessionIds $HandoffSessionId))
+            try { if (Set-LeadRespawnModel $sessionName $jobId @model) { Write-Log "MODEL $sessionName $(if ($p.Model) { $p.Model } else { $LeadModel })/$(if ($p.Effort) { $p.Effort } else { $LeadEffort })/$($perm.Mode)" } }
+            catch { Write-Output "Could not set the lead's model: $_" }
+            $why = 'the move failed'
+            try { $why = Invoke-HandoffClear $sessionName $jobId $knownIds $Handoff $opt } catch { $why = "the move failed: $_" }
+            if (-not $why) {
+                Pop-Location
+                Write-Log "RESUMED $sessionName $HandoffSessionId handoff $Handoff"
+                Write-Output "Resumed lead: $sessionName"
+                continue
+            }
+            Write-Log "HANDOFF-FALLBACK $sessionName $why"
+            if (Stop-HandoffSession $sessionName $jobId $knownIds) {
+                Pop-Location
+                Write-Log "STILL-RUNNING $sessionName $HandoffSessionId"
+                Write-Output "Not started, still running after the stop: $sessionName"
+                continue
+            }
+        }
         # A lead stopped a moment ago may still have its processes (plugins/dev-kit/claude-facts.md, "A just-stopped
         # session keeps its processes for about 1 s"; resume-lib.ps1, Get-SessionProcessIds). Wait until they are gone, before the saved flags are set.
         if ($resumeId -and -not (Wait-SessionGone $resumeId)) {
@@ -120,11 +235,7 @@ foreach ($p in $projects) {
             $copyLeft = if ($resumeId) { Get-ResumeCopyId ($said -join "`n") } else { $null }
             if (-not $copyLeft) { break }
             # The resume started a copy: remove it, wait for the lead's process, retry once.
-            claude stop $copyLeft | Out-Null
-            $rmUntil = (Get-Date).AddSeconds(20)  # rm works only once the copy has exited (see the facts entry above)
-            do { Start-Sleep -Seconds 1; $rm = (claude rm $copyLeft 2>&1 | Out-String) }
-            while ($rm -notmatch 'removed' -and (Get-Date) -lt $rmUntil)
-            Write-Log "COPY-REMOVED $sessionName $copyLeft (try $try)"
+            Remove-ResumeCopy $sessionName $copyLeft "try $try"
             $null = Wait-SessionGone $resumeId
         }
         Pop-Location

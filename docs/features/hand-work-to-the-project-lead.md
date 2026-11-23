@@ -52,8 +52,7 @@ starts with a fixed kind word: every message between sessions starts with one wo
 list (`plugins/dev-kit/messages.md`), such as «ГОТОВО», «ПИТАННЯ» or «ВЛАСНИК ВІДПОВІВ».
 
 ### Critical items reach your phone
-A critical item (a session cannot go on without you, a session crashed, a risk to data or money, P's own
-restart question) also comes as a push to your phone (the phone side:
+A critical item (a session cannot go on without you, a session crashed, a risk to data or money) also comes as a push to your phone (the phone side:
 [Run all projects from the phone](../epics/run-all-projects-from-the-phone.md), step 7). The queue pushes
 once, when it had no question for you and gets one; later questions push nothing until you write. A status
 line alone (`готово`, a usage-limit stop) never pushes, and nothing else does: no progress, merges or
@@ -120,7 +119,7 @@ the repository, one you started yourself included, already does it.
 ### P wakes only when needed
 P wakes only on a task session's report, your message, or a message from the Pult watcher when a session
 ends, writes the line "Роботу завершено", stops on the usage limit, waits 20 minutes or passes a third of its
-context, or when a plugin update waits for a safe point to restart P; P keeps no watcher of its own. While
+context, or when a plugin update or P's own move waits for a safe point to restart P; P keeps no watcher of its own. While
 a task session (not one you started) works and P has been silent 50 minutes, the Pult watcher pings P; P
 then shows its short status.
 Why: owner, 2026-11-20: P and Pult were woken every 2 hours only to re-arm a watcher
@@ -137,9 +136,14 @@ Why: owner, 2026-11-23 ([the talk](../../plans/restart-notice.md)): a warning mi
 and costs P and every task session a turn.
 
 ### P moves itself to a fresh session
-When P's own context is a third full, P saves its notes and asks you «Перезапустити мене зараз?» (a phone
-push). The Pult watcher moves P to a fresh session of the same name when P is quiet, or at once when
-you answer «так» or write «перезапускай» ([the wait](start-leads-at-logon-and-heal-them.md)); you type nothing else.
+When P's own context is a third full, P saves its notes and the Pult watcher moves it to a fresh context, the
+way a plugin update restarts it: no question to you and no phone push. When you and P are quiet, it happens
+silently; when P is in a talk with you, P writes «⚠ ЧЕРЕЗ 30 СЕК БУДЕ ПЕРЕЗАВАНТАЖЕННЯ (СВІЖИЙ КОНТЕКСТ)» at a
+safe point and is moved 30 seconds later. While you keep writing, the move waits. «перезапускай» moves it at
+any time ([the wait](start-leads-at-logon-and-heal-them.md)); you type nothing else. It stays the same session
+in the phone app.
+Why: owner, 2026-11-23 ([the plan](../../plans/lead-self-move.md), [the pushes](../../plans/push-noise.md)): the
+restart question and the push of a new session were noise.
 
 How P does it: [project lead tools](../tech/project-lead.md).
 

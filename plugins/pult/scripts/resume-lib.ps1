@@ -2,7 +2,8 @@
 
 # Full sessionId of the newest background session with this exact name and folder, or $null.
 # Works for stopped and finished sessions: `claude --bg --resume <sessionId>` wakes it under the same id
-# (plugins/dev-kit/claude-facts.md, "`claude --bg --resume <id>` with any other flag starts a copy").
+# (plugins/dev-kit/claude-facts.md, "`claude --bg --resume <id>` with any other flag starts a copy"). After a /clear
+# this is the new transcript's id; start-servers.ps1 resumes by Get-JobResumeId of it.
 function Get-ResumeSessionId([string]$Name, [string]$Path, $Sessions) {
     if ($null -eq $Sessions) {
         $Sessions = claude agents --json --all | Out-String | ConvertFrom-Json
@@ -31,15 +32,16 @@ $HandoffNamePattern = '^[A-Za-z0-9][A-Za-z0-9._-]*\.md\z'
 # The command line (as an argument array for `claude`) that continues a lead, or starts it fresh.
 # -Restarted adds $RestartNote to the first prompt of a resumed lead. -Prompt, -Model and -Effort
 # come from the lead's servers.psd1 row when it has them (a throwaway test lead uses a cheap model).
-# -Handoff <file>: always a fresh start, even with a SessionId (a resume would bring back the full context), and
-# the prompt ends with `handoff: <file>`; a name that is not a bare .md file name throws.
+# -Handoff <file>: the prompt ends with `handoff: <file>`; a name that is not a bare .md file name throws. A fresh start,
+# even with a SessionId (a resume would bring back the full context), unless -ResumeHandoff: then the session is resumed
+# (start-servers.ps1 does that only right after it emptied the session's context with /clear, Get-LeadClearArgs).
 function Get-LeadStartArgs([string]$SessionName, [string]$SessionId, [switch]$Restarted,
         [string]$Prompt = '/dev-kit:project-lead', [string]$Model = $LeadModel, [string]$Effort = $LeadEffort,
-        [string]$Handoff) {
+        [string]$Handoff, [switch]$ResumeHandoff) {
     if ($Handoff) {
         if ($Handoff -cnotmatch $HandoffNamePattern) { throw "the handoff file name is not a bare .md file name: $Handoff" }
         $Prompt += ' ' + $HandoffNote + ' ' + $Handoff
-        $SessionId = $null
+        if (-not $ResumeHandoff) { $SessionId = $null }
     }
     if ($SessionId) {
         if ($Restarted) { $Prompt += ' ' + $RestartNote }
@@ -50,23 +52,110 @@ function Get-LeadStartArgs([string]$SessionName, [string]$SessionId, [switch]$Re
         '--permission-mode', $LeadPermissionMode, '--model', $Model, '--effort', $Effort, '--', $Prompt)
 }
 
+# The resume that empties a stopped session's context and keeps its job and phone link (no push): `/clear` as the
+# only prompt and no other flag (plugins/dev-kit/claude-facts.md, "A resume with `/clear` as its prompt clears the
+# context and keeps the job and the Remote Control link", "`claude --bg --resume <id>` with any other flag starts a copy").
+function Get-LeadClearArgs([string]$SessionId) {
+    return @('--bg', '--resume', $SessionId, '--', '/clear')
+}
+
+# The background jobs folder: env DEV_KIT_JOBS_DIR (tests), else ~\.claude\jobs.
+function Get-JobsDir {
+    if ($env:DEV_KIT_JOBS_DIR) { return $env:DEV_KIT_JOBS_DIR }
+    return Join-Path $env:USERPROFILE '.claude\jobs'
+}
+
+# The state.json of the background job whose sessionId or resumeSessionId is $SessionId (the newest file when several
+# match), parsed, with its short id (`daemonShort`, else the folder name; the `id` of `claude agents`) added as
+# `jobShort`; $null when there is none. After a /clear the job keeps its first sessionId while resumeSessionId,
+# linkScanPath and the sessionId that `claude agents` shows name the new transcript.
+function Get-JobState([string]$SessionId, [string]$JobsDir) {
+    if (-not $SessionId) { return $null }
+    if (-not $JobsDir) { $JobsDir = Get-JobsDir }
+    if (-not (Test-Path -LiteralPath $JobsDir)) { return $null }
+    $utf8 = New-Object System.Text.UTF8Encoding $false
+    $files = Get-ChildItem -LiteralPath $JobsDir -Directory -ErrorAction SilentlyContinue |
+        ForEach-Object { Get-Item -LiteralPath (Join-Path $_.FullName 'state.json') -ErrorAction SilentlyContinue } |
+        Sort-Object LastWriteTimeUtc -Descending
+    foreach ($f in $files) {
+        try { $text = [IO.File]::ReadAllText($f.FullName, $utf8) } catch { continue }
+        if (-not $text.Contains($SessionId)) { continue }  # most jobs are another session's: skip the parse
+        try { $s = $text | ConvertFrom-Json } catch { continue }
+        if ([string]$s.sessionId -cne $SessionId -and [string]$s.resumeSessionId -cne $SessionId) { continue }
+        $short = if ($s.daemonShort) { [string]$s.daemonShort } else { $f.Directory.Name }
+        $s | Add-Member -NotePropertyName jobShort -NotePropertyValue $short -Force
+        return $s
+    }
+    return $null
+}
+
+# The id to resume a session by: the sessionId of its job (Get-JobState). After a /clear the session list shows the new
+# transcript's id as the sessionId, while the job keeps its first one, and `--resume <first id>` wakes the job
+# (plugins/dev-kit/claude-facts.md, "A resume with `/clear` as its prompt clears the context and keeps the job and the
+# Remote Control link"). No job state: $SessionId as given.
+function Get-JobResumeId([string]$SessionId, [string]$JobsDir) {
+    $job = Get-JobState $SessionId $JobsDir
+    if ($job -and $job.sessionId) { return [string]$job.sessionId }
+    return $SessionId
+}
+
+# The live background entries of $Agents (a parsed session list) with this name that belong to the session: its `id` is
+# the job's short id, or its sessionId is one of the session's ids (Get-JobSessionIds; after a /clear the list shows
+# the new transcript's id as the sessionId).
+function Get-SessionEntries($Agents, [string]$Name, [string]$SessionId, [string]$JobsDir) {
+    $ids = @(Get-JobSessionIds $SessionId $JobsDir)
+    $job = Get-JobState $SessionId $JobsDir
+    $short = if ($job) { [string]$job.jobShort } else { '' }
+    return @($Agents | Where-Object { $_ -and $_.kind -eq 'background' -and $_.name -ceq $Name -and $_.pid -and
+            (($short -and [string]$_.id -ceq $short) -or ($ids -ccontains [string]$_.sessionId)) })
+}
+
+# Every id a session's processes may carry on their command lines: the id itself and, from its job state, the
+# sessionId, the resumeSessionId and the name of the linkScanPath file (a session resumed after a /clear runs as
+# `--resume <new id>.jsonl`).
+function Get-JobSessionIds([string]$SessionId, [string]$JobsDir) {
+    if (-not $SessionId) { return @() }
+    $ids = @($SessionId)
+    $job = Get-JobState $SessionId $JobsDir
+    if ($job) {
+        $ids += @([string]$job.sessionId, [string]$job.resumeSessionId)
+        if ($job.linkScanPath) { $ids += [IO.Path]::GetFileNameWithoutExtension([string]$job.linkScanPath) }
+    }
+    return @($ids | Where-Object { $_ } | Select-Object -Unique)
+}
+
+# True when the /clear resume of a session has ended its turn: its job's linkScanPath is set and is not $ScanBefore (the
+# value before the resume: /clear writes a new transcript file) and the live entry of the session in $Agents (a parsed
+# session list; Get-SessionEntries, whose sessionId is the new transcript's id by then) has status idle.
+function Test-ClearEnded([string]$Name, [string]$SessionId, [string]$ScanBefore, $Agents, [string]$JobsDir) {
+    $job = Get-JobState $SessionId $JobsDir
+    if (-not $job -or -not $job.linkScanPath -or [string]$job.linkScanPath -eq $ScanBefore) { return $false }
+    $m = @(Get-SessionEntries $Agents $Name $SessionId $JobsDir) | Select-Object -First 1
+    return [bool]($m -and $m.status -eq 'idle')
+}
+
 # Process ids of a background session that still runs: its pty host and its worker. Both command lines
 # hold the full session id (`--session-id <id>`, or `--resume <transcript folder>\<id>.jsonl` once resumed;
 # the job's short id in the pty pipe name may differ from the id's first 8 characters). A copy forked from
 # # it (`--fork-session`) is another session and is left out. After `claude stop` the processes outlive the
 # pid in `claude agents` (plugins/dev-kit/claude-facts.md, "A just-stopped session keeps its processes for about 1 s").
-function Get-SessionProcessIds([string]$SessionId, $Processes) {
-    if (-not $SessionId) { return @() }
+# $SessionId may hold several ids of one session (Get-JobSessionIds): a process that carries any of them counts.
+function Get-SessionProcessIds([string[]]$SessionId, $Processes) {
+    $ids = @($SessionId | Where-Object { $_ })
+    if (-not $ids.Count) { return @() }
     if ($null -eq $Processes) { $Processes = Get-CimInstance Win32_Process -Filter "Name = 'claude.exe'" }
     @($Processes | Where-Object {
-            $_.CommandLine -and $_.CommandLine.Contains($SessionId) -and -not $_.CommandLine.Contains('--fork-session')
+            $line = $_.CommandLine
+            $line -and -not $line.Contains('--fork-session') -and @($ids | Where-Object { $line.Contains($_) }).Count
         } | ForEach-Object { $_.ProcessId })
 }
 
-# Waits until no process of the session is left (Get-SessionProcessIds). $true when gone, $false on timeout.
+# Waits until no process of the session is left (Get-SessionProcessIds over its ids, Get-JobSessionIds). $true when
+# gone, $false on timeout.
 function Wait-SessionGone([string]$SessionId, [int]$TimeoutSec = 60) {
+    $ids = @(Get-JobSessionIds $SessionId)
     $until = (Get-Date).AddSeconds($TimeoutSec)
-    while ((Get-SessionProcessIds $SessionId).Count) {
+    while ((Get-SessionProcessIds $ids).Count) {
         if ((Get-Date) -gt $until) { return $false }
         Start-Sleep -Milliseconds 500
     }
@@ -94,7 +183,7 @@ $LeadPermissionMode = 'bypassPermissions'
 # $LeadPermissionMode. Returns $true when the file was changed.
 function Set-LeadRespawnModel([string]$SessionName, [string]$SessionId, [string]$JobsDir,
         [string]$Model = $LeadModel, [string]$Effort = $LeadEffort) {
-    if (-not $JobsDir) { $JobsDir = Join-Path $env:USERPROFILE '.claude\jobs' }
+    if (-not $JobsDir) { $JobsDir = Get-JobsDir }
     $utf8 = New-Object System.Text.UTF8Encoding $false
     foreach ($f in Get-ChildItem $JobsDir -Filter state.json -Recurse -Depth 1 -ErrorAction SilentlyContinue) {
         $text = [IO.File]::ReadAllText($f.FullName, $utf8)
