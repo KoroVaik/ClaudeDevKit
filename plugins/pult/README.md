@@ -61,8 +61,9 @@ problem it proposes a fix and acts after an explicit yes.
   only the SendMessage tool, `bypassPermissions`; `plugins/dev-kit/claude-facts.md`, "A one-shot `claude -p` delivers a message into a running session"). GIVEUP, GIVEUP-TASK, RESTART-LEAD-FAILED and HANDOFF-FAILED go to
   the Pult session the same way; Pult pushes them to your phone. A lead silent 50 minutes while one of its
   task sessions works gets a keep-warm ping. A lead past a third of its own context that saved a handoff
-  (`dev-kit-sessions handoff save`) is moved to a fresh session of the same name (when: the feature above;
-  HANDOFF in the log). A message counts as delivered once its id shows in the
+  (`dev-kit-sessions handoff save`) is moved to a fresh context in the same session, by a resume with `/clear`
+  and then the handoff prompt, so no phone push; if that fails, a fresh session of the same name loads it (when:
+  the feature above; HANDOFF-CLEAR, or HANDOFF-FALLBACK and HANDOFF, in the log). A message counts as delivered once its id shows in the
   target's transcript; until then it is sent again, then pushed to your phone (for Pult: «Pult не піднявся -
   запусти його на комп'ютері»). A push also goes once per session when a conversation passes 0.7 of its
   window. The watcher cannot push by itself (a fresh session's push is refused: `plugins/dev-kit/claude-facts.md`,

@@ -1,6 +1,8 @@
 # Fewer "session started" pushes on restarts
 
-Status: plan approved by the owner, waiting for a builder.
+Status: built (C: Переїзд керівника без пушів, branch c/lead-move-nopush); the owner's phone check is open.
+
+Spend: ~1% of the weekly limit, estimate; API: 0 USD (both plans together).
 
 ## Owner's words
 
@@ -65,3 +67,17 @@ owner confirms no phone push (one «+/-» via P). A new C started by the changed
 
 Not in scope: the restart-notice discussion (messages held during restarts) works near the same restart
 code; coordinate on `watch-servers.ps1` when merging.
+
+## Build (2026-11-23)
+
+- Code: `plugins/pult/scripts/start-servers.ps1` `-HandoffSessionId` (stop, resume with `/clear`, wait for the turn,
+  stop, resume with the handoff prompt; any failure -> HANDOFF-FALLBACK and the old fresh start), `resume-lib.ps1`
+  (job state helpers), `watch-servers.ps1` (follows the job's new transcript; finds the lead by its job short id,
+  since the session list shows a new sessionId after `/clear`), `sessions.py` (`find_transcript` reads the job's
+  `linkScanPath`, env `DEV_KIT_JOBS_DIR`). Log: HANDOFF-CLEAR, HANDOFF-FALLBACK.
+- C launch: `--settings "${CLAUDE_PLUGIN_ROOT}/no-remote-control.json"` (a file: inline JSON needs `\"` escapes in
+  Windows PowerShell 5.1). Checked live: no `bridgeSessionId`; a resume keeps it (respawnFlags).
+- Live, no Remote Control: throwaway job moved by start-servers in 9 s, same job, new transcript starts with
+  `/clear` then the handoff prompt, no old context. First run found the sessionId change and was fixed.
+- Open: a test lead WITH Remote Control moved the same way: `bridgeSessionId` unchanged and the owner sees no
+  second push (asked via P).

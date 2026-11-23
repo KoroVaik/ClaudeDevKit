@@ -14,15 +14,56 @@ ROOT = Path(__file__).resolve().parent.parent.parent
 POWERSHELL = shutil.which("powershell.exe") or shutil.which("powershell")
 LEAD = "P: Lead"
 
-FAKE_CLAUDE = '''import json, pathlib, sys
+FAKE_CLAUDE = '''import json, os, pathlib, sys
 d = pathlib.Path(__file__).parent
-if sys.argv[1:2] == ["agents"]:
+argv = sys.argv[1:]
+if argv[:1] == ["agents"]:
     print((d / "agents.json").read_text())
     raise SystemExit
 with open(d / "calls.txt", "a", encoding="utf-8") as f:
-    f.write(json.dumps(sys.argv[1:]) + "\\n")
-print("started")
+    f.write(json.dumps(argv) + "\\n")
+agents = json.loads((d / "agents.json").read_text())
+def live(on, session_id=None):  # the lead's entry gets a pid (woken) or loses it (stopped)
+    for a in agents:
+        if a["name"] == "P: Lead":
+            a["pid"], a["status"] = (os.getpid(), "idle") if on else (None, None)
+            if session_id:
+                a["sessionId"] = session_id
+    (d / "agents.json").write_text(json.dumps(agents))
+plan = json.loads((d / "plan.json").read_text()) if (d / "plan.json").exists() else {}
+if argv[:1] == ["stop"]:
+    if not plan.get("stop_keeps"):
+        live(False)
+    print("stopped")
+elif argv[:1] == ["rm"]:
+    print("removed")
+elif "--resume" in argv:
+    step = "clear" if argv[-1] == "/clear" else "handoff"
+    how = plan.get(step, "ok")
+    if how == "copy":
+        print("note: session 11111111 is already running in the background, so this started a copy as abcdef12.")
+    elif how == "fail":
+        print("error: boom")
+        raise SystemExit(1)
+    else:
+        if step == "clear" and how == "ok":
+            # As seen live (2026-11-23): /clear writes a new transcript file; the job keeps its sessionId but points at
+            # the new file, and the session list shows the new file's id as the sessionId (the short id stays).
+            new = "99999999-aaaa-bbbb-cccc-000000000009"
+            state = pathlib.Path(os.environ["USERPROFILE"]) / ".claude" / "jobs" / "11111111" / "state.json"
+            job = json.loads(state.read_text())
+            job["linkScanPath"] = str(d / (new + ".jsonl"))
+            job["resumeSessionId"] = new
+            state.write_text(json.dumps(job))
+            live(True, new)
+        else:
+            live(True)
+        print("note: woke session 11111111 with its saved options.")
+else:
+    print("started")
 '''
+SID = "11111111-aaaa-bbbb-cccc-000000000001"
+NEW = "99999999-aaaa-bbbb-cccc-000000000009"  # the id of the transcript a /clear writes (the fake's)
 
 
 @unittest.skipUnless(os.name == "nt" and POWERSHELL, "the Pult scripts run on Windows PowerShell")
@@ -81,6 +122,111 @@ class StartServersHandoffTest(unittest.TestCase):
         self.assertIn("--remote-control", calls[0])
         self.assertEqual("/dev-kit:project-lead handoff: handoff-3.md", calls[0][-1])
         self.assertIn(f"STARTED {LEAD} handoff handoff-3.md", self.log())
+
+    def stopped_lead(self, plan):
+        """The lead the watcher just stopped: a stopped list entry, its job state, and how the fake claude answers."""
+        (self.bin / "agents.json").write_text(json.dumps([
+            {"kind": "background", "name": LEAD, "sessionId": SID, "id": SID[:8], "cwd": str(self.project),
+             "startedAt": 2, "state": "stopped", "pid": None}]), encoding="utf-8")
+        job = self.user / ".claude" / "jobs" / SID[:8]
+        job.mkdir(parents=True)
+        (job / "state.json").write_text(json.dumps({
+            "sessionId": SID, "resumeSessionId": SID, "name": LEAD, "linkScanPath": str(self.tmp / f"{SID}.jsonl"),
+            "respawnFlags": ["--remote-control", "--name", LEAD, "--model", "haiku"]}), encoding="utf-8")
+        (self.bin / "plan.json").write_text(json.dumps(plan), encoding="utf-8")
+
+    def run_move(self, *extra):
+        return self.run_start("-Only", LEAD, "-Handoff", "h.md", "-HandoffSessionId", SID, *extra)
+
+    # protects: Flow
+    def test_handoff_with_a_session_id_clears_and_resumes_the_same_session(self):
+        # No new session, so no phone push (plans/push-noise.md).
+        self.stopped_lead({})
+        code, out = self.run_move()
+        self.assertEqual(0, code, out)
+        self.assertIn(f"Resumed lead: {LEAD}", out)
+        self.assertEqual([["--bg", "--resume", SID, "--", "/clear"], ["stop", SID[:8]],
+                          ["--bg", "--resume", SID, "--", "/dev-kit:project-lead handoff: h.md"]], self.claude_calls())
+        log = self.log()
+        self.assertIn(f"RESUMED {LEAD} {SID} handoff h.md", log)
+        self.assertNotIn("HANDOFF-FALLBACK", log)
+        flags = json.loads((self.user / ".claude" / "jobs" / SID[:8] / "state.json").read_text())["respawnFlags"]
+        self.assertEqual("opus", flags[flags.index("--model") + 1], "the lead wakes on its own model")
+
+    def moved_before(self):
+        """A lead already moved once: the list shows the new transcript's id, the job keeps its first id."""
+        agents = json.loads((self.bin / "agents.json").read_text())
+        agents[0]["sessionId"] = NEW
+        (self.bin / "agents.json").write_text(json.dumps(agents), encoding="utf-8")
+        state = self.user / ".claude" / "jobs" / SID[:8] / "state.json"
+        job = json.loads(state.read_text())
+        job.update(resumeSessionId=NEW, linkScanPath=str(self.tmp / f"{NEW}.jsonl"))
+        state.write_text(json.dumps(job), encoding="utf-8")
+
+    # protects: Bug
+    def test_lead_moved_before_is_moved_again_by_its_jobs_own_id(self):
+        # Live run, 2026-11-23: after a /clear the list showed the new id, the stop matched none and two leads loomed.
+        self.stopped_lead({"clear": "stays"})
+        self.moved_before()
+        code, out = self.run_start("-Only", LEAD, "-Handoff", "h.md", "-HandoffSessionId", NEW, "-HandoffClearWaitSec", "2")
+        self.assertEqual(0, code, out)
+        calls = self.claude_calls()
+        self.assertEqual(["--bg", "--resume", SID, "--", "/clear"], calls[0], "resumed by the job's own id")
+        self.assertEqual(["stop", SID[:8]], calls[1], "stopped by the short id, though the list shows another sessionId")
+        self.assert_fresh_fallback(out, "did not end in 2 s")
+
+    # protects: Bug
+    def test_plain_resume_of_a_lead_moved_before_uses_the_jobs_own_id(self):
+        self.stopped_lead({})
+        self.moved_before()
+        code, out = self.run_start("-Only", LEAD)
+        self.assertEqual(0, code, out)
+        self.assertEqual([["--bg", "--resume", SID, "--", "/dev-kit:project-lead"]], self.claude_calls())
+
+    def assert_fresh_fallback(self, out, reason):
+        self.assertIn(f"Started lead: {LEAD}", out)
+        fresh = self.claude_calls()[-1]
+        self.assertIn("--remote-control", fresh)
+        self.assertNotIn("--resume", fresh)
+        self.assertEqual("/dev-kit:project-lead handoff: h.md", fresh[-1])
+        fallback = [line for line in self.log().splitlines() if " HANDOFF-FALLBACK " in line]
+        self.assertEqual(1, len(fallback), self.log())
+        self.assertIn(f"HANDOFF-FALLBACK {LEAD} ", fallback[0])
+        self.assertIn(reason, fallback[0])
+
+    # protects: Rule
+    def test_clear_resume_that_starts_a_copy_removes_it_and_starts_fresh(self):
+        self.stopped_lead({"clear": "copy"})
+        code, out = self.run_move()
+        self.assertEqual(0, code, out)
+        calls = self.claude_calls()
+        self.assertIn(["stop", "abcdef12"], calls)
+        self.assertIn(["rm", "abcdef12"], calls)
+        self.assert_fresh_fallback(out, "claude started a copy abcdef12")
+
+    # protects: Rule
+    def test_clear_turn_that_does_not_end_in_time_stops_the_session_and_starts_fresh(self):
+        self.stopped_lead({"clear": "stays"})  # woken, but the job never points at a new transcript
+        code, out = self.run_move("-HandoffClearWaitSec", "2")
+        self.assertEqual(0, code, out)
+        self.assertIn(["stop", SID[:8]], self.claude_calls(), "never two leads of one name")
+        self.assertNotIn(["--bg", "--resume", SID, "--", "/dev-kit:project-lead handoff: h.md"], self.claude_calls())
+        self.assert_fresh_fallback(out, "did not end in 2 s")
+
+    # protects: Rule
+    def test_failed_handoff_resume_starts_fresh(self):
+        self.stopped_lead({"handoff": "fail"})
+        code, out = self.run_move()
+        self.assertEqual(0, code, out)
+        self.assert_fresh_fallback(out, "the handoff resume failed: exit 1 (error: boom)")
+
+    # protects: Rule
+    def test_session_that_does_not_stop_is_not_replaced_by_a_fresh_lead(self):
+        self.stopped_lead({"stop_keeps": True})
+        code, out = self.run_move("-HandoffStopWaitSec", "1")
+        self.assertIn(f"Not started, still running after the stop: {LEAD}", out)
+        self.assertFalse([c for c in self.claude_calls() if "--remote-control" in c], "two leads of one name")
+        self.assertIn(f"STILL-RUNNING {LEAD} {SID}", self.log())
 
     # protects: Rule
     def test_handoff_needs_exactly_one_only_name(self):

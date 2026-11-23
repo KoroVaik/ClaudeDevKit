@@ -19,8 +19,9 @@ Code: `plugins/dev-kit/scripts/sessions.py`, `plugins/dev-kit/scripts/migrations
 - `watch` is the older background watcher, kept for leads on dev-kit before 0.1.78: silent while its sessions
   live, it exits when one ends, writes the line "Роботу завершено", stops on the usage limit, or has waited
   `--stale-minutes` (20) since its last reply.
-- `fill --self` prints the caller's own fill (the lead's move to a fresh session); `handoff save|go|status|clear`
-  keeps the lead's handoff marker that the Pult watcher acts on.
+- `fill --self` prints the caller's own fill (the lead's move to a fresh context); `handoff save|go|request|status|clear`
+  keeps the lead's handoff marker that the Pult watcher acts on (`request` is the watcher's ask that reaches the lead
+  as `handoff requested: <file>`).
 - `fill --over-only` prints only the sessions past the fill limit; `size --id ...` prints a session's
   conversation size and window (the Pult watcher's 0.7 push and its size log).
 - `state` prints each registered session as working, waiting, finished or gone with the gist of its last reply.

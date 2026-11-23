@@ -30,7 +30,9 @@ class SessionsTestCase(unittest.TestCase):
         (self.projects / "p1").mkdir(parents=True)
         self.project = tmp / "work"
         self.project.mkdir()
-        env = mock.patch.dict(os.environ, {"DEV_KIT_STATE_DIR": str(self.state), "DEV_KIT_PROJECTS_DIR": str(self.projects)})
+        self.jobs = tmp / "jobs"  # no job: transcripts are found by file name unless a test writes a job state
+        env = mock.patch.dict(os.environ, {"DEV_KIT_STATE_DIR": str(self.state), "DEV_KIT_PROJECTS_DIR": str(self.projects),
+                                           "DEV_KIT_JOBS_DIR": str(self.jobs)})
         env.start()
         self.addCleanup(env.stop)
 
@@ -1079,6 +1081,64 @@ class SessionsTestCase(unittest.TestCase):
         self.handoff_file().parent.mkdir(parents=True, exist_ok=True)
         self.handoff_file().write_text("{nope", encoding="utf-8")
         self.assertEqual((0, "none\n"), self.run_main("handoff", "status"))
+
+    # protects: Rule
+    def test_handoff_go_status_counts_from_the_go_not_from_the_save(self):
+        # The watcher moves a go lead 30 s after its CAPS warning, which comes right before `handoff go`.
+        self.handoff_file().parent.mkdir(parents=True, exist_ok=True)
+        self.handoff_file().write_text(json.dumps({"file": "a.md", "saved": time.time() - 700, "go": False}), encoding="utf-8")
+        self.assertEqual((0, "handoff go: a.md\n"), self.run_main("handoff", "go"))
+        self.assertLess(int(self.run_main("handoff", "status")[1].split()[2]), 10)
+        self.run_main("handoff", "save", "--file", "b.md")  # a re-save keeps the go time
+        self.assertRegex(self.run_main("handoff", "status")[1], r"^go b\.md \d\n$")
+        # A go file written before go_at existed: the age since the save, as before.
+        self.handoff_file().write_text(json.dumps({"file": "a.md", "saved": time.time() - 700, "go": True}), encoding="utf-8")
+        self.assertTrue(700 <= int(self.run_main("handoff", "status")[1].split()[2]) < 710)
+
+    # protects: Flow
+    def test_handoff_request_reaches_the_lead_once_through_check_and_mark(self):
+        # A lead that is not quiet is asked once; the watcher delivers the event and marks it.
+        self.assertEqual((1, "dev-kit-sessions: no handoff is saved\n"), self.run_main("handoff", "request"))
+        self.run_main("handoff", "save", "--file", "a.md")
+        self.assertEqual((0, ""), self.run_main("check"))
+        self.assertEqual((0, "handoff asked: a.md\n"), self.run_main("handoff", "request"))
+        self.assertEqual((0, "handoff already asked: a.md\n"), self.run_main("handoff", "request"))
+        self.assertEqual((0, "handoff | - | - | a.md | a.md\n"), self.run_main("check"))
+        self.assertEqual((0, "not marked handoff - (no open request for b.md)\n"),
+                         self.run_main("mark", "--kind", "handoff", "--key", "b.md"))
+        self.assertEqual((0, "marked handoff -\n"), self.run_main("mark", "--kind", "handoff", "--key", "a.md"))
+        self.assertEqual((0, ""), self.run_main("check"))
+        self.run_main("handoff", "save", "--file", "b.md")  # a new file is the same move: no second request
+        saved = json.loads(self.handoff_file().read_text())
+        self.assertTrue(saved["asked"] and saved["notified"])
+        self.assertEqual((0, ""), self.run_main("check"))
+        self.run_main("handoff", "clear")
+        self.run_main("handoff", "save", "--file", "c.md")
+        self.run_main("handoff", "request")
+        self.run_main("handoff", "go")  # the lead answered before the event reached it
+        self.assertEqual((0, ""), self.run_main("check"))
+
+    def job(self, short, session_id, link, resume_id=None):
+        folder = self.jobs / short
+        folder.mkdir(parents=True, exist_ok=True)
+        (folder / "state.json").write_text(json.dumps({"sessionId": session_id, "resumeSessionId": resume_id or session_id,
+                                                       "linkScanPath": str(link), "name": "P: x"}), encoding="utf-8")
+
+    # protects: Bug
+    def test_transcript_follows_the_jobs_new_file_after_a_clear(self):
+        # After /clear the job keeps its sessionId but writes a new file; the old one would make the lead look full.
+        self.transcript("old-session", [self.assistant(0, 0, 150000)])
+        self.transcript("new-session", [self.assistant(0, 0, 2000)])
+        self.job("oldsess1", "old-session", self.projects / "p1" / "new-session.jsonl", resume_id="new-session")
+        self.job("other111", "other-session", self.projects / "p1" / "other-session.jsonl")
+        for own in ("old-session", "new-session"):  # CLAUDE_CODE_SESSION_ID may hold either after the clear
+            with mock.patch.dict(os.environ, {"CLAUDE_CODE_SESSION_ID": own}):
+                self.assertEqual((0, f"self | {own} | 2000 tokens | window 200000 | 1%\n"), self.run_main("fill", "--self"))
+        self.assertEqual((0, "old-session | 2000 | 200000 | claude-haiku-4-5-20251001\n"),
+                         self.run_main("size", "--id", "old-session"))
+        (self.projects / "p1" / "new-session.jsonl").unlink()  # a job whose file is gone: the id's own file
+        self.assertEqual((0, "self | old-session | 150000 tokens | window 200000 | 75% OVER\n"),
+                         self.run_main("fill", "--self", "old-session"))
 
     # protects: Flow
     def test_fill_self_reads_the_own_transcript_by_env_or_by_id(self):

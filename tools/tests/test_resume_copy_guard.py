@@ -1,8 +1,10 @@
 """A lead resume never leaves a flag-less copy (plugins/pult/scripts/resume-lib.ps1): the processes of a
 just-stopped session are found by its id or its pty host, and the copy note of `claude --bg --resume`
 gives the copy's id. Dot-sources resume-lib.ps1 in Windows PowerShell; starts no session."""
+import json
 import shutil
 import subprocess
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -51,6 +53,18 @@ class ResumeCopyGuardTest(unittest.TestCase):
         note = ("note: session 1e9f7469 is already running in the background, so this started a copy as "
                 "a1f1e8b6. `claude attach 1e9f7469` opens the original.")
         self.assertEqual(ps(f"Get-ResumeCopyId '{note.replace(chr(39), chr(39) * 2)}'"), "a1f1e8b6")
+
+    # protects: Bug
+    def test_session_resumed_after_a_clear_is_found_by_its_new_transcript_id(self):
+        # After /clear the list keeps the old id, but a resumed process runs as `--resume <new id>.jsonl`: a stop that
+        # waits only for the old id would resume while it still runs, and claude would start a copy.
+        new = "9c676bbe-24bd-4552-8a2c-ed959a99feab"
+        with tempfile.TemporaryDirectory() as jobs:
+            (Path(jobs) / "0bf62d3e").mkdir()
+            (Path(jobs) / "0bf62d3e" / "state.json").write_text(json.dumps(
+                {"sessionId": SID, "resumeSessionId": new, "linkScanPath": rf"C:\p\{new}.jsonl"}), encoding="utf-8")
+            rows = procs((31, rf"{EXE} --resume C:\p\{new}.jsonl --name t"), (32, f"{EXE} --session-id other"))
+            self.assertEqual("31", ps(f"(Get-SessionProcessIds (Get-JobSessionIds '{SID}' '{jobs}') {rows}) -join ','"))
 
     def test_woken_session_is_no_copy(self):
         note = "note: woke session 1e9f7469 with its saved options (--name, --permission-mode, --model)."

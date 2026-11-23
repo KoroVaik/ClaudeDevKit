@@ -190,6 +190,7 @@ class WatchServersWakeTest(unittest.TestCase):
     def run_watch(self, rounds, *extra, restart_busy=False):
         env = dict(os.environ, PATH=str(self.bin) + os.pathsep + os.environ.get("PATH", ""),
                    DEV_KIT_PROJECTS_DIR=str(self.projects.parent), DEV_KIT_STATE_DIR=str(self.state),
+                   DEV_KIT_JOBS_DIR=str(self.tmp / "jobs"),
                    TEST_DIR=str(self.bin), TEST_CALLS_FILE=str(self.tmp / "restart-calls.txt"),
                    TEST_REAL_SESSIONS=str(self.plugins / "dev-kit" / "scripts" / "sessions.py"))
         env.pop("TEST_RESTART_BUSY", None)
@@ -272,6 +273,34 @@ class WatchServersWakeTest(unittest.TestCase):
         self.assertEqual([f"stale|{TASK}|{STALE_KEY}"], self.marks())
         self.assertEqual(["--project", str(self.project), "mark"], self.sessions_calls("mark")[0][:3])
         self.assertEqual([], json.loads((self.pult / "wake-pending.json").read_text(encoding="utf-8")))
+
+    # protects: Flow
+    def test_handoff_request_reaches_the_lead_as_its_line_and_is_marked(self):
+        # A lead that is not quiet is asked to move by this event (the project-lead skill, "Restart P").
+        (self.bin / "check.txt").write_text("handoff | - | - | handoff-2.md | handoff-2.md\n", encoding="utf-8")
+        log = self.run_watch(2)
+        wakes = self.wakes()
+        self.assertEqual(1, len(wakes), log)
+        self.assertEqual(["handoff requested: handoff-2.md", "Act on these lines per your project-lead skill."],
+                         self.message(wakes[0]).split("\n")[1:])
+        self.assertEqual(["handoff|-|handoff-2.md"], self.marks())
+
+    # protects: Bug
+    def test_delivery_is_seen_in_the_new_transcript_of_a_cleared_lead(self):
+        # After /clear the lead keeps its session id but writes a new file; the old one never shows the event.
+        new = self.projects / "99999999-aaaa-bbbb-cccc-000000000009.jsonl"
+        new.write_text(json.dumps({"type": "assistant", "message": {"role": "assistant", "content": "x"}}) + "\n",
+                       encoding="utf-8")
+        job = self.tmp / "jobs" / LEAD_SID[:8]
+        job.mkdir(parents=True)
+        (job / "state.json").write_text(json.dumps({"sessionId": LEAD_SID, "resumeSessionId": new.stem,
+                                                    "linkScanPath": str(new), "name": LEAD}), encoding="utf-8")
+        (self.bin / "wake-plan.json").write_text(json.dumps(
+            {"deliver": True, "transcripts": {LEAD: str(new), "Pult": str(self.pult_transcript)}}), encoding="utf-8")
+        (self.bin / "check.txt").write_text(STALE_LINE + "\n", encoding="utf-8")
+        log = self.run_watch(2)
+        self.assertTrue(any(line.startswith(f"WAKE-TAKEN {LEAD} ") for line in log), log)
+        self.assertEqual([f"stale|{TASK}|{STALE_KEY}"], self.marks())
 
     # protects: Flow
     def test_message_not_taken_is_sent_again_then_pushed_through_pult(self):

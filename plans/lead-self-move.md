@@ -1,6 +1,9 @@
 # P moves itself like a release
 
-Status: build (C: Переїзд керівника без пушів), together with `plans/push-noise.md`.
+Status: built (C: Переїзд керівника без пушів), together with `plans/push-noise.md` (spend line there).
+
+Built: no restart question; quiet -> silent move; not quiet -> event `handoff requested: <file>`, P's CAPS line,
+`handoff go`, move 30 s after `go` (`handoff.json` `go_at`). Skill: "Restart P"; docs: the two feature docs.
 
 ## Owner's approval
 

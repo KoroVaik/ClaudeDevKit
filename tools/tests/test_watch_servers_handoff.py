@@ -1,5 +1,6 @@
 """The Pult watcher (plugins/pult/scripts/watch-servers.ps1, Invoke-HandoffCheck) moves a lead that left a handoff marker
-(`sessions.py handoff save`) to a fresh lead: it stops the old one and runs start-servers.ps1 -Handoff <file>. Runs the
+(`sessions.py handoff save`) to a fresh context: it stops the old one and runs start-servers.ps1 -Handoff <file>
+-HandoffSessionId <id> (which moves it within the same session, or starts a fresh lead when that fails). Runs the
 real watcher and the real sessions.py on a temp copy of the pult scripts with a fake `claude` on PATH (it records
 `claude stop` and, like the real one, drops the lead from the session list) and a stub start-servers.ps1, so no real
 session or Pult process is touched. The "lead" is this test process (its pid is alive)."""
@@ -13,7 +14,7 @@ import unittest
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))  # also when run by module name, not only by discover
-from test_watch_servers_restart import LEAD, POWERSHELL, WatcherEnv  # noqa: E402
+from test_watch_servers_restart import LEAD, POWERSHELL, WatcherEnv, owner_said  # noqa: E402
 
 SID = "11111111-aaaa-bbbb-cccc-000000000001"
 FILE = "handoff-1.md"
@@ -32,9 +33,10 @@ print((d / "agents.json").read_text())
 
 # Records its call; the output is the test's (env TEST_START_OUTPUT). A failed start brings the old lead back to the
 # session list, as the next HEAL would, so a second handoff try would find it live and ready again.
-STUB_START = '''param([string[]]$Restarted, [string[]]$Only, [string]$ConfigFile, [string]$StateDir, [string]$Handoff)
-Add-Content -LiteralPath $env:TEST_CALLS_FILE -Value "start Only=$($Only -join ',') Handoff=$Handoff"
-if ($env:TEST_START_OUTPUT -notlike 'Started lead*') {
+STUB_START = '''param([string[]]$Restarted, [string[]]$Only, [string]$ConfigFile, [string]$StateDir, [string]$Handoff,
+    [string]$HandoffSessionId, [int]$HandoffClearWaitSec, [int]$HandoffStopWaitSec)
+Add-Content -LiteralPath $env:TEST_CALLS_FILE -Value "start Only=$($Only -join ',') Handoff=$Handoff Session=$HandoffSessionId"
+if ($env:TEST_START_OUTPUT -notlike 'Started lead*') {  # a failed start, or the same session resumed: live again
     Copy-Item -LiteralPath (Join-Path $env:TEST_BIN 'agents.bak') -Destination (Join-Path $env:TEST_BIN 'agents.json') -Force
 }
 Write-Output ($env:TEST_START_OUTPUT -replace '\\{name\\}', ($Only -join ','))
@@ -110,42 +112,65 @@ class WatchServersHandoffTest(WatcherEnv, unittest.TestCase):
     def marker_left(self):
         return self.handoff("status") != "none"
 
+    def owner_wrote(self, minutes_ago):
+        self.transcript.write_text(json.dumps(owner_said("still here", minutes_ago)) + "\n", encoding="utf-8")
+
     # protects: Flow
-    def test_saved_handoff_of_an_idle_quiet_lead_stops_it_and_starts_a_fresh_one(self):
+    def test_saved_handoff_of_a_quiet_lead_moves_it_within_the_same_session(self):
+        # No new session, so no phone push (plans/push-noise.md); start-servers.ps1 does the /clear move.
+        self.start_output = "Resumed lead: {name}"
+        (self.tmp / "pult").mkdir(exist_ok=True)
+        (self.tmp / "pult" / "wake-state.json").write_text(
+            json.dumps({"PultNote": True, "SizePushed": {SID: 700000}}), encoding="utf-8")
         self.handoff("save", "--file", FILE)
         log = self.run_watch(2)
         self.assertEqual(["11111111"], self.stops())
-        self.assertEqual([f"start Only={LEAD} Handoff={FILE}"], self.starts())
-        self.assertFalse(self.marker_left(), "the marker is cleared once the fresh lead runs")
-        moved = [line for line in log if " HANDOFF " in line]
+        self.assertEqual([f"start Only={LEAD} Handoff={FILE} Session={SID}"], self.starts())
+        self.assertFalse(self.marker_left(), "the marker is cleared once the lead was moved")
+        moved = [line for line in log if " HANDOFF" in line]
+        self.assertEqual(1, len(moved), log)
+        self.assertTrue(moved[0].endswith(f" HANDOFF-CLEAR {LEAD} {SID} {FILE}"), moved)
+        state = json.loads((self.tmp / "pult" / "wake-state.json").read_text(encoding="utf-8"))
+        self.assertLess(time.time() - state["LastWake"][LEAD], 120, "the moved lead counts as just woken")
+        self.assertNotIn(SID, state["SizePushed"], "the old id's size push mark is dropped")
+
+    # protects: Flow
+    def test_fallback_fresh_start_is_logged_as_before(self):
+        self.handoff("save", "--file", FILE)
+        log = self.run_watch(2)
+        self.assertEqual([f"start Only={LEAD} Handoff={FILE} Session={SID}"], self.starts())
+        self.assertFalse(self.marker_left())
+        moved = [line for line in log if " HANDOFF" in line]
         self.assertEqual(1, len(moved), log)
         self.assertTrue(moved[0].endswith(f" HANDOFF {LEAD} {SID} {FILE}"), moved)
-        last = json.loads((self.tmp / "pult" / "wake-state.json").read_text(encoding="utf-8"))["LastWake"][LEAD]
-        self.assertLess(time.time() - last, 120, "the new lead counts as just woken")
-        self.assertFalse([line for line in log if "HANDOFF-FAILED" in line or "HANDOFF-WAIT" in line], log)
 
     # protects: Rule
-    def test_saved_handoff_waits_while_the_transcript_is_not_quiet_and_says_so_once(self):
-        # The lead may still be working through its notes: it is moved only after 5 quiet minutes.
-        self.age_transcript(1)
+    def test_saved_handoff_of_a_lead_in_a_talk_asks_it_once_and_does_not_stop_it(self):
+        # The owner wrote a minute ago: no silent move; the lead is asked (it warns the owner, then runs handoff go).
+        self.owner_wrote(1)
         self.handoff("save", "--file", FILE)
-        log = self.run_watch(2)
+        log = self.run_watch(3)
         self.assertEqual([], self.stops())
         self.assertEqual([], self.starts())
-        waits = [line for line in log if " HANDOFF-WAIT " in line]
-        self.assertEqual(1, len(waits), log)
-        self.assertTrue(waits[0].endswith(f" HANDOFF-WAIT {LEAD} {FILE}"), waits)
+        asked = [line for line in log if " HANDOFF-ASKED " in line]
+        self.assertEqual(1, len(asked), log)
+        self.assertTrue(asked[0].endswith(f" HANDOFF-ASKED {LEAD} {FILE} (owner active)"), asked)
+        self.assertEqual(1, len([line for line in log if " HANDOFF-WAIT " in line]), log)
+        self.assertTrue(any(f"WAKE {LEAD} " in line and "kinds=handoff" in line for line in log), log)
         self.assertTrue(self.marker_left())
 
-    # protects: Flow
-    def test_go_handoff_skips_the_quiet_minutes(self):
-        self.age_transcript(1)
+    # protects: Rule
+    def test_go_handoff_moves_a_lead_in_a_talk_once_the_warning_time_passed(self):
+        self.owner_wrote(1)
         self.handoff("save", "--file", FILE)
         self.handoff("go")
-        log = self.run_watch(2)
+        started = time.time()
+        log = self.run_watch(1, "-ReadyWarnSec", "3")
+        self.assertGreaterEqual(time.time() - started, 3, "the rest of the warning time is waited out")
         self.assertEqual(["11111111"], self.stops())
-        self.assertEqual([f"start Only={LEAD} Handoff={FILE}"], self.starts())
+        self.assertEqual([f"start Only={LEAD} Handoff={FILE} Session={SID}"], self.starts())
         self.assertTrue(any(line.endswith(f" HANDOFF {LEAD} {SID} {FILE}") for line in log), log)
+        self.assertFalse([line for line in log if "HANDOFF-ASKED" in line], log)
 
     # protects: Rule
     def test_busy_lead_is_not_stopped(self):
@@ -158,14 +183,15 @@ class WatchServersHandoffTest(WatcherEnv, unittest.TestCase):
         self.assertFalse([line for line in log if "HANDOFF-FAILED" in line], log)
 
     # protects: Rule
-    def test_lead_that_was_just_sent_a_message_is_not_stopped(self):
+    def test_lead_that_was_just_sent_a_message_is_not_stopped_or_asked(self):
         # A message sent a moment ago is not handled yet: stopping would lose it.
         (self.tmp / "pult").mkdir(exist_ok=True)
         (self.tmp / "pult" / "wake-state.json").write_text(
             json.dumps({"PultNote": True, "LastWake": {LEAD: time.time() - 30}}), encoding="utf-8")
-        self.handoff("save", "--file", FILE, "--go")
-        self.run_watch(2)
+        self.handoff("save", "--file", FILE)
+        log = self.run_watch(2)
         self.assertEqual([], self.stops())
+        self.assertFalse([line for line in log if "HANDOFF-ASKED" in line], log)
 
     # protects: Rule
     def test_nothing_is_stopped_while_the_hold_file_is_there(self):
@@ -184,7 +210,7 @@ class WatchServersHandoffTest(WatcherEnv, unittest.TestCase):
         self.assertEqual(1, len(failed), log)
         self.assertTrue(failed[0].endswith(f" HANDOFF-FAILED {LEAD}: Start failed, exit 1: {LEAD}: boom"), failed)
         self.assertEqual(["11111111"], self.stops(), "one try per marker, though the old lead is live again")
-        self.assertEqual([f"start Only={LEAD} Handoff={FILE}"], self.starts())
+        self.assertEqual([f"start Only={LEAD} Handoff={FILE} Session={SID}"], self.starts())
         self.assertTrue(self.marker_left(), "the marker stays for the owner or the lead")
 
     # protects: Rule

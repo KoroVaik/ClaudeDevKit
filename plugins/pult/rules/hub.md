@@ -191,10 +191,11 @@ leads restarted and which were asked. A change of only an extension (web-kit, un
 the same way; `-Ask` does not wake a busy lead for it and prints `Not asked, busy and only an extension changed: <name>`:
 Pult reports that lead as «оновиться, коли звільниться» (the watcher restarts it once it is idle). Bounds (owner, 2026-11-16): lead sessions (`P: ...`) only,
 never task sessions, owner sessions or Pult itself; always resume the same conversation. The one exception
-is a lead's move to a fresh session (dev-kit project-lead skill, "Restart P"): a lead at a third of its context saves
-a handoff, and the watcher stops it and starts a fresh conversation of the same name that loads it. Pult only
-shows the log: HANDOFF is fixed («перенесено в нову сесію»); HANDOFF-FAILED is a problem to show with a
-proposed fix (the watcher brings the old lead back).
+is a lead's move to a fresh context (dev-kit project-lead skill, "Restart P"): a lead at a third of its context saves
+a handoff, and the watcher stops it, resumes the same session with `/clear` and then with a prompt that loads the
+handoff; if that fails it starts a fresh conversation of the same name that loads it (HANDOFF-FALLBACK, one phone
+push). Pult only shows the log: HANDOFF-CLEAR and HANDOFF are fixed («перенесено в свіжий контекст»);
+HANDOFF-FAILED is a problem to show with a proposed fix (the watcher brings the old lead back).
 
 Why: on 2026-11-16 the hub got a merge message but restarted nobody: it acts only when someone writes
 in its chat. `-Ask` writes a request file (`dev-kit-sessions restart`); the watcher sends it to the lead as

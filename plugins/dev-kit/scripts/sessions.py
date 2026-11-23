@@ -10,11 +10,11 @@ full their context is.
     dev-kit-sessions answers [--id <id> ...]
     dev-kit-sessions watch [--id <id> ...] [--interval 60] [--max-minutes 120] [--stale-minutes 20]
     dev-kit-sessions check [--id <id> ...] [--stale-minutes 20] [--fill-limit 0.33]
-    dev-kit-sessions mark --kind gone|finished|limited|stale|fill|restart [--id <id>] --key <key>
+    dev-kit-sessions mark --kind gone|finished|limited|stale|fill|restart|handoff [--id <id>] --key <key>
     dev-kit-sessions size --id <id> [--id <id> ...] [--wakes <state file>]
     dev-kit-sessions limited --id <id> [--id <id> ...]
     dev-kit-sessions restart request --version <V> | ready [--version <V>] | status | clear
-    dev-kit-sessions handoff save --file <name.md> [--go] | go | status | clear
+    dev-kit-sessions handoff save --file <name.md> [--go] | go | request | status | clear
     dev-kit-sessions fill --self [<id>] [--limit 0.33] [--window N] [--over-only]
     dev-kit-sessions release --from <V|older> --to <V> [--started <ISO time>] [--file <releases.json>]
     dev-kit-sessions quiet --id <session id> [--minutes 5]
@@ -23,8 +23,14 @@ The registry is `sessions.json` in the project state folder (see dev_kit_state.p
 of one repository). Ids (`--id`, `--parent`, `--predecessor`, `--self`) and the registry's ids are trimmed of spaces and
 line ends (plugins/dev-kit/claude-facts.md, "`claude --bg` prints only a short id"). `add --predecessor` marks the replaced session `replaced`. `add --owner` marks a session the
 owner started and the lead took over (the record gets `"owner": true`; the UserPromptSubmit hook
-hooks/owner-session-note.py reads it). `fill` finds the transcript of every
-active record (`<projects>/*/<id>.jsonl`, projects folder = env DEV_KIT_PROJECTS_DIR, else ~/.claude/projects) and
+hooks/owner-session-note.py reads it). A session's transcript, wherever one is read by id: the `linkScanPath`
+file of its background job (`<jobs>/*/state.json` whose `sessionId` or `resumeSessionId` is the id; jobs folder = env
+DEV_KIT_JOBS_DIR, else ~/.claude/jobs; the newest such file when several jobs match) when that file exists, since a
+`/clear` keeps the job and its `sessionId` but writes a new transcript file (plugins/dev-kit/claude-facts.md, "A resume
+with `/clear` as its prompt clears the context and keeps the job and the Remote Control link"); else the newest
+`<projects>/*/<id>.jsonl` (projects folder = env DEV_KIT_PROJECTS_DIR, else ~/.claude/projects). So the job's first
+id and the new transcript's own id (the one `claude agents` shows as the sessionId after a /clear) both lead to the
+live file. `fill` finds the transcript of every active record and
 prints its context size: input + cache creation + cache read tokens of the last assistant message that has usage.
 The window comes from the transcript's model (see `window_for`) unless `--window` is given. A line ends with OVER when the
 percent reaches the limit. `--over-only` prints only the OVER rows (nothing else, not even "no active sessions"). Lines
@@ -101,12 +107,14 @@ sessions; key = timestamp of the last assistant reply); `limited` (detail `reset
 key; delivered when LIMITS holds it); `stale` (detail `waiting <N> min`; key = wait start; delivered when STALE holds
 it); `fill` (an active registry record that is not an owner session and whose context reaches `--fill-limit` of its
 window; detail like `65% of 1000000`; key `fill`, so once per id); `restart` (an open, not ready, not notified
-request of `restart.json`: `restart | - | - | <version> | <version>`). `check` never writes LIMITS, STALE, the delivered
-marks or the restart file. `mark --kind K [--id X] --key KEY` records the delivery after the caller got the message:
-limited writes LIMITS and stale writes STALE (the same files `watch` keeps), restart sets `notified` on the open
-request when its version is KEY (else prints `not marked restart - ...`, exit 0), gone, finished and fill write
-`delivered.json` next to the registry (`{id: {kind: key}}`; ids of ended records are dropped); it prints `marked <kind>
-<id>` (`marked restart -`). `check` leaves out what is marked.
+request of `restart.json`: `restart | - | - | <version> | <version>`); `handoff` (a saved handoff that was asked for
+with `handoff request`, is not `go` and not notified: `handoff | - | - | <file> | <file>`). `check` never writes LIMITS,
+STALE, the delivered marks, the restart file or the handoff file. `mark --kind K [--id X] --key KEY` records the
+delivery after the caller got the message: limited writes LIMITS and stale writes STALE (the same files `watch` keeps),
+restart sets `notified` on the open request when its version is KEY (else prints `not marked restart - ...`, exit 0),
+handoff sets `notified` on the saved handoff when its file is KEY (else `not marked handoff - ...`, exit 0), gone,
+finished and fill write `delivered.json` next to the registry (`{id: {kind: key}}`; ids of ended records are dropped);
+it prints `marked <kind> <id>` (`marked restart -`, `marked handoff -`). `check` leaves out what is marked.
 
 `size --id <full session id> ...` prints `<id> | <tokens> | <window> | <model>` for each id that has a transcript (the
 tokens as `fill`; 0 and the default window when it has no usage), no registry and no session list. With `--wakes
@@ -135,12 +143,16 @@ file (fine when absent). A ready, notified or absent request does not stop `watc
 CLAUDE_CODE_SESSION_ID; none: stderr, exit 1; the registry is not read): `self | <id> | N tokens | window W | P%` (with
 OVER at the limit) or `self | <id> | no transcript`; `--over-only` prints only the OVER line.
 
-`handoff` is the file handshake for a full lead (the Pult watcher stops it and starts a fresh lead that loads the
+`handoff` is the file handshake for a full lead (the Pult watcher moves it to a fresh context that loads the
 handoff file; works with an unreadable registry). `handoff.json` next to the registry holds `{"file": NAME, "saved":
-<epoch>, "go": bool}`. `save --file NAME [--go]` writes it (NAME is a bare file name ending in .md of letters,
-digits, dot, underscore, hyphen, starting with a letter or digit, else exit 1; a re-save keeps `go` true); `go` sets
-`go` (exit 1 when nothing is saved); `status` prints `none`, `saved NAME <seconds>` or `go NAME <seconds>` (the
-seconds since the save); `clear` removes the file (fine when absent).
+<epoch>, "go": bool, "go_at": <epoch>, "asked": <epoch>, "notified": <epoch>}`; the last three keys are optional.
+`save --file NAME [--go]` writes it (NAME is a bare file name ending in .md of letters, digits, dot, underscore,
+hyphen, starting with a letter or digit, else exit 1; `--go` sets `go_at` to now; a re-save keeps `go`, `go_at`,
+`asked` and `notified`: the request is about the move, not the file); `go` sets `go` and `go_at` to now (the lead
+wrote its 30-second warning just before; exit 1 when nothing is saved); `request` (the watcher, for a lead that is not
+quiet) sets `asked` and prints `handoff asked: NAME`, or `handoff already asked: NAME` when it was set before (exit 1
+when nothing is saved); `status` prints `none`, `saved NAME <seconds>` (since the save) or `go NAME <seconds>` (since
+`go_at`, else since the save); `clear` removes the file (fine when absent).
 
 `release` tells the Pult watcher whether a lead that runs an older dev-kit must restart the same day. The release
 marks are `releases.json` in the dev-kit plugin folder (`--file` for another): a JSON object, version -> `{"kind":
@@ -185,6 +197,7 @@ RESTART = "restart.json"
 HANDOFF = "handoff.json"
 HANDOFF_NAME = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]*\.md")  # a bare file name: the watcher puts it on a command line
 PROJECTS_ENV = "DEV_KIT_PROJECTS_DIR"
+JOBS_ENV = "DEV_KIT_JOBS_DIR"
 DEFAULT_WINDOW = 200000
 NATIVE_1M_WINDOW = 1000000
 USAGE_FIELDS = ("input_tokens", "cache_creation_input_tokens", "cache_read_input_tokens")
@@ -205,7 +218,7 @@ STALE_KEEP_DAYS = 7
 CLOSED = "check-closed.json"  # id -> epoch when `check` first saw the session closed (the grace spans calls)
 DELIVERED = "delivered.json"  # id -> {kind: key} of the gone, finished and fill events already delivered
 FILL_LIMIT = 0.33  # a third of the window: past it a long session costs more than a fresh one (owner, 2026-11-23)
-MARK_KINDS = ("gone", "finished", "limited", "stale", "fill", "restart")
+MARK_KINDS = ("gone", "finished", "limited", "stale", "fill", "restart", "handoff")
 CLOSED_GRACE = 300  # seconds a session with no pid stays unreported: the Pult watcher may bring it back meanwhile
 # A reply line (trimmed, emphasis marks and trailing punctuation removed, case ignored) that says the session is done.
 FINISHED_MARKERS = ("Роботу завершено", "Work finished")
@@ -283,7 +296,46 @@ def projects_dir():
     return Path(os.environ[PROJECTS_ENV]) if os.environ.get(PROJECTS_ENV) else Path.home() / ".claude" / "projects"
 
 
+def jobs_dir():
+    return Path(os.environ[JOBS_ENV]) if os.environ.get(JOBS_ENV) else Path.home() / ".claude" / "jobs"
+
+
+def job_transcript(session_id):
+    """The live transcript (`linkScanPath`) of the background job whose sessionId or resumeSessionId is session_id,
+    the newest when several match; None when no such job has an existing file."""
+    best = None
+    for state in jobs_dir().glob("*/state.json"):
+        try:
+            text = state.read_text(encoding="utf-8-sig")
+        except OSError:
+            continue
+        if session_id not in text:  # most jobs are someone else's: skip the parse
+            continue
+        try:
+            data = json.loads(text)
+        except ValueError:
+            continue
+        if not isinstance(data, dict) or session_id not in (data.get("sessionId"), data.get("resumeSessionId")):
+            continue
+        link = data.get("linkScanPath")
+        if not isinstance(link, str) or not link:
+            continue
+        try:
+            mtime = Path(link).stat().st_mtime
+        except OSError:
+            continue
+        if best is None or mtime > best[0]:
+            best = (mtime, Path(link))
+    return best[1] if best else None
+
+
 def find_transcript(session_id):
+    """The live transcript of a session id (see the module doc): its job's linkScanPath, else <projects>/*/<id>.jsonl."""
+    if not session_id:
+        return None
+    live = job_transcript(session_id)
+    if live is not None:
+        return live
     found = sorted(projects_dir().glob(f"*/{session_id}.jsonl"), key=lambda p: p.stat().st_mtime, reverse=True)
     return found[0] if found else None
 
@@ -1155,23 +1207,37 @@ def cmd_handoff(args, path, records):
         if not HANDOFF_NAME.fullmatch(args.file):
             print(f"dev-kit-sessions: {args.file!r} is not a bare file name like handoff-1.md", file=sys.stderr)
             return 1
-        go = bool(args.go or (saved and saved.get("go")))
-        save(target, {"file": args.file, "saved": time.time(), "go": go})
+        data = {"file": args.file, "saved": time.time(), "go": bool(args.go or (saved and saved.get("go")))}
+        for key in ("go_at", "asked", "notified"):  # the move's marks outlive a new file name
+            if saved and saved.get(key) is not None:
+                data[key] = saved[key]
+        if args.go and not (saved and saved.get("go")):
+            data["go_at"] = data["saved"]
+        save(target, data)
         print(f"handoff saved: {args.file}")
-    elif args.handoff_action == "go":
+    elif args.handoff_action in ("go", "request"):
         if saved is None:
             print("dev-kit-sessions: no handoff is saved", file=sys.stderr)
             return 1
-        saved["go"] = True
-        save(target, saved)
-        print(f"handoff go: {saved['file']}")
+        if args.handoff_action == "go":
+            saved["go"] = True
+            saved["go_at"] = time.time()
+            save(target, saved)
+            print(f"handoff go: {saved['file']}")
+        elif saved.get("asked"):
+            print(f"handoff already asked: {saved['file']}")
+        else:
+            saved["asked"] = time.time()
+            save(target, saved)
+            print(f"handoff asked: {saved['file']}")
     elif args.handoff_action == "status":
         if saved is None:
             print("none")
         else:
-            since = saved.get("saved")
+            go = bool(saved.get("go"))
+            since = saved.get("go_at") if go and isinstance(saved.get("go_at"), (int, float)) else saved.get("saved")
             age = int(max(0, time.time() - float(since))) if isinstance(since, (int, float)) else 0
-            print(f"{'go' if saved.get('go') else 'saved'} {saved['file']} {age}")
+            print(f"{'go' if go else 'saved'} {saved['file']} {age}")
     else:
         try:
             target.unlink()
@@ -1260,6 +1326,9 @@ def cmd_check(args, path, records):
     request = read_restart(path)
     if request is not None and not request.get("ready") and not request.get("notified"):
         lines.append(f"restart | - | - | {request['version']} | {request['version']}")
+    handoff = read_handoff(path)
+    if handoff is not None and handoff.get("asked") and not handoff.get("go") and not handoff.get("notified"):
+        lines.append(f"handoff | - | - | {handoff['file']} | {handoff['file']}")
     finished = finished_sessions(watched, agents, records)
     done = {wanted for _, wanted in finished}
     gone = [item for item in gone_sessions(watched, agents) if item[1] not in done]
@@ -1315,6 +1384,15 @@ def cmd_mark(args, path, records):
         request["notified"] = time.time()
         save(path.with_name(RESTART), request)
         print("marked restart -")
+        return 0
+    if args.kind == "handoff":
+        saved = read_handoff(path)
+        if saved is None or saved["file"] != args.key:
+            print(f"not marked handoff - (no open request for {args.key})")
+            return 0
+        saved["notified"] = time.time()
+        save(path.with_name(HANDOFF), saved)
+        print("marked handoff -")
         return 0
     if not args.id:
         print("dev-kit-sessions: mark needs --id for this kind", file=sys.stderr)
@@ -1658,7 +1736,7 @@ def main(argv=None):
                        help="report an active C whose context reaches this share of its window")
     mark = sub.add_parser("mark", help="record that an event line of check was delivered")
     mark.add_argument("--kind", required=True, choices=MARK_KINDS)
-    mark.add_argument("--id", default="", help="the session id (not for restart)")
+    mark.add_argument("--id", default="", help="the session id (not for restart or handoff)")
     mark.add_argument("--key", required=True, help="the last field of the event line")
     size = sub.add_parser("size", help="context size, and with --wakes the turn starts and units since the last call")
     size.add_argument("--id", action="append", default=[], help="a full session id (repeatable)")
@@ -1671,12 +1749,12 @@ def main(argv=None):
     restart_sub.add_parser("ready").add_argument("--version", help="mark ready even with no open request")
     for action in ("status", "clear"):
         restart_sub.add_parser(action)
-    handoff = sub.add_parser("handoff", help="the handoff a full lead leaves for the Pult watcher, which starts a fresh lead")
+    handoff = sub.add_parser("handoff", help="the handoff a full lead leaves for the Pult watcher, which moves it to a fresh context")
     handoff_sub = handoff.add_subparsers(dest="handoff_action", required=True)
     handoff_save = handoff_sub.add_parser("save")
     handoff_save.add_argument("--file", required=True, help="the handoff file name (bare, ends in .md)")
     handoff_save.add_argument("--go", action="store_true", help="move now: skip the quiet wait")
-    for action in ("go", "status", "clear"):
+    for action in ("go", "request", "status", "clear"):
         handoff_sub.add_parser(action)
     release = sub.add_parser("release", help="whether the dev-kit releases a lead lacks hold a critical one")
     release.add_argument("--from", dest="from_version", required=True,

@@ -300,8 +300,7 @@ four kinds below that must enter the queue, a takeover item, the retro item, «�
 question P may answer itself must not wait on the owner forever.
 
 Critical items: a session cannot go on without the owner (an urgent question or `чекає на тебе`), a
-session crashed (`стоїть, сесія впала`), a risk to data or money (an urgent question), P's own
-«Перезапустити мене зараз?» ("Restart P").
+session crashed (`стоїть, сесія впала`), a risk to data or money (an urgent question).
 
 Phone push: a critical item of the kinds above also goes to the owner's phone with the
 PushNotification tool. The queue pushes once, when it had no question for the owner and gets one;
@@ -391,10 +390,14 @@ proposed, not opened, because «краще перепитать, бо я мож�
   registry and every message use the same name.
 - Make the worktree yourself from the local main, then start C inside it:
   `git worktree add .claude/worktrees/<slug> -b c/<slug> main`, then in one PowerShell call
-  `Push-Location <worktree>; claude --bg --name "C: <feature>" --permission-mode bypassPermissions --model <model> --effort <level> -- "<first prompt>"; Pop-Location`.
-  A C gets no `--remote-control` (an «Обговорення:» session does, see below). Why: every
-  `--remote-control` launch pushes «Remote control enabled» to the owner's phone (`plugins/dev-kit/claude-facts.md`,
-  "The phone gets one push when a brand-new session first gets Remote Control"); the owner does not talk with a C (owner, 2026-11-20).
+  `Push-Location <worktree>; claude --bg --name "C: <feature>" --settings "${CLAUDE_PLUGIN_ROOT}/no-remote-control.json" --permission-mode bypassPermissions --model <model> --effort <level> -- "<first prompt>"; Pop-Location`.
+  A C gets no Remote Control (an «Обговорення:» session does, see below): the `--settings` file turns off the
+  owner's `remoteControlAtStartup` for this session only. Why: a brand-new session pushes «Remote control enabled»
+  to the owner's phone once, when it first gets Remote Control, and the owner's setting gives it to every new
+  session, with or without `--remote-control` (`plugins/dev-kit/claude-facts.md`, "The phone gets one push when a
+  brand-new session first gets Remote Control" and "`remoteControlAtStartup: true` gives every new session Remote
+  Control, with or without `--remote-control`"); the owner does not talk with a C (owner, 2026-11-20 and 2026-11-23,
+  `plans/push-noise.md` of the plugin repo). A C never pushes; P relays what the owner must see.
   The `Pop-Location` returns P's shell to the main checkout: a shell left inside the worktree locks the
   folder (`plugins/dev-kit/claude-facts.md`, "The PowerShell tool keeps its folder between calls").
   Never `claude -w` (`plugins/dev-kit/claude-facts.md`, "`claude -w` cuts the worktree from the remote's default branch").
@@ -505,8 +508,8 @@ each lead applies it under its own project's rules, with no agent editing other 
 For a task of branch 4 in "Before a task: triage", after the owner's «так» to the proposal. Start it as a C (overlap check, worktree, folder
 setup, registration) with these differences:
 
-- Name `Обговорення: <feature>` (no guillemets in the name) (add `--remote-control "Обговорення: <feature>"` to the command of "Start a C", unlike a C,
-  plus `--name`), `--permission-mode bypassPermissions` ("Permission mode"), `--model opus --effort medium` (the owner
+- Name `Обговорення: <feature>` (no guillemets in the name) (in the command of "Start a C", unlike a C, drop the `--settings` file
+  and add `--remote-control "Обговорення: <feature>"` plus `--name`: the owner opens it, so its one push stays), `--permission-mode bypassPermissions` ("Permission mode"), `--model opus --effort medium` (the owner
   talks with it). Why: its done report to a P in another mode may be held for the owner's approval
   (`plugins/dev-kit/claude-facts.md`, "A message between sessions in different permission modes may be held"); the owner does not want to relay between sessions. It may message other sessions
   (a C only its own P, see "Start a C"); a message to a session the owner started stays banned (see
@@ -740,6 +743,7 @@ Event lines:
 - `fill: <name> | <id> | <percent> of <window>`: that C passed the fill limit below; refresh it ("Refresh an
   overfull C"). Each C is reported once.
 - `restart requested: <version>`: the handshake of "Restart for a plugin update".
+- `handoff requested: <file>`: the handshake of "Restart P".
 - "No text" for `stale` means no news about the event (seen in P: Zhratva, 2026-11-15:
   text on watcher exits confused the owner); P sends the forced-output state of "Message templates"
   only under the condition set there (the host's own reminder asks P to tell the user something).
@@ -781,7 +785,7 @@ line marked OVER, refresh that C.
 1. Message C (a `ВКАЗІВКА`, `${CLAUDE_PLUGIN_ROOT}/messages.md`): reach the nearest checkpoint between steps (never mid-step), run
    `continue-work-in-another-context save`, reply with the handoff file name.
 2. Start a fresh C from inside the SAME worktree folder (no `-w`), same name, model, effort and
-   permission mode (no `--remote-control` for a C); first prompt: `/continue-work-in-another-context load <file>`, then "once loaded,
+   permission mode, with the `--settings` file of "Start a C" (no Remote Control for a C); first prompt: `/continue-work-in-another-context load <file>`, then "once loaded,
    send P «ВІДПОВІДЬ - picked up» by SendMessage".
 3. Only after the new C's «picked up» reaches P, register it with `dev-kit-sessions add ...
    --predecessor <old id>` (this ends the old record as `replaced`), then run `claude stop <old id>`.
@@ -845,9 +849,12 @@ of "Message templates": the C's `готово` line, and the start proposal for 
 
 ## Restart P
 
-P moves itself to a fresh session when its own context reaches the fill limit (0.33); the owner's view: the
-feature, section «P moves itself to a fresh session». State lives in project files and the registry; the
-queue lives in PROGRESS.md "Open questions".
+P moves itself to a fresh context when its own context reaches the fill limit (0.33), the way a release
+restarts it: no question to the owner and no phone push. The owner's view: the feature, section «P moves
+itself to a fresh session». State lives in project files and the registry; the queue lives in PROGRESS.md
+"Open questions". The move is a resume of the same session: the watcher stops P, resumes it with `/clear`
+(the context is emptied, the session and its phone link stay, so no push), then resumes it again with the
+handoff prompt of step 4; if any of that fails it starts a fresh P with the same prompt instead (one push).
 
 1. `dev-kit-sessions fill --self` prints OVER. At the nearest point where a stop breaks nothing (as in
    the handshake of "Restart for a plugin update": a merge and its clean-up finished, an edit committed,
@@ -855,28 +862,30 @@ queue lives in PROGRESS.md "Open questions".
    handoff save --file <the file name it printed>`. Until the move P starts no new C or merge of its own;
    it still answers the owner and its C sessions, and after a turn that changed the state it saves a new
    handoff and runs `handoff save` with the new name before the turn ends.
-2. P adds its own urgent question to the queue: «Перезапустити мене зараз?» with `Рекомендую: так -
-   контекст заповнений на третину, свіжа сесія дешевша`. It is a critical item ("Owner queue and critical
-   items"), so it pushes to the phone by the queue rule.
-3. The watcher moves P once P is idle and its transcript has not changed for 5 minutes, checked again
-   right before the stop. The owner's «так» to that question, or his «перезапускай» at any time, makes P
-   run `dev-kit-sessions handoff go` (with no saved handoff, P first does step 1 without waiting for
-   OVER) and end the turn with the one line «Перезапускаюсь.»; the watcher then moves P as soon as it is
-   idle, without the 5 minutes. The `go` mark covers only this move.
-4. The fresh P gets the first prompt `/dev-kit:project-lead handoff: <file>`. It runs
+2. P asks the owner nothing about the move. The watcher moves P silently once P is quiet, as for a
+   routine release ("Restart for a plugin update": idle, no working C, its last message to the owner is not
+   an open question, the owner has written nothing to it for 5 minutes), checked again right before the stop.
+3. P not quiet for another reason than a running turn: the watcher sends the event line `handoff
+   requested: <file>` once ("Wake-up"). P does the handshake of "Restart for a plugin update" (no new step,
+   the running one brought to a safe point, a new handoff saved if the state changed), then writes exactly
+   the line «⚠ ЧЕРЕЗ 30 СЕК БУДЕ ПЕРЕЗАВАНТАЖЕННЯ (СВІЖИЙ КОНТЕКСТ)» as its message, runs `dev-kit-sessions
+   handoff go` right after it and ends the turn with no more text; the watcher moves P 30 seconds after
+   `go`, once P is idle. While the owner keeps writing, P's turns keep running and the move waits. The
+   owner's «перезапускай» at any time does the same (with no saved handoff, P first does step 1 without
+   waiting for OVER). The `go` mark covers only this move.
+4. After the move P gets the prompt `/dev-kit:project-lead handoff: <file>`. It runs
    `/continue-work-in-another-context load <file>` with exactly that file name, then the steps of the
    first prompt after a plugin-update restart ("Restart for a plugin update": read this SKILL.md, fill,
-   others, state, the migrations check), removes the restart
-   question from the queue and sends the full start status, with the full list of questions.
+   others, state, the migrations check) and sends the full start status, with the full list of questions.
 5. A failed move: the watcher logs HANDOFF-FAILED (Pult shows it), tries that handoff file only once and
    brings the old P back. At any start whose first prompt has no `handoff:`, a `handoff status` other than
-   `none` means that failure: P runs `dev-kit-sessions handoff clear`, puts the question back in the queue
-   and does not start step 1 again by itself; only the owner's «так» or «перезапускай» does (step 1 with
-   a new file, then `handoff go`).
+   `none` means that failure: P runs `dev-kit-sessions handoff clear` and does not start step 1 again by
+   itself; only the owner's «перезапускай» does (step 1 with a new file, then `handoff go`).
 
 Why: the owner, 2026-11-20 and 2026-11-21 (`docs/features/hand-work-to-the-project-lead.md`, "P moves itself to a
-fresh session"): leads often missed the moment their own context grew; a bloated lead re-reads its whole context at every wake;
-the 5 quiet minutes keep the move out of a running talk, and «перезапускай» lets the owner skip them.
+fresh session"): leads often missed the moment their own context grew; a bloated lead re-reads its whole context at every wake.
+Owner, 2026-11-23 (`plans/lead-self-move.md` and `plans/push-noise.md` of the plugin repo): the move works like a
+release restart, with no question and no push; a resume of the same session with `/clear` keeps the phone link.
 
 ## Restart for a plugin update
 
