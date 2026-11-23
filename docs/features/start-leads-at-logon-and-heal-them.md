@@ -71,5 +71,6 @@ one project, remove its row from the project list.
 - `tools/tests/test_start_servers_handoff.py`
 
 ## Open
+- [ ] Defect: the watcher calls `restart-leads.ps1` with no time limit, so a hung restart stalls the watcher loop (`plugins/pult/scripts/watch-servers.ps1`; found by the heal-timeout build, `plans/pult-heal-timeout.md`)
 - [ ] Check from the watcher's logs and the transcripts that Pult and a lead with no events show no wakes for a day, that one forced GIVEUP gives one push and the fix line in Pult, and that a push relayed by a live lead (Pult down) reaches the phone; the lead relay is untested
 - [ ] Check whether you can still attach to a P from a terminal with `claude attach <id>`, and the exact wording of the session list in the phone app
