@@ -14,6 +14,7 @@
 - Live check of the event-only wakes and of a push relayed by a lead: [Open items](docs/features/start-leads-at-logon-and-heal-them.md#open).
 
 - P moves itself like a release (owner «так», 2026-11-23, P: ClaudeDevKit chat): no «Перезапустити мене зараз?» question and no push; quiet (owner silent 5 min, no open question) -> silent move; otherwise the CAPS warning, then the move 30 s later, as in «Restart for a plugin update». Weak spot accepted: while the owner keeps writing, the move waits. Next: a C (rule in project-lead «Restart P» + the Pult watcher).
+- Own docs of Claude app quirks (owner «так» to the plan, 2026-11-23, «Обговорення: Нюанси Claude у різних застосунках»): one facts file in dev-kit, a facts agent, collection through the retro scan, weekly re-checks. Next: a C builds it from [the task file](plans/claude-quirks-docs.md#owners-approval).
 
 Open work of the features: `dev-kit-check-docs --open`.
 
