@@ -13,6 +13,8 @@
 - Zhratva joins the shared spend log and the owner adds the API deny lines: [Open items](docs/features/log-and-reconcile-api-spend.md#open).
 - Live check of the event-only wakes and of a push relayed by a lead: [Open items](docs/features/start-leads-at-logon-and-heal-them.md#open).
 
+- Fill limit at a third (plans/fill-limit-third.md on branch c/fill-limit-third): built, dev-kit 0.1.103; P holds the merge until «Обговорення: Коли оновлювати плагін» decides when updates reach the leads (a merge restarts every lead mid-talk).
+
 Open work of the features: `dev-kit-check-docs --open`.
 
 ## Open questions
