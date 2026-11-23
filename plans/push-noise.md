@@ -1,8 +1,8 @@
 # Fewer "session started" pushes on restarts
 
-Status: built (C: Переїзд керівника без пушів, branch c/lead-move-nopush); the owner's phone check is open.
+Status: built (C: Переїзд керівника без пушів, branch c/lead-move-nopush); done; the owner's phone check passed.
 
-Spend: ~1% of the weekly limit, estimate; API: 0 USD (both plans together).
+Spend: ~1.3% of the weekly limit, estimate; API: 0 USD (both plans together).
 
 ## Owner's words
 
@@ -81,5 +81,5 @@ code; coordinate on `watch-servers.ps1` when merging.
   `/clear` then the handoff prompt, no old context. First run found the sessionId change and was fixed.
 - Review fix: a second move of the same lead (the job's ids change at every `/clear`) - checked live, two moves in a
   row, each new transcript holds only `/clear` and its handoff prompt.
-- Open: a test lead WITH Remote Control moved the same way: `bridgeSessionId` unchanged and the owner sees no
-  second push (asked via P).
+- Live with Remote Control, 2026-11-23 16:17: a test lead created (one push) and moved twice: `bridgeSessionId`
+  unchanged, the owner's phone showed exactly one push «Remote control enabled: T handoff test» (screenshot via P).
