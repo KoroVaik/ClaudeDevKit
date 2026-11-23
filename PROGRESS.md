@@ -13,8 +13,9 @@
 - Zhratva joins the shared spend log and the owner adds the API deny lines: [Open items](docs/features/log-and-reconcile-api-spend.md#open).
 - Live check of the event-only wakes and of a push relayed by a lead: [Open items](docs/features/start-leads-at-logon-and-heal-them.md#open).
 
+- P moves itself like a release (owner «так», 2026-11-23, P: ClaudeDevKit chat): no «Перезапустити мене зараз?» question and no push; quiet (owner silent 5 min, no open question) -> silent move; otherwise the CAPS warning, then the move 30 s later, as in «Restart for a plugin update». Weak spot accepted: while the owner keeps writing, the move waits. Next: a C (rule in project-lead «Restart P» + the Pult watcher).
+
 Open work of the features: `dev-kit-check-docs --open`.
 
 ## Open questions
 
-- 2026-11-23 · «P» · ❗: Перезапустити мене зараз? (продовжу в новому чаті з усім станом) Рекомендую: так - контекст заповнений на третину, свіжа сесія дешевша.
