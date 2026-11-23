@@ -1,0 +1,17 @@
+{
+  "mcpServers": {
+    "headless": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@playwright/mcp@0.0.84",
+        "--headless",
+        "--isolated",
+        "--browser",
+        "msedge",
+        "--output-dir",
+        "${TEMP}/web-kit-headless"
+      ]
+    }
+  }
+}

@@ -9,7 +9,9 @@ The `web-kit` plugin checks a web application in a browser and designs its scree
 Its skills `e2e-check`, `user-walk`, `visual-check` and `design-screen` name their agents
 (`web-kit:ui-tester`, `web-kit:user`, `web-kit:layout-checker`, `web-kit:designer`) and model themselves;
 the manager reaches them through the slots. Who answers which question, and the shared browser rules:
-[browser checks](../../plugins/web-kit/browser-checks.md). The project's facts go in its profile
+[browser checks](../../plugins/web-kit/browser-checks.md). The checks run in the desktop app's in-app
+browser, or, in a background session that lacks it, in a headless browser the plugin ships; they are never
+skipped for want of the pane. The project's facts go in its profile
 ([sections](../tech/project-profile.md)).
 
 ## Features

@@ -1,7 +1,7 @@
 ---
 name: ui-tester
-description: Use when a functional scenario must be verified end to end in the running web app's in-app browser, for example after implementing or changing a UI feature, and reported as pass or fail with evidence. Read-only toward the codebase - never edits files, starts or stops servers, or commits.
-tools: mcp__Claude_Browser__navigate, mcp__Claude_Browser__computer, mcp__Claude_Browser__resize_window, mcp__Claude_Browser__read_page, mcp__Claude_Browser__find, mcp__Claude_Browser__form_input, mcp__Claude_Browser__get_page_text, mcp__Claude_Browser__javascript_tool, mcp__Claude_Browser__read_console_messages, mcp__Claude_Browser__read_network_requests, mcp__Claude_Browser__browser_batch, mcp__Claude_Browser__tabs_context, mcp__Claude_Browser__tabs_create, mcp__Claude_Browser__tabs_close, mcp__Claude_Browser__tabs_select, Read, Grep, Glob
+description: Use when a functional scenario must be verified end to end in the running web app (in-app browser, or the headless one in a background session), for example after implementing or changing a UI feature, and reported as pass or fail with evidence. Read-only toward the codebase - never edits files, starts or stops servers, or commits.
+tools: mcp__Claude_Browser__navigate, mcp__Claude_Browser__computer, mcp__Claude_Browser__resize_window, mcp__Claude_Browser__read_page, mcp__Claude_Browser__find, mcp__Claude_Browser__form_input, mcp__Claude_Browser__get_page_text, mcp__Claude_Browser__javascript_tool, mcp__Claude_Browser__read_console_messages, mcp__Claude_Browser__read_network_requests, mcp__Claude_Browser__browser_batch, mcp__Claude_Browser__tabs_context, mcp__Claude_Browser__tabs_create, mcp__Claude_Browser__tabs_close, mcp__Claude_Browser__tabs_select, mcp__plugin_web-kit_headless__browser_navigate, mcp__plugin_web-kit_headless__browser_snapshot, mcp__plugin_web-kit_headless__browser_click, mcp__plugin_web-kit_headless__browser_type, mcp__plugin_web-kit_headless__browser_fill_form, mcp__plugin_web-kit_headless__browser_press_key, mcp__plugin_web-kit_headless__browser_select_option, mcp__plugin_web-kit_headless__browser_hover, mcp__plugin_web-kit_headless__browser_wait_for, mcp__plugin_web-kit_headless__browser_resize, mcp__plugin_web-kit_headless__browser_console_messages, mcp__plugin_web-kit_headless__browser_network_requests, mcp__plugin_web-kit_headless__browser_take_screenshot, mcp__plugin_web-kit_headless__browser_tabs, mcp__plugin_web-kit_headless__browser_handle_dialog, mcp__plugin_web-kit_headless__browser_evaluate, Read, Grep, Glob
 model: sonnet
 effort: medium
 ---
@@ -11,6 +11,7 @@ effort: medium
 You drive an already-running instance of the project's frontend in the in-app browser to check whether
 a specific scenario actually works, and report the result. You verify; you never fix, and you never
 write to the filesystem.
+When the brief says the session has the headless browser, use the `mcp__plugin_web-kit_headless__browser_*` tools for the in-app ones named here, as the brief's notes say.
 
 Read `.claude/dev-kit.md`, if it exists: its "All agents" section, the "e2e-check" section (the
 project's browser facts: URLs, login, screenshot folder, test-data marker, window sizes) and the

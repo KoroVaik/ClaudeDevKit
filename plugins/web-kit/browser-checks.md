@@ -36,13 +36,39 @@ uses the board only to say where each fix belongs.
   criteria" of the feature (found with `dev-kit-check-docs --who <path>`); a check that finds a rule the
   criteria miss reports it for the feature.
 - **Always a subagent**, never the main session: it keeps screenshots out of the main context. The
-  agents are the ones in the table above. This covers every in-app browser action: a first check, a
+  agents are the ones in the table above. This covers every browser action: a first check, a
   re-check after a fix (also when the report was a pass with an observation), and reaching a state for a
   screenshot (selecting text, clicking, saving, `javascript_tool`). It wins over the host's "do small
   checks inline"; a one-click check is still a subagent call. The caller only prepares data through the
-  API or scripts and runs headless `web-kit-shot`; it never opens or drives the in-app browser.
-- **One browser.** All agents share the one browser pane, so calls run one after another, never in
-  parallel. One scenario, goal, board or profile per call.
+  API or scripts and runs headless `web-kit-shot`; it never opens or drives the agents' browser.
+- **Two browsers.** An agent drives the in-app browser (`mcp__Claude_Browser__*`) when the session has
+  it (the desktop app). A session without it (`claude --bg`, `claude -p`) uses the headless browser web-kit
+  ships (`.mcp.json` of this plugin, tools `mcp__plugin_web-kit_headless__browser_*`, a private Edge with an
+  empty profile per session); the check is never skipped for want of the pane. With neither, the session
+  reports the check as not run (a C asks its P with `ПИТАННЯ`), never passes over it. The caller knows which one
+  it has (its own tool list; subagents get the same), and with the headless one it adds these lines to every
+  brief:
+  - "Use the `mcp__plugin_web-kit_headless__browser_*` tools for the in-app ones your instructions name:
+    `browser_navigate`, `browser_snapshot` (page text and element refs, in place of `read_page`, `find`,
+    `get_page_text`), `browser_click`, `browser_type`, `browser_fill_form`, `browser_press_key`,
+    `browser_resize` (width and height; no presets, so take the sizes from the profile),
+    `browser_console_messages`, `browser_network_requests`, `browser_take_screenshot`, `browser_tabs`."
+  - "The browser starts signed out. Native dialogs are not dismissed by themselves, whatever your
+    instructions say about auto-dismissed dialogs: dismiss one with `browser_handle_dialog`, unless the
+    goal is to confirm it."
+  - "Screenshots are full size at any width, so you can read a whole wide page in one shot. Never pass
+    `filename` (it writes into the project folder); the result's link gives the PNG's path under
+    `%TEMP%/web-kit-headless`. Report phone shots under **Screenshots** with that absolute path and wide
+    evidence in the Shots list, as your instructions say."
+  - "These in-app lines do not apply: `scale` and `zoom`, the 800 px cap and the overview-then-zoom reading,
+    the Glob for `.jpg` files, presets and the reset to `desktop`. A narrow window here has no touch or
+    phone user-agent emulation: say so once in the report when the check is at a phone width."
+  - For `web-kit:ui-tester` and `web-kit:layout-checker` only: `browser_evaluate` in place of
+    `javascript_tool`.
+  Why: background task sessions have no in-app browser, so owner-approved checks were skipped (Zhratva,
+  2026-11-21 and 2026-11-22).
+- **One browser.** All agents of a session share its one browser (the pane, or the session's headless
+  one), so calls run one after another, never in parallel. One scenario, goal, board or profile per call.
 - **One environment.** The project's frontend and API addresses are in the profile. For fresh API or
   worker code restart through the `run-app` slot, after the project's rules about processes the owner
   started. If the restart fails, report its output and stop.
@@ -57,7 +83,8 @@ uses the board only to say where each fix belongs.
   returns an image at most about 800 px wide whatever the viewport (measured 2026-11-10: a 3840x2160
   window comes back 800x452, 1024 px wide 800 px, a phone 375 px wide 657 px, which is its real size),
   and `zoom` only crops that already small image. So an in-app shot of a wide window is for the agent's
-  own reading (`scale` about 0.5 there), never for the owner. For a phone width the in-app shot is
+  own reading (`scale` about 0.5 there), never for the owner. A headless-browser agent shot ("Two browsers") of a wide window is
+  readable, yet the owner still gets only section shots from `web-kit-shot`, never a bare wide window. For a phone width the in-app shot is
   readable and goes to the owner as it is.
   - **Wide screens (tablet and up): headless capture.** Agent shots of a wide window are not sent. The
     agent ends its report with a **Shots** list, one line per shot: `name | URL | steps | CSS selector of

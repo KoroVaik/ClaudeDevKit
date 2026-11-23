@@ -77,7 +77,9 @@ is consent for `check-look`, `check-ui` and `check-usability` of that screen whi
 design. Why: the build session checks the screen itself before the owner sees it (owner, 2026-11-18).
 After consent use the
 check slots: `check-ui` for a scenario, `check-usability` for an ordinary user's walk, `check-look` for
-mockups and layout. The skill filling a slot owns how its check runs. Run them in this order (owner
+mockups and layout. The skill filling a slot owns how its check runs. A check with consent is never dropped silently for want of a tool (a background
+session has no in-app browser): the slot's skill names the route there (web-kit: its headless browser), and
+when none works the report says "not run: <check>, <why>", which a C asks P about with `ПИТАННЯ`. Run them in this order (owner
 decision of 2026-11-10): `check-look` first, then `check-ui`, then `check-usability` last, on a page that
 already matches the mockup and works; fix what one finds before the next.
 
