@@ -19,6 +19,8 @@
 
 - Own docs of Claude app quirks (owner «так» to the plan, 2026-11-23, «Обговорення: Нюанси Claude у різних застосунках»): one facts file in dev-kit, a facts agent, collection through the retro scan, weekly re-checks. Next: a C builds it from [the task file](plans/claude-quirks-docs.md#owners-approval).
 
+- No "session started" push on P self-move and from C sessions (owner «+», 2026-11-23): self-move resumes the same session with `/clear`, a C starts with no phone link. Next: a C builds it from [plans/push-noise.md](plans/push-noise.md#owners-approval), together with or after the self-move C above (same watcher handoff code).
+
 Open work of the features: `dev-kit-check-docs --open`.
 
 ## Open questions

@@ -522,7 +522,7 @@ setup, registration) with these differences:
   write the «Approved design» section in the feature file (`dev-kit:documentation`, "Feature file"),
   or for a discussion with no screen the «Owner's approval» section in the task file, with every
   agreed point in the detail the builders need, and a next-step line in PROGRESS.md; once the owner
-  says the talk is done, show the short plan (`dev-kit:project-lead`, "Start an «Обговорення:» session", "Short plan") and send P
+  says the talk is done, or where you would ask him whether it is, show the short plan (`dev-kit:project-lead`, "Start an «Обговорення:» session", "Short plan") and send P
   your done report, a `ЗАКРИТО` message (`${CLAUDE_PLUGIN_ROOT}/messages.md`), by SendMessage
   only after the owner's «так» to that plan, and only if no owner message came after that «так»; without that section and that «так» you may not report
   done. When the owner answers here something P may ask him (a question P put to him, a change
@@ -537,8 +537,9 @@ setup, registration) with these differences:
   answers «так» or similar, P writes nothing more about opening it.
 
 Short plan: the discussion session's last message before the done report, in the owner's chat. It is
-shown only after the owner says in his own words that the talk is done. A
-title line «План «<topic>»:», then 3-5 numbered points, each one plain sentence on what the owner
+shown when the owner says in his own words that the talk is done, or in place of asking him whether it
+is: the plan's question is the one closing question, and the session never asks a separate
+«Закриваємо розмову?» before it. A title line «План «<topic>»:», then 3-5 numbered points, each one plain sentence on what the owner
 gets (build work only, never a check of the idea: `dev-kit:discovery-round`, step 1), then the question «Погоджуєш план і закриваємо обговорення?». The details
 stay in the written section for the builders. The question is always alone in its message: never an
 item of a batch or of a numbered list, never repeated in the replies after the plan message. A named
@@ -549,7 +550,9 @@ shown again, alone. After the owner's «так» to that question the session se
 its last message to the owner is exactly one line, «Обговорення закрите, будову запускає керівник.», with no
 question: a named exception to the owner's global rule to end every reply with a next-step question, since P
 closes the session right after and an answer there is lost. Why: owner, 2026-11-21: «обговорення пише
-питання після того як я підтверджую завершення. Я відповідаю, а сесія тим часом завершується». Example:
+питання після того як я підтверджую завершення. Я відповідаю, а сесія тим часом завершується». Why the
+plan replaces a closing question: owner, 2026-11-23: «Чому двічі доводиться підтверджувать закриття
+розмови?», «Закрити значить закрити». Example:
 
 ```
 План «Повідомлення керівника»:
