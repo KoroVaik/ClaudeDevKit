@@ -56,6 +56,7 @@ class WatchServersLimitTest(unittest.TestCase):
 
     def run_watch(self, rounds):
         env = dict(os.environ, PATH=str(self.bin) + os.pathsep + os.environ.get("PATH", ""),
+                   DEV_KIT_USAGE_LOG=str(self.tmp / "usage"),
                    DEV_KIT_PROJECTS_DIR=str(self.projects.parent))
         subprocess.run([POWERSHELL, "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", str(WATCH),
                         "-Rounds", str(rounds), "-IntervalSec", "0", "-ConfigFile", str(self.config),

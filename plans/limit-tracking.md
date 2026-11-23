@@ -33,3 +33,14 @@ Details for the builders:
 - After the push the lead changes nothing: no pausing, no queue item, no question.
 - Order: build after «C: Сесії самі продовжують після ліміту» is merged; both edit `watch-servers.ps1` and its tests.
 - Tests: unit tests of the forecast on sample logs (too few readings, slow pace, fast pace, new window, mark already set, no open tasks), next to `tools/tests/test_watch_servers_limit.py`; docs: the Pult feature file and the project-lead "Wake-up" line on this push.
+
+## Build (C: limit-forecast, 2026-11-23)
+
+Status: built; phone check left open in the feature file.
+
+- Forecast, open-task test and once-per-window mark: `plugins/dev-kit/scripts/usage_forecast.py` (`check --open N --mark FILE`), unit tests `tools/tests/test_usage_forecast.py`.
+- Watcher: `Invoke-LimitForecast` in `plugins/pult/scripts/watch-servers.ps1`, run in the wake pass after the size check, only when the usage log's write time changed; "open tasks" = live non-owner task sessions of the leads' registries (C and «Обговорення:»); mark `<StateDir>\limit-forecast.json`; push queued as a phone item (cause `limit`), log `LIMIT-FORECAST`. Watcher tests in `tools/tests/test_watch_servers_wake.py`; the other watcher tests now point `DEV_KIT_USAGE_LOG` at a temp folder.
+- Decisions within the plan: the run-out time counts from the last reading's time, not now (the log gets a line only when the per cent rises, so a quiet spell does not pull the forecast forward); the push goes through the existing phone relay (Pult when live, else a live lead), the same path as the size push, instead of «P: ClaudeDevKit first».
+- Docs: feature `start-leads-at-logon-and-heal-them.md` (rule, criterion, open phone check), epic `run-all-projects-from-the-phone.md`, `plugins/pult/rules/hub.md`, `plugins/pult/README.md`, project-lead "Wake-up" (Push request), `docs/tech/map.md`. Versions: dev-kit 0.1.112 (routine), pult 0.1.30.
+- Note: with today's log (49%, about 2.5%/h, reset Wed 16:00) the forecast gives a push at the watcher's first look after the update.
+- Spend: ~0.3% of the weekly limit, estimate; API: 0 USD

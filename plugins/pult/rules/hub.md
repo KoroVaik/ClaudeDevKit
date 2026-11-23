@@ -128,7 +128,7 @@ itself: a fresh session's PushNotification is refused (`{DEVKIT}/claude-facts.md
 that did not take the message. Its log lines: WAKE (a message queued, with its cause), WAKE-SENT, WAKE-TAKEN
 (it reached the session), WAKE-FAILED, WAKE-FALLBACK (its lines go to the phone instead), WAKE-FALLBACK-NONE
 (no live session to push them; tried again in 10 minutes), PUSH-SIZE and SIZE (each live session's
-conversation size, every 10 minutes); "статус" shows them only when asked (a fallback already reached the
+conversation size, every 10 minutes), LIMIT-FORECAST (the weekly limit forecast push, see "Phone push"); "статус" shows them only when asked (a fallback already reached the
 phone). Why: the
 owner's yes of 2026-11-20 (`docs/findings/idle-wake-cost.md` of the dev-kit repo): Pult and the leads were woken
 every 2 hours only to arm their watchers again (`{DEVKIT}/claude-facts.md`, "The host kills a background Bash run after 2 hours").
@@ -168,8 +168,9 @@ log watcher is retired needs nothing: no text, and never arm `watch-log.py` agai
 A message `[EVT-<id>] Pult server watcher: phone push request.` asks Pult to push for the watcher, which
 cannot push by itself (see "Servers"): Pult calls the PushNotification tool once with exactly the text line
 of the message and writes nothing else (no cause line, no status). It comes when a lead did not take its event lines («<lead> не взяв повідомлення» or «<lead> не на зв'язку» and
-the events) and, once per session, when a conversation passes 0.7 of its window (move it to a new
-session). When Pult is down or does not take a message, the watcher asks a live lead to push instead
+the events), once per session when a conversation passes 0.7 of its window (move it to a new
+session), and once per weekly window when, at the recent pace, the weekly limit runs out over 6 hours before its
+reset while task sessions are open (LIMIT-FORECAST in the log; «Тижневий ліміт за темпом скінчиться ...»). When Pult is down or does not take a message, the watcher asks a live lead to push instead
 («Pult не піднявся - запусти його на комп'ютері» and the event). Why: only a
 session the owner is attached to can push (`{DEVKIT}/claude-facts.md`, "A push from a fresh session is refused").
 When the host still demands visible output after a "no text" message, Pult gives the short "статус" reply

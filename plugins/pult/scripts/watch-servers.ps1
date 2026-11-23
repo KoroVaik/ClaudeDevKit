@@ -116,6 +116,13 @@
 #     $SizePushShare of its window or more gets one phone push (once per session id, wake-state.json):
 #     PUSH-SIZE; all the sessions that pass it in one round share one push. Every $SizeLogMin minutes the call takes `--wakes <StateDir>\size-state.json` and each session
 #     is logged: SIZE <name> <session id> <tokens> owner=N peer=N notify=N units=U.
+#   - Weekly limit forecast (plans/limit-tracking.md): when the usage log of the status line (usage-log.jsonl in the
+#     folder of env DEV_KIT_USAGE_LOG, else ~\.claude\dev-kit) changed since the last look, or task sessions opened or
+#     all closed (first look at start; the last look is kept in memory only, the mark stops a second push), one
+#     `usage_forecast.py check --open <live task sessions of the leads' registries> --mark <StateDir>\limit-forecast.json`
+#     call (the forecast, the "open tasks" test and the once-per-weekly-window mark are its own; see its doc). On `push`
+#     it logs LIMIT-FORECAST runout=<local time> resets=<local time> pct=<last %> pace=<%/h> and queues one phone push
+#     (cause limit) with its text, delivered like a size push. After it nothing is paused or asked.
 #   The lines of one target are merged into one message (`[EVT-<id>] Pult server watcher:`, the lines, one fixed
 #   instruction line; control characters removed, each line cut at 300 characters, at most about 1500 per
 #   message, more lines wait for the next one), kept in <StateDir>\wake-pending.json until delivered. At most
@@ -203,7 +210,8 @@
 #   one-try-per-version marks of leads (a failed lead restart is tried once more), the usage-limit marks (LIMIT
 #   is logged again) and the "seen" lists (STATE lines again, as at any start). The wake files stay on disk and
 #   the new copy goes on with them: wake-pending.json (undelivered messages and their marks), wake-state.json
-#   (the Pult note, the size pushes, the last send per target) and size-state.json (the `size --wakes` offsets);
+#   (the Pult note, the size pushes, the last send per target), size-state.json (the `size --wakes` offsets) and
+#   limit-forecast.json (the weekly window already pushed);
 #   only the time of the last SIZE lines is lost (they are logged again at once).
 # start-servers.ps1 starts it at logon in a hidden window. -Once: one check, then exit; -Rounds N:
 # N checks, then exit (both for tests; -Once never restarts anything, touches restart.json or wakes anyone).
@@ -517,7 +525,7 @@ function Invoke-TaskHeal {
                 $_ -and ((Test-IdMatch ([string]$_.sessionId) $wid) -or (Test-IdMatch ([string]$_.id) $wid)) })
             $states = @($entries | ForEach-Object { if ($_.state) { $_.state } else { $_.status } })
             $live = $entries | Where-Object { $_.pid -and $_.sessionId } | Select-Object -First 1
-            if ($live) { $liveSessions[[string]$live.sessionId] = [string]$r.name }
+            if ($live) { $liveSessions[[string]$live.sessionId] = [string]$r.name; $liveTasks[[string]$live.sessionId] = [string]$r.name }
             if ($entries | Where-Object { $_.pid }) {  # alive
                 $taskClosed.Remove($wid); $taskGaveUp.Remove($wid); continue
             }
@@ -1277,6 +1285,31 @@ function Invoke-SizeCheck($Targets) {
     $script:wakeDirty = $true
 }
 
+# The weekly limit forecast (see the header): one `usage_forecast.py check` call when the usage log changed; on `push`
+# a LIMIT-FORECAST line and one phone push. The forecast, the open-task test and the once-per-window mark are its own.
+function Invoke-LimitForecast {
+    $usageLog = if ($env:DEV_KIT_USAGE_LOG) { Join-Path $env:DEV_KIT_USAGE_LOG 'usage-log.jsonl' }
+        else { Join-Path $env:USERPROFILE '.claude\dev-kit\usage-log.jsonl' }
+    $f = Get-Item -LiteralPath $usageLog -ErrorAction SilentlyContinue
+    if (-not $f) { return }
+    $written = "$($f.LastWriteTimeUtc.Ticks) $($liveTasks.Count -gt 0)"  # a look again when task sessions open or close
+    if ($written -ceq $script:lastUsageWrite) { return }
+    $script:lastUsageWrite = $written
+    $py = Join-Path $DevKitDir 'scripts\usage_forecast.py'
+    $r = Invoke-Python @($py, 'check', '--open', [string]$liveTasks.Count, '--mark', (Join-Path $StateDir 'limit-forecast.json'), '--log', $usageLog) -NoStderr
+    if ($r.Code -ne 0) { Write-WarnOnce 'forecast' ("limit forecast failed (exit {0}): {1}" -f $r.Code, ($r.Out -replace '\s+', ' ')); return }
+    $warnedOnce.Remove('forecast')
+    $p = @(($r.Out.Trim() -split ' \| ') | ForEach-Object { $_.Trim() })
+    if ($p[0] -cne 'push' -or $p.Count -lt 6) { return }
+    $at = { param($e) [DateTimeOffset]::FromUnixTimeSeconds([int64]$e).LocalDateTime.ToString('yyyy-MM-dd HH:mm') }
+    Write-Log ("LIMIT-FORECAST runout={0} resets={1} pct={2} pace={3}" -f (& $at $p[1]), (& $at $p[2]), $p[3], $p[4])
+    $item = New-WakeItem 'phone' 'phone' 'limit'
+    $item.Kinds = @('limit')
+    $item.Text = Get-PhoneText '' @($p[5])
+    [void]$wakePending.Add($item)
+    $script:wakeDirty = $true
+}
+
 # A folder path as one comparable string: resolved, no trailing slash, lower case. '' when it is empty or unreadable.
 function Get-FolderKey($Path) {
     if (-not [string]$Path) { return '' }
@@ -1394,6 +1427,7 @@ function Invoke-WakePass {
             $script:wakeDirty = $true
         }
         try { Invoke-SizeCheck $targets } catch { Write-Log "WARN size check failed: $_" }
+        try { Invoke-LimitForecast } catch { Write-Log "WARN limit forecast failed: $_" }
     }
 
     # Sends: one sender at a time; per target only its oldest message, at most one per round. The pass stops after
@@ -1693,6 +1727,7 @@ $lastSizeLog = 0.0  # epoch of the last SIZE lines
 $wakePendingFile = Join-Path $StateDir 'wake-pending.json'
 $wakeStateFile = Join-Path $StateDir 'wake-state.json'
 $wakePending = New-Object System.Collections.ArrayList  # messages not delivered yet (New-WakeItem)
+$lastUsageWrite = $null  # the usage log's last write time at the last forecast look (Invoke-LimitForecast)
 $wakeState = @{ PultNote = $false; SizePushed = @{}; LastWake = @{} }  # SizePushed: session id -> tokens; LastWake: target -> epoch
 try {
     if (Test-Path -LiteralPath $wakePendingFile) {
@@ -1728,6 +1763,7 @@ while ($true) {
     $holdLogged = $onHold
     $devKitVersion = Get-DevKitVersion
     $liveSessions = @{}  # session id -> name of each live lead and task session this round (for Invoke-LimitCheck)
+    $liveTasks = @{}     # session id -> name of each live task session of a lead's registry (not a lead, not an owner's)
     if ($devKitVersion -and $devKitVersion -cne $lastVersion) { $leadTried.Clear(); $lastVersion = $devKitVersion }
 
     foreach ($s in $servers) {

@@ -195,7 +195,7 @@ class WatchServersWakeTest(unittest.TestCase):
     def run_watch(self, rounds, *extra, restart_busy=False):
         env = dict(os.environ, PATH=str(self.bin) + os.pathsep + os.environ.get("PATH", ""),
                    DEV_KIT_PROJECTS_DIR=str(self.projects.parent), DEV_KIT_STATE_DIR=str(self.state),
-                   DEV_KIT_JOBS_DIR=str(self.tmp / "jobs"),
+                   DEV_KIT_JOBS_DIR=str(self.tmp / "jobs"), DEV_KIT_USAGE_LOG=str(self.tmp / "usage"),
                    TEST_DIR=str(self.bin), TEST_CALLS_FILE=str(self.tmp / "restart-calls.txt"),
                    TEST_REAL_SESSIONS=str(self.plugins / "dev-kit" / "scripts" / "sessions.py"))
         env.pop("TEST_RESTART_BUSY", None)
@@ -464,6 +464,42 @@ class WatchServersWakeTest(unittest.TestCase):
         self.assertEqual(5, len(wakes_args))
         self.assertEqual([True, False, False, True, False], ["--wakes" in c for c in wakes_args],
                          "the SIZE lines every 10 minutes, and at the start of a run")
+
+    def usage_log(self, rows):
+        """rows: (hours ago, weekly per cent); the window resets in 3 days."""
+        folder = self.tmp / "usage"
+        folder.mkdir(exist_ok=True)
+        now, resets = time.time(), int(time.time()) + 3 * 24 * 3600
+        (folder / "usage-log.jsonl").write_text("".join(json.dumps(
+            {"ts": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(now - h * 3600)), "week_pct": p,
+             "week_resets": resets, "five_hour_pct": None}) + "\n" for h, p in rows), encoding="utf-8")
+
+    # protects: Rule
+    def test_weekly_limit_forecast_gets_one_phone_push_per_window(self):
+        self.usage_log([(3, 40), (1, 50)])  # 5 %/h: runs out in about 9 hours, days before the reset
+        self.registry_task()
+        self.agents(pult=True)
+        self.run_watch(2)
+        log = self.run_watch(2)  # a new watcher run (as after WATCH-RESTART) pushes no second time
+        pushes = [w for w in self.wakes() if self.push(w) is not None]
+        self.assertEqual(1, len(pushes), log)
+        self.assertEqual("Pult", self.to(pushes[0]))
+        self.assertRegex(self.push(pushes[0]),
+                         r"^Тижневий ліміт за темпом скінчиться (пн|вт|ср|чт|пт|сб|нд) \d\d:\d\d, "
+                         r"скидання (пн|вт|ср|чт|пт|сб|нд) \d\d:\d\d\.$")
+        self.assertEqual(1, len([line for line in log if line.startswith("LIMIT-FORECAST runout=")]), log)
+
+    # protects: Rule
+    def test_weekly_limit_forecast_without_open_task_sessions_pushes_nothing(self):
+        self.usage_log([(3, 40), (1, 50)])
+        self.agents(pult=True)  # no task session in the lead's registry
+        log = self.run_watch(2)
+        self.assertEqual([], [w for w in self.wakes() if self.push(w) is not None])
+        self.assertFalse([line for line in log if line.startswith("LIMIT-FORECAST")])
+        self.assertFalse((self.pult / "limit-forecast.json").exists())
+        self.registry_task()  # a task session opens later in the same window: no mark was set, so it still pushes
+        self.run_watch(2)
+        self.assertEqual(1, len([w for w in self.wakes() if self.push(w) is not None]))
 
     # protects: Rule
     def test_lead_with_a_working_task_or_busy_is_asked_for_a_critical_dev_kit_not_restarted(self):
