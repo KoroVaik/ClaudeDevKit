@@ -1043,7 +1043,7 @@ class RetroCommandsTestCase(RetroFixture):
     # protects: Flow
     def test_the_retro_session_starts_when_findings_wait_the_review_is_old_and_no_start_is_recent(self):
         self.scanned_today()
-        command = ["fake-claude", "--bg", "--name", "Ретро: repo", "--model", "opus", "--effort", "medium",
+        command = ["fake-claude", "--bg", "--name", "Ретро: repo", "--settings", str(retro.NO_REMOTE_CONTROL), "--model", "opus", "--effort", "medium",
                    "--permission-mode", "bypassPermissions", "--", "/dev-kit:retro"]
         self.assertEqual(self.start(), [])  # no findings
         self.put("new/a.md", "- finding\n")
@@ -1063,7 +1063,7 @@ class RetroCommandsTestCase(RetroFixture):
     # protects: Flow
     def test_the_weekly_docs_session_starts_after_the_retro_or_on_its_own_once_a_week(self):
         self.scanned_today()
-        command = ["fake-claude", "--bg", "--name", "Документація: repo", "--model", "opus", "--effort", "medium",
+        command = ["fake-claude", "--bg", "--name", "Документація: repo", "--settings", str(retro.NO_REMOTE_CONTROL), "--model", "opus", "--effort", "medium",
                    "--permission-mode", "bypassPermissions", "--", "/dev-kit:maintain-project-docs weekly"]
         hours = lambda value: (retro.now_utc() - datetime.timedelta(hours=value)).isoformat()  # noqa: E731
         self.assertEqual(self.start(docs=True), [(command, str(self.repo))])  # never ran: on its own, in main

@@ -104,7 +104,8 @@ lead's session id, and when `new/` has files, `last_review` is older than REVIEW
 `retro_started` older than START_GUARD_HOURS (or missing) and no docs session may still run (`docs_started` younger
 than START_GUARD_HOURS and newer than `docs_done`), it stamps `retro_started` and starts a background
 `Ретро: <repo folder>` session running `/dev-kit:retro` (env DEV_KIT_RETRO_NO_START=1 skips that start, not the
-stamp). When it starts no retro session, it starts the weekly docs session `Документація: <repo folder>` running
+stamp). Both sessions start with the `--settings` file NO_REMOTE_CONTROL (no Remote Control, so no phone push).
+When it starts no retro session, it starts the weekly docs session `Документація: <repo folder>` running
 `/dev-kit:maintain-project-docs weekly` (same env switch) when all hold: `docs_done` is older than DOCS_DAYS (or
 missing); `docs_started` is older than DOCS_GUARD_HOURS (or missing), so a run that ended with no `docs-done` is
 retried once a day, not at every session start; no retro session may still run (`retro_started`
@@ -1617,8 +1618,14 @@ def retro_start_command(project, folder, state):
     save_project(folder, state)
     if os.environ.get(NO_START_ENV) == "1":
         return None
-    return [claude, "--bg", "--name", f"{RETRO_TITLE} {project.name}", "--model", "opus", "--effort", "medium",
-            "--permission-mode", "bypassPermissions", "--", "/dev-kit:retro"]
+    return [claude, "--bg", "--name", f"{RETRO_TITLE} {project.name}", "--settings", str(NO_REMOTE_CONTROL),
+            "--model", "opus", "--effort", "medium", "--permission-mode", "bypassPermissions", "--", "/dev-kit:retro"]
+
+
+# A background session the owner need not open starts with no Remote Control: the owner's
+# `remoteControlAtStartup` would give it one and a phone push (plugins/dev-kit/claude-facts.md, "The phone gets one
+# push when a brand-new session first gets Remote Control"; project-lead skill, "Start a C").
+NO_REMOTE_CONTROL = Path(__file__).resolve().parent.parent / "no-remote-control.json"
 
 
 def older(state, key, hours):
@@ -1663,8 +1670,8 @@ def docs_start_command(project, folder, state):
     save_project(folder, state)
     if os.environ.get(NO_START_ENV) == "1":
         return None
-    return [claude, "--bg", "--name", f"{DOCS_TITLE} {project.name}", "--model", "opus", "--effort", "medium",
-            "--permission-mode", "bypassPermissions", "--", "/dev-kit:maintain-project-docs weekly"]
+    return [claude, "--bg", "--name", f"{DOCS_TITLE} {project.name}", "--settings", str(NO_REMOTE_CONTROL),
+            "--model", "opus", "--effort", "medium", "--permission-mode", "bypassPermissions", "--", "/dev-kit:maintain-project-docs weekly"]
 
 
 def hook_main(kind):
