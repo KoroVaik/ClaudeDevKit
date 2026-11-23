@@ -44,9 +44,14 @@ nothing: the merge is P's step, so the owner sees in this chat why the session c
   only when its first prompt names it in a line «May message: <sessions>».
 - Every message to P starts with its kind word (`ГОТОВО`, `ПИТАННЯ`, `ЗАСТРЯГ`, `ВІДПОВІДЬ`), as
   `${CLAUDE_PLUGIN_ROOT}/messages.md` sets.
-- A SendMessage to P that fails with "not reachable" means P is being restarted. The C keeps the
-  report and goes on with its work; P asks for missed reports after its restart, and the C then sends
-  the report again.
+- A SendMessage to P that fails, with any error («No agent named ... is reachable», «HTTP 409 ...
+  not active» or other), usually means P is being restarted (about 10 seconds). The C keeps the message,
+  goes on with its work and retries by itself: it starts `sleep 60` as a background command (never a
+  foreground wait) and sends the message again when that ends, up to three retries. After the third
+  failed retry it stops retrying, keeps the message and sends it, as a message of its own, right before
+  its next message to P or when P next writes to it. This holds for every kind a C sends P. P sends no resend request after a restart.
+  Why: owner, 2026-11-23 (`plans/restart-notice.md` of the plugin repo): a warning before the restart
+  misses the silent restart and costs every session a turn.
 - A session named «Обговорення: ...» is the exception: it talks with the owner directly and builds
   no product code; how it works and ends is in `dev-kit:project-lead`, "Start an «Обговорення:» session".
 - A background session named «Ретро: <project>» is started by a dev-kit hook, not by P, and follows

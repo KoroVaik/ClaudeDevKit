@@ -866,7 +866,7 @@ queue lives in PROGRESS.md "Open questions".
 4. The fresh P gets the first prompt `/dev-kit:project-lead handoff: <file>`. It runs
    `/continue-work-in-another-context load <file>` with exactly that file name, then the steps of the
    first prompt after a plugin-update restart ("Restart for a plugin update": read this SKILL.md, fill,
-   others, state, the resend request to each active C, the migrations check), removes the restart
+   others, state, the migrations check), removes the restart
    question from the queue and sends the full start status, with the full list of questions.
 5. A failed move: the watcher logs HANDOFF-FAILED (Pult shows it), tries that handoff file only once and
    brings the old P back. At any start whose first prompt has no `handoff:`, a `handoff status` other than
@@ -906,8 +906,7 @@ repo): a restart per bump cut into talks with the owner several times an hour.
 - First prompt after the restart: `/dev-kit:project-lead restart: plugin update`. P goes on where it
   stopped: it reads this SKILL.md whole, notes the new version (see
   "Wake-up") and runs `dev-kit-sessions fill`, `dev-kit-sessions others` and `dev-kit-sessions state`.
-  It arms no watcher (see "Wake-up"). Then P sends each active C one SendMessage: «ВКАЗІВКА - P перезапущено після
-  оновлення плагіна. Якщо твій звіт до P не дійшов (помилка "not reachable"), надішли його ще раз.»
+  It arms no watcher (see "Wake-up"). P sends its C sessions nothing about the restart.
   An unfinished step from before the stop is finished now. Then P runs the check of "Apply dev-kit
   migrations"; a migration C it starts shows in the status. Last, P always sends the full start status:
   the message of "Message templates" that lists every session, with the question counts only (a
@@ -917,8 +916,8 @@ repo): a restart per bump cut into talks with the owner several times an hour.
 - A message to a stopped session fails at the sender with "No agent named ... is reachable" and is
   not queued (checked live 2026-11-16 with a throwaway session); after the resume the same name
   receives messages again. So a C report sent during the stop is not lost in silence: the C sees the
-  error, and P's resend request above catches it. A C that ended during the stop arrives as a `gone`
-  event line; before the crash line P checks its task file and branch for a finished
+  error and retries the send by itself (`dev-kit:manager`, "A task from the project lead"). A C that
+  ended during the stop arrives as a `gone` event line; before the crash line P checks its task file and branch for a finished
   result, since its "done" report may have failed.
 
 ## Plugin backlog (plugin repo only)

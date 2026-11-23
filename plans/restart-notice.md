@@ -12,7 +12,7 @@ Topics: whether and how child sessions learn that their lead is away (and for ho
 
 Result: the «Owner's approval» section in this file with every agreed point in builder detail.
 
-Spend: ~0.2% of the weekly limit, estimate; API: 0 USD
+Spend: ~0.2% of the weekly limit, estimate (discussion); build <0.1%, estimate; API: 0 USD
 
 ## Owner's approval
 
@@ -24,3 +24,12 @@ Checked live 2026-11-23 (throwaway background session, real sessions untouched):
 2. P no longer asks its sessions to resend after a restart. Remove the `ВКАЗІВКА` «P перезапущено... Якщо твій звіт не дійшов, надішли його ще раз» from `plugins/dev-kit/skills/project-lead/SKILL.md` (restart for a plugin update and the handoff first prompt) and that purpose from the `ВКАЗІВКА` row in `plugins/dev-kit/messages.md`. Fix any other place that still says P asks for a resend (Pult first prompts, docs/features).
 
 Not in scope: «P moves itself like a release» (PROGRESS.md) stays its own build.
+
+## Build (2026-11-23, C on c/lead-restart)
+
+Built points 1 and 2: `dev-kit:manager` "A task from the project lead" (retry via a background `sleep 60`, three
+retries, then as its own message before the next one to P or when P writes); project-lead handoff step 4 and
+"Restart for a plugin update" drop the resend ВКАЗІВКА; `messages.md` ВКАЗІВКА row; feature doc
+`hand-work-to-the-project-lead.md` "A report sent while P restarts"; dev-kit 0.1.104 routine. Lint clean.
+Reviewer doubt left open (below the report threshold): a send that errors but was delivered may reach P twice;
+no rule says P ignores a repeated report.
