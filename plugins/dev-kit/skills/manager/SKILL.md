@@ -42,8 +42,15 @@ nothing: the merge is P's step, so the owner sees in this chat why the session c
   `dev-kit-bans add-approved` on the owner's «так»; removing a ban stays the owner's.
 - It sends a message only to its own P (this limits messages to sessions, not to its own subagents). Another session
   only when its first prompt names it in a line «May message: <sessions>».
-- Every message to P starts with its kind word (`ГОТОВО`, `ПИТАННЯ`, `ЗАСТРЯГ`, `ВІДПОВІДЬ`), as
-  `${CLAUDE_PLUGIN_ROOT}/messages.md` sets.
+- Every message to P starts with its kind word (`ГОТОВО`, `ПИТАННЯ`, `ЗАСТРЯГ`, `ЧЕКАЮ`, `ПРОДОВЖУЮ`,
+  `ВІДПОВІДЬ`), as `${CLAUDE_PLUGIN_ROOT}/messages.md` sets.
+- A wait of more than 1 minute on something other than P or the owner (low memory, a retry timer, a
+  store cool-off, another session, the app queue), with the C itself idle (not its own build, test run or
+  subagent), is not "stuck": once it sees such a wait the C sends P `ЧЕКАЮ` with
+  the reason in plain words and the time it resumes, if known (`ЧЕКАЮ - мало пам'яті для запуску
+  застосунку, повтор о 14:30`), and `ПРОДОВЖУЮ` when it goes on. A wait for P's answer is not one.
+  Why: owner, 2026-11-23 (Zhratva): a C reported a 30-minute retry wait and P still showed it as
+  `працює`; «сесія не застрягла, а просто очікує на щось, то так і писати з причиною очікування».
 - A SendMessage to P that fails, with any error (the known ones: `plugins/dev-kit/claude-facts.md`, "A send to a
   stopped session fails at the sender and is not queued"), usually means P is being restarted (about 10 seconds). The C keeps the message,
   goes on with its work and retries by itself: it starts `sleep 60` as a background command (never a

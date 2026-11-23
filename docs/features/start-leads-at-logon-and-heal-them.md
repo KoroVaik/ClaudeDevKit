@@ -19,6 +19,13 @@ limit of 3 tries an hour. A lead whose project has no hard-ban lines on main is 
 blocked, not broken. A try that hangs is cut after 5 minutes and counts as a failed try; then the watcher goes
 on with its other checks.
 
+### A session stopped by the usage limit goes on after the reset
+A lead or task session that stopped on the 5-hour or weekly limit gets one short «go on» message from the
+watcher a few minutes after the limit resets, and carries on its task with no message from you. Its lead
+hears of the stop only when that message was not taken after 3 tries; then the lead's status shows
+`стоїть, скінчився ліміт`. Why: owner, 2026-11-23 (`plans/limit-resume.md`): sessions waited after the reset
+until he wrote to them.
+
 ### A lead on an old version is restarted when the update allows
 Each dev-kit update is marked critical (agents cannot cope without it) or routine by the agent that makes
 it. A routine update reaches a lead once, on a later day, at its first quiet moment: the lead is idle, its

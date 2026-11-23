@@ -63,7 +63,9 @@ class WatchServersLimitTest(unittest.TestCase):
                         "-DaemonLog", str(self.tmp / "daemon.log")],
                        env=env, check=True, capture_output=True, timeout=180)
         log = (self.tmp / "pult" / "logs" / "servers.log").read_text(encoding="utf-8-sig")
-        return [line.split(" ", 1)[1] for line in log.splitlines() if " LIMIT" in line or " WARN" in line]
+        # the resume messages (LIMIT-RESUME...) are tested in test_watch_servers_wake.py
+        return [line.split(" ", 1)[1] for line in log.splitlines()
+                if (" LIMIT" in line and " LIMIT-RESUME" not in line) or " WARN" in line]
 
     # protects: Flow
     def test_limit_is_logged_once_per_stop_for_leads_and_task_sessions(self):

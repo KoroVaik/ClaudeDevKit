@@ -25,7 +25,7 @@ The lead's rules (queue, task sessions, merge) are in the epic
 3. P starts a C named "C: <task>". P starts it with your Remote Control setting turned off for that session, so it has
    no Remote Control and it does not show in the phone app
    ([Claude facts](../../plugins/dev-kit/claude-facts.md), "A background session started without Remote Control does not show in the phone app") and
-   sends no push; it reports to P when it is done, stuck or needs your decision, and P tells you. For a
+   sends no push; it reports to P when it is done, stuck, waits over a minute or needs your decision, and P tells you. For a
    talk about the details P proposes an "Обговорення:" session, which does show in the app.
 4. P checks the finished work, merges it into main, removes the C and tells you the result.
 5. Ask the "Pult" session for "статус": it also sends you the status page, one HTML file with every
