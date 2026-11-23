@@ -127,6 +127,14 @@ Why: owner, 2026-11-20: P and Pult were woken every 2 hours only to re-arm a wat
 ([measured](../findings/idle-wake-cost.md)); the ping keeps P's cache warm, since a warm read costs about
 1/20 of a cold rewrite and P's next task report would otherwise find it cold.
 
+### A report sent while P restarts
+A report a task session sends while P restarts (about 10 seconds) is not lost: the session sends it
+again by itself about a minute later, up to three times, then before its next message to P or when P
+next writes to it. Task sessions
+get no warning before a restart and P sends them nothing after it.
+Why: owner, 2026-11-23 ([the talk](../../plans/restart-notice.md)): a warning misses the silent restart
+and costs P and every task session a turn.
+
 ### P moves itself to a fresh session
 When P's own context is a third full, P saves its notes and asks you «Перезапустити мене зараз?» (a phone
 push). The Pult watcher moves P to a fresh session of the same name when P is quiet, or at once when

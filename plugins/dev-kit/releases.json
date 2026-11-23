@@ -1,3 +1,4 @@
 {
-  "0.1.103": {"kind": "routine", "date": "2026-11-23", "reason": "long sessions move at a third of the context; plugin updates timed by a critical or routine mark"}
+  "0.1.103": {"kind": "routine", "date": "2026-11-23", "reason": "long sessions move at a third of the context; plugin updates timed by a critical or routine mark"},
+  "0.1.104": {"kind": "routine", "date": "2026-11-23", "reason": "a task session retries a failed send to its lead by itself; the lead sends no resend request after a restart"}
 }
