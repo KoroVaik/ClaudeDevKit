@@ -34,8 +34,22 @@
 #   so this watcher gets its chance first.
 # - A live lead of the list or active task session that stopped on the usage limit (5-hour or weekly) keeps
 #   its process and shows as blocked (plugins/dev-kit/claude-facts.md, "Other sessions listed as `blocked` or `done` in `claude agents --json`"), so it looks alive: LIMIT <name> <session id> (resets <time>) once per
-#   stop, LIMIT-END when it goes on or is no longer live (a new watcher run logs a stop again). Its transcript tells (`sessions.py limited`, one call per round); the
-#   watcher only logs it: a respawn or restart would hit the same limit.
+#   stop, LIMIT-END when it goes on or is no longer live (a new watcher run logs a stop again). Its transcript tells (`sessions.py limited`, one call per round).
+#   A respawn or restart would hit the same limit, and the session would wait for a message until the owner writes.
+#   So once the reset time has passed by $LimitGraceSec s (at once when it is unknown), the watcher sends it one
+#   message by the one-shot sender of the wakes below: `[EVT-<id>] Pult server watcher: the usage limit that stopped
+#   you has reset. ...` (go on with the task). Logged: LIMIT-RESUME <name> <session id> <event id> (try N),
+#   LIMIT-RESUME-TAKEN when the id shows in its transcript at once (else the LIMIT-END of a later round tells it went
+#   on). Not seen within $WakeConfirmSec s: sent again, at most $WakeMaxTries sends per session, counted on over
+#   a new stop that comes with no LIMIT-END between (the resume turn hit the limit again; an unknown reset time
+#   then waits $LimitRetrySec s), then LIMIT-RESUME-GIVEUP. A send the sender could not make (the account
+#   still limited, no answer) counts no try: LIMIT-RESUME-FAILED <reason> (logged again only when the reason
+#   changes), tried again after $LimitRetrySec s; still stopped $LimitFailHours h after the reset: GIVEUP. A name
+#   that more than one live session has is not sent to: LIMIT-RESUME-SKIPPED. Like a wake, it sets the target's last
+#   wake time and waits while a lead is marked ready. Not with -Once, while on hold or during a full start; the
+#   sends of a round stop after $WakeSendBudgetSec s. While a stop is being resumed (not given up), its `limited` event line is not sent to the
+#   lead (Invoke-WakePass): the lead hears of it only when the resume gave up. The resume marks live in memory: a
+#   new watcher run sends the message again.
 # - A dev-kit lock file whose owner is gone is removed: UNLOCK (see Clear-StaleLocks).
 # - A lead that runs on an older dev-kit version than the one installed (<DevKitDir>\.claude-plugin\plugin.json)
 #   is restarted so it loads the new skills. The same for an extension plugin the lead's project uses
@@ -205,6 +219,8 @@
 # two stop waits, up to 60 s each, and the fallback's fresh start; for tests).
 # -ConfigFile / -StateDir / -DevKitStateDir / -DaemonLog: another server list, Pult state folder,
 # dev-kit state folder and Claude Code daemon log (for tests with a throwaway lead).
+# -LimitGraceSec: the wait after a usage-limit reset before the resume message (default 180; the reset time is cut to
+# the minute); -LimitRetrySec: the wait after a resume send the sender could not make (default 900; both for tests).
 # -DevKitDir: the dev-kit plugin folder (default: ..\..\dev-kit next to this plugin); it holds
 # .claude-plugin\plugin.json (the installed version) and scripts\sessions.py.
 # Keep this file saved as UTF-8 with BOM (plugins/dev-kit/claude-facts.md, "Windows PowerShell 5.1 misreads
@@ -214,7 +230,7 @@ param([int]$IntervalSec = 60, [switch]$Once, [int]$Rounds = 0, [int]$MaxHeals = 
     [string]$RestartExe = 'powershell.exe', [string]$WakeExe, [string]$SessionsPy,
     [int]$WakeConfirmSec = 120, [int]$WakeCooldownSec = 120, [int]$WakeDownSec = 600, [int]$HandoffStopWaitSec = 60,
     [int]$ReadyWarnSec = 30, [int]$HandoffClearWaitSec = 120, [int]$HealWaitSec = 300, [int]$LeadRestartWaitSec = 600,
-    [int]$HandoffMoveWaitSec = 600)
+    [int]$HandoffMoveWaitSec = 600, [int]$LimitGraceSec = 180, [int]$LimitRetrySec = 900)
 
 . (Join-Path $PSScriptRoot 'plugin-versions.ps1')
 . (Join-Path $PSScriptRoot 'resume-lib.ps1')  # Get-SessionProcessIds, Get-JobState, Get-LeadPermissionMode, $HandoffNamePattern
@@ -241,6 +257,7 @@ $WakeMaxTries = 3         # sends of one message before the phone fallback
 $WakeWaitSec = 60          # a one-shot sender still running after this is stopped
 $PhoneRetrySec = 600       # a failed phone push is tried again after this
 $WakeSendBudgetSec = 180   # the sends of one round stop after this; the rest wait for the next round
+$LimitFailHours = 12       # a usage-limit resume whose sender made no send this long after the reset gives up
 $PingQuietMin = 50         # a lead with a busy task session silent this long gets the keep-warm ping
 $HandoffWakeQuietSec = 120 # a lead that saved a handoff (not go) is moved only when it was last sent a message at least this long ago (a just-sent one is not handled yet)
 $SizePushShare = 0.7       # a conversation at this share of its window gets one phone push
@@ -538,7 +555,8 @@ function Invoke-TaskHeal {
 }
 
 # Logs the live sessions in $liveSessions (session id -> name: the leads and task sessions of this round) that
-# stopped on the usage limit (see the header). $limitSeen keeps the stop already logged per session id.
+# stopped on the usage limit and wakes them after the reset (see the header). $limitSeen keeps the stop already
+# logged per session id, $limitResume its resume state.
 function Invoke-LimitCheck {
     $ids = @($liveSessions.Keys)
     $now = @{}
@@ -556,6 +574,13 @@ function Invoke-LimitCheck {
         if ($limitSeen[$id] -cne $now[$id].Key) {
             Write-Log ("LIMIT {0} {1} (resets {2})" -f $liveSessions[$id], $id, $now[$id].Resets)
             $limitSeen[$id] = $now[$id].Key
+            $old = $limitResume[$id]  # a new stop with no LIMIT-END between: the resume turn hit the limit again
+            $limitResume[$id] = @{ Name = $liveSessions[$id]; Due = (Get-LimitDue $now[$id].Resets); NextTry = 0.0
+                Tries = 0; EvtIds = @(); Sent = 0.0; Done = $false; GaveUp = $false; LastFail = '' }
+            if ($old) {  # the sends count on, so a session that keeps hitting the limit is not messaged forever
+                $limitResume[$id].Tries = $old.Tries; $limitResume[$id].GaveUp = $old.GaveUp; $limitResume[$id].Done = $old.GaveUp
+                if ($now[$id].Resets -eq 'unknown') { $limitResume[$id].Due = (Get-Now) + $LimitRetrySec }
+            }
         }
     }
     foreach ($id in @($limitSeen.Keys)) {
@@ -563,7 +588,86 @@ function Invoke-LimitCheck {
         $how = if ($liveSessions.ContainsKey($id)) { $liveSessions[$id] } else { '(no longer live)' }
         Write-Log ("LIMIT-END {0} {1}" -f $how, $id)
         $limitSeen.Remove($id)
+        $limitResume.Remove($id)
     }
+    if (-not $Once -and -not $onHold -and -not $starting) { Invoke-LimitResume }
+}
+
+# Epoch seconds when a stop whose reset time is $Resets (`sessions.py limited`: local 'yyyy-MM-dd HH:mm' or
+# 'unknown') is due for its resume message: a minute after it (the text is cut to the minute) plus $LimitGraceSec;
+# now when the time is unknown.
+function Get-LimitDue([string]$Resets) {
+    $t = [datetime]::MinValue
+    if (-not [datetime]::TryParseExact($Resets, 'yyyy-MM-dd HH:mm', [Globalization.CultureInfo]::InvariantCulture,
+            [Globalization.DateTimeStyles]::AssumeLocal, [ref]$t)) { return Get-Now }
+    return ([DateTimeOffset]$t).ToUnixTimeSeconds() + 60 + $LimitGraceSec
+}
+
+# The resume messages of a round (see the header): per stop not done yet, the message is seen, sent (again) or given up.
+function Invoke-LimitResume {
+    $passStart = Get-Now
+    foreach ($id in @($limitResume.Keys)) {
+        $st = $limitResume[$id]
+        if ($st.Done) { continue }
+        $taken = @($st.EvtIds | Where-Object { Test-TranscriptHas $id "[EVT-$_]" }) | Select-Object -First 1
+        if ($taken) {
+            Write-Log ("LIMIT-RESUME-TAKEN {0} {1} {2} ({3:N0} s)" -f $st.Name, $id, $taken, (Get-Age $st.Sent))
+            $st.Done = $true
+            continue
+        }
+        $t = Get-Now
+        if ($t -lt $st.Due -or $t -lt $st.NextTry) { continue }
+        if ($st.Tries -ge $WakeMaxTries) {
+            Write-Log ("LIMIT-RESUME-GIVEUP {0} {1} (not taken after {2} sends)" -f $st.Name, $id, $st.Tries)
+            $st.Done = $true; $st.GaveUp = $true
+            continue
+        }
+        if ($t - $st.Due -ge $LimitFailHours * 3600) {
+            Write-Log ("LIMIT-RESUME-GIVEUP {0} {1} (still stopped {2} h after the reset; last failed send: {3})" -f $st.Name, $id, $LimitFailHours, $st.LastFail)
+            $st.Done = $true; $st.GaveUp = $true
+            continue
+        }
+        # A lead that marked itself ready is about to be restarted, which would cut the turn: wait (as Invoke-WakePass).
+        $row = $servers | Where-Object { $_.Lead -and $_.Session -ceq $st.Name } | Select-Object -First 1
+        if ($row -and $row.Path -and (Invoke-LeadRestartFile $row.Path @('status')) -match '^ready ') { continue }
+        if ($t - $passStart -ge $WakeSendBudgetSec -or (Test-Path -LiteralPath $hold)) { break }
+        $same = @($agents | Where-Object { $_.pid -and [string]$_.name -ceq $st.Name }).Count
+        if ($same -gt 1) {
+            Write-Log ("LIMIT-RESUME-SKIPPED {0} {1} ({2} live sessions have this name)" -f $st.Name, $id, $same)
+            $st.Done = $true; $st.GaveUp = $true
+            continue
+        }
+        $evt = New-WakeId
+        $text = "[EVT-$evt] Pult server watcher: the usage limit that stopped you has reset. Go on with your task " +
+            "from where you stopped. If it was already done, answer with your usual status only."
+        $wakeState.LastWake[$st.Name] = Get-Now  # the keep-warm ping and the handoff "just woken" check see it
+        Save-WakeState
+        $res = Send-Wake $st.Name $text $WakeMode
+        if (-not $res.Ok) {
+            if ($res.Reason -cne $st.LastFail) { Write-Log ("LIMIT-RESUME-FAILED {0} {1} {2}" -f $st.Name, $id, $res.Reason) }
+            $st.LastFail = $res.Reason
+            $st.NextTry = (Get-Now) + $LimitRetrySec
+            continue
+        }
+        $st.Tries++
+        $st.EvtIds += $evt
+        $st.Sent = Get-Now
+        $st.NextTry = $st.Sent + $WakeConfirmSec
+        Write-Log ("LIMIT-RESUME {0} {1} {2} (try {3})" -f $st.Name, $id, $evt, $st.Tries)
+        if (Test-TranscriptHas $id "[EVT-$evt]") {
+            Write-Log ("LIMIT-RESUME-TAKEN {0} {1} {2} ({3:N0} s)" -f $st.Name, $id, $evt, (Get-Age $st.Sent))
+            $st.Done = $true
+        }
+    }
+}
+
+# True when the usage-limit stop of the session $Wanted (a full id or an 8+ character prefix) is being resumed by
+# Invoke-LimitResume, not given up: its `limited` event line is then not sent to the lead.
+function Test-LimitResuming([string]$Wanted) {
+    foreach ($id in $limitResume.Keys) {
+        if ((Test-IdMatch $id $Wanted.Trim()) -and -not $limitResume[$id].GaveUp) { return $true }
+    }
+    return $false
 }
 
 # The installed dev-kit version (plugin.json) or $null; sets $script:pluginTime to the file's last write time.
@@ -1263,6 +1367,7 @@ function Invoke-WakePass {
                 $p = @($line -split ' \| ' | ForEach-Object { $_.Trim() })
                 if ($p.Count -lt 5 -or $p[0] -cnotin @('gone', 'finished', 'limited', 'stale', 'fill', 'restart', 'handoff')) { continue }
                 $kind = $p[0]; $key = $p[$p.Count - 1]; $detail = $p[3..($p.Count - 2)] -join ' | '
+                if ($kind -eq 'limited' -and (Test-LimitResuming $p[2])) { continue }  # the watcher wakes it (see the header)
                 $text = if ($kind -in 'restart', 'handoff') { "$kind requested: $detail" } else { "${kind}: $($p[1]) | $($p[2]) | $detail" }
                 $mark = @{ Project = $s.Path; Kind = $kind; Id = $(if ($p[2] -ceq '-') { '' } else { $p[2] }); Key = $key }
                 Add-WakeLine $name 'lead' $text $kind "$name|$kind|$($p[2])|$key" $mark
@@ -1575,6 +1680,7 @@ $taskClosed = @{}   # task session id -> rounds in a row seen closed
 $taskHeals = @{}    # task session id -> times of HEAL-TASK tries in the last hour
 $taskGaveUp = @{}   # task session id -> $true after GIVEUP-TASK, until seen alive
 $limitSeen = @{}    # session id -> key of the usage-limit stop already logged (LIMIT)
+$limitResume = @{}  # session id -> resume state of that stop (Invoke-LimitResume)
 $holdLogged = $false
 $lastCheck = Get-Date
 $round = 0

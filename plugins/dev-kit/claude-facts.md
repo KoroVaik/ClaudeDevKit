@@ -4,7 +4,7 @@ How the Claude apps behave in practice, where official docs say little: the desk
 Remote Control, background sessions, headless `claude -p`, plugins and hooks, subagents, the shell under Claude
 Code. Facts only, no rules: a rule that relies on a fact keeps what to do and links here.
 
-Last re-check: none yet | Claude Code: unknown
+Last re-check: 2026-11-23 | Claude Code: 2.1.330
 
 ## How to use
 
@@ -309,6 +309,22 @@ One entry per behaviour. A newer direct observation replaces an older one; the o
 - Seen: date not stated | check not stated | Pult scripts, `sessions.py`
 - Re-check: `claude agents --json` next to the transcript tail of a session that hit the limit | safe
 - Status: doubtful
+
+### The usage-limit notice gives its reset time in `rate_limit_info`
+- What happens: The usage-limit notice in a transcript is a synthetic assistant entry with `apiError` `usage_limit_reached`. Its `apiErrorParams.rate_limit_info` holds `resetsAt` (epoch seconds), `rateLimitType` (e.g. `five_hour`) and `status` `rejected`. Its text reads "You've hit your 5-hour limit · resets 7:10pm (Europe/Copenhagen)".
+- Workaround: read `resetsAt` for the reset time, not the clock text.
+- App: background sessions, `claude` CLI | Claude Code: 2.1.325
+- Seen: 2026-11-15 | read of the transcript (fields checked 2026-11-23, `resetsAt` = 18:10 UTC) | ClaudeDevKit, session 90f30cba
+- Re-check: `grep -o 'rate_limit_info.\{0,160\}' <transcript>.jsonl` on the next transcript with `usage_limit_reached` | safe
+- Status: checked
+
+### A session stopped by the usage limit does not go on after the reset
+- What happens: A session stopped by the usage limit writes nothing after its reset time until an incoming message arrives. In transcript 90f30cba the notice came at 17:12 UTC, the reset was at 18:10 UTC, and the next entry was the owner's message at 20:49 UTC.
+- Workaround: the Pult watcher sends the session a «go on» message after the reset (`plugins/pult/scripts/watch-servers.ps1`, LIMIT-RESUME; ClaudeDevKit `plans/limit-resume.md`).
+- App: background sessions, `claude` CLI | Claude Code: 2.1.325
+- Seen: 2026-11-15 | read of the transcript (entries after the notice checked 2026-11-23) | ClaudeDevKit, session 90f30cba
+- Re-check: in a transcript with a limit notice, list the entries after its `resetsAt` time: `grep -n '"timestamp"' <transcript>.jsonl` and read the lines after the notice | safe
+- Status: checked
 
 ### A session with a background shell shows as busy
 - What happens: A session that has a background shell running shows as busy; one with none shows as idle.

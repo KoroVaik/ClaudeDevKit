@@ -28,7 +28,12 @@ problem it proposes a fix and acts after an explicit yes.
   the same way as at logon (log HEAL; GIVEUP when it gave up; a start still running after 5 minutes is stopped:
   HEAL-TIMEOUT, a failed try). A task session a project lead registered,
   closed by Claude Code (no process, not stopped on purpose), comes back with `claude respawn` (`plugins/dev-kit/claude-facts.md`, "`claude respawn <id>` brings back a session Claude Code closed"; log HEAL-TASK; HEAL-TASK-TIMEOUT when it hangs past the same bound). A live lead or task session that stopped on the
-  usage limit is logged once per stop (LIMIT, with the reset time; LIMIT-END when it goes on). It also removes
+  usage limit is logged once per stop (LIMIT, with the reset time; LIMIT-END when it goes on). About three
+  minutes after the reset (at once when the reset time is unknown) the watcher sends it one «go on» message by
+  the one-shot sender of the wakes (LIMIT-RESUME; then LIMIT-RESUME-TAKEN or LIMIT-END). A send the account
+  still refuses counts no try and is tried again after 15 minutes (LIMIT-RESUME-FAILED); a message not taken
+  goes out again, at most 3 sends per session even when it hits the limit again; then, or 12 hours after the
+  reset with no luck, LIMIT-RESUME-GIVEUP. Its lead gets the `limited:` event line only after a give-up. It also removes
   dev-kit lock files whose owner is gone (log UNLOCK). It restarts a lead that runs on an older dev-kit version
   than the installed `plugins/dev-kit/.claude-plugin/plugin.json`, with no message from the hub. When depends on
   the release's mark in `plugins/dev-kit/releases.json`: a routine release waits for a later day (log

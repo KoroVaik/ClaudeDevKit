@@ -79,6 +79,8 @@ if to and eid and deliver and (deliver is True or to.group(1) in deliver) and to
              "message": {"role": "user", "content": eid.group(0) + " Pult server watcher: ..."}}
     with open(plan["transcripts"][to.group(1)], "a", encoding="utf-8") as f:
         f.write(json.dumps(entry) + "\n")
+        if plan.get("relimit"):  # the turn the message starts hits the usage limit again: a new notice
+            f.write(json.dumps(dict(plan["relimit"], uuid=eid.group(0))) + "\n")
 print(json.dumps({"type": "result", "subtype": "success", "is_error": False, "result": plan.get("result", "sent")}))
 '''
 
@@ -508,6 +510,81 @@ class WatchServersWakeTest(unittest.TestCase):
         log = self.run_watch(1, "-ReadyWarnSec", "0")  # restarted with -Ready, the mark cleared: the message goes out
         self.assertIn(f"Name= Ready={LEAD}", (self.tmp / "restart-calls.txt").read_text(encoding="utf-8"))
         self.assertEqual(1, len(self.wakes()), log)
+
+    # ---- a session stopped on the usage limit is woken after the reset ----
+
+    def limit_stop(self, resets_in_sec):
+        """The task session is registered, live and its transcript ends with a usage-limit notice whose reset is
+        $resets_in_sec from now (negative: past). Returns the transcript path; the sender can deliver to it."""
+        self.registry_task()
+        transcript = self.projects / f"{TASK}.jsonl"
+        notice = {"type": "assistant", "uuid": "task-stop", "apiError": "usage_limit_reached", "isApiErrorMessage": True,
+                  "apiErrorParams": {"rate_limit_info": {"resetsAt": int(time.time()) + resets_in_sec}},
+                  "message": {"role": "assistant", "model": "<synthetic>", "content": [{"type": "text", "text": "limit"}]}}
+        transcript.write_text(json.dumps({"type": "assistant", "message": {"role": "assistant", "content": "x"}}) + "\n"
+                              + json.dumps(notice) + "\n", encoding="utf-8")
+        plan = json.loads((self.bin / "wake-plan.json").read_text(encoding="utf-8"))
+        plan["transcripts"]["C: task"] = str(transcript)
+        (self.bin / "wake-plan.json").write_text(json.dumps(plan), encoding="utf-8")
+        (self.bin / "check.txt").write_text(f"limited | C: task | {TASK} | resets x | task-stop\n", encoding="utf-8")
+        return transcript
+
+    @staticmethod
+    def resume_lines(log):
+        return [line for line in log if line.startswith("LIMIT")]
+
+    # protects: Flow
+    def test_session_past_its_limit_reset_gets_one_continue_message_and_the_lead_none(self):
+        self.limit_stop(-3600)
+        log = self.run_watch(2)
+        wakes = self.wakes()
+        self.assertEqual(["C: task"], [self.to(w) for w in wakes], log)
+        self.assertIn("the usage limit that stopped you has reset. Go on with your task", self.message(wakes[0]))
+        lines = self.resume_lines(log)
+        self.assertEqual(3, len(lines), lines)
+        self.assertTrue(lines[1].startswith(f"LIMIT-RESUME C: task {TASK} ") and lines[1].endswith("(try 1)"), lines)
+        self.assertTrue(lines[2].startswith(f"LIMIT-RESUME-TAKEN C: task {TASK} "), lines)
+
+    # protects: Rule
+    def test_session_before_its_limit_reset_gets_no_message(self):
+        self.limit_stop(3600)
+        log = self.run_watch(2)
+        self.assertEqual([], self.wakes(), log)
+        self.assertEqual(1, len(self.resume_lines(log)), log)
+
+    # protects: Flow
+    def test_resume_not_taken_is_sent_three_times_then_the_lead_hears_of_the_stop(self):
+        self.limit_stop(-3600)
+        self.wake_plan(deliver=[LEAD])  # the task session never takes it; the lead does
+        log = self.run_watch(5, "-WakeConfirmSec", "0")
+        to_task = [w for w in self.wakes() if self.to(w) == "C: task"]
+        self.assertEqual(3, len(to_task), log)
+        self.assertIn(f"LIMIT-RESUME-GIVEUP C: task {TASK} (not taken after 3 sends)", log)
+        to_lead = [self.message(w) for w in self.wakes() if self.to(w) == LEAD]
+        self.assertEqual(1, len(to_lead), log)
+        self.assertIn(f"limited: C: task | {TASK} | resets x", to_lead[0])
+
+    # protects: Bug
+    def test_session_that_hits_the_limit_again_is_messaged_at_most_three_times(self):
+        transcript = self.limit_stop(-3600)
+        plan = json.loads((self.bin / "wake-plan.json").read_text(encoding="utf-8"))
+        plan["relimit"] = json.loads(transcript.read_text(encoding="utf-8").splitlines()[-1])
+        (self.bin / "wake-plan.json").write_text(json.dumps(plan), encoding="utf-8")
+        log = self.run_watch(6, "-WakeConfirmSec", "0")
+        self.assertEqual(3, len([w for w in self.wakes() if self.to(w) == "C: task"]), log)
+        self.assertTrue([line for line in log if line.startswith(f"LIMIT-RESUME-GIVEUP C: task {TASK}")], log)
+
+    # protects: Bug
+    def test_send_refused_while_still_limited_counts_no_try_and_logs_once(self):
+        self.limit_stop(-3600)
+        plan = json.loads((self.bin / "wake-plan.json").read_text(encoding="utf-8"))
+        plan["result"], plan["deliver"] = "You've hit your limit", False
+        (self.bin / "wake-plan.json").write_text(json.dumps(plan), encoding="utf-8")
+        log = self.run_watch(5, "-LimitRetrySec", "0")
+        self.assertGreater(len([w for w in self.wakes() if self.to(w) == "C: task"]), 3, log)  # past $WakeMaxTries
+        failed = [line for line in log if line.startswith("LIMIT-RESUME-FAILED")]
+        self.assertEqual([f"LIMIT-RESUME-FAILED C: task {TASK} You've hit your limit"], failed)
+        self.assertFalse([line for line in log if "GIVEUP" in line], log)
 
 
 if __name__ == "__main__":

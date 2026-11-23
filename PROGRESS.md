@@ -21,11 +21,14 @@
 
 - No "session started" push on P self-move and from C sessions (owner «+», 2026-11-23): self-move resumes the same session with `/clear`, a C starts with no phone link. Built and merged (dev-kit 0.1.106, pult 0.1.24); retro and docs sessions too. Plan: [plans/push-noise.md](plans/push-noise.md).
 
+- Weekly limit forecast push (owner «+», 2026-11-23, «Обговорення: Відстеження лімітів»): one phone push per week when, at the current pace, the weekly limit runs out over 6 hours before its reset and tasks are open. Next: a C builds it after «C: Перевірка, що Pult не будить керівників дарма» merges (same watcher file). Plan: [plans/limit-tracking.md](plans/limit-tracking.md) «Owner's approval».
+
 Open work of the features: `dev-kit-check-docs --open`.
 
 ## Open questions
 
-- 2026-11-23 · «P»: Запустити нову сесію «C: Перевірка, що Pult не будить керівників дарма»? (від тебе - раз глянути на телефон) Рекомендую: так - ця перевірка відкладена найдовше.
+
+
 
 
 
