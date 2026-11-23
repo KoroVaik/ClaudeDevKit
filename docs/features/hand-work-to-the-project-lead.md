@@ -47,7 +47,8 @@ how a screen looks carries its shots next to the mockup every time it is written
 question just leaves the counts, with no confirmation line.
 
 Each line of «Статуси сесій» is the state first, then the session name exactly as the app shows it, in «»:
-`працює`, `чекає на тебе` (with the reason in brackets), `стоїть, скінчився ліміт` (with the reset time),
+`працює`, `чекає на тебе` (with the reason in brackets), `чекає` (a session waits more than a minute on
+something other than you, such as low memory or a retry timer; with the reason and the resume time), `стоїть, скінчився ліміт` (with the reset time),
 `стоїть, сесія впала`, `готово`. The start status and your «що працює?» list every session; any other
 message lists the sessions whose state changed, plus each `готово` one until you next write to P.
 

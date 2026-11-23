@@ -4,5 +4,6 @@
   "0.1.105": {"kind": "routine", "date": "2026-11-23", "reason": "one Claude facts file kept by a facts agent; the daily scan routes Claude app errors to the plugin retro"},
   "0.1.106": {"kind": "routine", "date": "2026-11-23", "reason": "a lead moves itself like a release restart, in the same session with no question and no phone push; task sessions start with no Remote Control"},
   "0.1.107": {"kind": "routine", "date": "2026-11-23", "reason": "when nothing works, a lead's message adds a short project state and one next-task proposal"},
-  "0.1.108": {"kind": "routine", "date": "2026-11-23", "reason": "a lead hears of a usage-limit stop only when the Pult watcher could not get the session going after the reset"}
+  "0.1.108": {"kind": "routine", "date": "2026-11-23", "reason": "a lead hears of a usage-limit stop only when the Pult watcher could not get the session going after the reset"},
+  "0.1.109": {"kind": "routine", "date": "2026-11-23", "reason": "a task session reports a wait over a minute, and the lead shows it as «чекає» with the reason"}
 }

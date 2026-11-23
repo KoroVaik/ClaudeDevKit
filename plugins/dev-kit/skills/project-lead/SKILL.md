@@ -154,8 +154,8 @@ entries. P makes at most one «Запустити нову сесію «C: <name
 nothing from the owner. After the owner's «ні» to it, the next item becomes the proposal; with none,
 no proposal. P never asks «Яку задачу запустити?».
 
-The project state. When no session P manages works (the message would have no `працює` line and no
-«ще працюють» line), the message adds the block «**Стан проєкту**» right after «Статуси сесій»: 2-4 plain
+The project state. When no session P manages works (the message would have no `працює` or `чекає` line and no
+«ще працюють» line; a session in `чекає` counts as working), the message adds the block «**Стан проєкту**» right after «Статуси сесій»: 2-4 plain
 sentences in the owner's words, from PROGRESS.md and `plans/`, on what was just finished, what the
 project waits on, and what is blocked and by what. Then P's start proposal (chosen as above) follows in
 full in the question form, as the last thing in the message (case 5 of the closing line); it is not
@@ -266,6 +266,12 @@ Why: P listed «Pult» in 18 status messages after restarting it; owner: «?» (
 - `працює` - the session works;
 - `чекає на тебе` - always with the reason in the owner's words in brackets after the name:
   `- чекає на тебе - «C: Чистка гілок» (дозвіл видалити гілки)`;
+- `чекає` - a C sent `ЧЕКАЮ` (it waits more than 1 minute on something other than P or the owner); the
+  reason in the owner's words and the resume time, if known, in brackets:
+  `- чекає - «C: Імпорт меню» (не вистачило пам'яті для запуску, повтор о 14:30)`. P sends this line at
+  once, as any C report, and never folds it into `працює` or «ще працюють»; the C's `ПРОДОВЖУЮ` turns it
+  back to `працює`. Why: owner, 2026-11-23 (Zhratva): a C reported a 30-minute retry wait and P stayed
+  silent; «Я сказав сесії щоб повідомила тобі про проблему, вона зробила це, але ти промовчав»;
 - `стоїть, скінчився ліміт` - with the reset time in brackets: `(до 14:00)`;
 - `стоїть, сесія впала`;
 - `готово` - the task is finished (the merge is not mentioned). Several finished sessions may share one
@@ -280,6 +286,7 @@ Which sessions a message lists:
   `готово` session until the owner next writes to P (any message); P's reply to that owner message
   already leaves it out. The message's last status line is `- ще працюють: «<name>», «<name>»` with every other
   session P manages that still works, unchanged since P's previous message; with none, the line is left out.
+  An unchanged `чекає` session keeps its own `чекає` line, right before «ще працюють», until its `ПРОДОВЖУЮ`.
   Why: after a merge P listed only the finished session, and the owner took two working ones for gone
   («Чому в статусі нема сесії аналізу?», P: Zhratva, 2026-11-20); one line keeps the picture full
   without repeating each unchanged session (owner, 2026-11-20).
@@ -492,8 +499,9 @@ it on `c/<slug>`, so the merge and the worktree removal see no stray file. C kee
 - First prompt: the owner's words verbatim; the task file path (and the feature file, if an
   «Обговорення:» session wrote its «Approved design»; see "Build a designed screen"); the main checkout
   path; "run the dev-kit manager skill; P ran the overlap check"; the report rule (C messages P only
-  on done, decision needed, stuck - 3 lines: state, result, what is needed; details in the task
-  file; each message starts with its kind word `ГОТОВО`, `ПИТАННЯ`, `ЗАСТРЯГ` or `ВІДПОВІДЬ`, see
+  on done, decision needed, stuck, a wait over 1 minute and its end - 3 lines: state, result, what is
+  needed; details in the task file; each message starts with its kind word `ГОТОВО`, `ПИТАННЯ`,
+  `ЗАСТРЯГ`, `ЧЕКАЮ`, `ПРОДОВЖУЮ` or `ВІДПОВІДЬ`, see
   `${CLAUDE_PLUGIN_ROOT}/messages.md`); "before handing in, pull main and resolve conflicts yourself". The report rule names the
   channel: "send each report with the SendMessage tool to `<P's own session name>`; text in your own
   chat never reaches P" (`plugins/dev-kit/claude-facts.md`, "A C's text in its own chat never reaches the
@@ -841,7 +849,7 @@ Why: without the «picked up» check P could stop the old C before the new one h
 ## Shared app
 
 C runs `dev-kit-app start` in the background after P's yes (see "Ask-P list"): it may wait in a
-queue while another C uses the app (up to 15 minutes). A queue timeout reaches P as "stuck"; P shows that C as `чекає на тебе`
+queue while another C uses the app (up to 15 minutes); that wait reaches P as `ЧЕКАЮ` and shows as `чекає`. A queue timeout reaches P as "stuck"; P shows that C as `чекає на тебе`
 with the worktree that holds the app as the reason.
 
 ## Acceptance and merge
