@@ -14,6 +14,7 @@
 - Live check of the event-only wakes and of a push relayed by a lead: [Open items](docs/features/start-leads-at-logon-and-heal-them.md#open).
 
 - P moves itself like a release (owner «так», 2026-11-23, P: ClaudeDevKit chat): no «Перезапустити мене зараз?» question and no push; quiet (owner silent 5 min, no open question) -> silent move; otherwise the CAPS warning, then the move 30 s later, as in «Restart for a plugin update». Weak spot accepted: while the owner keeps writing, the move waits. Next: a C (rule in project-lead «Restart P» + the Pult watcher).
+- No "session started" push on P self-move and from C sessions (owner «+», 2026-11-23): self-move resumes the same session with `/clear`, a C starts with no phone link. Next: a C builds it from [plans/push-noise.md](plans/push-noise.md#owners-approval).
 
 Open work of the features: `dev-kit-check-docs --open`.
 
