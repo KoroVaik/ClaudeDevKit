@@ -43,7 +43,8 @@ The watcher never touches your own sessions, taken-over ones included.
 After you stop the servers on purpose (`stop-servers.ps1`), the watcher brings nothing back until the next
 full start. Restarting the leads (`restart-leads.ps1`) pauses the watcher only while the restart runs: the
 restart's own start run brings the leads back and lifts the pause; a restart that crashed before that run
-lifts no pause, so the watcher lifts it itself at its next check. The watcher also restarts nothing while
+lifts no pause, so the watcher lifts it itself at its next check. A lead restart that hangs is cut after 10
+minutes, logged, and its pause lifted at once; a lead it had stopped comes back as after a crash. The watcher also restarts nothing while
 a full start runs. A lead stopped only with `claude stop` is not a stop on purpose: it comes back; to retire
 one project, remove its row from the project list.
 
@@ -56,6 +57,7 @@ one project, remove its row from the project list.
 - You restart the leads on purpose: they come back through the restart itself, and the watcher goes on as usual.
 - A lead's start hangs: after 5 minutes it is cut, logged, and the watcher goes on; the next try follows as usual.
 - A lead restart crashes halfway: at the watcher's next check the pause is lifted and the stopped leads come back.
+- A lead restart hangs: after 10 minutes it is cut, logged, the pause is lifted, and the watcher goes on.
 
 ## Built in
 - `plugins/pult/scripts/start-servers.ps1`
@@ -71,6 +73,6 @@ one project, remove its row from the project list.
 - `tools/tests/test_start_servers_handoff.py`
 
 ## Open
-- [ ] Defect: the watcher calls `restart-leads.ps1` with no time limit, so a hung restart stalls the watcher loop (`plugins/pult/scripts/watch-servers.ps1`; found by the heal-timeout build, `plans/pult-heal-timeout.md`)
+- [ ] Defect: the watcher's handoff move calls `start-servers.ps1 -Handoff` with no time limit, so a hung move stalls the watcher loop (`plugins/pult/scripts/watch-servers.ps1`, Invoke-HandoffCheck; found by the restart-timeout build, `plans/pult-restart-timeout.md`)
 - [ ] Check from the watcher's logs and the transcripts that Pult and a lead with no events show no wakes for a day, that one forced GIVEUP gives one push and the fix line in Pult, and that a push relayed by a live lead (Pult down) reaches the phone; the lead relay is untested
 - [ ] Check whether you can still attach to a P from a terminal with `claude attach <id>`, and the exact wording of the session list in the phone app

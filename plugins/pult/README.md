@@ -43,7 +43,8 @@ problem it proposes a fix and acts after an explicit yes.
   is the fast path on your ask: it restarts the idle leads now and writes a request for each busy one
   (`Asked: <name>`), which reaches the lead the same way (an older lead: its session watcher exits 7 once with
   `restart requested: <V>`). One try per lead per version; a
-  failure is logged as RESTART-LEAD-FAILED. A leftover `restart.json` of a lead already on the new version
+  failure is logged as RESTART-LEAD-FAILED; a restart still running after 10 minutes is stopped, logged as
+  RESTART-LEAD-TIMEOUT, and its pause lifted at once (HOLD-STALE). A leftover `restart.json` of a lead already on the new version
   is cleared (RESTART-CLEARED). The versions the lead processes started on (by pid and start time) are kept
   in `~/.claude/pult/lead-versions.json` (log LEAD-VERSION). The same goes for the extension plugins a
   project enables in its `.claude/settings.json` (web-kit, unity-kit): a lead whose extension changed version
@@ -60,7 +61,7 @@ problem it proposes a fix and acts after an explicit yes.
   for every lead on dev-kit 0.1.78 or later and sends each new event (a task session gone, finished, on the
   usage limit, waiting 20 minutes, past a third of its context, or a restart request) to the lead as a
   cross-session message `[EVT-<id>] Pult server watcher: ...`, by a one-shot `claude -p` (haiku, safe mode,
-  only the SendMessage tool, `bypassPermissions`; `plugins/dev-kit/claude-facts.md`, "A one-shot `claude -p` delivers a message into a running session"). GIVEUP, GIVEUP-TASK, RESTART-LEAD-FAILED and HANDOFF-FAILED go to
+  only the SendMessage tool, `bypassPermissions`; `plugins/dev-kit/claude-facts.md`, "A one-shot `claude -p` delivers a message into a running session"). GIVEUP, GIVEUP-TASK, RESTART-LEAD-FAILED, RESTART-LEAD-TIMEOUT and HANDOFF-FAILED go to
   the Pult session the same way; Pult pushes them to your phone. A lead silent 50 minutes while one of its
   task sessions works gets a keep-warm ping. A lead past a third of its own context that saved a handoff
   (`dev-kit-sessions handoff save`) is moved to a fresh context in the same session, by a resume with `/clear`

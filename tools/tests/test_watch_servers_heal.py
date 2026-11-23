@@ -1,8 +1,9 @@
-"""The Pult watcher (plugins/pult/scripts/watch-servers.ps1) does not hang on a heal: a HEAL (start-servers.ps1 -Only)
-or a HEAL-TASK (`claude respawn`) still going after -HealWaitSec is stopped with its child processes and logged, and the
-loop goes on. It also removes a hold file that a crashed restart-leads.ps1 left (HOLD-STALE), and only that one.
-Runs a copy of the pult scripts in a temp folder with a fake `claude` and a stub start-servers.ps1, so no real watcher,
-lead or Pult process is touched."""
+"""The Pult watcher (plugins/pult/scripts/watch-servers.ps1) does not hang on a heal or a lead restart: a HEAL
+(start-servers.ps1 -Only), a HEAL-TASK (`claude respawn`) or a restart-leads.ps1 run still going after its bound
+(-HealWaitSec, -LeadRestartWaitSec) is stopped with its child processes and logged, and the loop goes on. It also
+removes a hold file that a crashed restart-leads.ps1 left (HOLD-STALE), and only that one.
+Runs a copy of the pult scripts in a temp folder with a fake `claude` and a stub start-servers.ps1 or restart-leads.ps1,
+so no real watcher, lead or Pult process is touched."""
 import json
 import os
 import shutil
@@ -12,7 +13,7 @@ import time
 import unittest
 from datetime import datetime
 
-from test_watch_servers_restart import LEAD, PLUGINS, POWERSHELL, WatcherEnv
+from test_watch_servers_restart import LEAD, PLUGINS, POWERSHELL, WatcherEnv, plugin_json
 
 # `claude agents` prints agents.json; `claude respawn <id>` records its pid and sleeps respawn_sleep seconds.
 FAKE_CLAUDE = '''import json, os, pathlib, sys, time
@@ -178,6 +179,71 @@ class WatchServersHealTest(WatcherEnv, unittest.TestCase):
                        env=self.env(), capture_output=True, timeout=240)
         text = self.hold().read_text(encoding="utf-8-sig").strip()
         self.assertRegex(text, r"^restart-leads\.ps1 \d{4}-\d\d-\d\dT\d\d:\d\d:\d\d pid \d+$")
+
+
+# Stands in for restart-leads.ps1: writes the hold with its pid as the real one does, records its pid, then sleeps
+# $env:TEST_RESTART_SLEEP seconds in a child process (a hung `claude stop` or start) and says the lead was resumed.
+STUB_RESTART_HANG = '''param($Name, $Ready, $ConfigFile, $StateDir)
+New-Item -ItemType Directory -Force $StateDir | Out-Null
+Set-Content -LiteralPath (Join-Path $StateDir 'hold') -Encoding UTF8 -Value "restart-leads.ps1 $(Get-Date -Format s) pid $PID"
+Add-Content -LiteralPath $env:TEST_CALLS_FILE -Value "Name=$Name pid=$PID"
+$s = [int]$env:TEST_RESTART_SLEEP
+if ($s -gt 0) {
+    $c = Start-Process -FilePath powershell.exe -ArgumentList '-NoProfile', '-Command', "Start-Sleep $s" -NoNewWindow -PassThru
+    Add-Content -LiteralPath $env:TEST_CALLS_FILE -Value "child=$($c.Id)"
+    $c.WaitForExit()
+}
+Remove-Item -LiteralPath (Join-Path $StateDir 'hold') -Force
+Write-Output "Resumed lead: $($Name -join ',')"
+'''
+
+
+@unittest.skipUnless(os.name == "nt" and POWERSHELL, "the Pult watcher runs on Windows PowerShell")
+class WatchServersRestartTimeoutTest(WatcherEnv, unittest.TestCase):
+    """An idle lead stale in an extension (web-kit 1.0.0 -> 1.1.0 in round 2) is restarted through the stub."""
+
+    def setUp(self):
+        super().setUp()
+        (self.scripts / "restart-leads.ps1").write_text(STUB_RESTART_HANG, encoding="ascii")
+        self.plan({2: [{"path": str(self.plugins / "web-kit" / ".claude-plugin" / "plugin.json"),
+                        "write": plugin_json("1.1.0")}]})
+        self.restart_sleep = 0
+
+    def env(self):
+        return dict(super().env(), TEST_RESTART_SLEEP=str(self.restart_sleep))
+
+    def hold(self):
+        return self.tmp / "pult" / "hold"
+
+    # protects: Bug
+    def test_hung_restart_is_stopped_its_hold_removed_and_the_loop_goes_on(self):
+        self.restart_sleep = 120
+        t = time.monotonic()
+        log = self.run_watch(4, "-LeadRestartWaitSec", "3")
+        took = time.monotonic() - t
+        self.assertLess(took, 100)
+        self.assertEqual(4, self.claude_calls(), "the watcher must go on with its rounds")
+        timeouts = [l for l in log if " RESTART-LEAD-TIMEOUT " in l]
+        self.assertEqual(1, len(timeouts), log)  # a failed restart is not tried again on the same versions
+        self.assertIn(f"RESTART-LEAD-TIMEOUT {LEAD} (no end in 3 s, stopped)", timeouts[0])
+        self.assertFalse(self.hold().exists())
+        self.assertEqual(1, len([l for l in log if " HOLD-STALE " in l]), log)
+        self.assertFalse([l for l in log if "RESTART-LEAD-FAILED" in l], log)
+        calls = self.restart_calls()
+        pids = [int(l.split("pid=")[1]) for l in calls if l.startswith("Name=")]
+        children = [int(l.split("=")[1]) for l in calls if l.startswith("child=")]
+        self.assertEqual(1, len(pids), calls)
+        self.assertTrue(calls[0].startswith(f"Name={LEAD} pid="), calls)
+        for pid in pids + children:  # the run and its child are stopped
+            self.assertFalse(pid_alive(pid), pid)
+
+    # protects: Flow
+    def test_restart_that_ends_in_time_is_not_a_failure(self):
+        log = self.run_watch(3, "-LeadRestartWaitSec", "60")
+        self.assertEqual(1, len([l for l in log if f" RESTART-LEAD {LEAD} " in l]), log)
+        self.assertFalse([l for l in log if "RESTART-LEAD-TIMEOUT" in l or "RESTART-LEAD-FAILED" in l
+                          or "HOLD-STALE" in l], log)
+        self.assertFalse(self.hold().exists())
 
 
 if __name__ == "__main__":

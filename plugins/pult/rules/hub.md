@@ -107,7 +107,8 @@ five mechanical problems itself, with no yes (the owner's yes, 2026-11-16; the o
   mark older than 10 minutes is dropped, READY-EXPIRED, and for the current version the lead is asked once
   more as with `-Ask`). A lead counts as not quiet while one of its task sessions works. The same for an extension plugin the lead's project enables (web-kit, unity-kit): an idle lead
   is restarted, a busy one is never woken for it and waits until it is idle. One try per lead per version;
-  RESTART-LEAD-FAILED when it did not come back. Held by the hold file too.
+  RESTART-LEAD-FAILED when it did not come back; RESTART-LEAD-TIMEOUT when the restart still ran after 10 minutes
+  and was stopped (its pause is lifted at once, a lead it stopped comes back by HEAL). Held by the hold file too.
 - Its own code (added 2026-11-19, P's yes): when `watch-servers.ps1` (or the script it loads) changed and stayed
   the same for two checks, it starts a fresh copy of itself and, once that copy wrote its own "WATCH started"
   line, logs WATCH-RESTART and exits; a file that does not parse, or a new copy that dies at start-up, is
@@ -115,7 +116,7 @@ five mechanical problems itself, with no yes (the owner's yes, 2026-11-16; the o
   so a merged change never ran before.
 - A dev-kit lock file whose owner is gone (`~/.claude/dev-kit/*/watch.lock`, `app.lock` of a removed
   worktree, leftover `app.lock.takeover` and `*.tmp`): removed, log UNLOCK.
-Everything else (GIVEUP, GIVEUP-TASK, HEAL-FAILED, HEAL-TIMEOUT, HEAL-TASK-FAILED, HEAL-TASK-TIMEOUT, RESTART-LEAD-FAILED, HANDOFF-FAILED, START-FAILED, WATCH-RESTART-SKIPPED, a lead that comes back and falls again) stays a problem Pult
+Everything else (GIVEUP, GIVEUP-TASK, HEAL-FAILED, HEAL-TIMEOUT, HEAL-TASK-FAILED, HEAL-TASK-TIMEOUT, RESTART-LEAD-FAILED, RESTART-LEAD-TIMEOUT, HANDOFF-FAILED, START-FAILED, WATCH-RESTART-SKIPPED, a lead that comes back and falls again) stays a problem Pult
 shows and proposes a fix for. A project with no hard-ban lines (NO-BANS) is shown too, as blocked, with the question of "Missing hard bans". A stop with only `claude stop` is undone by the watcher; to retire one entry,
 remove its row from `servers.psd1` (the watcher reads the list when it starts).
 
@@ -154,7 +155,7 @@ in the desktop app, so the owner cannot type a `!` command in its chat"); an age
 ## Phone push
 
 Pult pushes to the owner's phone only what the server watcher gave up on: a GIVEUP, GIVEUP-TASK,
-RESTART-LEAD-FAILED or HANDOFF-FAILED line (see "Servers"; a failed HEAL try ends in GIVEUP, so it is not pushed on its
+RESTART-LEAD-FAILED, RESTART-LEAD-TIMEOUT or HANDOFF-FAILED line (see "Servers"; a failed HEAL try ends in GIVEUP, so it is not pushed on its
 own), and the one-time NO-BANS line of a blocked lead («Pult: P: X не стартує - немає жорстких заборон, відкрий Pult»),
 after which Pult writes the question of "Missing hard bans". A session that came back by itself, a usage-limit stop and a lead restart that worked push
 nothing. Pult keeps no watcher (see "Servers"): the watcher sends it each such line in a message that
@@ -183,7 +184,7 @@ Why: the owner decided on 2026-11-19 that only urgent events reach the phone (wh
 
 The watcher restarts the leads after a dev-kit version bump by itself (see "Servers"); the hub sends no
 messages for it. Pult only shows the log: RESTART-LEAD followed by UP is fixed ("перезапущено на нову
-версію"); RESTART-LEAD-FAILED, or a lead still on an older version for over 3 hours after a critical release
+версію"); RESTART-LEAD-FAILED, RESTART-LEAD-TIMEOUT, or a lead still on an older version for over 3 hours after a critical release
 (`plugins/dev-kit/releases.json`), is a problem to show with a proposed fix; RESTART-DEFERRED and a lead
 behind a routine release until a later day are normal. A lead that is not quiet gets a `restart` event
 message from the watcher for a critical release at once. When the owner asks to update or restart the leads («онови керівників»), Pult runs

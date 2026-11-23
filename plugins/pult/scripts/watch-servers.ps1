@@ -7,7 +7,10 @@
 #   stop-servers.ps1 and restart-leads.ps1, removed by a full start-servers.ps1 run) pauses this: HOLD.
 #   A HEAL run still going after $HealWaitSec s (a hung `claude --bg`) is stopped (Invoke-Bounded) and logged as
 #   HEAL-TIMEOUT <name>; it counts as a failed try and the round goes on. The same bound holds for the
-#   `claude respawn` of a HEAL-TASK (HEAL-TASK-TIMEOUT <name> <id>).
+#   `claude respawn` of a HEAL-TASK (HEAL-TASK-TIMEOUT <name> <id>). A restart-leads.ps1 run (RESTART-LEAD below) still
+#   going after $LeadRestartWaitSec s is stopped the same way and logged as RESTART-LEAD-TIMEOUT <name> (a failed restart:
+#   no new try on the same versions); the hold it left is removed at once (HOLD-STALE) and the round goes on, so a
+#   lead it had stopped comes back by HEAL.
 #   A hold file restart-leads.ps1 left (its text names its pid) whose process is gone, or is another process now
 #   (started after the hold was written), is stale: the script crashed before its full start-servers.ps1 run. The
 #   watcher removes it at the start of a round (not with -Once, not while a full start runs) and logs HOLD-STALE
@@ -76,7 +79,8 @@
 #     the extension (how: idle); any restart takes the pending dev-kit versions with it.
 #   restart.json is cleared after a restart and after a failure, and a lead already on the installed versions has a
 #   left-over one cleared (RESTART-CLEARED; checked once per pid). One try per lead per combined version (dev-kit
-#   plus extensions); a failure is logged as RESTART-LEAD-FAILED. The hold file and a running full start pause it,
+#   plus extensions); a failure is logged as RESTART-LEAD-FAILED (RESTART-LEAD-TIMEOUT for a run cut at its bound, see
+#   HEAL above). The hold file and a running full start pause it,
 #   as for HEAL (staleSince is still recorded).
 # - Wakes: no Claude session keeps a watcher of its own (plugins/dev-kit/claude-facts.md, "The host kills a
 #   background Bash run after 2 hours"); this watcher wakes Pult and the leads by a cross-session message only when
@@ -87,7 +91,7 @@
 #     finished, limited, stale, fill, restart, handoff); each becomes a line for that lead (as the old watcher printed
 #     it, `<kind>: <name> | <id> | <detail>`, or `restart requested: <V>`, or `handoff requested: <file>`) with a
 #     `sessions.py mark` call run after delivery. A lead below that version keeps its own watcher and is skipped.
-#   - Pult events: each GIVEUP, GIVEUP-TASK, RESTART-LEAD-FAILED and HANDOFF-FAILED line also goes to Pult (the session list entry
+#   - Pult events: each GIVEUP, GIVEUP-TASK, RESTART-LEAD-FAILED, RESTART-LEAD-TIMEOUT and HANDOFF-FAILED line also goes to Pult (the session list entry
 #     named exactly Pult, kind interactive). Once ever (wake-state.json), when Pult is live, it is told that its
 #     log watcher (watch-log.py) is retired and must not be armed again.
 #   - Keep-warm ping: a lead (version as above) that is live and idle, has a non-owner task session of its registry
@@ -193,7 +197,8 @@
 # wakes; -HandoffStopWaitSec: the wait for a stopped lead to be gone; -HandoffClearWaitSec: the wait for the /clear turn
 # of a handoff move to end (default 120; both passed on to start-servers.ps1); -ReadyWarnSec: the age a ready mark or a
 # handoff go must reach before its restart or move (default 30, the lead's warning; all for tests). -HealWaitSec: the
-# longest a HEAL or HEAL-TASK run may take (default 300; for tests).
+# longest a HEAL or HEAL-TASK run may take (default 300; for tests). -LeadRestartWaitSec: the longest a restart-leads.ps1 run
+# may take (default 600: its wait for the stopped lead, up to 60 s, plus a full start; for tests).
 # -ConfigFile / -StateDir / -DevKitStateDir / -DaemonLog: another server list, Pult state folder,
 # dev-kit state folder and Claude Code daemon log (for tests with a throwaway lead).
 # -DevKitDir: the dev-kit plugin folder (default: ..\..\dev-kit next to this plugin); it holds
@@ -204,7 +209,7 @@ param([int]$IntervalSec = 60, [switch]$Once, [int]$Rounds = 0, [int]$MaxHeals = 
     [string]$ConfigFile, [string]$StateDir, [string]$DevKitStateDir, [string]$DaemonLog, [string]$DevKitDir,
     [string]$RestartExe = 'powershell.exe', [string]$WakeExe, [string]$SessionsPy,
     [int]$WakeConfirmSec = 120, [int]$WakeCooldownSec = 120, [int]$WakeDownSec = 600, [int]$HandoffStopWaitSec = 60,
-    [int]$ReadyWarnSec = 30, [int]$HandoffClearWaitSec = 120, [int]$HealWaitSec = 300)
+    [int]$ReadyWarnSec = 30, [int]$HandoffClearWaitSec = 120, [int]$HealWaitSec = 300, [int]$LeadRestartWaitSec = 600)
 
 . (Join-Path $PSScriptRoot 'plugin-versions.ps1')
 . (Join-Path $PSScriptRoot 'resume-lib.ps1')  # Get-SessionProcessIds, Get-JobState, Get-LeadPermissionMode, $HandoffNamePattern
@@ -273,7 +278,7 @@ function Write-WarnOnce([string]$Key, [string]$Text) {
     if ($warnedOnce[$Key] -cne $Text) { Write-Log "WARN $Text"; $warnedOnce[$Key] = $Text }
 }
 
-# Logs a critical line (GIVEUP, GIVEUP-TASK, RESTART-LEAD-FAILED, HANDOFF-FAILED); the wake pass of the round sends it to Pult.
+# Logs a critical line (GIVEUP, GIVEUP-TASK, RESTART-LEAD-FAILED, RESTART-LEAD-TIMEOUT, HANDOFF-FAILED); the wake pass of the round sends it to Pult.
 function Write-Critical([string]$Msg) {
     Write-Log $Msg
     [void]$pultEvents.Add($Msg)
@@ -370,7 +375,7 @@ function Invoke-Bounded([string]$File, [string[]]$ArgList, [int]$WaitSec) {
             -RedirectStandardOutput $outFile -RedirectStandardError $errFile
         $null = $p.Handle  # Windows PowerShell 5.1 leaves ExitCode empty unless the handle was taken
         $timedOut = -not $p.WaitForExit([Math]::Max(1, $WaitSec) * 1000)
-        if ($timedOut) { Stop-ProcessTree $p.Id }
+        if ($timedOut) { Stop-ProcessTree $p.Id; $null = $p.WaitForExit(5000) }  # gone before the caller looks at it
         # Shared read: a child that outlives the run may still hold the file open. The child writes in the console's
         # code page, as the old pipe read it.
         $out = (@($outFile, $errFile | ForEach-Object {
@@ -596,14 +601,20 @@ function Invoke-LeadRestartFile([string]$LeadPath, [string[]]$Words) {
 }
 
 # Restarts one lead with restart-leads.ps1 (-Name, or -Ready when it marked itself ready). Returns 'busy' when
-# the script skipped it as busy, 'ok' when it was resumed or started, else 'failed' (logged).
+# the script skipped it as busy, 'ok' when it was resumed or started, else 'failed' (logged; RESTART-LEAD-TIMEOUT when
+# the run went on past $LeadRestartWaitSec s and was stopped).
 function Invoke-LeadRestart([string]$LeadName, [switch]$IsReady) {
     $cmd = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', (Join-Path $PSScriptRoot 'restart-leads.ps1'))
     $cmd += $(if ($IsReady) { '-Ready' } else { '-Name' })
     $cmd += $LeadName
     $cmd += @('-ConfigFile', $ConfigFile, '-StateDir', $StateDir)
-    $out = & powershell.exe @cmd 2>&1 | Out-String
-    $said = ($out.Trim() -replace '\s+', ' ')
+    $res = Invoke-Bounded 'powershell.exe' $cmd $LeadRestartWaitSec
+    $said = ($res.Out.Trim() -replace '\s+', ' ')
+    if ($res.TimedOut) {
+        Write-Critical ("RESTART-LEAD-TIMEOUT {0} (no end in {1} s, stopped): {2}" -f $LeadName, $LeadRestartWaitSec, $said)
+        try { Clear-StaleHold } catch { Write-Log "WARN stale hold check failed: $_" }  # its hold names the stopped run
+        return 'failed'
+    }
     if ($said -match 'Busy, skipped') { return 'busy' }
     # The success line is checked first and every match is scoped to this lead: the output of a run may also hold
     # the NO-BANS line of another lead.
