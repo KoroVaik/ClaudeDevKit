@@ -5,6 +5,13 @@
 #   start-servers.ps1 -Only <name> (the same resume as at logon): HEAL. At most $MaxHeals tries per
 #   hour per entry, then GIVEUP until it is seen up again. A hold file (~\.claude\pult\hold, left by
 #   stop-servers.ps1 and restart-leads.ps1, removed by a full start-servers.ps1 run) pauses this: HOLD.
+#   A HEAL run still going after $HealWaitSec s (a hung `claude --bg`) is stopped (Invoke-Bounded) and logged as
+#   HEAL-TIMEOUT <name>; it counts as a failed try and the round goes on. The same bound holds for the
+#   `claude respawn` of a HEAL-TASK (HEAL-TASK-TIMEOUT <name> <id>).
+#   A hold file restart-leads.ps1 left (its text names its pid) whose process is gone, or is another process now
+#   (started after the hold was written), is stale: the script crashed before its full start-servers.ps1 run. The
+#   watcher removes it at the start of a round (not with -Once, not while a full start runs) and logs HOLD-STALE
+#   (<its text>). A hold file of stop-servers.ps1, or one with no pid, stays until a full start as before.
 #   Other sessions it touches only as the next item says; never an owner session.
 #   A lead whose project has no hard-ban lines on main is never started (start-servers.ps1 prints NO-BANS): no
 #   HEAL try is counted, no HEAL-FAILED or GIVEUP; the watcher logs NO-BANS <name> (<reason>) once and sends it to
@@ -185,7 +192,8 @@
 # (default: <DevKitDir>\scripts\sessions.py); -WakeConfirmSec, -WakeCooldownSec, -WakeDownSec: the waits of the
 # wakes; -HandoffStopWaitSec: the wait for a stopped lead to be gone; -HandoffClearWaitSec: the wait for the /clear turn
 # of a handoff move to end (default 120; both passed on to start-servers.ps1); -ReadyWarnSec: the age a ready mark or a
-# handoff go must reach before its restart or move (default 30, the lead's warning; all for tests).
+# handoff go must reach before its restart or move (default 30, the lead's warning; all for tests). -HealWaitSec: the
+# longest a HEAL or HEAL-TASK run may take (default 300; for tests).
 # -ConfigFile / -StateDir / -DevKitStateDir / -DaemonLog: another server list, Pult state folder,
 # dev-kit state folder and Claude Code daemon log (for tests with a throwaway lead).
 # -DevKitDir: the dev-kit plugin folder (default: ..\..\dev-kit next to this plugin); it holds
@@ -196,7 +204,7 @@ param([int]$IntervalSec = 60, [switch]$Once, [int]$Rounds = 0, [int]$MaxHeals = 
     [string]$ConfigFile, [string]$StateDir, [string]$DevKitStateDir, [string]$DaemonLog, [string]$DevKitDir,
     [string]$RestartExe = 'powershell.exe', [string]$WakeExe, [string]$SessionsPy,
     [int]$WakeConfirmSec = 120, [int]$WakeCooldownSec = 120, [int]$WakeDownSec = 600, [int]$HandoffStopWaitSec = 60,
-    [int]$ReadyWarnSec = 30, [int]$HandoffClearWaitSec = 120)
+    [int]$ReadyWarnSec = 30, [int]$HandoffClearWaitSec = 120, [int]$HealWaitSec = 300)
 
 . (Join-Path $PSScriptRoot 'plugin-versions.ps1')
 . (Join-Path $PSScriptRoot 'resume-lib.ps1')  # Get-SessionProcessIds, Get-JobState, Get-LeadPermissionMode, $HandoffNamePattern
@@ -210,6 +218,9 @@ if (-not $SessionsPy) { $SessionsPy = Join-Path $DevKitDir 'scripts\sessions.py'
 if (-not $WakeExe) {  # an Application: claude.exe or claude.cmd, never the npm claude.ps1 that Start-Process cannot run
     $WakeExe = [string](Get-Command claude -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1).Source
 }
+# The claude program for `claude respawn` (Invoke-Bounded needs a file, not the PowerShell command lookup).
+$ClaudeExe = [string](Get-Command claude -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1).Source
+if (-not $ClaudeExe) { $ClaudeExe = 'claude' }
 $WakeMinDevKit = '0.1.78'  # a lead that started on this dev-kit or later keeps no session watcher: it is woken by message
 $NoBansRetryMin = 10       # a lead blocked by missing hard bans is looked at again after this
 $WakeMode = 'bypassPermissions' # the one permission mode of every session of the plugin (the sender's too)
@@ -317,6 +328,77 @@ function Invoke-Sessions([string[]]$Words, [string]$AgentsFile) {
 function Test-PidAlive([int]$Id, [string]$NameLike = '*') {
     $p = Get-Process -Id $Id -ErrorAction SilentlyContinue
     return [bool]($p -and $p.ProcessName -like $NameLike)
+}
+
+# One argument for a Windows command line (the quoting CommandLineToArgvW reads back).
+function ConvertTo-ArgText([string]$Text) {
+    if ($Text -and $Text -notmatch '[\s"]') { return $Text }
+    $q = $Text -replace '(\\*)"', '$1$1\"'
+    $q = $q -replace '(\\+)$', '$1$1'
+    return '"' + $q + '"'
+}
+
+# Stops process $RootId and its child processes, except a long-lived one that a run may start and must keep: a
+# Remote Control server (its window), Claude's background service (`claude daemon run`, which a `claude --bg` starts
+# when none runs) and a background session's host. Their own children are left too.
+function Stop-ProcessTree([int]$RootId) {
+    $all = @(Get-CimInstance Win32_Process -ErrorAction SilentlyContinue)
+    $seen = @{}; $kill = @(); $queue = @($RootId)
+    while ($queue.Count) {
+        $next = @()
+        foreach ($id in $queue) {
+            if ($seen[$id]) { continue }
+            $seen[$id] = $true; $kill += $id
+            foreach ($c in @($all | Where-Object { $_.ParentProcessId -eq $id -and $_.ProcessId -ne $id })) {
+                if ([string]$c.CommandLine -match '\sremote-control\s|\sdaemon\s+run\b|--bg-pty-host') { continue }
+                $next += [int]$c.ProcessId
+            }
+        }
+        $queue = $next
+    }
+    foreach ($id in $kill) { Stop-Process -Id $id -Force -ErrorAction SilentlyContinue }
+}
+
+# Runs $File with $ArgList and waits up to $WaitSec s: @{ Out; Code; TimedOut } (Out: stdout and stderr). A run
+# still going then is stopped (Stop-ProcessTree). The output goes to temp files, not a pipe: a child process that
+# outlives the run and keeps the handle cannot hold the call open.
+function Invoke-Bounded([string]$File, [string[]]$ArgList, [int]$WaitSec) {
+    $outFile = [IO.Path]::GetTempFileName(); $errFile = [IO.Path]::GetTempFileName()
+    try {
+        $line = (@($ArgList | ForEach-Object { ConvertTo-ArgText $_ }) -join ' ')
+        $p = Start-Process -FilePath $File -ArgumentList $line -NoNewWindow -PassThru `
+            -RedirectStandardOutput $outFile -RedirectStandardError $errFile
+        $null = $p.Handle  # Windows PowerShell 5.1 leaves ExitCode empty unless the handle was taken
+        $timedOut = -not $p.WaitForExit([Math]::Max(1, $WaitSec) * 1000)
+        if ($timedOut) { Stop-ProcessTree $p.Id }
+        # Shared read: a child that outlives the run may still hold the file open. The child writes in the console's
+        # code page, as the old pipe read it.
+        $out = (@($outFile, $errFile | ForEach-Object {
+            try {
+                $fs = [IO.File]::Open($_, 'Open', 'Read', 'ReadWrite')
+                try { (New-Object IO.StreamReader($fs, [Console]::OutputEncoding)).ReadToEnd() } finally { $fs.Dispose() }
+            } catch { '' } }) -join "`n")
+        return @{ Out = $out; Code = $(if ($timedOut) { -1 } else { [int]$p.ExitCode }); TimedOut = $timedOut }
+    } finally { Remove-Item -LiteralPath $outFile, $errFile -Force -ErrorAction SilentlyContinue }
+}
+
+# Removes the hold file when restart-leads.ps1 left it and its process is gone (see the header: HOLD-STALE).
+function Clear-StaleHold {
+    if (-not (Test-Path -LiteralPath $hold)) { return }
+    $text = ''
+    try { $text = (Get-Content -Raw -LiteralPath $hold -ErrorAction Stop).Trim() } catch { return }
+    if ($text -cnotmatch '^restart-leads\.ps1 (\S+) pid (\d+)$') { return }
+    $at = [datetime]::MinValue
+    if (-not [datetime]::TryParseExact($Matches[1], 's', [Globalization.CultureInfo]::InvariantCulture,
+            [Globalization.DateTimeStyles]::None, [ref]$at)) { return }
+    $proc = Get-Process -Id ([int]$Matches[2]) -ErrorAction SilentlyContinue
+    if ($proc) {
+        $started = $null
+        try { $started = $proc.StartTime } catch { return }  # cannot tell: leave it
+        if ($started -le $at.AddSeconds(1)) { return }  # the script still runs
+    }
+    Remove-Item -LiteralPath $hold -Force -ErrorAction SilentlyContinue
+    if (-not (Test-Path -LiteralPath $hold)) { Write-Log "HOLD-STALE ($text): removed, its restart-leads.ps1 run is gone" }
 }
 
 # Lock files dev-kit leaves in <DevKitStateDir>\<repo>-<hash>\ (dev_kit_state.py). Each is removed
@@ -430,9 +512,11 @@ function Invoke-TaskHeal {
             $taskHeals[$wid] = $tries + @(Get-Date)
             $rid = if ($entries[0].id) { [string]$entries[0].id } else { $wid }
             Write-Log ("HEAL-TASK {0} {1} (closed for {2} rounds, state {3}, try {4} of {5})" -f $r.name, $rid, $taskClosed[$wid], $states[0], ($tries.Count + 1), $MaxHeals)
-            $out = claude respawn $rid 2>&1 | Out-String
-            if ($LASTEXITCODE -ne 0) {
-                Write-Log ("HEAL-TASK-FAILED {0} {1} (exit {2}): {3}" -f $r.name, $rid, $LASTEXITCODE, ($out.Trim() -replace '\s+', ' '))
+            $res = Invoke-Bounded $ClaudeExe @('respawn', $rid) $HealWaitSec
+            if ($res.TimedOut) {
+                Write-Log ("HEAL-TASK-TIMEOUT {0} {1} (no end in {2} s, stopped): {3}" -f $r.name, $rid, $HealWaitSec, ($res.Out.Trim() -replace '\s+', ' '))
+            } elseif ($res.Code -ne 0) {
+                Write-Log ("HEAL-TASK-FAILED {0} {1} (exit {2}): {3}" -f $r.name, $rid, $res.Code, ($res.Out.Trim() -replace '\s+', ' '))
             }
             $taskClosed[$wid] = 0  # give the respawn two rounds before the next try
         }
@@ -1460,10 +1544,11 @@ while ($true) {
     $procs = @(Get-CimInstance Win32_Process -Filter "Name='claude.exe' OR Name='node.exe'" |
         Where-Object { $_.CommandLine -match '\sremote-control\s' })
     $agents = Get-Agents -All  # also ended and closed sessions; the lead check below needs a pid, so it is unchanged
-    $onHold = Test-Path -LiteralPath $hold
     # A full start-servers.ps1 run (logon, restart-leads.ps1) starts the leads itself: no restarts meanwhile.
     $starting = [bool](Get-CimInstance Win32_Process -Filter "Name='powershell.exe'" |
         Where-Object { $_.CommandLine -like '*start-servers.ps1*' -and $_.CommandLine -notlike '*-Only*' })
+    if (-not $Once -and -not $starting) { try { Clear-StaleHold } catch { Write-Log "WARN stale hold check failed: $_" } }
+    $onHold = Test-Path -LiteralPath $hold
     if ($onHold -and -not $holdLogged) {
         Write-Log "HOLD on ($((Get-Content -Raw -LiteralPath $hold).Trim())): no restarts until start-servers.ps1 runs"
     } elseif (-not $onHold -and $holdLogged) {
@@ -1533,9 +1618,14 @@ while ($true) {
         }
         $heals[$name] = $tries + @(Get-Date)
         Write-Log ("HEAL {0} (down for {1} rounds, try {2} of {3})" -f $name, $downRounds[$name], ($tries.Count + 1), $MaxHeals)
-        $out = & powershell.exe -NoProfile -ExecutionPolicy Bypass -File (Join-Path $PSScriptRoot 'start-servers.ps1') `
-            -Only $name -ConfigFile $ConfigFile -StateDir $StateDir 2>&1 | Out-String
-        $said = ($out.Trim() -replace '\s+', ' ')
+        $res = Invoke-Bounded 'powershell.exe' @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File',
+            (Join-Path $PSScriptRoot 'start-servers.ps1'), '-Only', $name, '-ConfigFile', $ConfigFile, '-StateDir', $StateDir) $HealWaitSec
+        $said = ($res.Out.Trim() -replace '\s+', ' ')
+        if ($res.TimedOut) {
+            Write-Log ("HEAL-TIMEOUT {0} (no end in {1} s, stopped): {2}" -f $name, $HealWaitSec, $said)
+            $downRounds[$name] = 0
+            continue
+        }
         $nameEsc = [regex]::Escape($name)
         if ($s.Lead -and $said -notmatch ('(Resumed|Started)( lead)?: ' + $nameEsc) -and $said -cmatch ('NO-BANS ' + $nameEsc + ' ')) {
             # Not a failed try: the lead is blocked until the owner says yes to the hard bans (Register-NoBans).
@@ -1545,8 +1635,8 @@ while ($true) {
             continue
         }
         if ($said -match '(Resumed|Started)( lead)?: ') { $noBansTold.Remove($name) }
-        if ($LASTEXITCODE -ne 0 -or $said -notmatch '(Resumed|Started)( lead)?: ') {
-            Write-Log ("HEAL-FAILED {0} (exit {1}): {2}" -f $name, $LASTEXITCODE, $said)
+        if ($res.Code -ne 0 -or $said -notmatch '(Resumed|Started)( lead)?: ') {
+            Write-Log ("HEAL-FAILED {0} (exit {1}): {2}" -f $name, $res.Code, $said)
         }
         $downRounds[$name] = 0  # give the start two rounds before the next try
     }

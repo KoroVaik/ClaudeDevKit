@@ -16,7 +16,8 @@ A lead or server that is down for two checks of the watcher is brought back, at 
 the watcher gives up until that lead or server is seen up again. A task session a project lead registered,
 closed by Claude Code and not stopped on purpose, comes back too, after two checks and with the same
 limit of 3 tries an hour. A lead whose project has no hard-ban lines on main is not brought back: it is
-blocked, not broken.
+blocked, not broken. A try that hangs is cut after 5 minutes and counts as a failed try; then the watcher goes
+on with its other checks.
 
 ### A lead on an old version is restarted when the update allows
 Each dev-kit update is marked critical (agents cannot cope without it) or routine by the agent that makes
@@ -41,7 +42,8 @@ The watcher never touches your own sessions, taken-over ones included.
 ### A stop on purpose stays stopped
 After you stop the servers on purpose (`stop-servers.ps1`), the watcher brings nothing back until the next
 full start. Restarting the leads (`restart-leads.ps1`) pauses the watcher only while the restart runs: the
-restart's own start run brings the leads back and lifts the pause. The watcher also restarts nothing while
+restart's own start run brings the leads back and lifts the pause; a restart that crashed before that run
+lifts no pause, so the watcher lifts it itself at its next check. The watcher also restarts nothing while
 a full start runs. A lead stopped only with `claude stop` is not a stop on purpose: it comes back; to retire
 one project, remove its row from the project list.
 
@@ -52,6 +54,8 @@ one project, remove its row from the project list.
 - dev-kit gets a critical update: a quiet lead restarts the same day; a lead in a talk writes the 30-second warning first.
 - You stop the servers on purpose: nothing is brought back until the next full start.
 - You restart the leads on purpose: they come back through the restart itself, and the watcher goes on as usual.
+- A lead's start hangs: after 5 minutes it is cut, logged, and the watcher goes on; the next try follows as usual.
+- A lead restart crashes halfway: at the watcher's next check the pause is lifted and the stopped leads come back.
 
 ## Built in
 - `plugins/pult/scripts/start-servers.ps1`
@@ -63,10 +67,9 @@ one project, remove its row from the project list.
 - `tools/tests/test_watch_servers_restart.py`
 - `tools/tests/test_watch_servers_limit.py`
 - `tools/tests/test_watch_servers_handoff.py`
+- `tools/tests/test_watch_servers_heal.py`
 - `tools/tests/test_start_servers_handoff.py`
 
 ## Open
-- [ ] Defect: a HEAL has no timeout, so a hung `claude --bg` stalls the watcher loop; `plugins/pult/scripts/watch-servers.ps1`
-- [ ] Defect: a hold file left by a crashed `restart-leads.ps1` stays until the next full `start-servers.ps1`; `plugins/pult/scripts/restart-leads.ps1`
 - [ ] Check from the watcher's logs and the transcripts that Pult and a lead with no events show no wakes for a day, that one forced GIVEUP gives one push and the fix line in Pult, and that a push relayed by a live lead (Pult down) reaches the phone; the lead relay is untested
 - [ ] Check whether you can still attach to a P from a terminal with `claude attach <id>`, and the exact wording of the session list in the phone app

@@ -25,8 +25,9 @@ problem it proposes a fix and acts after an explicit yes.
   brings back, how often, and what a stop on purpose does are in the feature
   [Start leads at logon and heal them](../../docs/features/start-leads-at-logon-and-heal-them.md); this
   file holds its logs, files and parameters. A lead or server of `servers.psd1` that is down is brought back
-  the same way as at logon (log HEAL; GIVEUP when it gave up). A task session a project lead registered,
-  closed by Claude Code (no process, not stopped on purpose), comes back with `claude respawn` (`plugins/dev-kit/claude-facts.md`, "`claude respawn <id>` brings back a session Claude Code closed"; log HEAL-TASK). A live lead or task session that stopped on the
+  the same way as at logon (log HEAL; GIVEUP when it gave up; a start still running after 5 minutes is stopped:
+  HEAL-TIMEOUT, a failed try). A task session a project lead registered,
+  closed by Claude Code (no process, not stopped on purpose), comes back with `claude respawn` (`plugins/dev-kit/claude-facts.md`, "`claude respawn <id>` brings back a session Claude Code closed"; log HEAL-TASK; HEAL-TASK-TIMEOUT when it hangs past the same bound). A live lead or task session that stopped on the
   usage limit is logged once per stop (LIMIT, with the reset time; LIMIT-END when it goes on). It also removes
   dev-kit lock files whose owner is gone (log UNLOCK). It restarts a lead that runs on an older dev-kit version
   than the installed `plugins/dev-kit/.claude-plugin/plugin.json`, with no message from the hub. When depends on
@@ -53,7 +54,8 @@ problem it proposes a fix and acts after an explicit yes.
   (a broken file, or a new copy that dies at start-up, is logged once as WATCH-RESTART-SKIPPED and the old
   copy keeps running). It never touches your own sessions, taken-over ones included. `stop-servers.ps1` and
   `restart-leads.ps1` pause it with a hold file (`~/.claude/pult/hold`; log HOLD on, HOLD off) that a full
-  `start-servers.ps1` run removes. To retire one project, remove its row from `servers.psd1`.
+  `start-servers.ps1` run removes. A hold that `restart-leads.ps1` left and whose process is gone (it crashed
+  before its start run) the watcher removes itself (log HOLD-STALE). To retire one project, remove its row from `servers.psd1`.
 - No Claude session keeps a watcher of its own. Each minute the watcher also runs `dev-kit-sessions check`
   for every lead on dev-kit 0.1.78 or later and sends each new event (a task session gone, finished, on the
   usage limit, waiting 20 minutes, past a third of its context, or a restart request) to the lead as a

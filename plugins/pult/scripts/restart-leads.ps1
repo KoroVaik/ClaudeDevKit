@@ -43,9 +43,10 @@ if ($Name) { $leads = @($leads | Where-Object { $Name -ccontains $_ }) }
 if (-not $leads) { Write-Output 'No matching leads.'; exit 1 }
 
 # Hold the watcher (watch-servers.ps1) while the leads are down on purpose; start-servers.ps1 below
-# removes the hold.
+# removes the hold. The hold names this process (pid): if the script dies before that, the watcher sees the
+# process gone and removes the stale hold itself (watch-servers.ps1, HOLD-STALE).
 New-Item -ItemType Directory -Force $StateDir | Out-Null
-Set-Content -LiteralPath (Join-Path $StateDir 'hold') -Encoding UTF8 -Value "restart-leads.ps1 $(Get-Date -Format s)"
+Set-Content -LiteralPath (Join-Path $StateDir 'hold') -Encoding UTF8 -Value "restart-leads.ps1 $(Get-Date -Format s) pid $PID"
 $sessions = @(claude agents --json | Out-String | ConvertFrom-Json) | ForEach-Object { $_ }
 $stopped = @()
 

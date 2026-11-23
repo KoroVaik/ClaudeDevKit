@@ -36,7 +36,7 @@ Traps:
 - Pult server alive: a running `claude.exe` process whose command line has ` remote-control ` and "Pult" (PowerShell `Get-CimInstance Win32_Process -Filter "Name='claude.exe'"`).
 
 - Names shown to the owner: the hub's own session (cwd = the home folder) has a system name in `claude agents --json` (`{DEVKIT}/claude-facts.md`, "The Remote Control server's own session has a system name"). Never show that name to the owner; sessions in the home folder are «Pult».
-- Server history: the last lines of `~/.claude/pult/logs/servers.log` (the health log, written by the watcher, see "Servers"). A HEAL line followed by UP, or a HEAL-TASK line with no HEAL-TASK-FAILED after it, is fixed: show it in one line as "впав о <time>, піднявся сам". A GIVEUP, GIVEUP-TASK, HEAL-FAILED or HEAL-TASK-FAILED line with no UP after it is a problem: show when it happened and the cause the log gives, and propose the fix. A LIMIT line with no LIMIT-END and no "WATCH started" line after it means that session stopped on the usage limit: show it as "стоїть на ліміті до <reset time>" and propose no fix (a restart hits the same limit). UNLOCK lines (a stale lock removed) are shown only when asked. A WATCH-RESTART line means the watcher took new code and started a fresh copy of itself (the new copy's "WATCH started" line comes just before it; nothing to do); WATCH-RESTART-SKIPPED means its new code did not parse or the new copy did not start, so it still runs the old code: show the reason in one line and propose the fix. HOLD on means a stop on purpose, or a lead restart still running: the watcher restarts nothing until HOLD off, which a full `start-servers.ps1` run writes. A NO-BANS line with no later MODE line for that project means its lead is blocked (see "Missing hard bans"): show it as «не стартує: немає жорстких заборон», not as a crash.
+- Server history: the last lines of `~/.claude/pult/logs/servers.log` (the health log, written by the watcher, see "Servers"). A HEAL line followed by UP, or a HEAL-TASK line with no HEAL-TASK-FAILED or HEAL-TASK-TIMEOUT after it, is fixed: show it in one line as "впав о <time>, піднявся сам". A GIVEUP, GIVEUP-TASK, HEAL-FAILED, HEAL-TIMEOUT, HEAL-TASK-FAILED or HEAL-TASK-TIMEOUT line with no UP after it is a problem: show when it happened and the cause the log gives, and propose the fix. A LIMIT line with no LIMIT-END and no "WATCH started" line after it means that session stopped on the usage limit: show it as "стоїть на ліміті до <reset time>" and propose no fix (a restart hits the same limit). UNLOCK lines (a stale lock removed) are shown only when asked. A WATCH-RESTART line means the watcher took new code and started a fresh copy of itself (the new copy's "WATCH started" line comes just before it; nothing to do); WATCH-RESTART-SKIPPED means its new code did not parse or the new copy did not start, so it still runs the old code: show the reason in one line and propose the fix. HOLD on means a stop on purpose, or a lead restart still running: the watcher restarts nothing until HOLD off, which a full `start-servers.ps1` run writes; HOLD-STALE means the watcher removed a pause a crashed lead restart left (nothing to do). A NO-BANS line with no later MODE line for that project means its lead is blocked (see "Missing hard bans"): show it as «не стартує: немає жорстких заборон», not as a crash.
 
 Status page: run `python -X utf8 {PLUGIN}/scripts/status-page.py` (read only; writes `~/.claude/pult/status.html`, all projects' sessions and open questions on one page) and send that file with SendUserFile, then give the reply below.
 
@@ -85,15 +85,17 @@ LIMIT-END when it goes on). Each Remote Control server's window adds an EXIT lin
 five mechanical problems itself, with no yes (the owner's yes, 2026-11-16; the own-code one was added 2026-11-19, P's yes):
 - An entry of `servers.psd1` that is down (when and how often: the feature [Start leads at logon and heal
   them](../../../docs/features/start-leads-at-logon-and-heal-them.md)): it runs `start-servers.ps1 -Only <name>`
-  (the same resume as at logon) and logs HEAL (HEAL-FAILED with the script's words when it did not
-  start it); GIVEUP when it gives up, until the entry is up again. A lead whose project has no hard-ban lines on main is not HEAL'd: it is blocked, not
+  (the same resume as at logon) and logs HEAL (HEAL-FAILED with the script's words when it did not start it;
+  HEAL-TIMEOUT when the run still went on after 5 minutes and was stopped, a failed try too);
+  GIVEUP when it gives up, until the entry is up again. A lead whose project has no hard-ban lines on main is not HEAL'd: it is blocked, not
   broken (log NO-BANS, no HEAL-FAILED, no GIVEUP; see "Missing hard bans"). Other sessions it never restarts, except the next item. `stop-servers.ps1` and `restart-leads.ps1` leave a hold file (`~/.claude/pult/hold`);
   while it exists the watcher restarts nothing (HOLD on); a full `start-servers.ps1` run removes it
-  (`restart-leads.ps1` ends with such a run itself).
+  (`restart-leads.ps1` ends with such a run itself). A hold `restart-leads.ps1` left whose process is gone (it
+  crashed before that run) the watcher removes itself, log HOLD-STALE.
 - A task session a project lead registered as active (dev-kit `sessions.json`; not a taken-over owner session) that Claude Code
   closed (no process, and not stopped on purpose: a `stopped` one counts only after a `bg retire` line
   in `~/.claude/daemon.log`) for two checks in a row: `claude respawn <id>`, log HEAL-TASK
-  (HEAL-TASK-FAILED when respawn fails); GIVEUP-TASK when it gives up; held by the hold file too. Why: Claude Code
+  (HEAL-TASK-FAILED when respawn fails, HEAL-TASK-TIMEOUT when it hung past the same 5 minutes); GIVEUP-TASK when it gives up; held by the hold file too. Why: Claude Code
   closes idle background sessions on low memory (`{DEVKIT}/claude-facts.md`, "A low-memory spell closes idle background sessions").
 - A lead that runs an older dev-kit version than `plugin.json` of the main checkout (log LEAD-VERSION
   when it sees a lead's process first): the release's mark in `plugins/dev-kit/releases.json` decides when
@@ -113,7 +115,7 @@ five mechanical problems itself, with no yes (the owner's yes, 2026-11-16; the o
   so a merged change never ran before.
 - A dev-kit lock file whose owner is gone (`~/.claude/dev-kit/*/watch.lock`, `app.lock` of a removed
   worktree, leftover `app.lock.takeover` and `*.tmp`): removed, log UNLOCK.
-Everything else (GIVEUP, GIVEUP-TASK, HEAL-FAILED, HEAL-TASK-FAILED, RESTART-LEAD-FAILED, HANDOFF-FAILED, START-FAILED, WATCH-RESTART-SKIPPED, a lead that comes back and falls again) stays a problem Pult
+Everything else (GIVEUP, GIVEUP-TASK, HEAL-FAILED, HEAL-TIMEOUT, HEAL-TASK-FAILED, HEAL-TASK-TIMEOUT, RESTART-LEAD-FAILED, HANDOFF-FAILED, START-FAILED, WATCH-RESTART-SKIPPED, a lead that comes back and falls again) stays a problem Pult
 shows and proposes a fix for. A project with no hard-ban lines (NO-BANS) is shown too, as blocked, with the question of "Missing hard bans". A stop with only `claude stop` is undone by the watcher; to retire one entry,
 remove its row from `servers.psd1` (the watcher reads the list when it starts).
 
