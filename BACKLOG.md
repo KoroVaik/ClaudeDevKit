@@ -35,3 +35,10 @@ What: an item whose cause was seen once and not urgent expires after about 2 wee
 Why: first sightings stay as `waiting` items with no end today; the 2-week expiry of one-off causes had no explicit yes (owner, 2026-11-21).
 Cheapest test: count the `waiting` items older than 14 days in the three projects' item folders and see how many the expiry would drop.
 Verdict (2026-11-22): keep as an idea; moved from the finished retro plan, the owner has not agreed it; no case yet shows it missing. Owner: yes (2026-11-23).
+
+## Project lead: state and a next-task proposal when nothing is working
+
+What: in `dev-kit:project-lead`, when no session P manages is working (none in «працює» or «ще працюють»), every P message to the owner adds a short project state (2-4 plain sentences: what was just finished, what the project waits on, what is blocked and by what) and P's one proposal of the next task («Запустити нову сесію «C: ...»?» with its Рекомендую line). Today the skill already asks for a start proposal after a merge clean-up, but nothing asks for the state summary, and the "готово" line alone left the owner without a picture.
+Why: owner, Zhratva, 2026-11-23: «Давай зробим так щоб керівник пропонував якусь задачу коли нічого вже не виконується, бо я не розумію стану. Тобто пише поточний стан проекту і що було б логічним взять далі. Типу стислий опис.» On length: «Повідомлення довшим не страшне бо робота не виконується а отже нічого не сховає цей опис». Seen: P: Zhratva sent only «готово - «C: Відкриті пункти каталогу продуктів»» after a merge, with no proposal.
+Cheapest test: in a P with no working session, after a C's merge, the message has the state sentences and one start proposal; with a working session, it has neither summary.
+Verdict (2026-11-23): owner already said yes to the idea on 2026-11-23; waits for the plugin agent to build it. Owner: yes (2026-11-23).
