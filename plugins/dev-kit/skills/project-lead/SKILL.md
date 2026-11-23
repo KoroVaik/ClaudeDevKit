@@ -545,7 +545,7 @@ setup, registration) with these differences:
 Short plan: the discussion session's last message before the done report, in the owner's chat. It is
 shown only after the owner says in his own words that the talk is done. A
 title line «План «<topic>»:», then 3-5 numbered points, each one plain sentence on what the owner
-gets, then the question «Погоджуєш план і закриваємо обговорення?». The details
+gets (build work only, never a check of the idea: `dev-kit:discovery-round`, step 1), then the question «Погоджуєш план і закриваємо обговорення?». The details
 stay in the written section for the builders. The question is always alone in its message: never an
 item of a batch or of a numbered list, never repeated in the replies after the plan message. A named
 exception to the owner's global "Batches of questions": a «так всім» or a «так» to a batch never
