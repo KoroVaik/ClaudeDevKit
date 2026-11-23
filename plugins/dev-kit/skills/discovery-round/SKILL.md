@@ -26,6 +26,15 @@ plan line rests on it; a sweep over about 100 lines goes to a `dev-kit:investiga
 ClaudeDevKit, 2026-11-22: a discussion told the owner a project lead may stay closed for days and wrote it
 into the plan; Pult's watcher restarts leads.
 
+The same holds for a new mechanism you recommend: a key fact that code and docs cannot settle (does a
+failed send succeed after a resume) is checked live during the talk, before the question to the owner,
+when the check is cheap and safe: a throwaway background session you start and stop yourself, no real
+session touched, no money spent. This is a named exception to the owner's global "offer a check that is
+not read-only". A check that needs the owner (his device, his sign-in) or is not cheap and safe is asked as a
+question during the talk. The agreed plan and the written section hold only build work, never a point
+like "check whether X works"; every key fact is checked or answered before the short plan is shown. Why: owner,
+2026-11-23, ClaudeDevKit: «Обговорення має видавати план розробки, а не план тестування ідеї».
+
 ## 2. Map the answers
 
 The owner answers by number, sometimes with **their own numbering** that differs from the

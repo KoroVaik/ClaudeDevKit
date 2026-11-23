@@ -13,7 +13,7 @@ skills' rule (`dev-kit:project-lead`, `dev-kit:manager`); this file only sets th
 | `ЗАСТРЯГ` | a C | it cannot go on, and no choice by P would unblock it (a crash of a tool, a queue timeout) | shows it as `чекає на тебе` or `стоїть, сесія впала` with its own question |
 | `ВЛАСНИК ВІДПОВІВ` | a session the owner talks with | the owner answered or decided there something its lead may ask or show (a question the lead put to the owner, a change of scope; the closing «так» is `ЗАКРИТО` instead); the owner's words verbatim | drops the matching queue item, never asks the owner again |
 | `ВІДПОВІДЬ` | the session that was asked | the answer to a `ПИТАННЯ` (the owner's words verbatim, or the lead's own decision) or a `ВКАЗІВКА`'s reply | goes on |
-| `ВКАЗІВКА` | P to its sessions | an order that answers nothing: resend missed reports after a restart, refresh an overfull context, a branch sent back | does it |
+| `ВКАЗІВКА` | P to its sessions | an order that answers nothing: refresh an overfull context, a branch sent back | does it |
 
 - One kind per message. A message that needs two kinds (a result and a question) is sent as two.
 - In an English project the same capital words are used: they are fixed markers, not chat text.
