@@ -49,7 +49,8 @@ earlier Status, Task done and owner-item templates (owner, 2026-11-19, discussio
 керівника» and «Загальні правила і формат керівника»). The owner's global rules («Chat replies») let
 these messages follow this form; P's other replies keep the global caps.
 
-- Two bold blocks, in this order: «**Питання без відповіді**» and «**Статуси сесій**». Each bold title
+- Two bold blocks, in this order: «**Питання без відповіді**» and «**Статуси сесій**» (a third,
+  «**Стан проєкту**», only when nothing works: "The project state" below). Each bold title
   is followed by an empty line, so the list under it renders as a list. Nothing else: no intro, no
   «прийняв», no confirmation of an owner's answer, no other parts. A block with nothing to show is left
   out; a message with neither block is not sent, except the forced-output line below.
@@ -63,7 +64,11 @@ these messages follow this form; P's other replies keep the global caps.
   3. the full list: with exactly one question, that question with its `Рекомендую:` line is the last
      thing in the message, no closing line after it; with several, it ends with «Приймаєш усі мої
      рекомендації?»;
-  4. no open question: no closing line.
+  4. no open question: no closing line;
+  5. the start proposal of "The project state" is written in full: it is the last thing in the
+     message, with its `Рекомендую:` line and no closing line after it; the other questions stay
+     counted, with no «Показати всі питання?» (the owner gets them with «які питання»). A critical
+     question open wins (case 2), and the proposal stays counted.
 - One message per event, sent at once: a C report, an event message (see "Wake-up"), an owner message. P never holds a
   message until the owner answers or writes. It holds only what changed since P's previous message,
   plus the «ще працюють» line ("Which sessions a message lists"). A
@@ -86,9 +91,9 @@ these messages follow this form; P's other replies keep the global caps.
   2026-11-22, a screenshot of five identical «Статуси сесій» messages in a row: «чи можна зробить щоб
   писалось пусте повідомлення замість спаму повторів?».
 - Every event that needs the owner (an overlap, a blocked merge, a failed step) becomes a status line
-  or P's own question; P never writes a free-text note beside the two blocks.
+  or P's own question; P never writes a free-text note beside the blocks.
 - Exceptions: the one line after P starts an «Обговорення:» session (see "Start an «Обговорення:»
-  session"), and the full question list below.
+  session"), the full question list below, and the start proposal of "The project state".
 
 «Питання без відповіді»: the open questions of PROGRESS.md "Open questions", by kind:
 
@@ -149,6 +154,40 @@ entries. P makes at most one «Запустити нову сесію «C: <name
 nothing from the owner. After the owner's «ні» to it, the next item becomes the proposal; with none,
 no proposal. P never asks «Яку задачу запустити?».
 
+The project state. When no session P manages works (the message would have no `працює` line and no
+«ще працюють» line), the message adds the block «**Стан проєкту**» right after «Статуси сесій»: 2-4 plain
+sentences in the owner's words, from PROGRESS.md and `plans/`, on what was just finished, what the
+project waits on, and what is blocked and by what. Then P's start proposal (chosen as above) follows in
+full in the question form, as the last thing in the message (case 5 of the closing line); it is not
+counted again in «від мене». With no plan item left, the block's last sentence says so and no proposal
+follows. P writes the block in the first message after the last working session stops (the `готово`
+message after a merge included), in the start status of a fresh P session and the answer to «що
+працює?», and again only when the state or the proposal changed: never unchanged, so the forced-output
+state and the start status after `restart: plugin update` (same chat) keep their short form. The count
+lines of «Питання без відповіді» stay in their place. Where the full list is shown (a fresh P's start
+status), the proposal stays in that list and is not written again after it. A message while a session works has neither the block nor a written-out proposal. Why: owner,
+Zhratva, 2026-11-23: «Давай зробим так щоб керівник пропонував якусь задачу коли нічого вже не
+виконується, бо я не розумію стану»; on length: «Повідомлення довшим не страшне бо робота не виконується
+а отже нічого не сховає цей опис». P: Zhratva had sent only a `готово` line after a merge.
+
+```
+**Питання без відповіді**
+
+- від сесій: 1
+
+**Статуси сесій**
+
+- готово - «C: Відкриті пункти каталогу продуктів»
+
+**Стан проєкту**
+
+Каталог продуктів закінчено: пошук і фільтри працюють. Далі за планом - кошик. Оплата стоїть, поки
+немає ключа платіжного сервісу.
+
+Запустити нову сесію «C: Кошик»? (з'явиться кошик у застосунку)
+   Рекомендую: так - від тебе нічого не треба.
+```
+
 The question form. Each question stands alone:
 
 - a session's question starts with its name and «питає:». Every question, a session's or P's own, is in
@@ -161,8 +200,8 @@ The question form. Each question stands alone:
 - the consequence goes in brackets; the question is worded so the advice is «так»;
 - then an indented line `Рекомендую: так - <reason>` (P adds the recommendation a C did not give).
 
-The reader check. Before questions are first written in full (the full list, or a critical question;
-counted questions need no check), P sends all of them, numbered, in one call to a `dev-kit:question-reader` subagent (model haiku), with no other
+The reader check. Before questions are first written in full (the full list, a critical question, or
+the start proposal of "The project state"; counted questions need no check), P sends all of them, numbered, in one call to a `dev-kit:question-reader` subagent (model haiku), with no other
 context. It shows each `plain` rewrite in place of its question (or the original on `ok`; on `unclear`
 P adds the missing fact in plain words) and overwrites the queue item in PROGRESS.md with the shown
 text before sending, so later counts and the full list reuse it unchecked. The reader is not mentioned in the message. If P's session lacks
@@ -845,7 +884,9 @@ finished step. P does not merge it and removes no worktree for it. When it finis
 2026-11-15 that main stays clean, so P's merges of other C sessions do not wait on it.
 
 After the clean-up P re-reads the next-work sections of PROGRESS.md and writes the message
-of "Message templates": the C's `готово` line, and the start proposal for the next item among P's questions.
+of "Message templates": the C's `готово` line and the start proposal for the next item; when no other
+session works, with the «Стан проєкту» block and the proposal written in full ("The project state"),
+otherwise the proposal counted among P's questions.
 
 ## Restart P
 
@@ -919,7 +960,7 @@ repo): a restart per bump cut into talks with the owner several times an hour.
   An unfinished step from before the stop is finished now. Then P runs the check of "Apply dev-kit
   migrations"; a migration C it starts shows in the status. Last, P always sends the full start status:
   the message of "Message templates" that lists every session, with the question counts only (a
-  critical question in full, closing line by the four cases of the closing line; a C report that
+  critical question in full, closing line by the cases of the closing line; a C report that
   waited is in it); no words about the restart itself. Why: an empty turn here made P send a
   filler (`plugins/dev-kit/claude-facts.md`, "The host forces a visible reply on some wake-ups, and an empty turn is not accepted"); the owner decided on 2026-11-20 to see the full state instead.
 - A message to a stopped session fails at the sender and is not queued (`plugins/dev-kit/claude-facts.md`,

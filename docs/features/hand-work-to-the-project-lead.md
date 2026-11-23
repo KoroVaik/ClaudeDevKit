@@ -12,9 +12,9 @@ P is one session per project. It starts task sessions (C), each in its own workt
 finished work into main and tells you the result. It does no task work itself.
 
 ### P's messages: session states and question counts
-Every status message from P has two short blocks: «Питання без відповіді» (only the counts: how many
+Every status message from P has two short blocks (a third when nothing works, below): «Питання без відповіді» (only the counts: how many
 questions from sessions, how many from P, how many urgent) and «Статуси сесій» (each session's state
-and name). A message with open questions ends with «Показати всі питання?»; on your «так» P lists every
+and name). A message with open questions ends with «Показати всі питання?» (except the next-task proposal below); on your «так» P lists every
 question in full, numbered, after a separate cheap check that each reads in your own words with no
 agent terms. The one exception is a critical question (a session stands and cannot move without your
 answer): it is shown in full as the last thing in the message, with no closing line, so a bare «так»
@@ -27,6 +27,13 @@ You can still answer by number («1 так, 3 ні»). P writes at once on each 
 what changed; the other sessions still at work share one last line «ще працюють: «A», «B»». After a plugin-update restart, or when Claude Code demands a reply where P has nothing new,
 P shows the current state in this form, never a filler phrase; with nothing running and nothing
 waiting, it is one line saying so.
+When no session works any more (for example after the last one is merged), the message adds a third
+block «Стан проєкту»: 2-4 plain sentences on what was just finished, what the project waits on and what
+is blocked, then P's one proposal of the next task («Запустити нову сесію «C: ...»?» with its
+`Рекомендую:` line) as the last thing, so a bare «так» starts it. P writes it again only when the state
+or the proposal changed. The other questions stay counted, with no «Показати всі питання?»; an open
+critical question still comes last, and the proposal then stays counted. While a session works, the
+message has neither.
 
 ### How a question and a state are written
 The counts are three lines: «❗ термінові» (a session stands and cannot move without your answer; a session
@@ -174,9 +181,10 @@ format instead of removing them. Those rules live outside this repo and change o
 
 ## Acceptance criteria
 - You give P a task whose outcome is not agreed: P asks up to 3 questions through the queue, or proposes an «Обговорення:» session when there are more or a screen is involved.
-- A new question arrives: P's message only counts it and ends with «Показати всі питання?»; on «так» all are listed in full, numbered, in your own words with no agent terms (a separate checker rewrites them first). A critical question is the exception: it is shown in full as the last message line with no closing line, and the next one only after you answer it.
+- A new question arrives: P's message only counts it and ends with «Показати всі питання?» (when nothing works, P's next-task proposal ends it instead); on «так» all are listed in full, numbered, in your own words with no agent terms (a separate checker rewrites them first). A critical question is the exception: it is shown in full as the last message line with no closing line, and the next one only after you answer it.
 - You answer a P message with a bare «так»: P takes it as the answer to the message's last line and acts, never asking «1 чи 2?».
 - A session finishes while you are away: P writes at once, and its message lists the session as «готово».
+- The last working session finishes: P's message adds 2-4 sentences on the project's state and ends with one proposal of the next task; while a session still works, it has neither.
 - A task session crashes: you get it at once, also as a push to your phone.
 - A session waits on your answer for 20 minutes: you get one reminder push for that wait; a session waiting on P pushes nothing.
 - A second question arrives while one already waits on you: no second push until you write.
