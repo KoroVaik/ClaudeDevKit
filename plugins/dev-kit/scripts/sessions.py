@@ -16,6 +16,8 @@ full their context is.
     dev-kit-sessions restart request --version <V> | ready [--version <V>] | status | clear
     dev-kit-sessions handoff save --file <name.md> [--go] | go | status | clear
     dev-kit-sessions fill --self [<id>] [--limit 0.33] [--window N] [--over-only]
+    dev-kit-sessions release --from <V|older> --to <V> [--started <ISO time>] [--file <releases.json>]
+    dev-kit-sessions quiet --id <session id> [--minutes 5]
 
 The registry is `sessions.json` in the project state folder (see dev_kit_state.py; the same folder for all worktrees
 of one repository). Ids (`--id`, `--parent`, `--predecessor`, `--self`) and the registry's ids are trimmed of spaces and
@@ -139,6 +141,27 @@ digits, dot, underscore, hyphen, starting with a letter or digit, else exit 1; a
 `go` (exit 1 when nothing is saved); `status` prints `none`, `saved NAME <seconds>` or `go NAME <seconds>` (the
 seconds since the save); `clear` removes the file (fine when absent).
 
+`release` tells the Pult watcher whether a lead that runs an older dev-kit must restart the same day. The release
+marks are `releases.json` in the dev-kit plugin folder (`--file` for another): a JSON object, version -> `{"kind":
+"critical"|"routine", "date": "YYYY-MM-DD" (local date of the release), "reason": one line}`; the agent that bumps the
+version adds its entry in the same commit. It prints `critical <version>: <reason>` for the newest critical entry
+with `--from` < version <= `--to` (versions compared as dotted numbers), else `routine`. `--from older` (or any
+`--from` that is not a version: the watcher does not know the version the process started on) counts a critical
+entry with version <= `--to` whose date is on or after the local date of `--started` (the process start, ISO time);
+with no `--started` as well nothing is known about the start, so it prints `routine`. A missing file counts as routine;
+a file or an entry that is not as above counts as routine with a one-line warning on stderr (an entry: that entry
+only). Exit 0 always.
+
+`quiet --id <session id>` tells whether a lead's chat is quiet enough for a silent restart (transcript only, no
+registry, no session list). It prints `active no transcript` when the session has none; `active owner <N>s ago` when
+the owner's own last message (a user entry with text, no `origin` or a human one, not a meta note, side chain, tool
+result or peer message) is less than `--minutes` old (default QUIET_MINUTES); `active open question` when the
+session's last main-chain assistant text came after the owner's last message and asks a question: its last non-empty
+line, with trailing emphasis marks and spaces removed, ends with `?` or with `?` and one bracketed part (the
+example of the owner's question form); trailing recommendation lines (RECOMMENDATION_LINE: `Рекомендую:`,
+`Recommend:`, `немає рекомендації`, `no recommendation`, list marks allowed) are skipped first, since a question
+always ends with one; else `quiet`. At most ANSWER_ENTRIES entries are read back from the end. Exit 0.
+
 Exit code: 0 done (fill too, whatever the transcripts), 1 unknown or duplicate id (restart: `ready` with no
 request), 2 registry unreadable, 3 the session list could not be read.
 """
@@ -191,6 +214,13 @@ ANSWER_FALLBACK = 3  # owner messages `answers` shows for a session that never s
 ANSWER_SCAN = 50  # owner messages read back while looking for that SendMessage
 ANSWER_ENTRIES = 2000  # transcript entries read back at most (a long C transcript is not read whole)
 SUBAGENT_ID = re.compile(r"^a?[0-9a-f]{16,}$")  # a SendMessage `to` that names a subagent, not a session
+RELEASES = Path(__file__).resolve().parents[1] / "releases.json"  # the dev-kit release marks (see `release`)
+RELEASE_KINDS = ("critical", "routine")
+QUIET_MINUTES = 5  # the owner wrote to the lead less than this ago: not quiet (owner's rule, 2026-11-23)
+# A line that follows the owner's question in the reply format (the question's recommendation), list marks allowed.
+RECOMMENDATION_LINE = re.compile(r"^[-*>\s]*[*_]*(Рекомендую|Recommend|немає рекомендації|no recommendation)\b",
+                                 re.I)
+QUESTION_END = re.compile(r"\?\s*(\([^()]*\))?$")  # `?`, or `?` and the bracketed example of the question form
 
 class Unreadable(Exception):
     """The registry cannot be read: exit code 2."""
@@ -1392,6 +1422,117 @@ def cmd_size(args, path, records):
     return 0
 
 
+def version_key(text):
+    """A dotted version (`0.1.103`) as a tuple of ints, else None."""
+    text = str(text or "").strip()
+    return tuple(int(part) for part in text.split(".")) if re.fullmatch(r"\d+(\.\d+)*", text) else None
+
+
+def read_releases(path):
+    """(entries, warnings) of the release marks file: entries are (version key, version, kind, date, reason) of the
+    valid entries; a missing file gives none and no warning, a file or entry that is not valid a warning (it counts
+    as routine)."""
+    if not path.exists():
+        return [], []
+    try:
+        data = json.loads(path.read_text(encoding="utf-8-sig"))
+    except (OSError, ValueError) as exc:
+        return [], [f"{path} is unreadable, counted as routine: {exc}"]
+    if not isinstance(data, dict):
+        return [], [f"{path} is not an object of versions, counted as routine"]
+    entries, warnings = [], []
+    for version, entry in data.items():
+        key = version_key(version)
+        mark = entry if isinstance(entry, dict) else {}
+        try:
+            day = datetime.strptime(str(mark.get("date")), "%Y-%m-%d").date()
+        except ValueError:
+            day = None
+        if key is None or mark.get("kind") not in RELEASE_KINDS or day is None:
+            warnings.append(f"{path}: the entry {version!r} is not valid, counted as routine")
+            continue
+        entries.append((key, version, mark["kind"], day, " ".join(str(mark.get("reason") or "").split())))
+    return entries, warnings
+
+
+def local_day(value):
+    """The local date of an ISO time (`Z` allowed; a fraction of more than 6 digits is cut), else None."""
+    text = str(value or "").strip().replace("Z", "+00:00")
+    text = re.sub(r"(\.\d{6})\d+", r"\1", text)
+    try:
+        moment = datetime.fromisoformat(text)
+    except ValueError:
+        return None
+    return (moment.astimezone() if moment.tzinfo else moment).date()
+
+
+def cmd_release(args, path, records):
+    entries, warnings = read_releases(Path(args.file) if args.file else RELEASES)
+    to = version_key(args.to)
+    if to is None:
+        warnings.append(f"--to {args.to!r} is not a version, counted as routine")
+        entries = []
+    start = version_key(args.from_version)
+    if start is not None:
+        hits = [entry for entry in entries if entry[2] == "critical" and start < entry[0] <= to]
+    else:  # the start version is unknown: a critical release dated on or after the start day may be missing
+        day = local_day(args.started)
+        hits = [entry for entry in entries if entry[2] == "critical" and entry[0] <= to and entry[3] >= day] if day else []
+    for warning in warnings:
+        print(f"dev-kit-sessions: {warning}", file=sys.stderr)
+    if hits:
+        newest = max(hits)
+        print(f"critical {newest[1]}: {newest[4]}")
+    else:
+        print("routine")
+    return 0
+
+
+def asks_question(text):
+    """Whether a reply ends with a question: its last non-empty line that is not a recommendation line, without
+    trailing emphasis marks and spaces, ends with `?` (a bracketed example after it allowed)."""
+    lines = [line for line in text.splitlines() if line.strip()]
+    while lines and RECOMMENDATION_LINE.match(lines[-1]):
+        lines.pop()
+    return bool(lines) and bool(QUESTION_END.search(lines[-1].rstrip(" \t*_`")))
+
+
+def chat_activity(path, minutes, at):
+    """`quiet`, `active owner <N>s ago` or `active open question` for a transcript (see `quiet` in the module
+    docstring), reading back at most ANSWER_ENTRIES entries."""
+    question = None  # whether the last assistant text (with no owner message after it) asks a question
+    for scanned, entry in enumerate(tail_entries(path)):
+        if scanned >= ANSWER_ENTRIES:
+            break
+        if entry.get("isSidechain"):
+            continue
+        if entry.get("type") == "assistant":
+            text = assistant_text(entry) if question is None else ""
+            if text:
+                question = asks_question(text)
+            continue
+        if (entry.get("origin") or {}).get("kind") == "peer" or not message_text(entry):
+            continue
+        sent = parse_time(entry.get("timestamp"))
+        if sent is not None and at - sent < minutes * 60:
+            return f"active owner {max(0, int(at - sent))}s ago"
+        break
+    return "active open question" if question else "quiet"
+
+
+def cmd_quiet(args, path, records):
+    transcript = find_transcript(args.id)
+    if transcript is None:
+        print("active no transcript")
+        return 0
+    try:
+        print(chat_activity(transcript, args.minutes, time.time()))
+    except OSError as exc:
+        print(f"dev-kit-sessions: {transcript} is unreadable: {exc}", file=sys.stderr)
+        print("active no transcript")
+    return 0
+
+
 def cmd_watch(args, path, records):
     lock = None if args.id else path.with_name(WATCH_LOCK)
     deadline = time.monotonic() + args.max_minutes * 60
@@ -1537,6 +1678,16 @@ def main(argv=None):
     handoff_save.add_argument("--go", action="store_true", help="move now: skip the quiet wait")
     for action in ("go", "status", "clear"):
         handoff_sub.add_parser(action)
+    release = sub.add_parser("release", help="whether the dev-kit releases a lead lacks hold a critical one")
+    release.add_argument("--from", dest="from_version", required=True,
+                         help="the dev-kit version the lead process started on, or older when unknown")
+    release.add_argument("--to", required=True, help="the installed dev-kit version")
+    release.add_argument("--started", default="", help="the start time of the lead process (ISO), for --from older")
+    release.add_argument("--file", default="", help="the release marks file (default: releases.json of dev-kit)")
+    quiet = sub.add_parser("quiet", help="whether a lead's chat is quiet: no recent owner message, no open question")
+    quiet.add_argument("--id", required=True, help="the full session id")
+    quiet.add_argument("--minutes", type=float, default=QUIET_MINUTES,
+                       help="an owner message younger than this makes the chat active")
     args = parser.parse_args(argv)
     for key in ("id", "parent", "predecessor", "self", "name", "worktree", "task"):  # ids pasted with a CR or spaces
         value = getattr(args, key, None)
@@ -1545,13 +1696,14 @@ def main(argv=None):
         elif isinstance(value, list):
             setattr(args, key, [item.strip() for item in value])
     try:
-        stateless = args.action in ("limited", "size")  # these read transcripts only, no project state
+        stateless = args.action in ("limited", "size", "release", "quiet")  # no project state: transcripts or a file
         path = registry_path(args.project, create=not stateless)
         no_rows = args.action in ("restart", "handoff") or (args.action == "fill" and args.self is not None)
         records = [] if no_rows or stateless else load(path)  # the handshakes and `fill --self` work with a broken registry too
         return {"add": cmd_add, "end": cmd_end, "list": cmd_list, "fill": cmd_fill, "restart": cmd_restart, "handoff": cmd_handoff,
                 "others": cmd_others, "state": cmd_state, "answers": cmd_answers, "watch": cmd_watch, "check": cmd_check, "mark": cmd_mark,
-                "size": cmd_size, "limited": cmd_limited}[args.action](args, path, records)
+                "size": cmd_size, "limited": cmd_limited, "release": cmd_release,
+                "quiet": cmd_quiet}[args.action](args, path, records)
     except Unreadable as exc:
         print(f"dev-kit-sessions: {exc}", file=sys.stderr)
         return 2

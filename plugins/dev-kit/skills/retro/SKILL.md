@@ -98,7 +98,7 @@ A recurrence counts separate sessions or days: a lead and its own subagents are 
 Before the first edit, call `EnterWorktree` (name `retro-<YYYY-MM-DD>`): writes into the main checkout are blocked.
 Each trivial fix goes through `dev-kit:edit-rules` steps 4-6 (the reviewer did steps 1-2; the trivial lane is
 that skill's exception to step 3), and each removes or merges something as the reviewer named. In ClaudeDevKit,
-bump the plugin version once for the whole run (one plugin update a day: every update restarts every lead). Commit
+bump the plugin version once for the whole run, with its release mark (`.claude/dev-kit.md`). Commit
 in the worktree; the lead merges it. The owner sees every trivial fix in the weekly list, where any one is reverted
 with one word.
 

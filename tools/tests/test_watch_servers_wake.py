@@ -412,8 +412,10 @@ class WatchServersWakeTest(unittest.TestCase):
                          "the SIZE lines every 10 minutes, and at the start of a run")
 
     # protects: Rule
-    def test_lead_with_a_working_task_or_busy_is_asked_for_a_new_dev_kit_not_restarted(self):
+    def test_lead_with_a_working_task_or_busy_is_asked_for_a_critical_dev_kit_not_restarted(self):
         self.set_version("dev-kit", "0.1.79")
+        (self.plugins / "dev-kit" / "releases.json").write_text(json.dumps(
+            {"0.1.79": {"kind": "critical", "date": "2026-11-23", "reason": "test"}}), encoding="utf-8")
         self.registry_task()
         for n, (case, lead, task, why) in enumerate((("idle, task working", "idle", "busy", "idle, C: task working"),
                                                      ("busy", "busy", "idle", "busy")), 1):
@@ -424,7 +426,7 @@ class WatchServersWakeTest(unittest.TestCase):
                 self.assertFalse((self.tmp / "restart-calls.txt").exists(), log)
                 asked = [line for line in log if line.startswith(f"RESTART-ASKED {LEAD} ")]
                 self.assertEqual(n, len(asked), "asked once per run of two rounds")
-                self.assertEqual(f"RESTART-ASKED {LEAD} (dev-kit 0.1.78 -> 0.1.79, {why})", asked[-1])
+                self.assertEqual(f"RESTART-ASKED {LEAD} (dev-kit 0.1.78 -> 0.1.79, critical, {why})", asked[-1])
                 request = json.loads((self.registry / "restart.json").read_text(encoding="utf-8"))
                 self.assertEqual("0.1.79", request["version"])
                 self.assertNotIn("ready", request)
@@ -446,11 +448,12 @@ class WatchServersWakeTest(unittest.TestCase):
                        env=dict(os.environ, DEV_KIT_STATE_DIR=str(self.state)), check=True, capture_output=True,
                        timeout=60)
         (self.bin / "check.txt").write_text(STALE_LINE + "\n", encoding="utf-8")
-        log = self.run_watch(2, restart_busy=True)  # the -Ready restart finds it busy: the ready mark stays
+        # the -Ready restart finds it busy: the ready mark stays
+        log = self.run_watch(2, "-ReadyWarnSec", "0", restart_busy=True)
         self.assertEqual([], self.wakes(), log)
         pending = json.loads((self.pult / "wake-pending.json").read_text(encoding="utf-8"))
         self.assertEqual([f"stale: C: task | {TASK} | waiting 25 min"], [line for item in pending for line in item["Lines"]])
-        log = self.run_watch(1)  # restarted with -Ready, the mark cleared: the message goes out
+        log = self.run_watch(1, "-ReadyWarnSec", "0")  # restarted with -Ready, the mark cleared: the message goes out
         self.assertIn(f"Name= Ready={LEAD}", (self.tmp / "restart-calls.txt").read_text(encoding="utf-8"))
         self.assertEqual(1, len(self.wakes()), log)
 

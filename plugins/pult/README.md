@@ -29,13 +29,16 @@ problem it proposes a fix and acts after an explicit yes.
   closed by Claude Code (no process, not stopped on purpose), comes back with `claude respawn` (log HEAL-TASK). A live lead or task session that stopped on the
   usage limit is logged once per stop (LIMIT, with the reset time; LIMIT-END when it goes on). It also removes
   dev-kit lock files whose owner is gone (log UNLOCK). It restarts a lead that runs on an older dev-kit version
-  than the installed `plugins/dev-kit/.claude-plugin/plugin.json`, with no message from the hub: an idle lead
-  at once (log RESTART-LEAD). A busy lead (or, from dev-kit 0.1.78, an idle one while a task session of it
-  works) is not interrupted: the watcher writes a restart request (`restart.json` in the project's dev-kit
-  state folder, RESTART-ASKED) and sends it to the lead as a `restart requested: <V>` event message; the lead
-  reaches a safe point and runs `dev-kit-sessions restart ready --version <V>`; the watcher then restarts it
-  (RESTART-LEAD with `ready`) if the mark is under 10 minutes old, else it clears it (READY-EXPIRED). A lead on
-  dev-kit before 0.1.78 notices the version on its ordinary wake-ups instead. `scripts/restart-leads.ps1 -Ask`
+  than the installed `plugins/dev-kit/.claude-plugin/plugin.json`, with no message from the hub. When depends on
+  the release's mark in `plugins/dev-kit/releases.json`: a routine release waits for a later day (log
+  RESTART-DEFERRED) and then for a quiet moment (the lead idle, no task session of it working, its last
+  message not an open question, no owner message for 5 minutes: `sessions.py quiet`); a critical one
+  restarts a quiet lead at once (log RESTART-LEAD). A critical release when the lead is not quiet: the
+  watcher writes a restart request (`restart.json` in the project's dev-kit state folder, RESTART-ASKED) and
+  sends it to the lead as a `restart requested: <V>` event message; the lead reaches a safe point, runs
+  `dev-kit-sessions restart ready --version <V>` right after its 30-second warning; the watcher restarts it 30
+  seconds after the mark (RESTART-LEAD with `ready`) if the mark is under 10 minutes old, else it clears it
+  (READY-EXPIRED). A lead on dev-kit before 0.1.78 is restarted only when quiet. `scripts/restart-leads.ps1 -Ask`
   is the fast path on your ask: it restarts the idle leads now and writes a request for each busy one
   (`Asked: <name>`), which reaches the lead the same way (an older lead: its session watcher exits 7 once with
   `restart requested: <V>`). One try per lead per version; a
@@ -87,4 +90,4 @@ The steps of a day with a project lead (P) from the phone and the rules behind t
 
 - Status page: `python -X utf8 scripts/status-page.py` writes `~/.claude/pult/status.html` (`--out` for another file).
 - All desktop-app sessions of all projects: `python -X utf8 scripts/list-sessions.py`.
-- After a dev-kit plugin update the watcher restarts each P by itself; to hurry it, run `scripts/restart-leads.ps1 -Ask`. By hand: `scripts/restart-leads.ps1`, or `scripts/stop-servers.ps1` (graceful stop) and then `scripts/start-servers.ps1`, or restart Windows.
+- After a dev-kit plugin update the watcher restarts each P by itself (a routine release on a later day); to hurry it, run `scripts/restart-leads.ps1 -Ask`. By hand: `scripts/restart-leads.ps1`, or `scripts/stop-servers.ps1` (graceful stop) and then `scripts/start-servers.ps1`, or restart Windows.

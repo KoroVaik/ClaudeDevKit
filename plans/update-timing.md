@@ -52,3 +52,23 @@ Not decided (asked, owner closed the talk without an answer): extension plugins 
 unity-kit) keep their current restart behaviour; these rules cover dev-kit releases only.
 
 Spend: subscription only (discussion + one sonnet investigator); API 0 USD.
+
+## Build (2026-11-23, branch c/update-timing-build, with c/fill-limit-third merged in)
+
+- Mark: `plugins/dev-kit/releases.json` (version -> kind, date, reason); rule for bumping agents in
+  `.claude/dev-kit.md`, "All agents"; retro and project-lead point to it. dev-kit stays 0.1.103 (one bump,
+  marked routine); pult 0.1.22.
+- `sessions.py release` (critical between the lead's version and the installed one) and `sessions.py quiet`
+  (owner message under 5 min, or an open question: last line ends with "?" after skipping trailing
+  «Рекомендую:» lines).
+- Watcher: routine deferred on the day the watcher first saw the lead behind (`staleSince` in
+  lead-versions.json, RESTART-DEFERRED), then restart only when quiet; critical: quiet -> restart, else
+  RESTART-ASKED; a ready mark is honoured 30 s after it (`-ReadyWarnSec`). Extension-only path unchanged.
+- P: no self-started handshake on a noticed version; on `restart requested` it writes the warning line, then
+  `restart ready`.
+- Known limits: a lead on the old skill may still self-ready once for 0.1.103 (old behaviour, one time);
+  a lead below dev-kit 0.1.78 gets no request and restarts only when quiet; a lead with a long-open question
+  waits for a routine release until a critical one or another restart.
+- Checks: tools/tests 736 passed (1 skipped), lint 0 errors; independent review: one wording conflict fixed.
+
+Spend (build): ~0.5% of the weekly limit, estimate; API: 0 USD.

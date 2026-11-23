@@ -10,13 +10,29 @@ import sys
 import tempfile
 import time
 import unittest
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent.parent
 PLUGINS = ROOT / "plugins"
 POWERSHELL = shutil.which("powershell.exe") or shutil.which("powershell")
 LEAD = "P: Lead"
+LEAD_SID = "11111111-aaaa-bbbb-cccc-000000000001"
 OLD_TIME = 946684800  # 2000-01-01: every plugin.json is older than the "lead" process
+
+
+def day(offset):
+    """The local date `offset` days from today, as the watcher writes staleSince."""
+    return (datetime.now() + timedelta(days=offset)).strftime("%Y-%m-%d")
+
+
+def owner_said(text, minutes_ago):
+    stamp = (datetime.now(timezone.utc) - timedelta(minutes=minutes_ago)).isoformat().replace("+00:00", "Z")
+    return {"type": "user", "timestamp": stamp, "origin": {"kind": "human"}, "message": {"role": "user", "content": text}}
+
+
+def lead_said(text):
+    return {"type": "assistant", "message": {"role": "assistant", "model": "m", "content": [{"type": "text", "text": text}]}}
 
 FAKE_CLAUDE = '''import json, pathlib, sys
 d = pathlib.Path(__file__).parent
@@ -121,7 +137,7 @@ class WatcherEnv:
 
     def agents(self, status):
         (self.bin / "agents.json").write_text(json.dumps([
-            {"pid": os.getpid(), "kind": "background", "name": LEAD, "sessionId": "11111111-aaaa-bbbb-cccc-000000000001",
+            {"pid": os.getpid(), "kind": "background", "name": LEAD, "sessionId": LEAD_SID,
              "id": "11111111", "state": "blocked", "status": status}]), encoding="utf-8")
 
     def plan(self, plan):
@@ -142,22 +158,25 @@ class WatcherEnv:
                     TEST_LOG_FILE=str(self.tmp / "pult" / "logs" / "servers.log"),
                     TEST_STARTS_FILE=str(self.tmp / "starts.txt"))
 
-    def run_watch(self, rounds, restart_exe="stub.cmd"):
+    def run_watch(self, rounds, *extra, restart_exe="stub.cmd"):
         env = self.env()
         subprocess.run([POWERSHELL, "-NoProfile", "-ExecutionPolicy", "Bypass", "-File",
                         str(self.scripts / "watch-servers.ps1"),
                         "-Rounds", str(rounds), "-IntervalSec", "0", "-ConfigFile", str(self.config),
                         "-StateDir", str(self.tmp / "pult"), "-DevKitStateDir", str(self.state),
                         "-DaemonLog", str(self.tmp / "daemon.log"), "-DevKitDir", str(self.plugins / "dev-kit"),
-                        "-RestartExe", str(self.bin / restart_exe)],
+                        "-RestartExe", str(self.bin / restart_exe), *extra],
                        env=env, check=True, capture_output=True, timeout=240)
         return (self.tmp / "pult" / "logs" / "servers.log").read_text(encoding="utf-8-sig").splitlines()
 
-    def lead_record(self, version, ext=None):
-        """A lead-versions.json entry for the 'lead' (this process); ext None: an entry from before the extension check."""
+    def lead_record(self, version, ext=None, stale_since=None):
+        """A lead-versions.json entry for the 'lead' (this process); ext None: an entry from before the extension check;
+        stale_since: the day the watcher first saw it stale in dev-kit."""
         entry = {"pid": os.getpid(), "started": self.start_time(), "version": version}
         if ext is not None:
             entry["ext"] = ext
+        if stale_since:
+            entry["staleSince"] = stale_since
         (self.tmp / "pult").mkdir(exist_ok=True)
         (self.tmp / "pult" / "lead-versions.json").write_text(json.dumps({LEAD: entry}), encoding="utf-8")
 
@@ -169,6 +188,24 @@ class WatcherEnv:
                               "-DevKitStateDir", str(self.state)],
                              env=self.env(), check=True, capture_output=True, text=True, timeout=240)
         return out.stdout.splitlines()
+
+    def releases(self, marks):
+        """plugins/dev-kit/releases.json of the temp dev-kit: version -> kind (dated today)."""
+        (self.plugins / "dev-kit" / "releases.json").write_text(json.dumps(
+            {v: {"kind": k, "date": day(0), "reason": "test"} for v, k in marks.items()}), encoding="utf-8")
+
+    def lead_chat(self, *entries):
+        """The lead's transcript in the projects folder sessions.py reads (`quiet`)."""
+        folder = self.projects / "p1"
+        folder.mkdir(exist_ok=True)
+        (folder / f"{LEAD_SID}.jsonl").write_text("".join(json.dumps(e) + "\n" for e in entries), encoding="utf-8")
+
+    def lead_versions(self):
+        return json.loads((self.tmp / "pult" / "lead-versions.json").read_text(encoding="utf-8-sig"))[LEAD]
+
+    def restart_file(self):
+        files = list(self.state.rglob("restart.json"))
+        return json.loads(files[0].read_text(encoding="utf-8")) if files else None
 
     def starts(self):
         f = self.tmp / "starts.txt"
@@ -302,20 +339,80 @@ class WatchServersRestartTest(WatcherEnv, unittest.TestCase):
         self.assertEqual({"web-kit": "2.0.0"}, saved[LEAD]["ext"], "the entry adopts the installed extension versions")
 
     # protects: Rule
-    def test_dev_kit_handshake_is_unchanged_for_a_busy_lead(self):
+    def test_ready_lead_is_restarted_whatever_the_kind_after_its_warning_time(self):
+        # The lead wrote «⚠ ЧЕРЕЗ 30 СЕК ...» into its chat, then marked itself ready: the restart waits out the rest.
         self.agents("busy")
-        self.set_version("dev-kit", "1.1.0", old=False)
-        (self.tmp / "pult").mkdir()
-        (self.tmp / "pult" / "lead-versions.json").write_text(json.dumps(
-            {LEAD: {"pid": os.getpid(), "started": self.start_time(), "version": "1.0.0", "ext": {"web-kit": "1.0.0"}}}),
-            encoding="utf-8")
+        self.set_version("dev-kit", "1.1.0", old=False)  # no releases.json: routine, still restarted when ready
+        self.lead_record("1.0.0", {"web-kit": "1.0.0"})
         env = dict(os.environ, DEV_KIT_STATE_DIR=str(self.state))
         subprocess.run(["python", str(self.plugins / "dev-kit" / "scripts" / "sessions.py"), "--project",
                         str(self.project), "restart", "ready", "--version", "1.1.0"],
                        env=env, check=True, capture_output=True, timeout=60)
-        log = self.run_watch(2)
+        marked = time.time()
+        log = self.run_watch(2, "-ReadyWarnSec", "6")
         self.assertEqual([f"Name= Ready={LEAD} call=1"], self.restart_calls())
         self.assertTrue(any(f"RESTART-LEAD {LEAD} (dev-kit 1.0.0 -> 1.1.0, ready)" in line for line in log), log)
+        self.assertGreaterEqual(self.calls.stat().st_mtime - marked, 5.8, "restarted before the warning time ran out")
+
+    # protects: Rule
+    def test_routine_release_is_deferred_on_its_day_even_for_a_quiet_lead(self):
+        self.set_version("dev-kit", "1.1.0", old=False)
+        self.releases({"1.1.0": "routine"})
+        self.lead_record("1.0.0", {"web-kit": "1.0.0"})
+        self.lead_chat(owner_said("go", 60), lead_said("Done."))
+        log = self.run_watch(3)
+        self.assertEqual([], self.restart_calls())
+        self.assertIsNone(self.restart_file(), "a routine release never asks the lead")
+        deferred = [line for line in log if " RESTART-DEFERRED " in line]
+        self.assertEqual(1, len(deferred), log)
+        self.assertTrue(deferred[0].endswith(f"RESTART-DEFERRED {LEAD} (dev-kit 1.0.0 -> 1.1.0, routine, until a later day)"))
+        self.assertEqual(day(0), self.lead_versions()["staleSince"])
+
+    # protects: Flow
+    def test_routine_release_restarts_a_quiet_lead_on_a_later_day(self):
+        self.set_version("dev-kit", "1.1.0", old=False)
+        self.releases({"1.1.0": "routine"})
+        self.lead_record("1.0.0", {"web-kit": "1.0.0"}, stale_since=day(-1))
+        self.lead_chat(owner_said("go", 60), lead_said("Done."))
+        log = self.run_watch(2)
+        self.assertEqual([f"Name={LEAD} Ready= call=1"], self.restart_calls())
+        self.assertTrue(any(line.endswith(f"RESTART-LEAD {LEAD} (dev-kit 1.0.0 -> 1.1.0, quiet)") for line in log), log)
+
+    # protects: Rule
+    def test_routine_release_waits_in_silence_while_the_owner_talks_to_the_lead(self):
+        self.set_version("dev-kit", "1.1.0", old=False)
+        self.lead_record("1.0.0", {"web-kit": "1.0.0"}, stale_since=day(-1))  # no releases.json: routine
+        self.lead_chat(owner_said("а що з тестами?", 1), lead_said("Тести зелені."))
+        log = self.run_watch(2)
+        self.assertEqual([], self.restart_calls())
+        self.assertIsNone(self.restart_file())
+        self.assertFalse([line for line in log if "RESTART-" in line], log)
+
+    # protects: Flow
+    def test_critical_release_restarts_a_quiet_idle_lead_at_once(self):
+        self.set_version("dev-kit", "1.1.0", old=False)
+        self.releases({"1.0.0": "critical", "1.1.0": "critical"})
+        self.lead_record("1.0.0", {"web-kit": "1.0.0"})
+        self.lead_chat(owner_said("go", 60), lead_said("Done."))
+        log = self.run_watch(2)
+        self.assertEqual([f"Name={LEAD} Ready= call=1"], self.restart_calls())
+        self.assertTrue(any(line.endswith(f"RELEASE-KIND {LEAD} (dev-kit 1.0.0 -> 1.1.0): critical 1.1.0: test")
+                            for line in log), log)
+        self.assertTrue(any(line.endswith(f"RESTART-LEAD {LEAD} (dev-kit 1.0.0 -> 1.1.0, critical, quiet)")
+                            for line in log), log)
+
+    # protects: Rule
+    def test_critical_release_asks_an_idle_lead_with_an_open_question_instead_of_restarting(self):
+        self.set_version("dev-kit", "1.1.0", old=False)
+        self.releases({"1.1.0": "critical"})
+        self.lead_record("1.0.0", {"web-kit": "1.0.0"})
+        self.lead_chat(owner_said("go", 60), lead_said("Зливаємо гілку?\nРекомендую: так - тести зелені."))
+        log = self.run_watch(2)
+        self.assertEqual([], self.restart_calls())
+        self.assertEqual("1.1.0", self.restart_file()["version"])
+        asked = [line for line in log if " RESTART-ASKED " in line]
+        self.assertEqual(1, len(asked), log)
+        self.assertTrue(asked[0].endswith(f"RESTART-ASKED {LEAD} (dev-kit 1.0.0 -> 1.1.0, critical, open question)"))
 
     # protects: Bug
     def test_new_copy_that_dies_at_start_keeps_the_old_watcher_running(self):

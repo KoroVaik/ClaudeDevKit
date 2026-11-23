@@ -1,0 +1,3 @@
+{
+  "0.1.103": {"kind": "routine", "date": "2026-11-23", "reason": "long sessions move at a third of the context; plugin updates timed by a critical or routine mark"}
+}

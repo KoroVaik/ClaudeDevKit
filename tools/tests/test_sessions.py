@@ -1111,5 +1111,101 @@ class SessionsTestCase(unittest.TestCase):
         self.assertEqual((0, ""), self.run_main("fill", "--self", "me-session", "--limit", "0.9", "--over-only"))
         self.assertEqual((0, ""), self.run_main("fill", "--self", "other", "--over-only"))
 
+    def releases(self, data):
+        path = self.tmp / "releases.json"
+        path.write_text(data if isinstance(data, str) else json.dumps(data), encoding="utf-8")
+        return str(path)
+
+    # protects: Rule
+    def test_release_names_the_newest_critical_release_the_lead_lacks(self):
+        marks = self.releases({
+            "0.1.9": {"kind": "critical", "date": "2026-11-20", "reason": "old"},
+            "0.1.10": {"kind": "critical", "date": "2026-11-21", "reason": "a"},
+            "0.1.11": {"kind": "routine", "date": "2026-11-21", "reason": "r"},
+            "0.1.12": {"kind": "critical", "date": "2026-11-22", "reason": "b"},
+            "0.1.13": {"kind": "critical", "date": "2026-11-23", "reason": "c"}})
+        for start, to, said in (("0.1.9", "0.1.12", "critical 0.1.12: b\n"),  # 0.1.10 > 0.1.9: compared as numbers
+                                ("0.1.9", "0.1.10", "critical 0.1.10: a\n"),
+                                ("0.1.10", "0.1.11", "routine\n"),  # the version it started on is not lacked
+                                ("0.1.12", "0.1.12", "routine\n")):
+            with self.subTest(start=start, to=to):
+                self.assertEqual((0, said), self.run_main("release", "--from", start, "--to", to, "--file", marks))
+
+    # protects: Rule
+    def test_release_for_an_unknown_start_version_goes_by_the_start_day(self):
+        marks = self.releases({"0.1.10": {"kind": "critical", "date": "2026-11-21", "reason": "a"},
+                               "0.1.11": {"kind": "critical", "date": "2026-11-22", "reason": "b"},
+                               "0.1.12": {"kind": "routine", "date": "2026-11-23", "reason": "r"}})
+        started = datetime_local(2026, 11, 22, 12)
+        self.assertEqual((0, "critical 0.1.11: b\n"), self.run_main(
+            "release", "--from", "older", "--to", "0.1.12", "--started", started, "--file", marks))
+        self.assertEqual((0, "routine\n"), self.run_main(
+            "release", "--from", "older", "--to", "0.1.12", "--started", datetime_local(2026, 11, 23, 9), "--file", marks))
+        self.assertEqual((0, "routine\n"), self.run_main("release", "--from", "older", "--to", "0.1.12", "--file", marks),
+                         "no start time either: nothing is known, so routine")
+
+    # protects: Edge
+    def test_release_with_a_missing_or_broken_mark_counts_as_routine(self):
+        missing = str(self.tmp / "none.json")
+        self.assertEqual((0, "routine\n"), self.run_main("release", "--from", "0.1.1", "--to", "0.1.2", "--file", missing))
+        for data in ("{nope", "[]", {"0.1.2": {"kind": "urgent", "date": "2026-11-23", "reason": "x"}},
+                     {"0.1.2": {"kind": "critical", "date": "23.11.2026", "reason": "x"}}):
+            with self.subTest(data=data):
+                code, out = self.run_main("release", "--from", "0.1.1", "--to", "0.1.2", "--file", self.releases(data))
+                self.assertEqual(0, code)
+                self.assertIn("routine\n", out)
+                self.assertIn("dev-kit-sessions: ", out)
+                self.assertNotIn("critical", out)
+
+    def owner(self, text, minutes_ago):
+        return {"type": "user", "timestamp": self.ago(minutes_ago), "origin": {"kind": "human"},
+                "message": {"role": "user", "content": text}}
+
+    # protects: Rule
+    def test_quiet_tells_a_recent_owner_message_and_an_open_question(self):
+        tool_result = {"type": "user", "timestamp": self.ago(0),
+                       "message": {"role": "user", "content": [{"type": "tool_result", "content": "ok"}]}}
+        peer = {"type": "user", "timestamp": self.ago(1), "isMeta": True, "origin": {"kind": "peer", "body": "C: done"},
+                "message": {"role": "user", "content": "C: done"}}
+        question = "Звіт.\n\nЛишаємо X? (бо так простіше)\n   Рекомендую: так - це дешевше.\n"
+        cases = (("owner wrote 2 min ago", [self.owner("go on", 2), self.reply("Done.")], "active owner "),
+                 ("question with its recommendation", [self.owner("go", 10), self.reply(question)], "active open question"),
+                 ("bold question", [self.owner("go", 10), self.reply("Merge it?**  ")], "active open question"),
+                 ("answered long ago", [self.reply(question), self.owner("так", 10), self.reply("Merged.")], "quiet"),
+                 ("question answered", [self.reply(question), self.owner("так", 10)], "quiet"),
+                 ("peer and tool result are not the owner", [self.owner("go", 10), self.reply("Done."), peer, tool_result],
+                  "quiet"),
+                 ("a subagent's question is not the lead's", [self.owner("go", 10), self.reply("Done."),
+                                                             self.reply("Which file?", isSidechain=True)], "quiet"))
+        for case, entries, said in cases:
+            with self.subTest(case):
+                self.transcript("lead-1", entries)
+                code, out = self.run_main("quiet", "--id", "lead-1")
+                self.assertEqual(0, code)
+                self.assertTrue(out.startswith(said), out)
+        self.transcript("lead-1", [self.owner("go on", 2), self.reply("Done.")])
+        self.assertEqual("quiet\n", self.run_main("quiet", "--id", "lead-1", "--minutes", "1")[1])
+        self.assertEqual("active no transcript\n", self.run_main("quiet", "--id", "missing")[1])
+
+
+def datetime_local(*parts):
+    """An ISO time with the local offset: its local date is the given one in any time zone."""
+    from datetime import datetime
+    return datetime(*parts).astimezone().isoformat()
+
+
+class ReleaseMarksRepoTest(unittest.TestCase):
+    # protects: Rule
+    def test_installed_dev_kit_version_has_a_release_mark(self):
+        # The Pult watcher reads it to decide when the leads restart; a bump without a mark counts as routine.
+        dev_kit = Path(__file__).resolve().parent.parent.parent / "plugins" / "dev-kit"
+        version = json.loads((dev_kit / ".claude-plugin" / "plugin.json").read_text(encoding="utf-8"))["version"]
+        marks = json.loads((dev_kit / "releases.json").read_text(encoding="utf-8"))
+        self.assertIn(version, marks, "add the release mark of the new version to plugins/dev-kit/releases.json")
+        entries, warnings = sessions.read_releases(dev_kit / "releases.json")
+        self.assertEqual([], warnings)
+        self.assertIn(version, [entry[1] for entry in entries])
+        self.assertTrue(marks[version]["reason"].strip())
+
 if __name__ == "__main__":
     unittest.main()

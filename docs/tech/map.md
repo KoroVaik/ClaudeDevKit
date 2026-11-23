@@ -15,6 +15,7 @@ is listed below.
 - `plugins/pult/scripts` - PowerShell and Python of the hub: start, stop, watch and restart of the leads, the status page, the session list.
 - `plugins/pult/hooks`, `plugins/pult/rules` - the SessionStart hook and the hub rules it adds in the home folder.
 - `.claude-plugin`, `plugins/dev-kit/.claude-plugin`, `plugins/web-kit/.claude-plugin`, `plugins/unity-kit/.claude-plugin`, `plugins/pult/.claude-plugin` - the marketplace and plugin manifests.
+- `plugins/dev-kit/releases.json` - the critical or routine mark of each dev-kit release, read by the Pult watcher.
 - `tools/lint.py` - checks this repo: plugin manifests, skill and agent front matter, slot tables, hook config, project profiles ([repo checks](repo-checks.md)).
 - `tools/tests` - the tests of the scripts and hooks.
 - `.githooks/pre-commit`, `.github/workflows/ci.yml` - the checks before a commit and in CI.
@@ -32,7 +33,7 @@ is listed below.
 ## Data stores
 
 - `.claude/dev-kit.md` in every project - its profile ([project profile](project-profile.md)).
-- The Pult state folder (pult under the user's .claude folder): logs (`servers.log`), `lead-versions.json`, the hold file, `status.html`, the wake files (`wake-pending.json`: messages not delivered yet; `wake-state.json`: size pushes and last send per target; `size-state.json`: transcript offsets for the size log).
+- The Pult state folder (pult under the user's .claude folder): logs (`servers.log`), `lead-versions.json` (with the day a lead first fell behind), the hold file, `status.html`, the wake files (`wake-pending.json`: messages not delivered yet; `wake-state.json`: size pushes and last send per target; `size-state.json`: transcript offsets for the size log).
 - The dev-kit state folder of a project: the session registry, locks, `restart.json`, the delivered marks of `check` (`delivered.json`, `check-closed.json`, beside `limits.json` and `stale.json`).
 - The API spend log (`api-calls.jsonl` in the dev-kit folder of the user's .claude folder, beside `credits.md`): one line per paid Claude API call from every project ([log and reconcile API spend](../features/log-and-reconcile-api-spend.md); the line format: [API spend](api-spend.md)).
 - The usage log (`usage-log.jsonl` in the dev-kit folder of the user's .claude folder): one line per change of the weekly subscription per cent, written by `dev-kit-statusline`; `dev-kit-retro` fits the weekly limit from it and keeps the fit in its `state.json`.

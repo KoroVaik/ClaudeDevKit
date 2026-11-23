@@ -98,12 +98,14 @@ five mechanical problems itself, with no yes (the owner's yes, 2026-11-16; the o
   (HEAL-TASK-FAILED when respawn fails); GIVEUP-TASK when it gives up; held by the hold file too. Why: on low
   memory Claude Code closes idle background sessions (2026-11-16, a C waiting on the owner vanished).
 - A lead that runs an older dev-kit version than `plugin.json` of the main checkout (log LEAD-VERSION
-  when it sees a lead's process first): an idle lead is restarted at once with `restart-leads.ps1`
-  (RESTART-LEAD); a busy one when it marks itself ready (`dev-kit-sessions restart ready`, at a safe
-  point after it noticed the version; a mark older than 10 minutes is dropped, READY-EXPIRED, and for the current version the lead is asked
-  once more as with `-Ask`) or turns
-  idle. A lead on dev-kit 0.1.78 or later is asked by the watcher's `restart` event message (RESTART-ASKED),
-  and while one of its task sessions works it counts as busy even when idle. The same for an extension plugin the lead's project enables (web-kit, unity-kit): an idle lead
+  when it sees a lead's process first): the release's mark in `plugins/dev-kit/releases.json` decides when
+  (dev-kit project-lead skill, "Restart for a plugin update"). A routine release waits for a later day and a
+  quiet moment of the lead (RESTART-DEFERRED on the first day); a critical one restarts a quiet lead at once
+  with `restart-leads.ps1` (RESTART-LEAD) and asks a lead that is not quiet by the watcher's `restart` event
+  message (RESTART-ASKED, dev-kit 0.1.78 or later). An asked lead writes a 30-second warning and marks
+  itself ready (`dev-kit-sessions restart ready`); the watcher restarts it 30 seconds after that mark (a
+  mark older than 10 minutes is dropped, READY-EXPIRED, and for the current version the lead is asked once
+  more as with `-Ask`). A lead counts as not quiet while one of its task sessions works. The same for an extension plugin the lead's project enables (web-kit, unity-kit): an idle lead
   is restarted, a busy one is never woken for it and waits until it is idle. One try per lead per version;
   RESTART-LEAD-FAILED when it did not come back. Held by the hold file too.
 - Its own code (added 2026-11-19, P's yes): when `watch-servers.ps1` (or the script it loads) changed and stayed
@@ -182,10 +184,10 @@ Why: the owner decided on 2026-11-19 that only urgent events reach the phone (wh
 
 The watcher restarts the leads after a dev-kit version bump by itself (see "Servers"); the hub sends no
 messages for it. Pult only shows the log: RESTART-LEAD followed by UP is fixed ("перезапущено на нову
-версію"); RESTART-LEAD-FAILED, or a lead whose last LEAD-VERSION line is older than `plugin.json` of dev-kit
-for over 3 hours after that file changed, is a
-problem to show with a proposed fix. A busy lead gets a `restart` event message from the watcher at
-once (a lead on dev-kit before 0.1.78 finds the new version at its next wake-up, at most 2 hours). When the owner asks to update or restart the leads («онови керівників»), Pult runs
+версію"); RESTART-LEAD-FAILED, or a lead still on an older version for over 3 hours after a critical release
+(`plugins/dev-kit/releases.json`), is a problem to show with a proposed fix; RESTART-DEFERRED and a lead
+behind a routine release until a later day are normal. A lead that is not quiet gets a `restart` event
+message from the watcher for a critical release at once. When the owner asks to update or restart the leads («онови керівників»), Pult runs
 `{PLUGIN}/scripts/restart-leads.ps1 -Ask`: leads already on the new version are left alone (`Up to date`), idle leads restart now, each busy one is woken at once to
 reach a safe point (output `Asked: <name>`), and the watcher restarts it. Pult says in one line which
 leads restarted and which were asked. A change of only an extension (web-kit, unity-kit) restarts an idle lead

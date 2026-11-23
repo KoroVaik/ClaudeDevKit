@@ -35,7 +35,7 @@ Pult watcher, which runs outside Claude Code, also brings back task sessions tha
 
 ## Migrations: `dev-kit-migrations`
 
-After a dev-kit update, Pult restarts the leads so they load the new skill. On start and after that restart
+After a dev-kit update, Pult restarts the leads so they load the new skill (a routine update on a later day). On start and after that restart
 P runs `dev-kit-migrations pending` and hands the changes every project must make in its own files (the
 entries of `plugins/dev-kit/migrations.md`) to one task session.
 

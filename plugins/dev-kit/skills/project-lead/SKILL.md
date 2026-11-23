@@ -768,8 +768,9 @@ Skill update check, on every wake-up: read `version` from
 `.claude-plugin/plugin.json` two folders above this skill's base directory and compare it with the
 version P noted when it last read this skill (note it in the first status turn's tool output). If it
 changed, read this SKILL.md whole with the Read tool (the Skill tool only answers "already loaded")
-and follow the new text from then on; P's process still runs the old hooks and agents, so P also runs
-the handshake of "Restart for a plugin update". No message to the owner about it.
+and follow the new text from then on. P's process still runs the old hooks and agents, but P does not
+restart for that by itself: the Pult watcher decides when a release restarts P and sends `restart requested`
+when it needs the handshake of "Restart for a plugin update". No message to the owner about it.
 
 On an owner message or a C report run `dev-kit-sessions fill` and, for P itself, `dev-kit-sessions fill --self`
 (an OVER line starts "Restart P").
@@ -881,21 +882,26 @@ the 5 quiet minutes keep the move out of a running talk, and «перезапу�
 
 The Pult watcher restarts the leads after a dev-kit version bump so they load the new skills, agents
 and hooks (the owner's request of 2026-11-16). It notices the bump itself: it compares the version P's
-process started on with `plugin.json` of the main checkout. An idle P with no working C is
-restarted at once. A busy P, or an idle one while a C works (a restart would lose that C's reports), gets
-the event line `restart requested: <version>` ("Wake-up"); so does every busy P when the owner asks Pult
-to update the leads. The restart resumes the same conversation; only the session
-process is new. Why: the owner chose on 2026-11-16 to restart a busy P only at a safe point; since P keeps
-no watcher (2026-11-20, see "Wake-up"), the event message replaces the watcher's 2-hourly wake that found
-the version.
+process started on with `plugin.json` of the main checkout, and reads the release's mark in
+`plugins/dev-kit/releases.json` (critical or routine; `.claude/dev-kit.md` of the plugin repo says who
+marks it). A routine release waits: P restarts once on a later day, at its first quiet moment, onto the
+newest version. A critical one restarts P the same day. Quiet means P is idle with no working C (a restart
+would lose that C's reports), its last message to the owner is not an open question and the owner has
+written nothing to it for 5 minutes; then the watcher restarts P silently. A critical release when P is not
+quiet gets the event line `restart requested: <version>` ("Wake-up"); so does every busy P when the owner
+asks Pult to update the leads. Any restart takes every pending version with it. The restart resumes the
+same conversation; only the session process is new. Why: the owner chose on 2026-11-16 to restart a busy P
+only at a safe point; since P keeps no watcher (2026-11-20, see "Wake-up"), the event message replaces the
+watcher's 2-hourly wake that found the version. Owner, 2026-11-23 (`plans/update-timing.md` of the plugin
+repo): a restart per bump cut into talks with the owner several times an hour.
 
-- Handshake (a new version found at a wake-up, or a `restart requested` line): from then P
+- Handshake (a `restart requested` line): from then P
   starts no new step (no new C, no merge, no new subagent). A step already running is brought
   to a point where a stop breaks nothing: a merge and its clean-up are finished, an edit P began is
-  committed, a running subagent is waited for. C sessions keep working on their own. Then P runs
-  `dev-kit-sessions restart ready --version <the new version>` and ends the turn with no text to the owner; the forced-output state of "Message
-  templates" follows only under its narrowed condition (the host's own reminder). An owner message that arrives before
-  the restart is answered after it. The hold ends by itself 10 minutes after `ready` with no restart
+  committed, a running subagent is waited for. C sessions keep working on their own. Then P writes
+  exactly the line «⚠ ЧЕРЕЗ 30 СЕК БУДЕ ПЕРЕЗАВАНТАЖЕННЯ (ОНОВЛЕННЯ ІНСТРУМЕНТІВ)» as its message, runs
+  `dev-kit-sessions restart ready --version <the new version>` right after it and ends the turn with no
+  more text; the watcher restarts P 30 seconds after `ready`. An owner message that arrives before the restart is answered after it. The hold ends by itself 10 minutes after `ready` with no restart
   (the Pult watcher drops an older `ready` too); P then works as usual and says nothing about it.
 - First prompt after the restart: `/dev-kit:project-lead restart: plugin update`. P goes on where it
   stopped: it reads this SKILL.md whole, notes the new version (see
@@ -924,8 +930,8 @@ and at every message to the owner. New entries reach the owner only as P's quest
 below.
 
 After merging work that bumps the `dev-kit` version, P sends nothing about it: the Pult watcher sees
-the new version in the main checkout and restarts every lead, this P included (see "Restart for a
-plugin update"). Why: on 2026-11-16 the hub got that message but restarted nobody: it acts only when
+the new version in the main checkout and restarts every lead, this P included, when its mark allows (see
+"Restart for a plugin update"). Why: on 2026-11-16 the hub got that message but restarted nobody: it acts only when
 someone writes in its chat.
 
 - Up to 3 new entries, all simple (one place in one skill, agent or doc, no clash with other rules): P
@@ -956,7 +962,7 @@ exception to "no task work"; any other rule edit P makes follows `dev-kit:edit-r
 - P asks the owner a yes/no batch on the ideas, not the wording (a retro item is asked as in
   "Retro of session problems"). On «так» P makes a throwaway worktree of main (`git worktree add`, as for a
   C); one `dev-kit:coder`, its brief naming that worktree's path, applies the edits there, bumps the plugin
-  version if a plugin changed and runs the repo's lint; P runs steps 5-6 of `dev-kit:edit-rules` on the diff,
+  version if a plugin changed (with its release mark, `.claude/dev-kit.md`) and runs the repo's lint; P runs steps 5-6 of `dev-kit:edit-rules` on the diff,
   commits, merges into main as in "Acceptance and merge" (its checks of the main checkout, `--ff-only`) and
   removes the worktree. A rule edit never goes into the main checkout directly or around its guard: the
   harness blocks writes there by P and its subagents. The owner's global files (the local `.claude` folder) are edited in place and committed in that
@@ -979,7 +985,6 @@ of ClaudeDevKit brings them to the owner.
 
 - `ГОТОВО` from «Ретро: <project>»: P merges its branch as in "Acceptance and merge" with no «Approved design»
   check and no follow-up C, then closes the session as after any merge; with nothing to merge, P only closes it.
-  In ClaudeDevKit the merge bumps the plugin version once a day at most (each bump restarts every lead).
 - `ПИТАННЯ` from «Ретро: <project>» (an urgent item: lost work, a critical token problem, blocked work, one cause
   repeated the same day): a critical queue item, asked at once.
 - `ГОТОВО` from «Документація: <project>» (the weekly docs session, `dev-kit:maintain-project-docs`, "Weekly

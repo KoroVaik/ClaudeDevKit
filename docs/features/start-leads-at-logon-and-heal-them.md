@@ -18,10 +18,16 @@ closed by Claude Code and not stopped on purpose, comes back too, after two chec
 limit of 3 tries an hour. A lead whose project has no hard-ban lines on main is not brought back: it is
 blocked, not broken.
 
-### A lead on an old version is restarted when idle
-A lead that runs on an older dev-kit version than the installed one, or whose extension plugin (web-kit,
-unity-kit) changed version, is restarted when it is idle. A busy lead is not interrupted: it is restarted
-at a safe point it marks itself.
+### A lead on an old version is restarted when the update allows
+Each dev-kit update is marked critical (agents cannot cope without it) or routine by the agent that makes
+it. A routine update reaches a lead once, on a later day, at its first quiet moment: the lead is idle, its
+last message to you is not an open question and you wrote nothing to it for 5 minutes. A critical update
+restarts a quiet lead the same day with no warning; a lead in a talk with you first finishes its step,
+writes «⚠ ЧЕРЕЗ 30 СЕК БУДЕ ПЕРЕЗАВАНТАЖЕННЯ (ОНОВЛЕННЯ ІНСТРУМЕНТІВ)» and restarts 30 seconds later; a
+message you send in those 30 seconds is answered after the restart. Any restart takes every waiting
+update with it. A lead whose extension plugin (web-kit, unity-kit) changed version is restarted when it is
+idle. Why: owner, 2026-11-23 (`plans/update-timing.md`): updates restarted the leads several times an hour,
+in the middle of talks.
 
 ### A lead past a third of its context moves to a fresh session
 A lead that saved its notes at a third of its context is stopped and started fresh under the same name, once it
@@ -41,7 +47,8 @@ one project, remove its row from the project list.
 ## Acceptance criteria
 - Windows starts: each project's lead and the Pult server are running without you starting them.
 - A lead is killed: after about two checks it is back.
-- dev-kit is updated: an idle lead restarts and runs on the new version; a busy one waits for a safe point.
+- dev-kit gets a routine update: the leads keep running on the old version that day and restart once on a later day.
+- dev-kit gets a critical update: a quiet lead restarts the same day; a lead in a talk writes the 30-second warning first.
 - You stop the servers on purpose: nothing is brought back until the next full start.
 - You restart the leads on purpose: they come back through the restart itself, and the watcher goes on as usual.
 

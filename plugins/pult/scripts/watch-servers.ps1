@@ -35,24 +35,41 @@
 #   version of the extensions (LEAD-VERSION on a new entry; a process that started after a plugin.json was
 #   last written gets the installed version, else "older"). An old entry with no "ext" adopts the installed
 #   extension versions (no restart on upgrade), and so does an extension that has no stored version yet.
-#   An idle lead (status idle) is restarted at once with restart-leads.ps1 -Name: RESTART-LEAD (the
-#   changed plugins are named in the line). A busy one is not asked by the watcher:
-#   for a dev-kit change the lead itself notices the new version on its ordinary wake-ups, reaches a safe
-#   point and runs `dev-kit-sessions restart ready --version V` (V: the dev-kit version); or the owner's
-#   `restart-leads.ps1 -Ask` writes a request `restart request --version V` for it and its session watcher
-#   exits 7 once. A lead that started on dev-kit $WakeMinDevKit or later keeps no session watcher (see the wakes
-#   below), so for a dev-kit change the watcher writes that request itself when the lead is busy, or idle while a
-#   task session of its registry is live and busy (a restart would lose that session's reports), and no request
-#   for the installed version is open: RESTART-ASKED (once; the `restart` event of the wakes then reaches the
-#   lead by message). Such a lead stale only in an extension waits until it is idle with no busy task session.
-#   The watcher restarts a busy stale lead only when `restart status` says `ready V <seconds>`
-#   with less than 10 minutes: restart-leads.ps1 -Ready, RESTART-LEAD (..., ready). A ready mark that is
-#   older or for another version is cleared: READY-EXPIRED. A lead stale only in an extension is never woken
-#   (the skill knows only dev-kit versions, a wake-up is a paid turn, and -Ask writes no request for it): the
-#   watcher restarts it when it is idle. restart.json is cleared after a restart and after a failure, and a
-#   lead already on the installed versions has a left-over one cleared (RESTART-CLEARED; checked once per
-#   pid). One try per lead per combined version (dev-kit plus extensions); a failure is logged as
-#   RESTART-LEAD-FAILED. The hold file and a running full start pause it, as for HEAL.
+#   A lead that started on dev-kit $WakeMinDevKit or later keeps no session watcher (see the wakes below); for it
+#   "idle" below also needs no task session of its registry live and busy (a restart would lose that session's
+#   reports; Get-BusyTask). Restarts go through restart-leads.ps1 (-Name, or -Ready for a ready mark): RESTART-LEAD
+#   <name> (<changed plugins>, <how>).
+#   Stale only in an extension: an idle lead (status idle) is restarted at once (how: idle). A busy one is never
+#   woken (the skill knows only dev-kit versions, a wake-up is a paid turn, and -Ask writes no request for it): it
+#   is restarted when it is idle, or when `restart status` says `ready V <seconds>` with V the installed dev-kit and
+#   less than 10 minutes (how: ready; a ready mark older or for another version is cleared: READY-EXPIRED).
+#   Stale in dev-kit (owner's rules, plans/update-timing.md): each dev-kit release is marked critical or routine in
+#   <DevKitDir>\releases.json (the agent that bumps the version adds it; missing counts as routine). Per lead, pid
+#   and installed version the watcher asks `sessions.py release --from <started version> --to V --started <process
+#   start>` once (RELEASE-KIND <name> (dev-kit X -> V): critical <version>: <reason> | routine). The entry keeps
+#   "staleSince", the local date this watcher first saw that pid stale in dev-kit (a new pid starts fresh).
+#   - A `ready V <seconds>` mark for the installed V (the lead itself, or restart-leads.ps1 -Ask) is honoured
+#     whatever the kind, with less than 10 minutes: the lead wrote its 30-second warning into its chat just before
+#     it marked itself ready, so a mark younger than $ReadyWarnSec s is waited out inside the round first; then
+#     -Ready (how: ready). An older mark or one for another version: cleared, READY-EXPIRED (a stale mark for V is
+#     asked again with `restart request`).
+#   - Quiet means: status idle, no busy task session (as above) and `sessions.py quiet --id <session id>` says
+#     quiet (the owner wrote nothing to the lead for 5 minutes and its last text to the owner is no open question).
+#   - Routine: no restart and no request on the staleSince day (RESTART-DEFERRED <name> (dev-kit X -> V, routine,
+#     until a later day), once per lead and V). On a later day it is restarted at its first quiet round (how: quiet),
+#     onto the newest version; until then it waits in silence. A routine release is never asked for.
+#   - Critical: quiet: restarted at once, silently (how: critical, quiet). Not quiet: a lead woken by message with
+#     no open request for V gets `restart request --version V` (RESTART-ASKED <name> (dev-kit X -> V, critical,
+#     <busy | idle, <task> working | owner active | open question | no transcript>), once; the `restart` event of the
+#     wakes then reaches it): it finishes its step, writes the 30-second warning into its chat and marks itself
+#     ready, which the ready mark above handles. An older lead (below $WakeMinDevKit; its own session watcher
+#     exits 7 on a request of -Ask) is restarted only when quiet.
+#   - Stale in dev-kit and in an extension: when the dev-kit rules say wait, an idle lead is still restarted for
+#     the extension (how: idle); any restart takes the pending dev-kit versions with it.
+#   restart.json is cleared after a restart and after a failure, and a lead already on the installed versions has a
+#   left-over one cleared (RESTART-CLEARED; checked once per pid). One try per lead per combined version (dev-kit
+#   plus extensions); a failure is logged as RESTART-LEAD-FAILED. The hold file and a running full start pause it,
+#   as for HEAL (staleSince is still recorded).
 # - Wakes: no Claude session keeps a watcher of its own (the host kills a background run after 2 h, and each
 #   re-arm is a paid cold turn); this watcher wakes Pult and the leads by a cross-session message only when
 #   something needs them. A pass after the heal work each round (not with -Once):
@@ -146,7 +163,8 @@
 # -RestartExe: the program that starts the new copy (default powershell.exe; for tests).
 # -WakeExe: the program of the one-shot sender (default: claude from PATH); -SessionsPy: the sessions.py it calls
 # (default: <DevKitDir>\scripts\sessions.py); -WakeConfirmSec, -WakeCooldownSec, -WakeDownSec: the waits of the
-# wakes; -HandoffStopWaitSec: the wait for a stopped lead to be gone (all for tests).
+# wakes; -HandoffStopWaitSec: the wait for a stopped lead to be gone; -ReadyWarnSec: the age a ready mark must reach
+# before its restart (default 30, the lead's warning; all for tests).
 # -ConfigFile / -StateDir / -DevKitStateDir / -DaemonLog: another server list, Pult state folder,
 # dev-kit state folder and Claude Code daemon log (for tests with a throwaway lead).
 # -DevKitDir: the dev-kit plugin folder (default: ..\..\dev-kit next to this plugin); it holds
@@ -155,7 +173,8 @@
 param([int]$IntervalSec = 60, [switch]$Once, [int]$Rounds = 0, [int]$MaxHeals = 3,
     [string]$ConfigFile, [string]$StateDir, [string]$DevKitStateDir, [string]$DaemonLog, [string]$DevKitDir,
     [string]$RestartExe = 'powershell.exe', [string]$WakeExe, [string]$SessionsPy,
-    [int]$WakeConfirmSec = 120, [int]$WakeCooldownSec = 120, [int]$WakeDownSec = 600, [int]$HandoffStopWaitSec = 60)
+    [int]$WakeConfirmSec = 120, [int]$WakeCooldownSec = 120, [int]$WakeDownSec = 600, [int]$HandoffStopWaitSec = 60,
+    [int]$ReadyWarnSec = 30)
 
 . (Join-Path $PSScriptRoot 'plugin-versions.ps1')
 . (Join-Path $PSScriptRoot 'resume-lib.ps1')  # Get-SessionProcessIds, Get-LeadPermissionMode, $HandoffNamePattern
@@ -452,6 +471,7 @@ function Save-LeadVersions {
     $o = [ordered]@{}
     foreach ($k in $leadVer.Keys) {
         $o[$k] = [ordered]@{ pid = $leadVer[$k].Pid; started = $leadVer[$k].Started; version = $leadVer[$k].Version }
+        if ($leadVer[$k].StaleSince) { $o[$k]['staleSince'] = [string]$leadVer[$k].StaleSince }
         if ($null -ne $leadVer[$k].Ext) {  # no "ext" at all: an old entry that adopts the installed ones
             $x = [ordered]@{}
             foreach ($n in ($leadVer[$k].Ext.Keys | Sort-Object)) { $x[$n] = [string]$leadVer[$k].Ext[$n] }
@@ -486,6 +506,85 @@ function Invoke-LeadRestart([string]$LeadName, [switch]$IsReady) {
     if ($said -cmatch ('NO-BANS ' + [regex]::Escape($LeadName) + ' ')) { Register-NoBans $LeadName $said; return 'nobans' }
     Write-Critical ("RESTART-LEAD-FAILED {0}: {1}" -f $LeadName, $said)
     return 'failed'
+}
+
+# critical or routine: the kind of the dev-kit releases a lead process ($St, its lead-versions.json entry) lacks up to
+# the installed version $V (`sessions.py release` against <DevKitDir>\releases.json, see the header). Asked once per
+# lead, pid and $V: RELEASE-KIND <name> (dev-kit X -> V): <answer>. A failed call counts as routine (WARN once) and is
+# asked again next round.
+function Get-ReleaseKind([string]$Name, $St, [string]$V) {
+    $key = "$Name|$($St.Pid)|$V"
+    if ($releaseKinds.ContainsKey($key)) { return $releaseKinds[$key] }
+    $words = @('release', '--from', [string]$St.Version, '--to', $V, '--file', (Join-Path $DevKitDir 'releases.json'))
+    if ($St.Started) { $words += @('--started', [string]$St.Started) }  # an empty argument would be dropped
+    $r = Invoke-Sessions $words
+    $lines = @($r.Out -split "`r?`n" | ForEach-Object { $_.Trim() } | Where-Object { $_ })
+    foreach ($w in @($lines | Where-Object { $_ -clike 'dev-kit-sessions:*' })) { Write-WarnOnce "release $w" $w }
+    $verdict = @($lines | Where-Object { $_ -cmatch '^(critical .+|routine)$' }) | Select-Object -First 1
+    if ($r.Code -ne 0 -or -not $verdict) {
+        Write-WarnOnce "release $Name" "cannot read the release kind for $Name, counted as routine: $($r.Out -replace '\s+', ' ')"
+        return 'routine'
+    }
+    $kind = if ($verdict -clike 'critical *') { 'critical' } else { 'routine' }
+    $releaseKinds[$key] = $kind
+    Write-Log "RELEASE-KIND $Name (dev-kit $($St.Version) -> $V): $verdict"
+    return $kind
+}
+
+# Why a lead ($Entry: its session list entry) is not quiet enough for a silent restart, '' when it is: 'busy' (status
+# not idle), 'idle, <task> working' ($BusyTask: only looked up for a lead woken by message), or what `sessions.py
+# quiet` finds in its transcript: 'owner active' (the owner wrote within 5 minutes), 'open question', 'no transcript'.
+function Get-LeadActivity($Entry, [string]$BusyTask) {
+    if ($Entry.status -ne 'idle') { return 'busy' }
+    if ($BusyTask) { return "idle, $BusyTask working" }
+    $sid = [string]$Entry.sessionId
+    if (-not $sid) { return 'no transcript' }
+    $r = Invoke-Sessions @('quiet', '--id', $sid)
+    $line = @($r.Out -split "`r?`n" | ForEach-Object { $_.Trim() } | Where-Object { $_ -cmatch '^(quiet|active .+)$' }) |
+        Select-Object -First 1
+    if ($line -ceq 'quiet') { return '' }
+    if ($line -clike 'active owner *') { return 'owner active' }
+    if ($line -cmatch '^active (.+)$') { return $Matches[1] }
+    Write-WarnOnce "quiet $sid" "cannot tell whether $($Entry.name) is quiet: $($r.Out -replace '\s+', ' ')"
+    return 'unknown'
+}
+
+# What the dev-kit rules (see the header) say for a lead stale in dev-kit ($s, $m as below, $St its lead-versions.json
+# entry, $V the installed version). Returns @{ How; Stop; Ask; Defer; Said }: How 'ready', 'quiet' or 'critical,
+# quiet' to restart now, '' to wait; Stop when a ready mark expired (READY-EXPIRED, nothing else this round); Ask the
+# reason a lead is not quiet for a critical release; Defer for a routine release on the day the lead turned stale;
+# Said the lead's `restart status`.
+function Get-DevKitRestartPlan($s, $m, $St, [string]$V, [string]$BusyTask) {
+    $plan = @{ How = ''; Stop = $false; Ask = ''; Defer = $false; Said = '' }
+    $said = Invoke-LeadRestartFile $s.Path @('status')
+    $plan.Said = $said
+    if ($said -match '^ready (\S+) (\d+)$') {
+        # Honoured whatever the kind (the owner may have asked with restart-leads.ps1 -Ask). The lead wrote its
+        # 30-second warning into its chat just before it marked itself ready.
+        $readyFor = $Matches[1]; $age = [int]$Matches[2]
+        if ($readyFor -ceq $V -and $age -lt $ReadyMaxAgeSec) {
+            if ($age -lt $ReadyWarnSec) { Start-Sleep -Seconds ($ReadyWarnSec - $age) }
+            $plan.How = 'ready'
+            return $plan
+        }
+        $null = Invoke-LeadRestartFile $s.Path @('clear')
+        # A ready mark for this version that went stale (a long hold): the lead already noted the version, so ask
+        # once more; its session watcher wakes it once (exit 7), or a wake message does.
+        $again = ''
+        if ($readyFor -ceq $V) { $null = Invoke-LeadRestartFile $s.Path @('request', '--version', $V); $again = '; asked again' }
+        Write-Log "READY-EXPIRED $($s.Session) ($($said -replace '\s+', ' '), installed $V$again)"
+        $plan.Stop = $true
+        return $plan
+    }
+    if ((Get-ReleaseKind $s.Session $St $V) -ceq 'routine') {
+        $today = (Get-Date).ToString('yyyy-MM-dd', [Globalization.CultureInfo]::InvariantCulture)
+        if ($St.StaleSince -ceq $today) { $plan.Defer = $true }
+        elseif (-not (Get-LeadActivity $m $BusyTask)) { $plan.How = 'quiet' }
+        return $plan  # not quiet on a later day: waits in silence, never a request
+    }
+    $why = Get-LeadActivity $m $BusyTask
+    if ($why) { $plan.Ask = $why } else { $plan.How = 'critical, quiet' }
+    return $plan
 }
 
 # One live lead ($s: its servers.psd1 row, $m: its entry in the session list, $V: the installed dev-kit
@@ -532,6 +631,12 @@ function Invoke-LeadVersionCheck($s, $m, [string]$V) {
     }
     if ($adopted) { try { Save-LeadVersions } catch { Write-Log "WARN cannot save $versionFile : $_" } }
     $devStale = $st.Version -cne $V
+    # The day this watcher first saw the process stale in dev-kit: a routine release waits until a later day.
+    $staleDay = if ($devStale) { (Get-Date).ToString('yyyy-MM-dd', [Globalization.CultureInfo]::InvariantCulture) } else { $null }
+    if (($devStale -and -not $st.StaleSince) -or (-not $devStale -and $st.StaleSince)) {
+        $st.StaleSince = $staleDay
+        try { Save-LeadVersions } catch { Write-Log "WARN cannot save $versionFile : $_" }
+    }
     $extChanges = @(Get-ExtChanges $st.Ext $ext)
     if (-not $devStale -and -not $extChanges) {
         # On the installed versions: a restart.json left by a HEAL, a crash or a manual restart is stale. Looked at once
@@ -559,30 +664,40 @@ function Invoke-LeadVersionCheck($s, $m, [string]$V) {
     $wokenByMessage = Test-WakeLead $name $procId
     $busyTask = $null
     if ($wokenByMessage -and $m.status -eq 'idle') { $busyTask = Get-BusyTask $s.Path }
-    if ($m.status -eq 'idle' -and -not $busyTask) {
-        $how = 'idle'
-    } else {
-        # Busy: only a fresh `ready <V> <seconds>` of the lead itself (or of restart-leads.ps1 -Ask) counts; V is
-        # the dev-kit version, the only one the lead's handshake knows. A lead stale only in an extension is
-        # never woken: no request (a paid turn), and it is restarted when it is idle.
-        $said = Invoke-LeadRestartFile $s.Path @('status')
-        if ($wokenByMessage -and $devStale -and ($said -ceq 'none' -or ($said -match '^asked (\S+) ' -and $Matches[1] -cne $V))) {
-            $null = Invoke-LeadRestartFile $s.Path @('request', '--version', $V)
-            $why = if ($busyTask) { "idle, $busyTask working" } else { 'busy' }
-            Write-Log "RESTART-ASKED $name (dev-kit $($st.Version) -> $V, $why)"
+    $idleFree = $m.status -eq 'idle' -and -not $busyTask
+    if ($devStale) {
+        $plan = Get-DevKitRestartPlan $s $m $st $V $busyTask
+        if ($plan.Stop) { return }  # a ready mark that expired (READY-EXPIRED)
+        $how = $plan.How
+        # The dev-kit rules say wait: an extension change still restarts an idle lead (the restart takes the
+        # pending dev-kit versions with it).
+        if (-not $how -and $extChanges -and $idleFree) { $how = 'idle' }
+        if (-not $how) {
+            # A critical release and a lead that is not quiet: a lead woken by message is asked (it warns the owner
+            # in its chat, marks itself ready, and the ready path above restarts it); an older one waits for quiet.
+            $said = $plan.Said
+            if ($plan.Ask -and $wokenByMessage -and ($said -ceq 'none' -or ($said -match '^asked (\S+) ' -and $Matches[1] -cne $V))) {
+                $null = Invoke-LeadRestartFile $s.Path @('request', '--version', $V)
+                Write-Log "RESTART-ASKED $name (dev-kit $($st.Version) -> $V, critical, $($plan.Ask))"
+            } elseif ($plan.Defer -and $deferLogged[$name] -cne "$procId|$V") {
+                $deferLogged[$name] = "$procId|$V"
+                Write-Log "RESTART-DEFERRED $name (dev-kit $($st.Version) -> $V, routine, until a later day)"
+            }
             return
         }
+    } elseif ($idleFree) {
+        $how = 'idle'
+    } else {
+        # Stale only in an extension and busy: only a fresh `ready <V> <seconds>` of the lead itself (or of
+        # restart-leads.ps1 -Ask) counts; V is the dev-kit version, the only one the lead's handshake knows. Such a
+        # lead is never woken: no request (a paid turn), and it is restarted when it is idle.
+        $said = Invoke-LeadRestartFile $s.Path @('status')
         if ($said -match '^ready (\S+) (\d+)$') {
-            $readyFor = $Matches[1]  # kept: later calls may reset $Matches
             if ($Matches[1] -ceq $V -and [int]$Matches[2] -lt $ReadyMaxAgeSec) {
                 $how = 'ready'
             } else {
                 $null = Invoke-LeadRestartFile $s.Path @('clear')
-                # A ready mark for this version that went stale (a long hold): the lead already noted the
-                # version, so ask once more; its session watcher wakes it once (exit 7), or a wake message does.
-                $again = ''
-                if ($devStale -and $readyFor -ceq $V) { $null = Invoke-LeadRestartFile $s.Path @('request', '--version', $V); $again = '; asked again' }
-                Write-Log "READY-EXPIRED $name ($($said -replace '\s+', ' '), installed $V$again)"
+                Write-Log "READY-EXPIRED $name ($($said -replace '\s+', ' '), installed $V)"
                 return
             }
         } else { return }  # none, or asked and not ready yet
@@ -1212,13 +1327,18 @@ try {
                 $x = @{}
                 if ($e.Value.ext) { foreach ($q in $e.Value.ext.PSObject.Properties) { $x[$q.Name] = [string]$q.Value } }
             }
-            $leadVer[$e.Name] = @{ Pid = [int]$e.Value.pid; Started = [string]$started; Version = [string]$e.Value.version; Ext = $x }
+            $since = $e.Value.staleSince
+            if ($since -is [datetime]) { $since = $since.ToString('yyyy-MM-dd', [Globalization.CultureInfo]::InvariantCulture) }
+            $leadVer[$e.Name] = @{ Pid = [int]$e.Value.pid; Started = [string]$started; Version = [string]$e.Value.version; Ext = $x
+                StaleSince = [string]$since }
         }
     }
 } catch { Write-Log "WARN cannot read $versionFile : $_" }
 $leadSeen = @{}     # lead name -> the pid whose start time was checked in this run
 $ReadyMaxAgeSec = 600  # a ready mark older than this is not acted on (READY-EXPIRED)
 $leadTried = @{}    # lead name -> the version a restart was tried for
+$releaseKinds = @{} # "<lead>|<pid>|<installed dev-kit>" -> critical or routine (Get-ReleaseKind)
+$deferLogged = @{}  # lead name -> "<pid>|<installed dev-kit>" RESTART-DEFERRED was logged for
 $handoffTried = @{}   # lead name -> "<name>|<file>" of the handoff a move was tried for (one try per marker)
 $handoffWaited = @{}  # lead name -> "<name>|<file>" of the handoff HANDOFF-WAIT was logged for
 $lastVersion = $null

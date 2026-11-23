@@ -48,7 +48,7 @@ not work or not met yet. A change that did not work becomes a disputed item, nev
 ### What you see
 You see only disputed items, high-impact ones, urgent ones and anything about how sessions talk to you; the
 reviewer decides the trivial ones itself (one place, a word or a sentence made clearer, no clash; at most 5 a week
-per project; in ClaudeDevKit one plugin update a day, because each update restarts every lead). You get them in
+per project; in ClaudeDevKit one plugin update per run). You get them in
 the weekly list and any one is reverted with one word. P asks once a week «розібрати N пунктів?»; after a «ні» it
 asks again the next day. Urgent items reach you at once. Why: owner, 2026-11-22: the reviewer applies trivial
 fixes itself; this replaces, for trivial fixes only, the 2026-11-19 decision that nothing reaches a rule without
