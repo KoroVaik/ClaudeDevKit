@@ -170,7 +170,7 @@ cannot push by itself (see "Servers"): Pult calls the PushNotification tool once
 of the message and writes nothing else (no cause line, no status). It comes when a lead did not take its event lines («<lead> не взяв повідомлення» or «<lead> не на зв'язку» and
 the events), once per session when a conversation passes 0.7 of its window (move it to a new
 session), and once per weekly window when, at the recent pace, the weekly limit runs out over 6 hours before its
-reset while task sessions are open (LIMIT-FORECAST in the log; «Тижневий ліміт за темпом скінчиться ...»). When Pult is down or does not take a message, the watcher asks a live lead to push instead
+reset while task sessions are open (LIMIT-FORECAST in the log; «Тижневий ліміт: витрачено 49%, за темпом скінчиться ...»). When Pult is down or does not take a message, the watcher asks a live lead to push instead
 («Pult не піднявся - запусти його на комп'ютері» and the event). Why: only a
 session the owner is attached to can push (`{DEVKIT}/claude-facts.md`, "A push from a fresh session is refused").
 When the host still demands visible output after a "no text" message, Pult gives the short "статус" reply

@@ -19,7 +19,8 @@ window already marked gives none, even if the forecast got worse.
 
 Prints one line: `none <reason>` (no-log, few-readings, short-span, no-rise, window-over, limit-reached, enough, no-open-tasks,
 marked) or `push | <run-out epoch> | <reset epoch> | <per cent> | <pace %/h> | <push text>`. The text is Ukrainian,
-in local time: «Тижневий ліміт за темпом скінчиться пт 20:00, скидання пн 10:00.» Exit 0; 2 on bad arguments.
+in local time: «Тижневий ліміт: витрачено 49%, за темпом скінчиться пт 20:00, оновиться пн 10:00» (the per cent is the last
+reading's, rounded). Exit 0; 2 on bad arguments.
 """
 import argparse
 import datetime
@@ -96,8 +97,8 @@ def local_text(epoch):
     return f"{DAYS[t.weekday()]} {t:%H:%M}"
 
 
-def push_text(runout, resets):
-    return f"Тижневий ліміт за темпом скінчиться {local_text(runout)}, скидання {local_text(resets)}."
+def push_text(pct, runout, resets):
+    return f"Тижневий ліміт: витрачено {round(pct):d}%, за темпом скінчиться {local_text(runout)}, оновиться {local_text(resets)}"
 
 
 def marked(path, resets):
@@ -124,7 +125,7 @@ def check(log, mark, open_tasks, now):
         return "none marked"
     Path(mark).parent.mkdir(parents=True, exist_ok=True)
     Path(mark).write_text(json.dumps({"week_resets": resets, "pushed": int(now)}), encoding="utf-8")
-    return f"push | {int(runout)} | {int(resets)} | {pct:g} | {pace:.2f} | {push_text(runout, resets)}"
+    return f"push | {int(runout)} | {int(resets)} | {pct:g} | {pace:.2f} | {push_text(pct, runout, resets)}"
 
 
 def main(argv=None):

@@ -809,7 +809,7 @@ C report after that re-reads P's whole context at full price (`plugins/dev-kit/c
 
 Push request: an `[EVT-<id>]` message whose first line ends with `phone push request.` asks P to push for the
 Pult watcher (when Pult is down or did not take a message; a size push and the weekly limit forecast push
-«Тижневий ліміт за темпом скінчиться ...» come the same way). After a forecast push P changes nothing: no pause, no queue item, no question. P calls the PushNotification tool once with
+«Тижневий ліміт: витрачено 49%, за темпом скінчиться ...» come the same way). After a forecast push P changes nothing: no pause, no queue item, no question. P calls the PushNotification tool once with
 exactly the text line of the message, with no owner yes, and writes nothing else: the named exception to
 "Phone push" and to the forced-output state. The same id twice is pushed once. Why: a fresh session's push is refused, so the
 watcher asks a running one (`plugins/dev-kit/claude-facts.md`, "A push from a fresh session is refused").

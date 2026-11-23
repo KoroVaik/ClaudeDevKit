@@ -42,8 +42,8 @@ class UsageForecastTest(unittest.TestCase):
         parts = line.split(" | ")
         self.assertEqual(int(parts[1]), int(NOW - H + 10 * H))
         self.assertEqual(int(parts[2]), int(resets))
-        self.assertIn("Тижневий ліміт за темпом скінчиться", parts[5])
-        self.assertIn("скидання", parts[5])
+        self.assertRegex(parts[5], r"^Тижневий ліміт: витрачено 50%, за темпом скінчиться (пн|вт|ср|чт|пт|сб|нд) \d\d:\d\d, "
+                                   r"оновиться (пн|вт|ср|чт|пт|сб|нд) \d\d:\d\d$")  # the last reading's per cent
         self.assertEqual(self.check(), "none marked")  # never repeated in that window, even if it gets worse
         self.write([(3, 40, resets), (1, 50, resets), (0, 70, resets + 120)])  # same window, reset time jitter
         self.assertEqual(self.check(), "none marked")

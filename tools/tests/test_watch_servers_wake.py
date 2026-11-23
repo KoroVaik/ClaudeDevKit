@@ -485,8 +485,8 @@ class WatchServersWakeTest(unittest.TestCase):
         self.assertEqual(1, len(pushes), log)
         self.assertEqual("Pult", self.to(pushes[0]))
         self.assertRegex(self.push(pushes[0]),
-                         r"^Тижневий ліміт за темпом скінчиться (пн|вт|ср|чт|пт|сб|нд) \d\d:\d\d, "
-                         r"скидання (пн|вт|ср|чт|пт|сб|нд) \d\d:\d\d\.$")
+                         r"^Тижневий ліміт: витрачено 50%, за темпом скінчиться (пн|вт|ср|чт|пт|сб|нд) \d\d:\d\d, "
+                         r"оновиться (пн|вт|ср|чт|пт|сб|нд) \d\d:\d\d$")
         self.assertEqual(1, len([line for line in log if line.startswith("LIMIT-FORECAST runout=")]), log)
 
     # protects: Rule
