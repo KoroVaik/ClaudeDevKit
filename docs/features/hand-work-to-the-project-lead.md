@@ -91,6 +91,7 @@ researches with a read-only subagent and never puts to you.
 In an «Обговорення:» session you settle the meaning and the mockup with one agent, and the feature file
 ends with an «Approved design» section (acceptance criteria, the approved mockup, the user's situation).
 Then P starts a C that builds the screen and shows you its shots next to the mockup.
+Each question there names the screen it is about in its own words, with no block of facts before it.
 
 ### A C asks only P
 A C never asks you in its own chat; it asks P, and it messages no other session unless P's brief for it

@@ -59,6 +59,11 @@ from the project of at most 15 words, as the owner's global rules ask) and
 the **recommendation** with its reason. This skill's questions are its own exception to the owner's global reply cap. No long
 explanations unless asked.
 
+Each question stands alone: it names the screen or thing it is about in its own words, so the owner need
+not recall an earlier screen or message, and no paragraph of facts or numbers comes before the questions.
+Why: owner, 2026-11-23, P: Zhratva, seen in «Обговорення: Схвалення страви»: the questions came after a
+long block of facts and pointed at a screen shown earlier; the owner agreed to this rule with «так».
+
 ## Boundaries
 
 No code and no scaffolding in this skill. When discovery for an area is done, offer to move
