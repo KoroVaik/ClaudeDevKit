@@ -34,7 +34,8 @@ in the middle of talks.
 A lead that saved its notes at a third of its context is stopped and resumed with an empty context in the same
 session (no phone push), when it is quiet as for a release restart, or 30 seconds after its warning in a talk, or
 after your «перезапускай». If that resume fails, a fresh session of the same name loads the notes (one push). A
-failed move is shown in Pult and pushed to your phone; the old lead comes back.
+failed move, or one that hangs and is cut after 10 minutes, is shown in Pult and pushed to your phone; the old
+lead comes back.
 
 ### Your own sessions are never touched
 The watcher never touches your own sessions, taken-over ones included.
@@ -58,6 +59,7 @@ one project, remove its row from the project list.
 - A lead's start hangs: after 5 minutes it is cut, logged, and the watcher goes on; the next try follows as usual.
 - A lead restart crashes halfway: at the watcher's next check the pause is lifted and the stopped leads come back.
 - A lead restart hangs: after 10 minutes it is cut, logged, the pause is lifted, and the watcher goes on.
+- A lead's move to a fresh context hangs: after 10 minutes it is cut, logged, the old lead comes back, and the watcher goes on.
 
 ## Built in
 - `plugins/pult/scripts/start-servers.ps1`
@@ -73,6 +75,5 @@ one project, remove its row from the project list.
 - `tools/tests/test_start_servers_handoff.py`
 
 ## Open
-- [ ] Defect: the watcher's handoff move calls `start-servers.ps1 -Handoff` with no time limit, so a hung move stalls the watcher loop (`plugins/pult/scripts/watch-servers.ps1`, Invoke-HandoffCheck; found by the restart-timeout build, `plans/pult-restart-timeout.md`)
 - [ ] Check from the watcher's logs and the transcripts that Pult and a lead with no events show no wakes for a day, that one forced GIVEUP gives one push and the fix line in Pult, and that a push relayed by a live lead (Pult down) reaches the phone; the lead relay is untested
 - [ ] Check whether you can still attach to a P from a terminal with `claude attach <id>`, and the exact wording of the session list in the phone app

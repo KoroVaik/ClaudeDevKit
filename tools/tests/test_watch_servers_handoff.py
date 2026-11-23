@@ -16,6 +16,12 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))  # also when run by module name, not only by discover
 from test_watch_servers_restart import LEAD, POWERSHELL, WatcherEnv, owner_said  # noqa: E402
 
+
+def pid_alive(pid):
+    out = subprocess.run(["tasklist", "/FI", f"PID eq {pid}", "/NH"], capture_output=True, text=True, timeout=60)
+    return str(pid) in out.stdout
+
+
 SID = "11111111-aaaa-bbbb-cccc-000000000001"
 FILE = "handoff-1.md"
 
@@ -36,6 +42,12 @@ print((d / "agents.json").read_text())
 STUB_START = '''param([string[]]$Restarted, [string[]]$Only, [string]$ConfigFile, [string]$StateDir, [string]$Handoff,
     [string]$HandoffSessionId, [int]$HandoffClearWaitSec, [int]$HandoffStopWaitSec)
 Add-Content -LiteralPath $env:TEST_CALLS_FILE -Value "start Only=$($Only -join ',') Handoff=$Handoff Session=$HandoffSessionId"
+$s = [int]$env:TEST_HANDOFF_SLEEP
+if ($Handoff -and $s -gt 0) {  # a hung move: its child (a /clear or resume that never ends) keeps it going
+    $c = Start-Process -FilePath powershell.exe -ArgumentList '-NoProfile', '-Command', "Start-Sleep $s" -NoNewWindow -PassThru
+    Add-Content -LiteralPath $env:TEST_CALLS_FILE -Value "pid=$PID child=$($c.Id)"
+    $c.WaitForExit()
+}
 if ($env:TEST_START_OUTPUT -notlike 'Started lead*') {  # a failed start, or the same session resumed: live again
     Copy-Item -LiteralPath (Join-Path $env:TEST_BIN 'agents.bak') -Destination (Join-Path $env:TEST_BIN 'agents.json') -Force
 }
@@ -51,6 +63,7 @@ class WatchServersHandoffTest(WatcherEnv, unittest.TestCase):
         (self.scripts / "start-servers.ps1").write_text(STUB_START, encoding="ascii")
         (self.bin / "fake_claude.py").write_text(FAKE_CLAUDE, encoding="ascii")
         self.start_output = "Started lead: {name}"
+        self.handoff_sleep = 0
         # The lead's project holds hard-ban lines on main and the user accepted the bypass disclaimer (a fake user
         # folder, so the settings of this machine are not read): the gate before the stop passes.
         self.user_home = self.tmp / "user"
@@ -79,7 +92,7 @@ class WatchServersHandoffTest(WatcherEnv, unittest.TestCase):
 
     def env(self):
         return dict(super().env(), USERPROFILE=str(self.user_home), TEST_BIN=str(self.bin),
-                    TEST_START_OUTPUT=self.start_output)
+                    TEST_START_OUTPUT=self.start_output, TEST_HANDOFF_SLEEP=str(self.handoff_sleep))
 
     def run_watch(self, rounds, *extra):
         subprocess.run([POWERSHELL, "-NoProfile", "-ExecutionPolicy", "Bypass", "-File",
@@ -228,6 +241,30 @@ class WatchServersHandoffTest(WatcherEnv, unittest.TestCase):
         self.assertEqual(["11111111"], self.stops(), "one try per marker, though the old lead is live again")
         self.assertEqual([f"start Only={LEAD} Handoff={FILE} Session={SID}"], self.starts())
         self.assertTrue(self.marker_left(), "the marker stays for the owner or the lead")
+
+    # protects: Bug
+    def test_hung_move_is_stopped_reported_once_and_the_old_lead_comes_back_by_heal(self):
+        # Round 1: the move hangs and is cut; rounds 2-3: the stopped lead is down, HEAL resumes it (no -Handoff);
+        # round 4: it is live with its marker, which is not tried again.
+        self.start_output = "Resumed lead: {name}"
+        self.handoff_sleep = 120
+        self.handoff("save", "--file", FILE)
+        t = time.monotonic()
+        log = self.run_watch(4, "-HandoffMoveWaitSec", "3")
+        self.assertLess(time.monotonic() - t, 100)
+        timeouts = [line for line in log if " HANDOFF-TIMEOUT " in line]
+        self.assertEqual(1, len(timeouts), log)
+        self.assertIn(f" HANDOFF-TIMEOUT {LEAD} (no end in 3 s, stopped)", timeouts[0])
+        self.assertFalse([line for line in log if " HANDOFF-FAILED " in line or " HANDOFF-CLEAR " in line], log)
+        self.assertEqual(["11111111"], self.stops(), "one try per marker")
+        self.assertEqual([f"start Only={LEAD} Handoff={FILE} Session={SID}", f"start Only={LEAD} Handoff= Session="],
+                         self.starts())
+        self.assertEqual(1, len([line for line in log if f" HEAL {LEAD} " in line]), log)
+        self.assertFalse([line for line in log if "HEAL-FAILED" in line or "HEAL-TIMEOUT" in line], log)
+        self.assertTrue(self.marker_left(), "the marker stays for the owner or the lead")
+        hung = [line for line in self.restart_calls() if line.startswith("pid=")][0]
+        for pid in (int(w.split("=")[1]) for w in hung.split()):  # the run and its child are stopped
+            self.assertFalse(pid_alive(pid), pid)
 
     # protects: Rule
     def test_lead_still_running_after_the_stop_is_reported_and_no_fresh_lead_is_started(self):

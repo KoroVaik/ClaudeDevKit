@@ -61,12 +61,13 @@ problem it proposes a fix and acts after an explicit yes.
   for every lead on dev-kit 0.1.78 or later and sends each new event (a task session gone, finished, on the
   usage limit, waiting 20 minutes, past a third of its context, or a restart request) to the lead as a
   cross-session message `[EVT-<id>] Pult server watcher: ...`, by a one-shot `claude -p` (haiku, safe mode,
-  only the SendMessage tool, `bypassPermissions`; `plugins/dev-kit/claude-facts.md`, "A one-shot `claude -p` delivers a message into a running session"). GIVEUP, GIVEUP-TASK, RESTART-LEAD-FAILED, RESTART-LEAD-TIMEOUT and HANDOFF-FAILED go to
+  only the SendMessage tool, `bypassPermissions`; `plugins/dev-kit/claude-facts.md`, "A one-shot `claude -p` delivers a message into a running session"). GIVEUP, GIVEUP-TASK, RESTART-LEAD-FAILED, RESTART-LEAD-TIMEOUT, HANDOFF-FAILED and HANDOFF-TIMEOUT go to
   the Pult session the same way; Pult pushes them to your phone. A lead silent 50 minutes while one of its
   task sessions works gets a keep-warm ping. A lead past a third of its own context that saved a handoff
   (`dev-kit-sessions handoff save`) is moved to a fresh context in the same session, by a resume with `/clear`
   and then the handoff prompt, so no phone push; if that fails, a fresh session of the same name loads it (when:
-  the feature above; HANDOFF-CLEAR, or HANDOFF-FALLBACK and HANDOFF, in the log). A message counts as delivered once its id shows in the
+  the feature above; HANDOFF-CLEAR, or HANDOFF-FALLBACK and HANDOFF, in the log; a move still running after 10
+  minutes is stopped as HANDOFF-TIMEOUT and the old lead comes back by HEAL). A message counts as delivered once its id shows in the
   target's transcript; until then it is sent again, then pushed to your phone (for Pult: «Pult не піднявся -
   запусти його на комп'ютері»). A push also goes once per session when a conversation passes 0.7 of its
   window. The watcher cannot push by itself (a fresh session's push is refused: `plugins/dev-kit/claude-facts.md`,

@@ -10,7 +10,7 @@
 #   `claude respawn` of a HEAL-TASK (HEAL-TASK-TIMEOUT <name> <id>). A restart-leads.ps1 run (RESTART-LEAD below) still
 #   going after $LeadRestartWaitSec s is stopped the same way and logged as RESTART-LEAD-TIMEOUT <name> (a failed restart:
 #   no new try on the same versions); the hold it left is removed at once (HOLD-STALE) and the round goes on, so a
-#   lead it had stopped comes back by HEAL.
+#   lead it had stopped comes back by HEAL. A handoff move (below) is bounded the same way: HANDOFF-TIMEOUT.
 #   A hold file restart-leads.ps1 left (its text names its pid) whose process is gone, or is another process now
 #   (started after the hold was written), is stale: the script crashed before its full start-servers.ps1 run. The
 #   watcher removes it at the start of a round (not with -Once, not while a full start runs) and logs HOLD-STALE
@@ -91,7 +91,7 @@
 #     finished, limited, stale, fill, restart, handoff); each becomes a line for that lead (as the old watcher printed
 #     it, `<kind>: <name> | <id> | <detail>`, or `restart requested: <V>`, or `handoff requested: <file>`) with a
 #     `sessions.py mark` call run after delivery. A lead below that version keeps its own watcher and is skipped.
-#   - Pult events: each GIVEUP, GIVEUP-TASK, RESTART-LEAD-FAILED, RESTART-LEAD-TIMEOUT and HANDOFF-FAILED line also goes to Pult (the session list entry
+#   - Pult events: each GIVEUP, GIVEUP-TASK, RESTART-LEAD-FAILED, RESTART-LEAD-TIMEOUT, HANDOFF-FAILED and HANDOFF-TIMEOUT line also goes to Pult (the session list entry
 #     named exactly Pult, kind interactive). Once ever (wake-state.json), when Pult is live, it is told that its
 #     log watcher (watch-log.py) is retired and must not be armed again.
 #   - Keep-warm ping: a lead (version as above) that is live and idle, has a non-owner task session of its registry
@@ -166,7 +166,9 @@
 #   size push mark of that id is dropped, the list shows a new id from now on) or HANDOFF <name> <old session id> <file>
 #   (fresh). Lookups by the list's sessionId (transcripts, size, quiet, limits) follow the new id through the job state.
 #   `NO-BANS <name> `: Register-NoBans. Any other output: Write-Critical HANDOFF-FAILED <name>: <output> (Pult gets it);
-#   a stop that did not finish in time: HANDOFF-FAILED <name>: still running after the stop. A failed move keeps the marker and is
+#   a stop that did not finish in time: HANDOFF-FAILED <name>: still running after the stop. A start-servers.ps1 run
+#   still going after $HandoffMoveWaitSec s (a hung /clear, resume or fresh start) is stopped with its child processes
+#   (Invoke-Bounded) and logged by Write-Critical as HANDOFF-TIMEOUT <name> (Pult gets it); it is a failed move. A failed move keeps the marker and is
 #   not tried again for that marker until the watcher restarts (in memory, key name and file; a new file name, or a
 #   marker that was cleared and saved again, is a new try); the next round's HEAL brings an old lead that is down
 #   back as for any dead lead. After the stop the round's session list is read again, so the rest of the round sees
@@ -198,7 +200,9 @@
 # of a handoff move to end (default 120; both passed on to start-servers.ps1); -ReadyWarnSec: the age a ready mark or a
 # handoff go must reach before its restart or move (default 30, the lead's warning; all for tests). -HealWaitSec: the
 # longest a HEAL or HEAL-TASK run may take (default 300; for tests). -LeadRestartWaitSec: the longest a restart-leads.ps1 run
-# may take (default 600: its wait for the stopped lead, up to 60 s, plus a full start; for tests).
+# may take (default 600: its wait for the stopped lead, up to 60 s, plus a full start; for tests). -HandoffMoveWaitSec:
+# the longest the start-servers.ps1 -Handoff run of a handoff move may take (default 600: the /clear wait, up to 120 s,
+# two stop waits, up to 60 s each, and the fallback's fresh start; for tests).
 # -ConfigFile / -StateDir / -DevKitStateDir / -DaemonLog: another server list, Pult state folder,
 # dev-kit state folder and Claude Code daemon log (for tests with a throwaway lead).
 # -DevKitDir: the dev-kit plugin folder (default: ..\..\dev-kit next to this plugin); it holds
@@ -209,7 +213,8 @@ param([int]$IntervalSec = 60, [switch]$Once, [int]$Rounds = 0, [int]$MaxHeals = 
     [string]$ConfigFile, [string]$StateDir, [string]$DevKitStateDir, [string]$DaemonLog, [string]$DevKitDir,
     [string]$RestartExe = 'powershell.exe', [string]$WakeExe, [string]$SessionsPy,
     [int]$WakeConfirmSec = 120, [int]$WakeCooldownSec = 120, [int]$WakeDownSec = 600, [int]$HandoffStopWaitSec = 60,
-    [int]$ReadyWarnSec = 30, [int]$HandoffClearWaitSec = 120, [int]$HealWaitSec = 300, [int]$LeadRestartWaitSec = 600)
+    [int]$ReadyWarnSec = 30, [int]$HandoffClearWaitSec = 120, [int]$HealWaitSec = 300, [int]$LeadRestartWaitSec = 600,
+    [int]$HandoffMoveWaitSec = 600)
 
 . (Join-Path $PSScriptRoot 'plugin-versions.ps1')
 . (Join-Path $PSScriptRoot 'resume-lib.ps1')  # Get-SessionProcessIds, Get-JobState, Get-LeadPermissionMode, $HandoffNamePattern
@@ -278,7 +283,7 @@ function Write-WarnOnce([string]$Key, [string]$Text) {
     if ($warnedOnce[$Key] -cne $Text) { Write-Log "WARN $Text"; $warnedOnce[$Key] = $Text }
 }
 
-# Logs a critical line (GIVEUP, GIVEUP-TASK, RESTART-LEAD-FAILED, RESTART-LEAD-TIMEOUT, HANDOFF-FAILED); the wake pass of the round sends it to Pult.
+# Logs a critical line (GIVEUP, GIVEUP-TASK, RESTART-LEAD-FAILED, RESTART-LEAD-TIMEOUT, HANDOFF-FAILED, HANDOFF-TIMEOUT); the wake pass of the round sends it to Pult.
 function Write-Critical([string]$Msg) {
     Write-Log $Msg
     [void]$pultEvents.Add($Msg)
@@ -1378,8 +1383,9 @@ function Invoke-HandoffCheck($s, $m) {
         $words = @('-Only', $name, '-Handoff', $file, '-ConfigFile', $ConfigFile, '-StateDir', $StateDir,
             '-HandoffClearWaitSec', $HandoffClearWaitSec, '-HandoffStopWaitSec', $HandoffStopWaitSec)
         if ($sid) { $words += @('-HandoffSessionId', $sid) } else { Write-Log "HANDOFF-FALLBACK $name no session id" }
-        $out = & powershell.exe -NoProfile -ExecutionPolicy Bypass -File (Join-Path $PSScriptRoot 'start-servers.ps1') @words 2>&1 | Out-String
-        $said = ($out.Trim() -replace '\s+', ' ')
+        $res = Invoke-Bounded 'powershell.exe' (@('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File',
+            (Join-Path $PSScriptRoot 'start-servers.ps1')) + $words) $HandoffMoveWaitSec
+        $said = ($res.Out.Trim() -replace '\s+', ' ')
         $moved = $said -cmatch ('Resumed lead: ' + [regex]::Escape($name))
         if ($moved -or $said -cmatch ('Started lead: ' + [regex]::Escape($name))) {
             $cleared = Invoke-Sessions @('--project', $s.Path, 'handoff', 'clear')
@@ -1393,6 +1399,9 @@ function Invoke-HandoffCheck($s, $m) {
             $handoffAsked.Remove($name)
             $noBansTold.Remove($name)
             if ($moved) { Write-Log "HANDOFF-CLEAR $name $sid $file" } else { Write-Log "HANDOFF $name $sid $file" }
+        } elseif ($res.TimedOut) {
+            # The marker and the tried mark stay, as for a failed move; a lead left down comes back by HEAL.
+            Write-Critical ("HANDOFF-TIMEOUT {0} (no end in {1} s, stopped): {2}" -f $name, $HandoffMoveWaitSec, $said)
         } elseif ($said -cmatch ('NO-BANS ' + [regex]::Escape($name) + ' ')) {
             Register-NoBans $name $said
         } else {
