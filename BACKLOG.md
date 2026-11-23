@@ -35,3 +35,10 @@ What: an item whose cause was seen once and not urgent expires after about 2 wee
 Why: first sightings stay as `waiting` items with no end today; the 2-week expiry of one-off causes had no explicit yes (owner, 2026-11-21).
 Cheapest test: count the `waiting` items older than 14 days in the three projects' item folders and see how many the expiry would drop.
 Verdict (2026-11-22): keep as an idea; moved from the finished retro plan, the owner has not agreed it; no case yet shows it missing. Owner: yes (2026-11-23).
+
+## Project lead: a session that waits on something shows as «чекає» with the reason
+
+What: (1) `dev-kit:project-lead`, «Статуси сесій»: a new state for a C that waits more than 1 minute on something other than the owner (low memory on the machine, a retry timer, a store cool-off, another session): `- чекає - «<name>» (<reason in the owner's words, with the time it resumes if known>)`. Today the only waiting state is `чекає на тебе`, so P showed such a C as `працює`. (2) `dev-kit:manager`, "A task from the project lead": a C sends P a message (kind ЗАСТРЯГ or a new kind, as the messages.md design fits) whenever it will wait more than 1 minute on something, with the reason and the resume time, and another when it resumes. (3) P shows every such report at once as that status line; it never folds a C's report into `працює`.
+Why: Zhratva, 2026-11-23: a C reported to P that its app start for an import failed for lack of memory and it would retry in 30 min; P showed only «працює». Owner: «Я сказав сесії щоб повідомила тобі про проблему, вона зробила це, але ти промовчав, хоча вона тебе повідомила.» and «Але ж сесія не застрягла, а просто очікує на щось, то так і писати з причиною очікування. Очікування будем вважати коли сесія тупо чекає на щось більше ніж 1хв.»
+Cheapest test: a C that hits a 30-min retry wait sends P a report; P's next message has `чекає - «C: ...» (<reason>, повтор о HH:MM)`, not `працює`.
+Verdict (2026-11-23): owner already said yes to the idea on 2026-11-23; waits for the plugin agent to build it. Owner: yes (2026-11-23).
