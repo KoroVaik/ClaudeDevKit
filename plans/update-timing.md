@@ -48,5 +48,7 @@ Owner «так» to points 1-2 and to point 3 with its wording, 2026-11-23, «О
 Builders' places (from the check above): watcher version gate `watch-servers.ps1` ~:534-597;
 lead handshake project-lead SKILL.md ~:880-916; the rule for whoever bumps versions (manager or
 edit-rules skill, and the retro run's «one plugin update a day» line, retro SKILL.md:101).
-Not decided, builders keep current behaviour: extension plugins (web-kit, unity-kit) follow the same
-marks if they carry one.
+Not decided (asked, owner closed the talk without an answer): extension plugins (web-kit,
+unity-kit) keep their current restart behaviour; these rules cover dev-kit releases only.
+
+Spend: subscription only (discussion + one sonnet investigator); API 0 USD.
