@@ -35,3 +35,9 @@ What: an item whose cause was seen once and not urgent expires after about 2 wee
 Why: first sightings stay as `waiting` items with no end today; the 2-week expiry of one-off causes had no explicit yes (owner, 2026-11-21).
 Cheapest test: count the `waiting` items older than 14 days in the three projects' item folders and see how many the expiry would drop.
 Verdict (2026-11-22): keep as an idea; moved from the finished retro plan, the owner has not agreed it; no case yet shows it missing. Owner: yes (2026-11-23).
+
+## Discussion sessions: a question names its own screen
+
+What: in the «Обговорення:» session rules (dev-kit project-lead "Start an «Обговорення:» session" and `dev-kit:discovery-round`), a question to the owner is self-contained: it names the screen or thing it is about in its own words, and no paragraph of facts or numbers comes before the questions. The owner must not need to remember an earlier screen to answer.
+Why: owner, P: Zhratva, 2026-11-23, «так» to the lead's proposal «записати правило для сесій обговорення: питання саме пояснює, про який екран мова, без довгого вступу з цифрами? (не треба згадувати попередній екран)». Seen in «Обговорення: Схвалення страви» (Zhratva, 2026-11-22): questions came after a long block of facts and referred to a screen shown earlier.
+Cheapest test: a discussion session asks two questions about a mockup shown two messages before; each question names the screen and stands alone, with no facts paragraph before it.
