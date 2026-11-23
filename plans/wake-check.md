@@ -1,6 +1,6 @@
 # Check that Pult does not wake leads for nothing
 
-Status: check (C: Перевірка, що Pult не будить керівників дарма).
+Status: done; phone checks left open in the feature (C: Перевірка, що Pult не будить керівників дарма).
 
 Owner «так» 2026-11-23 to the start proposal, P: ClaudeDevKit chat.
 
@@ -21,3 +21,8 @@ Success criterion: each check marked passed or a defect filed with its cause; op
 - Owner via P, 20:40: the 20:32 test push (lead P: ClaudeDevKit, "Mobile push requested") did not show on the phone; the watcher's 19:57/19:59 messages are not in the Pult chat.
 - Push cause, hypotheses: (H1) no push shows while the phone app is open (claude-facts, checked 11-20; the owner was writing to P from the phone at 20:32); (H2) tool pushes stopped arriving after the 11-21 Claude Code update (2.1.330): owner answered "-" to four pushes on 11-23 12:01-12:23 with the app closed. The tool side is clean: "Mobile push requested" means handed to the server; `agentPushNotifEnabled` is on; no hook touches it. Check: app fully closed, one push from P.
 - Pult chat cause, hypotheses: the hub's child (pid 12152, `--print --sdk-url ... stream-json`) has run no turn since its 11-21 17:47 start (its session file never went busy). (H1) it holds peer messages for its host: since edf9472 (11-21) wakes are sent in bypassPermissions mode; the 11-20 note went in auto mode and was taken. (H2) such a child never turns a socket message into a turn. Check: P sends "korov-e9" a message and reads the delivery notice; the owner types in the Pult chat and we see whether its transcript moves.
+- Confirmed 20:42: P's bypass message to the hub got a delivery notice "held by that session"; a default-mode one-shot message was taken at once, and the hub's transcript shows `permissionMode: auto` (the server runs with bypassPermissions, its session does not). Fixed: the watcher sends Pult's messages (wakes and pushes relayed through Pult) in default mode; leads stay in bypass.
+- Test push 2 (app closed, via P, 20:42): "Mobile push requested"; the owner gave no answer. Phone checks stopped on P's word; left as Open items in the feature.
+- `claude attach`: passed. Pult wakes: passed. Lead quiet day, phone push arrival, Pult chat arrival, phone list wording: Open in the feature.
+
+Spend: ~0.4% of the weekly limit, estimate; API: 0 USD

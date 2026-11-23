@@ -315,7 +315,7 @@ class WatchServersWakeTest(unittest.TestCase):
         self.assertEqual([LEAD] * 3 + ["Pult"], [self.to(w) for w in wakes], log)
         self.assertEqual(["SendMessage"] * 4, [self.arg(w, "--tools") for w in wakes], "no one-shot push of its own")
         self.assertEqual(1, len({self.message(w).split("\n")[0] for w in wakes[:3]}), "a retry keeps the event id")
-        self.assertEqual("bypassPermissions", self.arg(wakes[3], "--permission-mode"))
+        self.assertEqual("default", self.arg(wakes[3], "--permission-mode"))
         push = self.push(wakes[3])
         self.assertLess(len(push), 200)
         self.assertTrue(push.startswith(f"{LEAD} не взяв повідомлення; stale: C: task | {TASK}"), push)
@@ -353,7 +353,7 @@ class WatchServersWakeTest(unittest.TestCase):
         self.assertFalse([line for line in log if line.startswith("WARN")], log)
         wakes = self.wakes()
         self.assertEqual(2, len(wakes), log)
-        self.assertEqual(["bypassPermissions"] * 2, [self.arg(w, "--permission-mode") for w in wakes])
+        self.assertEqual(["default"] * 2, [self.arg(w, "--permission-mode") for w in wakes])  # the hub holds a bypass sender's message
         self.assertIn("brackets added: Pult\n", wakes[0]["stdin"])
         self.assertIn("watch-log.py) is retired", self.message(wakes[0]))
         giveup = self.message(wakes[1]).split("\n")

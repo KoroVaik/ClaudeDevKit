@@ -234,6 +234,9 @@ if (-not $ClaudeExe) { $ClaudeExe = 'claude' }
 $WakeMinDevKit = '0.1.78'  # a lead that started on this dev-kit or later keeps no session watcher: it is woken by message
 $NoBansRetryMin = 10       # a lead blocked by missing hard bans is looked at again after this
 $WakeMode = 'bypassPermissions' # the one permission mode of every session of the plugin (the sender's too)
+# The Pult hub's own session runs in auto mode, whatever the server's --permission-mode, and holds (never takes) a
+# message from a bypassPermissions sender; one from a default-mode sender it takes (seen 2026-11-23, plans/wake-check.md).
+$PultWakeMode = 'default'
 $WakeMaxTries = 3         # sends of one message before the phone fallback
 $WakeWaitSec = 60          # a one-shot sender still running after this is stopped
 $PhoneRetrySec = 600       # a failed phone push is tried again after this
@@ -1047,7 +1050,7 @@ function Test-WakeTaken($Item) {
 
 function Send-WakeItem($Item, $T) {
     if (-not $Item.Tries) { Write-Log "WAKE $($Item.Target) $($Item.Id) cause=$($Item.Cause) kinds=$($Item.Kinds -join ',')" }
-    $Item.Mode = $WakeMode
+    $Item.Mode = $(if ($Item.Target -ceq 'Pult') { $PultWakeMode } else { $WakeMode })
     $Item.SessionId = $T.SessionId
     $Item.Tries++
     $Item.Sent = Get-Now
@@ -1094,7 +1097,7 @@ function Send-PhoneItem($Item, $Targets, $Handled) {
     $Handled[$relay] = $true
     if (-not $Item.Tries -and -not $Item.From) { Write-Log "WAKE phone $($Item.Id) cause=$($Item.Cause) kinds=$($Item.Kinds -join ',')" }
     $Item.Relay = $relay
-    $Item.Mode = $WakeMode
+    $Item.Mode = $(if ($relay -ceq 'Pult') { $PultWakeMode } else { $WakeMode })
     $Item.SessionId = $Targets[$relay].SessionId
     $Item.Tries++
     $Item.Sent = Get-Now

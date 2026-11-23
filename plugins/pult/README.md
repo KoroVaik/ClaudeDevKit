@@ -73,7 +73,8 @@ problem it proposes a fix and acts after an explicit yes.
   window. The watcher cannot push by itself (a fresh session's push is refused: `plugins/dev-kit/claude-facts.md`,
   "A push from a fresh session is refused"), so every push is a message asking a relay session to push it: Pult when it is live, else a
   live lead. Pult's own session is listed by `claude agents` under a system name, not "Pult", so the
-  watcher finds it as the session in the home folder (of several, the one the Pult server started) and sends to that name. It logs each live session's size every 10 minutes (log WAKE, WAKE-SENT, WAKE-TAKEN,
+  watcher finds it as the session in the home folder (of several, the one the Pult server started) and sends to that name. Its
+  messages go in default mode: that session runs in auto mode and holds a message from a bypassPermissions sender. It logs each live session's size every 10 minutes (log WAKE, WAKE-SENT, WAKE-TAKEN,
   WAKE-FAILED, WAKE-FALLBACK, WAKE-FALLBACK-NONE, PUSH-SIZE, SIZE). Its files in `~/.claude/pult`: `wake-pending.json`,
   `wake-state.json`, `size-state.json`.
 - A lead row in `servers.psd1` may set `Prompt`, `Model` and `Effort` (defaults: `/dev-kit:project-lead`,

@@ -75,5 +75,7 @@ one project, remove its row from the project list.
 - `tools/tests/test_start_servers_handoff.py`
 
 ## Open
-- [ ] Check from the watcher's logs and the transcripts that Pult and a lead with no events show no wakes for a day, that one forced GIVEUP gives one push and the fix line in Pult, and that a push relayed by a live lead (Pult down) reaches the phone; the lead relay is untested
-- [ ] Check whether you can still attach to a P from a terminal with `claude attach <id>`, and the exact wording of the session list in the phone app
+- [ ] Check on the phone that a push asked of a live lead arrives with the Claude app fully closed (the tool answers "Mobile push requested"; on 2026-11-23 one with the app open did not show, one with it closed got no answer; see `plans/wake-check.md`)
+- [ ] Check in the Pult chat that a watcher message now arrives (sent in default mode to the hub's system name; on 2026-11-23 a default-mode test message was taken, bypass ones were held)
+- [ ] Find a quiet day of a lead in the watcher log and confirm it shows no wake (every lead wake seen so far had an event or a keep-warm cause)
+- [ ] Check the exact wording of the session list in the phone app
