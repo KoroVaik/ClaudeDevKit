@@ -9,3 +9,44 @@ Topics for the talk: who decides if an update is critical and how; what waits fo
 Related, already agreed and built separately (do not reopen): a long session moves to a fresh one at a third of its context instead of half (owner «так», 2026-11-23).
 
 Result: the «Owner's approval» section in this file with every agreed point in builder detail.
+
+## How it works now (checked 2026-11-23, investigator)
+
+- Pult watcher (`plugins/pult/scripts/watch-servers.ps1`, every 60 s) compares each live lead's start version with `plugins/dev-kit/.claude-plugin/plugin.json` (`Invoke-LeadVersionCheck`, ~:494-597).
+- Idle lead: restarted at once (:562-563). Busy lead: gets `restart requested: <version>`, finishes its step, runs `dev-kit-sessions restart ready`, watcher restarts it (:569-578; project-lead SKILL.md:880-916).
+- Only the host idle/busy flag is tested; a lead waiting on an owner answer counts as idle, so it restarts mid-talk.
+- Versions are bumped by hand in each plugin-changing commit; no critical flag, no batching except the retro run's one bump.
+- After every restart P sends each active C a resend ВКАЗІВКА, so N restarts = N identical messages.
+
+## Owner's approval
+
+Owner «так» to points 1-2 and to point 3 with its wording, 2026-11-23, «Обговорення: update-timing».
+
+1. Who decides. The agent that bumps a plugin version marks that release «critical» or «routine»
+   in the same commit, with a one-line reason. Critical = agents cannot cope without it (messages
+   lost, sessions stuck or looping, a lead or C cannot do its job, harm to data). Everything else is
+   routine. The mark must be machine-readable for the Pult watcher (place left to the builders, for
+   example a field next to `version` in `plugin.json`); a missing mark counts as routine.
+2. Routine releases. The watcher does not restart a lead for a routine release on the day it
+   appears. All routine releases of a day are collected; the lead restarts once on a later day, at
+   its first quiet moment (point 3's quiet test), onto the newest version. No fixed hour, no
+   scheduled task (owner ruling 2026-11-22: not Pult as a scheduler, no Windows task). Example: five
+   routine bumps today = one restart tomorrow. A restart that happens for any other reason (a
+   critical release, the move to a fresh session) takes the pending routine versions with it.
+3. Critical releases. Restart the same day, but not in the middle of a talk:
+   - Quiet: the lead is idle, its last message to the owner is not an open question, and the owner
+     has written nothing to it for 5 minutes. Then restart silently, no warning.
+   - Active (not quiet): the lead writes into its own chat, as its own message, exactly
+     «⚠ ЧЕРЕЗ 30 СЕК БУДЕ ПЕРЕЗАВАНТАЖЕННЯ (ОНОВЛЕННЯ ІНСТРУМЕНТІВ)», marks itself ready, and the
+     watcher restarts it 30 seconds after that message. No waiting for a pause. A lead busy mid-turn
+     first finishes its current step (existing handshake), then writes the warning.
+   - An owner message sent during those 30 seconds is not lost: it is answered after the restart
+     (existing handshake behaviour, project-lead SKILL.md ~:898).
+4. Side effect expected, not a separate rule: fewer restarts means fewer resend ВКАЗІВКА messages
+   from P to each C (one per restart today).
+
+Builders' places (from the check above): watcher version gate `watch-servers.ps1` ~:534-597;
+lead handshake project-lead SKILL.md ~:880-916; the rule for whoever bumps versions (manager or
+edit-rules skill, and the retro run's «one plugin update a day» line, retro SKILL.md:101).
+Not decided, builders keep current behaviour: extension plugins (web-kit, unity-kit) follow the same
+marks if they carry one.

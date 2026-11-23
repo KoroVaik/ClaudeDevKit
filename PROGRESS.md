@@ -10,6 +10,7 @@
 
 ## Top priorities
 
+- Plugin updates by criticality (critical same day with a 30 s warning, routine next day): build from [the plan](plans/update-timing.md#owners-approval).
 - Zhratva joins the shared spend log and the owner adds the API deny lines: [Open items](docs/features/log-and-reconcile-api-spend.md#open).
 - Live check of the event-only wakes and of a push relayed by a lead: [Open items](docs/features/start-leads-at-logon-and-heal-them.md#open).
 
