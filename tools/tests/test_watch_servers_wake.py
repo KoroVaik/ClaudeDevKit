@@ -155,7 +155,7 @@ class WatchServersWakeTest(unittest.TestCase):
         self.config_file = self.tmp / "servers.psd1"
         self.config_file.write_text("@{ Servers = @( %s ) }\n" % ", ".join(rows), encoding="utf-8-sig")
 
-    def agents(self, lead="idle", task="busy", pult=False):
+    def agents(self, lead="idle", task="busy", pult=False, hub_name=None):
         items = [{"pid": os.getpid(), "kind": "background", "name": LEAD, "sessionId": LEAD_SID, "id": LEAD_SID[:8],
                   "state": "working" if lead == "busy" else "idle", "status": lead},
                  {"pid": 999998, "kind": "background", "name": "C: task", "sessionId": TASK, "id": TASK[:8],
@@ -163,6 +163,9 @@ class WatchServersWakeTest(unittest.TestCase):
         if pult:
             items.append({"pid": 999997, "kind": "interactive", "name": "Pult", "sessionId": PULT_SID,
                           "id": PULT_SID[:8], "status": "idle"})
+        if hub_name:  # the hub's Remote Control session: a system name, cwd = the home folder
+            items.append({"pid": 999997, "kind": "interactive", "name": hub_name, "sessionId": PULT_SID,
+                          "id": PULT_SID[:8], "status": "idle", "cwd": str(Path.home())})
         (self.bin / "agents.json").write_text(json.dumps(items), encoding="utf-8")
 
     def registry_task(self, owner=False):
@@ -360,6 +363,26 @@ class WatchServersWakeTest(unittest.TestCase):
         self.assertTrue(any(re.match(r"WAKE Pult \S+ cause=event kinds=GIVEUP$", line) for line in log), log)
         self.assertEqual(2, len([line for line in log if line.startswith("WAKE-TAKEN Pult ")]), log)
         self.assertTrue(json.loads((self.pult / "wake-state.json").read_text(encoding="utf-8"))["PultNote"])
+
+    # protects: Bug
+    def test_pult_hub_listed_with_a_system_name_gets_the_giveup_under_that_name(self):
+        # The hub's session shows as "<user>-e9" in the session list, never "Pult": it is still live, the message is
+        # addressed by the system name and no "Pult did not come up" phone push goes out.
+        system_name = "user-e9"
+        self.config(lead=False, server=True)
+        self.agents(hub_name=system_name)
+        (self.bin / "wake-plan.json").write_text(json.dumps(
+            {"deliver": True, "transcripts": {LEAD: str(self.lead_transcript), system_name: str(self.pult_transcript)}}),
+            encoding="utf-8")
+        log = self.run_watch(3, "-MaxHeals", "0", "-WakeDownSec", "0")
+        wakes = self.wakes()
+        self.assertEqual([system_name], [self.to(w) for w in wakes], log)
+        giveup = self.message(wakes[0]).split("\n")
+        self.assertTrue(giveup[1].startswith(f"GIVEUP {SERVER} ("), giveup)
+        self.assertTrue(any(re.match(r"WAKE Pult \S+ cause=event kinds=GIVEUP$", line) for line in log), log)
+        self.assertTrue(any(line.startswith("WAKE-TAKEN Pult ") for line in log), log)
+        self.assertFalse([line for line in log if "FALLBACK" in line or "phone" in line], log)
+        self.assertEqual([], json.loads((self.pult / "wake-pending.json").read_text(encoding="utf-8")))
 
     # protects: Rule
     def test_lead_on_an_older_dev_kit_is_left_to_its_own_watcher(self):

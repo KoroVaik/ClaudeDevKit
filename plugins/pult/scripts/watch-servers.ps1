@@ -1055,7 +1055,7 @@ function Send-WakeItem($Item, $T) {
     $script:wakeDirty = $true
     $wakeState.LastWake[$Item.Target] = $Item.Sent
     Save-WakeState
-    $r = Send-Wake $Item.Target (Get-WakeText $Item) $Item.Mode
+    $r = Send-Wake $T.Name (Get-WakeText $Item) $Item.Mode  # the session name: for the hub its system name, not 'Pult'
     if (-not $r.Ok) { Write-Log "WAKE-FAILED $($Item.Target) $($Item.Id) $($r.Reason)"; return }
     Write-Log "WAKE-SENT $($Item.Target) $($Item.Id) (try $($Item.Tries), mode $($Item.Mode))"
     $null = Test-WakeTaken $Item  # usually already in the transcript; else looked for in the next rounds
@@ -1102,7 +1102,7 @@ function Send-PhoneItem($Item, $Targets, $Handled) {
     $script:wakeDirty = $true
     $wakeState.LastWake[$relay] = $Item.Sent
     Save-WakeState
-    $r = Send-Wake $relay (Get-WakeText $Item) $Item.Mode
+    $r = Send-Wake $Targets[$relay].Name (Get-WakeText $Item) $Item.Mode  # the relay's session name (the hub's system name for 'Pult')
     if (-not $r.Ok) { Write-Log "WAKE-FAILED phone $($Item.Id) via $relay $($r.Reason)"; return }
     Write-Log "WAKE-SENT phone $($Item.Id) via $relay (try $($Item.Tries), mode $($Item.Mode))"
     $null = Test-WakeTaken $Item
@@ -1170,20 +1170,62 @@ function Invoke-SizeCheck($Targets) {
     $script:wakeDirty = $true
 }
 
+# A folder path as one comparable string: resolved, no trailing slash, lower case. '' when it is empty or unreadable.
+function Get-FolderKey($Path) {
+    if (-not [string]$Path) { return '' }
+    try {
+        $full = [IO.Path]::GetFullPath([string]$Path)
+        $r = Resolve-Path -LiteralPath $full -ErrorAction SilentlyContinue
+        if ($r) { $full = [string]$r.ProviderPath }
+        return $full.TrimEnd('\', '/').ToLowerInvariant()
+    } catch { return '' }
+}
+
+# The session of the Pult hub in the session list $List: @{ Agent; Name } or $null. The hub's Remote Control session has
+# a system name like "<user>-e9" there, not "Pult" (plugins/dev-kit/claude-facts.md, "The Remote Control server's own
+# session has a system name"; status-page.py treats a home-folder session as Pult the same way): a session named
+# "Pult" first, else an interactive session with cwd = the home folder; of several, the one whose parent process is
+# the server (a claude process with ` remote-control ` and "Pult" in its command line, the test of hub.md), else the
+# first. Name is what a message must name as its target.
+function Find-PultAgent($List) {
+    $live = @($List | Where-Object { $_.kind -eq 'interactive' -and $_.pid })
+    $named = $live | Where-Object { $_.name -ceq 'Pult' } | Select-Object -First 1
+    if ($named) { return @{ Agent = $named; Name = [string]$named.name } }
+    $home1 = Get-FolderKey $(if ($env:USERPROFILE) { $env:USERPROFILE } else { [Environment]::GetFolderPath('UserProfile') })
+    if (-not $home1) { return $null }
+    $cands = @($live | Where-Object { (Get-FolderKey $_.cwd) -ceq $home1 })
+    if (-not $cands.Count) { return $null }
+    $pick = $cands[0]
+    if ($cands.Count -gt 1) {
+        foreach ($c in $cands) {
+            try {
+                $own = Get-CimInstance Win32_Process -Filter "ProcessId=$([int]$c.pid)" -ErrorAction Stop
+                $par = Get-CimInstance Win32_Process -Filter "ProcessId=$([int]$own.ParentProcessId)" -ErrorAction Stop
+            } catch { continue }
+            if ($par.Name -in @('claude.exe', 'node.exe') -and [string]$par.CommandLine -match '\sremote-control\s' -and [string]$par.CommandLine -match 'Pult') {
+                $pick = $c; break
+            }
+        }
+    }
+    return @{ Agent = $pick; Name = [string]$pick.name }
+}
+
 # The wake pass of a round (see the header).
 function Invoke-WakePass {
     $script:wakeDirty = $false
-    # Targets of this round: name -> @{ Kind; Live; SessionId; Idle; Row; Agent }.
+    # Targets of this round: key -> @{ Kind; Live; SessionId; Idle; Row; Agent; Name }. The key of a lead is its session
+    # name, the key of the hub is always 'Pult' (wake state, logs, items); Name is the session name a message is sent to.
     $targets = @{}
     if ($null -ne $agents) {
         foreach ($s in $servers) {
             if (-not $s.Lead) { continue }
             $m = $agents | Where-Object { $_.kind -eq 'background' -and $_.name -ceq $s.Session -and $_.pid } | Select-Object -First 1
             $targets[$s.Session] = @{ Kind = 'lead'; Live = [bool]$m; SessionId = [string]$m.sessionId
-                Idle = [bool]($m -and $m.status -eq 'idle'); Row = $s; Agent = $m }
+                Idle = [bool]($m -and $m.status -eq 'idle'); Row = $s; Agent = $m; Name = $s.Session }
         }
-        $pm = $agents | Where-Object { $_.kind -eq 'interactive' -and $_.name -ceq 'Pult' -and $_.pid } | Select-Object -First 1
-        $targets['Pult'] = @{ Kind = 'pult'; Live = [bool]$pm; SessionId = [string]$pm.sessionId; Idle = $false; Row = $null; Agent = $pm }
+        $pm = Find-PultAgent $agents
+        $targets['Pult'] = @{ Kind = 'pult'; Live = [bool]$pm; SessionId = [string]$pm.Agent.sessionId; Idle = $false; Row = $null
+            Agent = $pm.Agent; Name = $(if ($pm) { $pm.Name } else { 'Pult' }) }
     }
 
     # Messages in flight that reached their target.
