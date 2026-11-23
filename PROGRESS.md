@@ -15,7 +15,7 @@
 
 - P moves itself like a release (owner «так», 2026-11-23, P: ClaudeDevKit chat): no «Перезапустити мене зараз?» question and no push; quiet (owner silent 5 min, no open question) -> silent move; otherwise the CAPS warning, then the move 30 s later, as in «Restart for a plugin update». Weak spot accepted: while the owner keeps writing, the move waits. Next: a C (rule in project-lead «Restart P» + the Pult watcher), after «Обговорення: Пуш-повідомлення про запуск сесій» closes (same watcher code).
 
-- Restart notice (owner «все так», 2026-11-23): no warning to child sessions; a C retries a failed send to P itself, P drops its «resend» message. Plan: `plans/restart-notice.md` «Owner's approval». Built (dev-kit 0.1.104); next: P merges it.
+- Restart notice (owner «все так», 2026-11-23): no warning to child sessions; a C retries a failed send to P itself, P drops its «resend» message. Plan: `plans/restart-notice.md` «Owner's approval». Built and merged (dev-kit 0.1.104).
 
 Open work of the features: `dev-kit-check-docs --open`.
 
