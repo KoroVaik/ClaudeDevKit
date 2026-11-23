@@ -590,8 +590,9 @@ One entry per behaviour. A newer direct observation replaces an older one; the o
 - Workaround: none.
 - App: subagents | Claude Code: unknown
 - Seen: 2026-11-11 | checked on this machine and subscription (the owner's note); the measurement itself is in no findings file or commit of this repo | the earliest trace is the Prishch repo, commit 27a0ce6 of 2026-11-11 (`.claude/agents/core-engineer.md` gets `experimental: cacheTtl: 1h`)
-- Re-check: `grep -h cache_creation ~/.claude/projects/*/*/subagents/agent-*.jsonl | tail -n 5` and read `ephemeral_5m_input_tokens` against `ephemeral_1h_input_tokens` (1h writes show that `cacheTtl: 1h` took effect) | safe
-- Status: doubtful
+- Seen: 2026-11-23 | measured from transcripts on this machine: summed `ephemeral_1h_input_tokens` and `ephemeral_5m_input_tokens` over 20 Prishch `core-engineer` subagent transcripts (models claude-fable-5-1 and claude-fable-5-2). The 13 runs of 2026-10-26 to 2026-11-11, before `cacheTtl: 1h` was added, wrote only 5-minute cache (1h = 0); the 7 runs after it, 2026-11-11 to 2026-11-23, wrote only 1-hour cache (5m = 0) | Prishch | Claude Code: unknown
+- Re-check: pick the agent's transcripts by agentType: for each `~/.claude/projects/*/*/subagents/agent-<id>.meta.json` with `"agentType":"core-engineer"`, sum `ephemeral_5m_input_tokens` and `ephemeral_1h_input_tokens` in the matching `agent-<id>.jsonl` (`grep -h cache_creation`); runs after the agent file got `cacheTtl: 1h` should show only 1h writes | safe
+- Status: checked
 
 ### A main session's prompt cache lives about one hour
 - What happens: A main session's prompt cache lives about one hour (leads write a 1-hour cache; 5-minute writes also occur). A warm cache read costs about 1/20 of a cold rewrite. The next turn of a long-waiting session re-reads its whole context at full price: 21 of 22 Pult wakes found the cache cold, each rewrote about 110k and read about 230k tokens.

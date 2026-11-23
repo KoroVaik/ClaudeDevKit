@@ -10,6 +10,8 @@ project facts. Code: `plugins/dev-kit` (the profile is read by its skills, agent
 - `## Slots` - optional table `| Slot | Skill or command |` that overrides a slot for this project; only
   `run-app` and `stop-app` may have several rows (a list of commands).
 - `## <agent or skill name>` - rules for one role, e.g. `## reviewer`; they override the plugin defaults.
+- `## core-engineer` - optional: the core areas, what the engineer reads first and never does there; without it
+  `dev-kit:core-engineer` is not used ([feature](../features/solve-a-hard-core-problem.md)).
 - `## project-lead` - optional table `| Path | How |`: the git-ignored paths a fresh worktree needs, each
   `copy` or `link` (a junction to the main checkout's folder). A `| Setting | Value |` table there holds
   `migrations applied`: the last entry of `plugins/dev-kit/migrations.md` the project has applied (written
