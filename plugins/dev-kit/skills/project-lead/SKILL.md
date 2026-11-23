@@ -774,8 +774,9 @@ Event lines:
   reports `finished`; its end is `gone` plus its "done" report). Do the
   "Finished" step of "Take over a session the owner started" (`end --id`, try `claude stop`, ask
   nothing), and write its `готово` line at once.
-- `limited: <name> | <id> | resets <time>`: that C stopped on the usage limit; it is alive and
-  goes on after the reset. Write its `стоїть, скінчився ліміт (до <time>)` line at once, and never `end` or stop that C. Each stop is reported once.
+- `limited: <name> | <id> | resets <time>`: that C stopped on the usage limit and did not go on after the
+  reset. The Pult watcher sends each limited lead and C it watches a «go on» message after the reset and
+  passes this line only when it could not get the session going (`plugins/pult/README.md`, LIMIT-RESUME). Write its `стоїть, скінчився ліміт (до <time>)` line at once, and never `end` or stop that C. Each stop is reported once.
 - `stale: <name> | <id> | waiting <N> min` (one line per session): if the session waits on the
   owner, send the reminder push of "Owner queue and critical items" ("Reminder push"); else nothing.
   No text. Each wait is reported once.
