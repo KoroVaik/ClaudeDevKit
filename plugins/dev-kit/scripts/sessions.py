@@ -4,18 +4,18 @@ full their context is.
     dev-kit-sessions add --id <id> --name <name> --worktree <path> --task <file or text> [--parent <id>] [--predecessor <id>] [--owner]
     dev-kit-sessions end --id <id or 8+ char short id> [--status done|replaced|stopped]
     dev-kit-sessions list
-    dev-kit-sessions fill [--limit 0.5] [--window N] [--over-only]
+    dev-kit-sessions fill [--limit 0.33] [--window N] [--over-only]
     dev-kit-sessions others [--self <id>] [--json]
     dev-kit-sessions state [--id <id> ...]
     dev-kit-sessions answers [--id <id> ...]
     dev-kit-sessions watch [--id <id> ...] [--interval 60] [--max-minutes 120] [--stale-minutes 20]
-    dev-kit-sessions check [--id <id> ...] [--stale-minutes 20] [--fill-limit 0.5]
+    dev-kit-sessions check [--id <id> ...] [--stale-minutes 20] [--fill-limit 0.33]
     dev-kit-sessions mark --kind gone|finished|limited|stale|fill|restart [--id <id>] --key <key>
     dev-kit-sessions size --id <id> [--id <id> ...] [--wakes <state file>]
     dev-kit-sessions limited --id <id> [--id <id> ...]
     dev-kit-sessions restart request --version <V> | ready [--version <V>] | status | clear
     dev-kit-sessions handoff save --file <name.md> [--go] | go | status | clear
-    dev-kit-sessions fill --self [<id>] [--limit 0.5] [--window N] [--over-only]
+    dev-kit-sessions fill --self [<id>] [--limit 0.33] [--window N] [--over-only]
 
 The registry is `sessions.json` in the project state folder (see dev_kit_state.py; the same folder for all worktrees
 of one repository). Ids (`--id`, `--parent`, `--predecessor`, `--self`) and the registry's ids are trimmed of spaces and
@@ -180,6 +180,7 @@ STALE = "stale.json"
 STALE_KEEP_DAYS = 7
 CLOSED = "check-closed.json"  # id -> epoch when `check` first saw the session closed (the grace spans calls)
 DELIVERED = "delivered.json"  # id -> {kind: key} of the gone, finished and fill events already delivered
+FILL_LIMIT = 0.33  # a third of the window: past it a long session costs more than a fresh one (owner, 2026-11-23)
 MARK_KINDS = ("gone", "finished", "limited", "stale", "fill", "restart")
 CLOSED_GRACE = 300  # seconds a session with no pid stays unreported: the Pult watcher may bring it back meanwhile
 # A reply line (trimmed, emphasis marks and trailing punctuation removed, case ignored) that says the session is done.
@@ -1490,7 +1491,7 @@ def main(argv=None):
     end.add_argument("--status", choices=["done", "replaced", "stopped"], default="done")
     sub.add_parser("list")
     fill = sub.add_parser("fill")
-    fill.add_argument("--limit", type=float, default=0.5)
+    fill.add_argument("--limit", type=float, default=FILL_LIMIT)
     fill.add_argument("--window", type=int, default=0)
     fill.add_argument("--over-only", action="store_true", help="print only the OVER rows, nothing else")
     fill.add_argument("--self", nargs="?", const="", default=None,
@@ -1512,7 +1513,7 @@ def main(argv=None):
     check.add_argument("--id", action="append", default=[], help="a session to check (repeatable; default: the registry)")
     check.add_argument("--stale-minutes", type=float, default=20,
                        help="report a session waiting this long since its last assistant entry")
-    check.add_argument("--fill-limit", type=float, default=0.5,
+    check.add_argument("--fill-limit", type=float, default=FILL_LIMIT,
                        help="report an active C whose context reaches this share of its window")
     mark = sub.add_parser("mark", help="record that an event line of check was delivered")
     mark.add_argument("--kind", required=True, choices=MARK_KINDS)

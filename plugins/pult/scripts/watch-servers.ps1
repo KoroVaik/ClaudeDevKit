@@ -102,7 +102,7 @@
 #   $PhoneRetrySec s (a size push too); events are never dropped. A ping or the Pult note that is not taken is
 #   dropped (WAKE-FAILED).
 #   The keep-warm ping is not sent to a lead that has a handoff marker (see the next item); events still are.
-# - A lead whose context is half full saves a handoff file and a marker (`sessions.py handoff save --file <name.md>
+# - A lead whose context is a third full saves a handoff file and a marker (`sessions.py handoff save --file <name.md>
 #   [--go]`, handoff.json next to its registry; the project-lead skill's "Restart P"). A pass after its version check
 #   each round (Invoke-HandoffCheck; not with -Once, not while the hold file or a full start runs, not while NO-BANS
 #   blocks that lead) reads `handoff status` for each live lead: none (the in-memory marks of that lead are dropped) or
