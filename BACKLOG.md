@@ -35,3 +35,15 @@ What: an item whose cause was seen once and not urgent expires after about 2 wee
 Why: first sightings stay as `waiting` items with no end today; the 2-week expiry of one-off causes had no explicit yes (owner, 2026-11-21).
 Cheapest test: count the `waiting` items older than 14 days in the three projects' item folders and see how many the expiry would drop.
 Verdict (2026-11-22): keep as an idea; moved from the finished retro plan, the owner has not agreed it; no case yet shows it missing. Owner: yes (2026-11-23).
+
+## Project lead: at most 2 questions at a time in the full list
+
+What: in the dev-kit project-lead skill, "Message templates", the full question list shows at most 2 questions at a time when more than 3 are open; the rest stay counted («ще N питань»), and the next 2 come after the owner answers. «Приймаєш усі мої рекомендації?» and «так всім» cover only the shown questions. A critical question is still shown alone, as now.
+Why: owner, P: Zhratva, 2026-11-23, after a full list of 4 questions: «Щось ти багато написав, додай правило що коли більше 3 питань то ти задаєш по 2 питання за раз»; said «так» to recording it. Source: Zhratva lead chat.
+Cheapest test: a lead with 4 open questions answers «так» to «Показати всі питання?» and shows exactly 2, numbered, with a count of the rest.
+
+## Stop long commands from blocking the chat
+
+What: a global PreToolUse hook refuses a foreground command that matches a known long pattern (whole-store court commands, full test suites, builds, downloads, `sleep`) unless it runs in the background; a PostToolUse hook records durations over 60 s into a per-project pattern list; long project scripts print a warning or need `--foreground`.
+Why: Zhratva, 2026-11-05: an agent ran a store repair in the foreground and the owner could not talk to it; the text rule in the global `CLAUDE.md` does not stop it. Moved from Zhratva's `BACKLOG.md` (2026-11-23), since global hooks are not that repo's to build.
+Cheapest test: add the guard for `sleep` and the court's whole-store commands only and watch one session.
