@@ -813,13 +813,13 @@ exactly the text line of the message, with no owner yes, and writes nothing else
 "Phone push" and to the forced-output state. The same id twice is pushed once. Why: a fresh session's push is refused, so the
 watcher asks a running one (`plugins/dev-kit/claude-facts.md`, "A push from a fresh session is refused").
 
-Skill update check, on every wake-up: read `version` from
+Skill update check, on every wake-up and right after P merges work that bumps the `dev-kit` version (before P's next step, a new C included): read `version` from
 `.claude-plugin/plugin.json` two folders above this skill's base directory and compare it with the
 version P noted when it last read this skill (note it in the first status turn's tool output). If it
 changed, read this SKILL.md whole with the Read tool (`plugins/dev-kit/claude-facts.md`, "The Skill tool answers "already loaded" for a skill already read")
 and follow the new text from then on. P's process still runs the old hooks and agents, but P does not
 restart for that by itself: the Pult watcher decides when a release restarts P and sends `restart requested`
-when it needs the handshake of "Restart for a plugin update". No message to the owner about it.
+when it needs the handshake of "Restart for a plugin update". No message to the owner about it. Why: on 2026-11-23 P merged 0.1.106 and kept working from the old text, so five C sessions started without the new `--settings` flag.
 
 On an owner message or a C report run `dev-kit-sessions fill` and, for P itself, `dev-kit-sessions fill --self`
 (an OVER line starts "Restart P").
