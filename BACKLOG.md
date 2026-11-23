@@ -41,4 +41,4 @@ Verdict (2026-11-22): keep as an idea; moved from the finished retro plan, the o
 What: a global PreToolUse hook refuses a foreground command that matches a known long pattern (whole-store court commands, full test suites, builds, downloads, `sleep`) unless it runs in the background; a PostToolUse hook records durations over 60 s into a per-project pattern list; long project scripts print a warning or need `--foreground`.
 Why: Zhratva, 2026-11-05: an agent ran a store repair in the foreground and the owner could not talk to it; the text rule in the global `CLAUDE.md` does not stop it. Moved from Zhratva's `BACKLOG.md` (2026-11-23), since global hooks are not that repo's to build.
 Cheapest test: add the guard for `sleep` and the court's whole-store commands only and watch one session.
-Verdict (2026-11-23): complex (global hooks, the owner's own settings): one C after the owner's yes.
+Verdict (2026-11-23): complex (global hooks, the owner's own settings): one C after the owner's yes. Owner: yes (2026-11-23); C started.
