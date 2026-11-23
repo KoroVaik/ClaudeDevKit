@@ -150,8 +150,8 @@
 #   without a new session, so no phone push (plans/push-noise.md): /clear, then a resume with the handoff prompt; on
 #   any failure it logs HANDOFF-FALLBACK <name> <reason> and starts a fresh lead (one push; see start-servers.ps1). No
 #   session id: HANDOFF-FALLBACK <name> no session id, and the fresh start at once. `Resumed lead: <name>` (moved) or
-#   `Started lead: <name>` (fresh): `handoff clear`, LastWake of the lead set to now, the `handoff requested` lines not
-#   sent yet dropped (Remove-HandoffLines), then HANDOFF-CLEAR <name> <session id before the move> <file> (moved; the
+#   `Started lead: <name>` (fresh): `handoff clear`, LastWake of the lead set to now, the `handoff requested` lines of
+#   its pending messages dropped, sent but not seen ones too (Remove-HandoffLines), then HANDOFF-CLEAR <name> <session id before the move> <file> (moved; the
 #   size push mark of that id is dropped, the list shows a new id from now on) or HANDOFF <name> <old session id> <file>
 #   (fresh). Lookups by the list's sessionId (transcripts, size, quiet, limits) follow the new id through the job state.
 #   `NO-BANS <name> `: Register-NoBans. Any other output: Write-Critical HANDOFF-FAILED <name>: <output> (Pult gets it);
@@ -1191,11 +1191,12 @@ function Get-HandoffWhy($s, $Entry, [string]$Kind) {
     return (Get-LeadActivity $Entry (Get-BusyTask $s.Path))
 }
 
-# Drops the `handoff requested` lines of a lead's messages not sent yet (the lead was moved: its fresh context must not
-# get the request of the old one), and their marks; a message left with no line is dropped.
+# Drops the `handoff requested` lines of a lead's pending messages, sent but not seen yet ones too (the lead was moved:
+# its fresh context must not get the request of the old one, so none is sent again), and their marks; a message left
+# with no line is dropped.
 function Remove-HandoffLines([string]$Name) {
     foreach ($item in @($wakePending)) {
-        if ($item.Target -cne $Name -or $item.Tries -or $item.Kinds -cnotcontains 'handoff') { continue }
+        if ($item.Target -cne $Name -or $item.Kinds -cnotcontains 'handoff') { continue }
         $item.Lines = @($item.Lines | Where-Object { -not ([string]$_).StartsWith('handoff requested: ', [StringComparison]::Ordinal) })
         $item.Marks = @($item.Marks | Where-Object { $_.Kind -cne 'handoff' })
         $item.EventKeys = @($item.EventKeys | Where-Object { -not ([string]$_).StartsWith("$Name|handoff|", [StringComparison]::Ordinal) })

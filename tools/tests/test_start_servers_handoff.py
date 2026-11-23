@@ -48,8 +48,12 @@ elif "--resume" in argv:
     else:
         if step == "clear" and how == "ok":
             # As seen live (2026-11-23): /clear writes a new transcript file; the job keeps its sessionId but points at
-            # the new file, and the session list shows the new file's id as the sessionId (the short id stays).
-            new = "99999999-aaaa-bbbb-cccc-000000000009"
+            # the new file, and the session list shows the new file's id as the sessionId (the short id stays). Each
+            # /clear writes another file.
+            count = d / "clears.txt"
+            n = int(count.read_text()) + 1 if count.exists() else 1
+            count.write_text(str(n))
+            new = "cccccccc-aaaa-bbbb-cccc-%012d" % n
             state = pathlib.Path(os.environ["USERPROFILE"]) / ".claude" / "jobs" / "11111111" / "state.json"
             job = json.loads(state.read_text())
             job["linkScanPath"] = str(d / (new + ".jsonl"))
@@ -63,7 +67,7 @@ else:
     print("started")
 '''
 SID = "11111111-aaaa-bbbb-cccc-000000000001"
-NEW = "99999999-aaaa-bbbb-cccc-000000000009"  # the id of the transcript a /clear writes (the fake's)
+NEW = "99999999-aaaa-bbbb-cccc-000000000009"  # the id of the transcript an earlier move's /clear wrote
 
 
 @unittest.skipUnless(os.name == "nt" and POWERSHELL, "the Pult scripts run on Windows PowerShell")
@@ -174,6 +178,21 @@ class StartServersHandoffTest(unittest.TestCase):
         self.assertEqual(["--bg", "--resume", SID, "--", "/clear"], calls[0], "resumed by the job's own id")
         self.assertEqual(["stop", SID[:8]], calls[1], "stopped by the short id, though the list shows another sessionId")
         self.assert_fresh_fallback(out, "did not end in 2 s")
+
+    # protects: Bug
+    def test_second_move_of_a_lead_succeeds(self):
+        # Its /clear moves the job's resumeSessionId and the list's sessionId on from the id the watcher passed: the
+        # move must still see the turn end, stop the session and resume it with the handoff prompt.
+        self.stopped_lead({})
+        self.moved_before()
+        code, out = self.run_start("-Only", LEAD, "-Handoff", "h.md", "-HandoffSessionId", NEW)
+        self.assertEqual(0, code, out)
+        self.assertIn(f"Resumed lead: {LEAD}", out)
+        self.assertEqual([["--bg", "--resume", SID, "--", "/clear"], ["stop", SID[:8]],
+                          ["--bg", "--resume", SID, "--", "/dev-kit:project-lead handoff: h.md"]], self.claude_calls())
+        self.assertNotIn("HANDOFF-FALLBACK", self.log())
+        job = json.loads((self.user / ".claude" / "jobs" / SID[:8] / "state.json").read_text())
+        self.assertNotIn(job["resumeSessionId"], (SID, NEW), "the fake's /clear wrote a third id")
 
     # protects: Bug
     def test_plain_resume_of_a_lead_moved_before_uses_the_jobs_own_id(self):

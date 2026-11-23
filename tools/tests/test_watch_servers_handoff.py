@@ -134,6 +134,22 @@ class WatchServersHandoffTest(WatcherEnv, unittest.TestCase):
         self.assertLess(time.time() - state["LastWake"][LEAD], 120, "the moved lead counts as just woken")
         self.assertNotIn(SID, state["SizePushed"], "the old id's size push mark is dropped")
 
+    # protects: Bug
+    def test_moved_lead_never_gets_the_old_handoff_request_again(self):
+        # A request sent but not seen yet would be sent again into the fresh context, which has no handoff to move.
+        self.start_output = "Resumed lead: {name}"
+        (self.tmp / "pult").mkdir(exist_ok=True)
+        (self.tmp / "pult" / "wake-pending.json").write_text(json.dumps([{
+            "Id": "1123000000-abcd", "Target": LEAD, "Kind": "lead", "Cause": "event", "Lines": [f"handoff requested: {FILE}"],
+            "Kinds": ["handoff"], "EventKeys": [f"{LEAD}|handoff|-|{FILE}"],
+            "Marks": [{"Project": str(self.project), "Kind": "handoff", "Id": "", "Key": FILE}], "Tries": 1,
+            "Created": time.time(), "Sent": time.time(), "FirstSent": time.time(), "SessionId": SID}]), encoding="utf-8")
+        self.handoff("save", "--file", FILE)
+        log = self.run_watch(1)
+        self.assertTrue(any(" HANDOFF-CLEAR " in line for line in log), log)
+        pending = json.loads((self.tmp / "pult" / "wake-pending.json").read_text(encoding="utf-8"))
+        self.assertEqual([], [i for i in (pending if isinstance(pending, list) else [pending]) if i], pending)
+
     # protects: Flow
     def test_fallback_fresh_start_is_logged_as_before(self):
         self.handoff("save", "--file", FILE)

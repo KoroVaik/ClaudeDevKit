@@ -33,7 +33,9 @@
 # -HandoffStopWaitSec s (default 60); then it is resumed with the handoff prompt (Get-LeadStartArgs -ResumeHandoff).
 # After a /clear the session list shows the new transcript's id as the entry's sessionId, while the job keeps its first
 # one: every resume uses the job's own id (Get-JobResumeId; also for a plain resume above), the session's list entry is
-# found by the job's short id or any id of the session (Get-SessionEntries) and stopped by that short id.
+# found by the job's short id or any id of the session (Get-SessionEntries) and stopped by that short id. The move
+# resolves the job's own id once from the passed id, before the /clear moves resumeSessionId on, and looks everything
+# up by it; the stop waits also for the ids seen before the /clear.
 # Moved: the log says RESUMED <name> <id> handoff <file>, the output `Resumed lead: <name>`. Any failure on the way (no
 # job state, a resume that exits with an error or starts a copy, which is stopped and removed, the turn not ended in
 # time, a stop that does not finish): HANDOFF-FALLBACK <name> <reason> in the log, the session is stopped if it runs,
@@ -94,9 +96,11 @@ function Invoke-HandoffResume([string]$Name, [string[]]$ResumeArgs) {
 
 # Stops the lead's session when it runs (by the short id of its list entry, Get-SessionEntries: after a /clear the
 # entry's sessionId is the new transcript's id) and waits until no list entry of that name has a pid and no process
-# holds one of its ids (Get-JobSessionIds). '' when it is stopped, else the reason.
-function Stop-HandoffSession([string]$Name, [string]$SessionId) {
-    $ids = @(Get-JobSessionIds $SessionId)
+# holds one of its ids: those of its job now (Get-JobSessionIds) and $KnownIds (the ids seen before the /clear, which a
+# process started then may still carry). $JobId: the job's first sessionId (Get-JobResumeId), the one id that stays
+# across moves. '' when it is stopped, else the reason.
+function Stop-HandoffSession([string]$Name, [string]$JobId, [string[]]$KnownIds) {
+    $ids = @(@(Get-JobSessionIds $JobId) + @($KnownIds) | Where-Object { $_ } | Select-Object -Unique)
     $until = (Get-Date).AddSeconds($HandoffStopWaitSec)
     $stopped = $false
     while ($true) {
@@ -104,7 +108,7 @@ function Stop-HandoffSession([string]$Name, [string]$SessionId) {
         $live = @($list | Where-Object { $_ -and $_.kind -eq 'background' -and $_.name -ceq $Name -and $_.pid })
         if ($null -ne $list -and -not $live.Count -and -not (Get-SessionProcessIds $ids).Count) { return '' }
         if (-not $stopped -and $null -ne $list) {
-            foreach ($e in @(Get-SessionEntries $list $Name $SessionId)) { $null = claude stop $e.id 2>&1 }
+            foreach ($e in @(Get-SessionEntries $list $Name $JobId)) { $null = claude stop $e.id 2>&1 }
             $stopped = $true
         }
         if ((Get-Date) -gt $until) { return "still running $HandoffStopWaitSec s after the stop" }
@@ -112,22 +116,24 @@ function Stop-HandoffSession([string]$Name, [string]$SessionId) {
     }
 }
 
-# The handoff move without a new session (see the header, -HandoffSessionId). '' when the lead was moved, else why not.
-function Invoke-HandoffClear([string]$Name, [string]$SessionId, [string]$File, $Opt) {
-    $job = Get-JobState $SessionId
+# The handoff move without a new session (see the header, -HandoffSessionId). $JobId: the job's first sessionId
+# (Get-JobResumeId of the id the watcher passed). Every look-up goes by it: the /clear moves the job's resumeSessionId
+# and the list's sessionId to a new id, so the passed one (the list's, new after an earlier move) is lost. '' when the
+# lead was moved, else why not.
+function Invoke-HandoffClear([string]$Name, [string]$JobId, [string[]]$KnownIds, [string]$File, $Opt) {
+    $job = Get-JobState $JobId
     if (-not $job) { return 'no job state for the session' }
     $scanBefore = [string]$job.linkScanPath
-    $resumeId = Get-JobResumeId $SessionId  # the job's own id: the watcher passes the list's, new after an earlier move
-    $why = Invoke-HandoffResume $Name (Get-LeadClearArgs $resumeId)
+    $why = Invoke-HandoffResume $Name (Get-LeadClearArgs $JobId)
     if ($why) { return "the /clear resume failed: $why" }
     $until = (Get-Date).AddSeconds($HandoffClearWaitSec)
-    while (-not (Test-ClearEnded $Name $SessionId $scanBefore (Get-AgentList))) {
+    while (-not (Test-ClearEnded $Name $JobId $scanBefore (Get-AgentList))) {
         if ((Get-Date) -gt $until) { return "the /clear turn did not end in $HandoffClearWaitSec s" }
         Start-Sleep -Seconds 1
     }
-    $why = Stop-HandoffSession $Name $SessionId
+    $why = Stop-HandoffSession $Name $JobId $KnownIds
     if ($why) { return "after the /clear: $why" }
-    $why = Invoke-HandoffResume $Name (Get-LeadStartArgs $Name $resumeId -Handoff $File -ResumeHandoff @Opt)
+    $why = Invoke-HandoffResume $Name (Get-LeadStartArgs $Name $JobId -Handoff $File -ResumeHandoff @Opt)
     if ($why) { return "the handoff resume failed: $why" }
     return ''
 }
@@ -187,10 +193,13 @@ foreach ($p in $projects) {
         }
         Write-Log "MODE $sessionName $($perm.Mode) ($($perm.Reason))"
         if ($Handoff -and $HandoffSessionId) {
-            try { if (Set-LeadRespawnModel $sessionName $HandoffSessionId @model) { Write-Log "MODEL $sessionName $(if ($p.Model) { $p.Model } else { $LeadModel })/$(if ($p.Effort) { $p.Effort } else { $LeadEffort })/$($perm.Mode)" } }
+            # Resolved once, before the /clear changes the job's resumeSessionId (Invoke-HandoffClear).
+            $jobId = Get-JobResumeId $HandoffSessionId
+            $knownIds = @(@($HandoffSessionId) + @(Get-JobSessionIds $HandoffSessionId))
+            try { if (Set-LeadRespawnModel $sessionName $jobId @model) { Write-Log "MODEL $sessionName $(if ($p.Model) { $p.Model } else { $LeadModel })/$(if ($p.Effort) { $p.Effort } else { $LeadEffort })/$($perm.Mode)" } }
             catch { Write-Output "Could not set the lead's model: $_" }
             $why = 'the move failed'
-            try { $why = Invoke-HandoffClear $sessionName $HandoffSessionId $Handoff $opt } catch { $why = "the move failed: $_" }
+            try { $why = Invoke-HandoffClear $sessionName $jobId $knownIds $Handoff $opt } catch { $why = "the move failed: $_" }
             if (-not $why) {
                 Pop-Location
                 Write-Log "RESUMED $sessionName $HandoffSessionId handoff $Handoff"
@@ -198,7 +207,7 @@ foreach ($p in $projects) {
                 continue
             }
             Write-Log "HANDOFF-FALLBACK $sessionName $why"
-            if (Stop-HandoffSession $sessionName $HandoffSessionId) {
+            if (Stop-HandoffSession $sessionName $jobId $knownIds) {
                 Pop-Location
                 Write-Log "STILL-RUNNING $sessionName $HandoffSessionId"
                 Write-Output "Not started, still running after the stop: $sessionName"

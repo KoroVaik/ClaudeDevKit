@@ -79,5 +79,7 @@ code; coordinate on `watch-servers.ps1` when merging.
   Windows PowerShell 5.1). Checked live: no `bridgeSessionId`; a resume keeps it (respawnFlags).
 - Live, no Remote Control: throwaway job moved by start-servers in 9 s, same job, new transcript starts with
   `/clear` then the handoff prompt, no old context. First run found the sessionId change and was fixed.
+- Review fix: a second move of the same lead (the job's ids change at every `/clear`) - checked live, two moves in a
+  row, each new transcript holds only `/clear` and its handoff prompt.
 - Open: a test lead WITH Remote Control moved the same way: `bridgeSessionId` unchanged and the owner sees no
   second push (asked via P).
