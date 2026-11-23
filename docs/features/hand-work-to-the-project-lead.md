@@ -119,7 +119,7 @@ the repository, one you started yourself included, already does it.
 
 ### P wakes only when needed
 P wakes only on a task session's report, your message, or a message from the Pult watcher when a session
-ends, writes the line "Роботу завершено", stops on the usage limit, waits 20 minutes or passes half its
+ends, writes the line "Роботу завершено", stops on the usage limit, waits 20 minutes or passes a third of its
 context, or when a plugin update waits for a safe point to restart P; P keeps no watcher of its own. While
 a task session (not one you started) works and P has been silent 50 minutes, the Pult watcher pings P; P
 then shows its short status.
@@ -128,7 +128,7 @@ Why: owner, 2026-11-20: P and Pult were woken every 2 hours only to re-arm a wat
 1/20 of a cold rewrite and P's next task report would otherwise find it cold.
 
 ### P moves itself to a fresh session
-When P's own context is half full, P saves its notes and asks you «Перезапустити мене зараз?» (a phone
+When P's own context is a third full, P saves its notes and asks you «Перезапустити мене зараз?» (a phone
 push). The Pult watcher moves P to a fresh session of the same name when P is quiet, or at once when
 you answer «так» or write «перезапускай» ([the wait](start-leads-at-logon-and-heal-them.md)); you type nothing else.
 

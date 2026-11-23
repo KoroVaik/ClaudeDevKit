@@ -23,8 +23,8 @@ A lead that runs on an older dev-kit version than the installed one, or whose ex
 unity-kit) changed version, is restarted when it is idle. A busy lead is not interrupted: it is restarted
 at a safe point it marks itself.
 
-### A lead past half its context moves to a fresh session
-A lead that saved its notes at half its context is stopped and started fresh under the same name, once it
+### A lead past a third of its context moves to a fresh session
+A lead that saved its notes at a third of its context is stopped and started fresh under the same name, once it
 has been idle and quiet for 5 minutes, or at once after your «так» or «перезапускай». A failed move is
 shown in Pult and pushed to your phone; the old lead comes back.
 

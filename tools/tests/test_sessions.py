@@ -110,6 +110,13 @@ class SessionsTestCase(unittest.TestCase):
         self.assertIn("window 1000000 | 5%", self.run_main("fill", "--window", "1000000")[1])
         self.assertIn("OVER", self.run_main("fill", "--limit", "0.2")[1])
 
+    def test_fill_default_limit_is_a_third(self):
+        self.add("a1")
+        self.transcript("a1", [self.assistant(0, 0, 64000)])
+        self.assertNotIn("OVER", self.run_main("fill")[1])
+        self.transcript("a1", [self.assistant(0, 0, 68000)])
+        self.assertIn("OVER", self.run_main("fill")[1])
+
     def test_fill_one_million_model(self):
         self.add("a1")
         self.transcript("a1", [self.assistant(0, 0, 300000, model="claude-opus-4-6[1m]")])

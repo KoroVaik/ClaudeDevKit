@@ -774,7 +774,7 @@ the handshake of "Restart for a plugin update". No message to the owner about it
 On an owner message or a C report run `dev-kit-sessions fill` and, for P itself, `dev-kit-sessions fill --self`
 (an OVER line starts "Restart P").
 
-The fill limit is 0.5 (half the context window). The script takes the window from C's model as Claude Code runs it
+The fill limit is 0.33 (a third of the context window; owner, 2026-11-23: less spend on long sessions). The script takes the window from C's model as Claude Code runs it
 (1M for Fable, Sonnet 5+, Haiku 5.5, Opus 4.7+; 200K for older ones); `--window` overrides it. For each
 line marked OVER, refresh that C.
 
@@ -844,7 +844,7 @@ of "Message templates": the C's `готово` line, and the start proposal for 
 
 ## Restart P
 
-P moves itself to a fresh session when its own context reaches the fill limit (0.5); the owner's view: the
+P moves itself to a fresh session when its own context reaches the fill limit (0.33); the owner's view: the
 feature, section «P moves itself to a fresh session». State lives in project files and the registry; the
 queue lives in PROGRESS.md "Open questions".
 
@@ -855,7 +855,7 @@ queue lives in PROGRESS.md "Open questions".
    it still answers the owner and its C sessions, and after a turn that changed the state it saves a new
    handoff and runs `handoff save` with the new name before the turn ends.
 2. P adds its own urgent question to the queue: «Перезапустити мене зараз?» with `Рекомендую: так -
-   контекст заповнений наполовину, свіжа сесія дешевша`. It is a critical item ("Owner queue and critical
+   контекст заповнений на третину, свіжа сесія дешевша`. It is a critical item ("Owner queue and critical
    items"), so it pushes to the phone by the queue rule.
 3. The watcher moves P once P is idle and its transcript has not changed for 5 minutes, checked again
    right before the stop. The owner's «так» to that question, or his «перезапускай» at any time, makes P

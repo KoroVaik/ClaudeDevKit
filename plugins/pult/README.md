@@ -53,11 +53,11 @@ problem it proposes a fix and acts after an explicit yes.
   `start-servers.ps1` run removes. To retire one project, remove its row from `servers.psd1`.
 - No Claude session keeps a watcher of its own. Each minute the watcher also runs `dev-kit-sessions check`
   for every lead on dev-kit 0.1.78 or later and sends each new event (a task session gone, finished, on the
-  usage limit, waiting 20 minutes, past half its context, or a restart request) to the lead as a
+  usage limit, waiting 20 minutes, past a third of its context, or a restart request) to the lead as a
   cross-session message `[EVT-<id>] Pult server watcher: ...`, by a one-shot `claude -p` (haiku, safe mode,
   only the SendMessage tool, `bypassPermissions`). GIVEUP, GIVEUP-TASK, RESTART-LEAD-FAILED and HANDOFF-FAILED go to
   the Pult session the same way; Pult pushes them to your phone. A lead silent 50 minutes while one of its
-  task sessions works gets a keep-warm ping. A lead past half its own context that saved a handoff
+  task sessions works gets a keep-warm ping. A lead past a third of its own context that saved a handoff
   (`dev-kit-sessions handoff save`) is moved to a fresh session of the same name (when: the feature above;
   HANDOFF in the log). A message counts as delivered once its id shows in the
   target's transcript; until then it is sent again, then pushed to your phone (for Pult: «Pult не піднявся -
