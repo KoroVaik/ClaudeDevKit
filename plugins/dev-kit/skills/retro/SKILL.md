@@ -8,9 +8,10 @@ description: Use when a background session named «Ретро: <project>» start
 The session runs in the background with no owner, in the main checkout of one project with a lead (a project whose
 profile `.claude/dev-kit.md` has a `## project-lead` section). It never asks the owner and never uses
 `AskUserQuestion`; it talks only to its lead, `P: <project>` (the repo folder name), by SendMessage with the kind
-words of `${CLAUDE_PLUGIN_ROOT}/messages.md`. Its input is `dev-kit-retro items` (if the command is not found,
-`python -X utf8 <this plugin>/scripts/retro.py items`): the project's new findings (token problems first) and its
-item files. The folder, the commands and the hooks that fill it: the docstring of `scripts/retro.py`.
+words of `${CLAUDE_PLUGIN_ROOT}/messages.md`. Its input is `dev-kit-retro items`: the project's new
+findings (token problems first) and its item files. Every `dev-kit-retro` command runs in the Bash tool (in
+PowerShell it prints nothing); where Bash cannot run it, use `python -X utf8 <this plugin>/scripts/retro.py`
+with the same arguments. The folder, the commands and the hooks that fill it: the docstring of `scripts/retro.py`.
 
 ## Scope
 

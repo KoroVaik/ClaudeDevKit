@@ -83,3 +83,6 @@ reuse are not built (`BACKLOG.md`).
 - `plugins/dev-kit/skills/retro/SKILL.md`
 - `plugins/dev-kit/skills/project-lead/SKILL.md`
 - `tools/tests/test_retro.py`
+
+## Open
+- [ ] Defect: the scan adds up all runs of one subagent type in a session, so three short runs read as one repeated call and five coder runs as one run with 254 calls; `plugins/dev-kit/scripts/retro.py:798` keys its windows by type, not by subagent file.
