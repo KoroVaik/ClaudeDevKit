@@ -48,3 +48,9 @@ What: `plugins/unity-kit/skills/unity-editor/SKILL.md`, "Order of a run": the ba
 Why: owner, 2026-11-23, Prishch «Обговорення: phone stand-in» (`plans/phone-emulator.md`): tasks stood because the editor was closed and the owner had to start it on the PC; Prishch's profile now allows it as an exception to the skill.
 Cheapest test: with the project's editor closed, run the wrapper's state command; the editor opens and the command answers.
 Verdict (2026-11-23): yes as a small rule edit in unity-editor «Order of a run»: one exception bullet, only when the profile allows it, with a wait limit the profile names; a running but silent editor still stops. Waits for the owner.
+
+## project-lead: `claude rm` with the short id, a «No session matching» output is a failure
+
+What: in `plugins/dev-kit/skills/project-lead/SKILL.md`, "Acceptance and merge" (and "Idle session" and the C end steps): the session is removed with `claude rm` given the 8-hex short id (the form `claude stop` and `dev-kit-sessions end` also take), and an output «No session matching ...» counts as a failed step to fix (retry with the short id, then check the session list), never as done.
+Why: 2026-11-24, P: Zhratva. After merges P ran `claude rm <full sessionId>` for «Обговорення: Звідки брати склад продуктів» (0aaf7a7f-...) and for a C (f0e4552c-...); both printed «No session matching '<full id>'». P went on, and the closed discussion stayed in the owner's desktop app list until the owner pointed at it («вона висить»). `claude stop 0aaf7a7f` then `claude rm 0aaf7a7f` (short id) worked at once. The skill text says «`claude rm <id>`» with no id form, while it notes «the short id works» only for `dev-kit-sessions end`.
+Cheapest test: on a throwaway background session, run `claude rm <full id>` and `claude rm <short id>` and compare; if full ids are refused, also add a fact to `plugins/dev-kit/claude-facts.md` through the facts keeper.
