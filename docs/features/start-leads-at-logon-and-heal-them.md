@@ -26,6 +26,14 @@ hears of the stop only when that message was not taken after 3 tries; then the l
 `стоїть, скінчився ліміт`. Why: owner, 2026-11-23 (`plans/limit-resume.md`): sessions waited after the reset
 until he wrote to them.
 
+### One early push when the weekly limit will run out long before its reset
+When, at the pace of the last 6 hours, the weekly limit runs out more than 6 hours before it resets and task
+sessions of the leads are still open, one push comes to your phone: «Тижневий ліміт: витрачено 49%, за темпом скінчиться пт
+20:00, скидання пн 10:00.» (local time). At most one per weekly window, even if the pace gets worse; after it
+nothing is paused or asked. The pace needs two readings of the weekly per cent at least an hour apart in those
+6 hours; there is no warning about the 5-hour limit. Why: owner, 2026-11-23 (`plans/limit-tracking.md`): warn
+only when the work will surely stand for long, no spam.
+
 ### A lead on an old version is restarted when the update allows
 Each dev-kit update is marked critical (agents cannot cope without it) or routine by the agent that makes
 it. A routine update reaches a lead once, on a later day, at its first quiet moment: the lead is idle, its
@@ -67,6 +75,7 @@ one project, remove its row from the project list.
 - A lead restart crashes halfway: at the watcher's next check the pause is lifted and the stopped leads come back.
 - A lead restart hangs: after 10 minutes it is cut, logged, the pause is lifted, and the watcher goes on.
 - A lead's move to a fresh context hangs: after 10 minutes it is cut, logged, the old lead comes back, and the watcher goes on.
+- The weekly per cent rises fast enough to run out more than 6 hours before the reset while a task session is open: one phone push with both times; none again in that weekly window, and none while no task session is open.
 
 ## Built in
 - `plugins/pult/scripts/start-servers.ps1`
@@ -80,7 +89,13 @@ one project, remove its row from the project list.
 - `tools/tests/test_watch_servers_handoff.py`
 - `tools/tests/test_watch_servers_heal.py`
 - `tools/tests/test_start_servers_handoff.py`
+- `plugins/dev-kit/scripts/usage_forecast.py`
+- `tools/tests/test_usage_forecast.py`
+- `tools/tests/test_watch_servers_wake.py`
 
 ## Open
-- [ ] Check from the watcher's logs and the transcripts that Pult and a lead with no events show no wakes for a day, that one forced GIVEUP gives one push and the fix line in Pult, and that a push relayed by a live lead (Pult down) reaches the phone; the lead relay is untested
-- [ ] Check whether you can still attach to a P from a terminal with `claude attach <id>`, and the exact wording of the session list in the phone app
+- [ ] Check on the phone that a push asked of a live lead arrives with the Claude app fully closed (the tool answers "Mobile push requested"; on 2026-11-23 one with the app open did not show, one with it closed got no answer; see `plans/wake-check.md`)
+- [ ] Check in the Pult chat that a watcher message now arrives (sent in default mode to the hub's system name; on 2026-11-23 a default-mode test message was taken, bypass ones were held)
+- [ ] Find a quiet day of a lead in the watcher log and confirm it shows no wake (every lead wake seen so far had an event or a keep-warm cause)
+- [ ] Check the exact wording of the session list in the phone app
+- [ ] Check on the phone that the weekly limit forecast push arrives once, with the run-out and reset times (`plans/limit-tracking.md`)

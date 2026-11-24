@@ -6,5 +6,9 @@
   "0.1.107": {"kind": "routine", "date": "2026-11-23", "reason": "when nothing works, a lead's message adds a short project state and one next-task proposal"},
   "0.1.108": {"kind": "routine", "date": "2026-11-23", "reason": "a lead hears of a usage-limit stop only when the Pult watcher could not get the session going after the reset"},
   "0.1.109": {"kind": "routine", "date": "2026-11-23", "reason": "a task session reports a wait over a minute, and the lead shows it as «чекає» with the reason"},
-  "0.1.110": {"kind": "routine", "date": "2026-11-23", "reason": "the lead re-reads its skill right after merging a dev-kit version bump"}
+  "0.1.110": {"kind": "routine", "date": "2026-11-23", "reason": "the lead re-reads its skill right after merging a dev-kit version bump"},
+  "0.1.111": {"kind": "routine", "date": "2026-11-23", "reason": "Claude facts: the Pult hub holds messages from a bypass sender; a requested push may not reach the phone"},
+  "0.1.112": {"kind": "routine", "date": "2026-11-23", "reason": "one phone push per week when the weekly limit, at the recent pace, runs out over 6 hours before its reset"},
+  "0.1.113": {"kind": "routine", "date": "2026-11-23", "reason": "the weekly limit forecast push shows the current percent"},
+  "0.1.114": {"kind": "routine", "date": "2026-11-23", "reason": "a shared core engineer agent on Fable, with helpers that pass their answers as file paths"}
 }

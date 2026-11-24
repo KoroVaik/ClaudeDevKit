@@ -116,6 +116,13 @@
 #     $SizePushShare of its window or more gets one phone push (once per session id, wake-state.json):
 #     PUSH-SIZE; all the sessions that pass it in one round share one push. Every $SizeLogMin minutes the call takes `--wakes <StateDir>\size-state.json` and each session
 #     is logged: SIZE <name> <session id> <tokens> owner=N peer=N notify=N units=U.
+#   - Weekly limit forecast (plans/limit-tracking.md): when the usage log of the status line (usage-log.jsonl in the
+#     folder of env DEV_KIT_USAGE_LOG, else ~\.claude\dev-kit) changed since the last look, or task sessions opened or
+#     all closed (first look at start; the last look is kept in memory only, the mark stops a second push), one
+#     `usage_forecast.py check --open <live task sessions of the leads' registries> --mark <StateDir>\limit-forecast.json`
+#     call (the forecast, the "open tasks" test and the once-per-weekly-window mark are its own; see its doc). On `push`
+#     it logs LIMIT-FORECAST runout=<local time> resets=<local time> pct=<last %> pace=<%/h> and queues one phone push
+#     (cause limit) with its text, delivered like a size push. After it nothing is paused or asked.
 #   The lines of one target are merged into one message (`[EVT-<id>] Pult server watcher:`, the lines, one fixed
 #   instruction line; control characters removed, each line cut at 300 characters, at most about 1500 per
 #   message, more lines wait for the next one), kept in <StateDir>\wake-pending.json until delivered. At most
@@ -203,7 +210,8 @@
 #   one-try-per-version marks of leads (a failed lead restart is tried once more), the usage-limit marks (LIMIT
 #   is logged again) and the "seen" lists (STATE lines again, as at any start). The wake files stay on disk and
 #   the new copy goes on with them: wake-pending.json (undelivered messages and their marks), wake-state.json
-#   (the Pult note, the size pushes, the last send per target) and size-state.json (the `size --wakes` offsets);
+#   (the Pult note, the size pushes, the last send per target), size-state.json (the `size --wakes` offsets) and
+#   limit-forecast.json (the weekly window already pushed);
 #   only the time of the last SIZE lines is lost (they are logged again at once).
 # start-servers.ps1 starts it at logon in a hidden window. -Once: one check, then exit; -Rounds N:
 # N checks, then exit (both for tests; -Once never restarts anything, touches restart.json or wakes anyone).
@@ -250,6 +258,9 @@ if (-not $ClaudeExe) { $ClaudeExe = 'claude' }
 $WakeMinDevKit = '0.1.78'  # a lead that started on this dev-kit or later keeps no session watcher: it is woken by message
 $NoBansRetryMin = 10       # a lead blocked by missing hard bans is looked at again after this
 $WakeMode = 'bypassPermissions' # the one permission mode of every session of the plugin (the sender's too)
+# The Pult hub's own session runs in auto mode, whatever the server's --permission-mode, and holds (never takes) a
+# message from a bypassPermissions sender; one from a default-mode sender it takes (seen 2026-11-23, plans/wake-check.md).
+$PultWakeMode = 'default'
 $WakeMaxTries = 3         # sends of one message before the phone fallback
 $WakeWaitSec = 60          # a one-shot sender still running after this is stopped
 $PhoneRetrySec = 600       # a failed phone push is tried again after this
@@ -514,7 +525,7 @@ function Invoke-TaskHeal {
                 $_ -and ((Test-IdMatch ([string]$_.sessionId) $wid) -or (Test-IdMatch ([string]$_.id) $wid)) })
             $states = @($entries | ForEach-Object { if ($_.state) { $_.state } else { $_.status } })
             $live = $entries | Where-Object { $_.pid -and $_.sessionId } | Select-Object -First 1
-            if ($live) { $liveSessions[[string]$live.sessionId] = [string]$r.name }
+            if ($live) { $liveSessions[[string]$live.sessionId] = [string]$r.name; $liveTasks[[string]$live.sessionId] = [string]$r.name }
             if ($entries | Where-Object { $_.pid }) {  # alive
                 $taskClosed.Remove($wid); $taskGaveUp.Remove($wid); continue
             }
@@ -1151,7 +1162,7 @@ function Test-WakeTaken($Item) {
 
 function Send-WakeItem($Item, $T) {
     if (-not $Item.Tries) { Write-Log "WAKE $($Item.Target) $($Item.Id) cause=$($Item.Cause) kinds=$($Item.Kinds -join ',')" }
-    $Item.Mode = $WakeMode
+    $Item.Mode = $(if ($Item.Target -ceq 'Pult') { $PultWakeMode } else { $WakeMode })
     $Item.SessionId = $T.SessionId
     $Item.Tries++
     $Item.Sent = Get-Now
@@ -1159,7 +1170,7 @@ function Send-WakeItem($Item, $T) {
     $script:wakeDirty = $true
     $wakeState.LastWake[$Item.Target] = $Item.Sent
     Save-WakeState
-    $r = Send-Wake $Item.Target (Get-WakeText $Item) $Item.Mode
+    $r = Send-Wake $T.Name (Get-WakeText $Item) $Item.Mode  # the session name: for the hub its system name, not 'Pult'
     if (-not $r.Ok) { Write-Log "WAKE-FAILED $($Item.Target) $($Item.Id) $($r.Reason)"; return }
     Write-Log "WAKE-SENT $($Item.Target) $($Item.Id) (try $($Item.Tries), mode $($Item.Mode))"
     $null = Test-WakeTaken $Item  # usually already in the transcript; else looked for in the next rounds
@@ -1198,7 +1209,7 @@ function Send-PhoneItem($Item, $Targets, $Handled) {
     $Handled[$relay] = $true
     if (-not $Item.Tries -and -not $Item.From) { Write-Log "WAKE phone $($Item.Id) cause=$($Item.Cause) kinds=$($Item.Kinds -join ',')" }
     $Item.Relay = $relay
-    $Item.Mode = $WakeMode
+    $Item.Mode = $(if ($relay -ceq 'Pult') { $PultWakeMode } else { $WakeMode })
     $Item.SessionId = $Targets[$relay].SessionId
     $Item.Tries++
     $Item.Sent = Get-Now
@@ -1206,7 +1217,7 @@ function Send-PhoneItem($Item, $Targets, $Handled) {
     $script:wakeDirty = $true
     $wakeState.LastWake[$relay] = $Item.Sent
     Save-WakeState
-    $r = Send-Wake $relay (Get-WakeText $Item) $Item.Mode
+    $r = Send-Wake $Targets[$relay].Name (Get-WakeText $Item) $Item.Mode  # the relay's session name (the hub's system name for 'Pult')
     if (-not $r.Ok) { Write-Log "WAKE-FAILED phone $($Item.Id) via $relay $($r.Reason)"; return }
     Write-Log "WAKE-SENT phone $($Item.Id) via $relay (try $($Item.Tries), mode $($Item.Mode))"
     $null = Test-WakeTaken $Item
@@ -1274,20 +1285,87 @@ function Invoke-SizeCheck($Targets) {
     $script:wakeDirty = $true
 }
 
+# The weekly limit forecast (see the header): one `usage_forecast.py check` call when the usage log changed; on `push`
+# a LIMIT-FORECAST line and one phone push. The forecast, the open-task test and the once-per-window mark are its own.
+function Invoke-LimitForecast {
+    $usageLog = if ($env:DEV_KIT_USAGE_LOG) { Join-Path $env:DEV_KIT_USAGE_LOG 'usage-log.jsonl' }
+        else { Join-Path $env:USERPROFILE '.claude\dev-kit\usage-log.jsonl' }
+    $f = Get-Item -LiteralPath $usageLog -ErrorAction SilentlyContinue
+    if (-not $f) { return }
+    $written = "$($f.LastWriteTimeUtc.Ticks) $($liveTasks.Count -gt 0)"  # a look again when task sessions open or close
+    if ($written -ceq $script:lastUsageWrite) { return }
+    $script:lastUsageWrite = $written
+    $py = Join-Path $DevKitDir 'scripts\usage_forecast.py'
+    $r = Invoke-Python @($py, 'check', '--open', [string]$liveTasks.Count, '--mark', (Join-Path $StateDir 'limit-forecast.json'), '--log', $usageLog) -NoStderr
+    if ($r.Code -ne 0) { Write-WarnOnce 'forecast' ("limit forecast failed (exit {0}): {1}" -f $r.Code, ($r.Out -replace '\s+', ' ')); return }
+    $warnedOnce.Remove('forecast')
+    $p = @(($r.Out.Trim() -split ' \| ') | ForEach-Object { $_.Trim() })
+    if ($p[0] -cne 'push' -or $p.Count -lt 6) { return }
+    $at = { param($e) [DateTimeOffset]::FromUnixTimeSeconds([int64]$e).LocalDateTime.ToString('yyyy-MM-dd HH:mm') }
+    Write-Log ("LIMIT-FORECAST runout={0} resets={1} pct={2} pace={3}" -f (& $at $p[1]), (& $at $p[2]), $p[3], $p[4])
+    $item = New-WakeItem 'phone' 'phone' 'limit'
+    $item.Kinds = @('limit')
+    $item.Text = Get-PhoneText '' @($p[5])
+    [void]$wakePending.Add($item)
+    $script:wakeDirty = $true
+}
+
+# A folder path as one comparable string: resolved, no trailing slash, lower case. '' when it is empty or unreadable.
+function Get-FolderKey($Path) {
+    if (-not [string]$Path) { return '' }
+    try {
+        $full = [IO.Path]::GetFullPath([string]$Path)
+        $r = Resolve-Path -LiteralPath $full -ErrorAction SilentlyContinue
+        if ($r) { $full = [string]$r.ProviderPath }
+        return $full.TrimEnd('\', '/').ToLowerInvariant()
+    } catch { return '' }
+}
+
+# The session of the Pult hub in the session list $List: @{ Agent; Name } or $null. The hub's Remote Control session has
+# a system name like "<user>-e9" there, not "Pult" (plugins/dev-kit/claude-facts.md, "The Remote Control server's own
+# session has a system name"; status-page.py treats a home-folder session as Pult the same way): a session named
+# "Pult" first, else an interactive session with cwd = the home folder; of several, the one whose parent process is
+# the server (a claude process with ` remote-control ` and "Pult" in its command line, the test of hub.md), else the
+# first. Name is what a message must name as its target.
+function Find-PultAgent($List) {
+    $live = @($List | Where-Object { $_.kind -eq 'interactive' -and $_.pid })
+    $named = $live | Where-Object { $_.name -ceq 'Pult' } | Select-Object -First 1
+    if ($named) { return @{ Agent = $named; Name = [string]$named.name } }
+    $home1 = Get-FolderKey $(if ($env:USERPROFILE) { $env:USERPROFILE } else { [Environment]::GetFolderPath('UserProfile') })
+    if (-not $home1) { return $null }
+    $cands = @($live | Where-Object { (Get-FolderKey $_.cwd) -ceq $home1 })
+    if (-not $cands.Count) { return $null }
+    $pick = $cands[0]
+    if ($cands.Count -gt 1) {
+        foreach ($c in $cands) {
+            try {
+                $own = Get-CimInstance Win32_Process -Filter "ProcessId=$([int]$c.pid)" -ErrorAction Stop
+                $par = Get-CimInstance Win32_Process -Filter "ProcessId=$([int]$own.ParentProcessId)" -ErrorAction Stop
+            } catch { continue }
+            if ($par.Name -in @('claude.exe', 'node.exe') -and [string]$par.CommandLine -match '\sremote-control\s' -and [string]$par.CommandLine -match 'Pult') {
+                $pick = $c; break
+            }
+        }
+    }
+    return @{ Agent = $pick; Name = [string]$pick.name }
+}
+
 # The wake pass of a round (see the header).
 function Invoke-WakePass {
     $script:wakeDirty = $false
-    # Targets of this round: name -> @{ Kind; Live; SessionId; Idle; Row; Agent }.
+    # Targets of this round: key -> @{ Kind; Live; SessionId; Idle; Row; Agent; Name }. The key of a lead is its session
+    # name, the key of the hub is always 'Pult' (wake state, logs, items); Name is the session name a message is sent to.
     $targets = @{}
     if ($null -ne $agents) {
         foreach ($s in $servers) {
             if (-not $s.Lead) { continue }
             $m = $agents | Where-Object { $_.kind -eq 'background' -and $_.name -ceq $s.Session -and $_.pid } | Select-Object -First 1
             $targets[$s.Session] = @{ Kind = 'lead'; Live = [bool]$m; SessionId = [string]$m.sessionId
-                Idle = [bool]($m -and $m.status -eq 'idle'); Row = $s; Agent = $m }
+                Idle = [bool]($m -and $m.status -eq 'idle'); Row = $s; Agent = $m; Name = $s.Session }
         }
-        $pm = $agents | Where-Object { $_.kind -eq 'interactive' -and $_.name -ceq 'Pult' -and $_.pid } | Select-Object -First 1
-        $targets['Pult'] = @{ Kind = 'pult'; Live = [bool]$pm; SessionId = [string]$pm.sessionId; Idle = $false; Row = $null; Agent = $pm }
+        $pm = Find-PultAgent $agents
+        $targets['Pult'] = @{ Kind = 'pult'; Live = [bool]$pm; SessionId = [string]$pm.Agent.sessionId; Idle = $false; Row = $null
+            Agent = $pm.Agent; Name = $(if ($pm) { $pm.Name } else { 'Pult' }) }
     }
 
     # Messages in flight that reached their target.
@@ -1349,6 +1427,7 @@ function Invoke-WakePass {
             $script:wakeDirty = $true
         }
         try { Invoke-SizeCheck $targets } catch { Write-Log "WARN size check failed: $_" }
+        try { Invoke-LimitForecast } catch { Write-Log "WARN limit forecast failed: $_" }
     }
 
     # Sends: one sender at a time; per target only its oldest message, at most one per round. The pass stops after
@@ -1648,6 +1727,7 @@ $lastSizeLog = 0.0  # epoch of the last SIZE lines
 $wakePendingFile = Join-Path $StateDir 'wake-pending.json'
 $wakeStateFile = Join-Path $StateDir 'wake-state.json'
 $wakePending = New-Object System.Collections.ArrayList  # messages not delivered yet (New-WakeItem)
+$lastUsageWrite = $null  # the usage log's last write time at the last forecast look (Invoke-LimitForecast)
 $wakeState = @{ PultNote = $false; SizePushed = @{}; LastWake = @{} }  # SizePushed: session id -> tokens; LastWake: target -> epoch
 try {
     if (Test-Path -LiteralPath $wakePendingFile) {
@@ -1683,6 +1763,7 @@ while ($true) {
     $holdLogged = $onHold
     $devKitVersion = Get-DevKitVersion
     $liveSessions = @{}  # session id -> name of each live lead and task session this round (for Invoke-LimitCheck)
+    $liveTasks = @{}     # session id -> name of each live task session of a lead's registry (not a lead, not an owner's)
     if ($devKitVersion -and $devKitVersion -cne $lastVersion) { $leadTried.Clear(); $lastVersion = $devKitVersion }
 
     foreach ($s in $servers) {

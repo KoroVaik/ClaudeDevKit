@@ -164,6 +164,7 @@ Why: the Zhratva lead could not launch `dev-kit:overlap-checker` on 2026-11-15 a
 | `dev-kit:overlap-checker` | haiku | at task start, when `dev-kit-sessions others` lists sessions (see "Overlap check at task start") | "no overlap" or the overlapping sessions with the reason |
 | `dev-kit:question-reader` | haiku | the project lead, before it first writes new questions to the owner in full (`dev-kit:project-lead`, "The reader check") | per question `ok`, or the flagged words and a plain rewrite |
 | `dev-kit:mechanical-editor` | haiku | a fully specified edit across named files (rename, replace references, move a block) | files and edit counts, skipped places, a Grep proving nothing is left |
+| `dev-kit:core-engineer` | fable (in its file) | only in a project whose profile has a `## core-engineer` section, and only after the owner's yes for that launch (see "A core engineer and its helpers") | the change or an approach described without code, its rationale, risks, checks to run, helper questions |
 
 The project's own types come from its `## manager` section.
 
@@ -179,6 +180,34 @@ The project's own types come from its `## manager` section.
   between their turns.
 - Continue a subagent that has the context (`SendMessage`) instead of starting a new one.
 - Launch line and approval of an expensive model: the owner's global rules.
+
+## A core engineer and its helpers
+
+A project whose profile has a `## core-engineer` section (its core areas, what the engineer reads first and
+never does there) may use `dev-kit:core-engineer` for one hard, bounded subproblem in those areas.
+
+- When: only after a `dev-kit:investigator` could not find the cause with confidence, or two fix attempts
+  failed, unless the profile section says otherwise. Every launch, a test launch and a fresh run after a
+  finished one included, needs the owner's yes for that launch (a C asks P). A continuation of the same run
+  by `SendMessage` (helper answers, check results, the go-ahead below) needs none.
+- Brief: as in "A brief", plus what the investigator and the failed attempts found, and a short `<task>`
+  name for its note files.
+- A continuation after more than an hour is cold and costly: start a fresh run from the engineer's handoff
+  note instead (a new launch, so a new yes). Near about 85% of its context window, tell it to write the note
+  and stop (the owner's global rules on Fable subagents).
+- A new approach or an architecture change comes back described without code. Check it, get the owner's
+  yes, then send the go-ahead to the same run by `SendMessage` within the hour while its cache is warm.
+- Helper questions: for each, launch a `dev-kit:investigator` (haiku for a lookup, sonnet for a cause) with
+  the question and a note file `.claude/helper-notes/<task>-<n>.md`; it writes there only its conclusions,
+  about 2k tokens at most, never raw logs or results, and returns only the path. Read none of the note
+  yourself; send the engineer only the paths. The folder keeps a `.gitignore` of `*`, so notes are never
+  committed; a worktree's notes go with it.
+- If the type is missing in the session, launch no stand-in (it would lack the 1-hour cache): ask the
+  owner (a C asks P) to run `/reload-plugins` or start a new session.
+
+Why: owner, 2026-11-23 (Zhratva «Обговорення: Інженер ядра аналізу»): projects need Prishch's core engineer,
+shared from dev-kit with project tuning, and helpers whose results pass as file paths so neither the
+session's nor the engineer's context fills with side research.
 
 ## A hypothesis before a fix
 

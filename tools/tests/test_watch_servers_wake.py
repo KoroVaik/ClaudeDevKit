@@ -157,7 +157,7 @@ class WatchServersWakeTest(unittest.TestCase):
         self.config_file = self.tmp / "servers.psd1"
         self.config_file.write_text("@{ Servers = @( %s ) }\n" % ", ".join(rows), encoding="utf-8-sig")
 
-    def agents(self, lead="idle", task="busy", pult=False):
+    def agents(self, lead="idle", task="busy", pult=False, hub_name=None):
         items = [{"pid": os.getpid(), "kind": "background", "name": LEAD, "sessionId": LEAD_SID, "id": LEAD_SID[:8],
                   "state": "working" if lead == "busy" else "idle", "status": lead},
                  {"pid": 999998, "kind": "background", "name": "C: task", "sessionId": TASK, "id": TASK[:8],
@@ -165,6 +165,9 @@ class WatchServersWakeTest(unittest.TestCase):
         if pult:
             items.append({"pid": 999997, "kind": "interactive", "name": "Pult", "sessionId": PULT_SID,
                           "id": PULT_SID[:8], "status": "idle"})
+        if hub_name:  # the hub's Remote Control session: a system name, cwd = the home folder
+            items.append({"pid": 999997, "kind": "interactive", "name": hub_name, "sessionId": PULT_SID,
+                          "id": PULT_SID[:8], "status": "idle", "cwd": str(Path.home())})
         (self.bin / "agents.json").write_text(json.dumps(items), encoding="utf-8")
 
     def registry_task(self, owner=False):
@@ -192,7 +195,7 @@ class WatchServersWakeTest(unittest.TestCase):
     def run_watch(self, rounds, *extra, restart_busy=False):
         env = dict(os.environ, PATH=str(self.bin) + os.pathsep + os.environ.get("PATH", ""),
                    DEV_KIT_PROJECTS_DIR=str(self.projects.parent), DEV_KIT_STATE_DIR=str(self.state),
-                   DEV_KIT_JOBS_DIR=str(self.tmp / "jobs"),
+                   DEV_KIT_JOBS_DIR=str(self.tmp / "jobs"), DEV_KIT_USAGE_LOG=str(self.tmp / "usage"),
                    TEST_DIR=str(self.bin), TEST_CALLS_FILE=str(self.tmp / "restart-calls.txt"),
                    TEST_REAL_SESSIONS=str(self.plugins / "dev-kit" / "scripts" / "sessions.py"))
         env.pop("TEST_RESTART_BUSY", None)
@@ -314,7 +317,7 @@ class WatchServersWakeTest(unittest.TestCase):
         self.assertEqual([LEAD] * 3 + ["Pult"], [self.to(w) for w in wakes], log)
         self.assertEqual(["SendMessage"] * 4, [self.arg(w, "--tools") for w in wakes], "no one-shot push of its own")
         self.assertEqual(1, len({self.message(w).split("\n")[0] for w in wakes[:3]}), "a retry keeps the event id")
-        self.assertEqual("bypassPermissions", self.arg(wakes[3], "--permission-mode"))
+        self.assertEqual("default", self.arg(wakes[3], "--permission-mode"))
         push = self.push(wakes[3])
         self.assertLess(len(push), 200)
         self.assertTrue(push.startswith(f"{LEAD} не взяв повідомлення; stale: C: task | {TASK}"), push)
@@ -352,7 +355,7 @@ class WatchServersWakeTest(unittest.TestCase):
         self.assertFalse([line for line in log if line.startswith("WARN")], log)
         wakes = self.wakes()
         self.assertEqual(2, len(wakes), log)
-        self.assertEqual(["bypassPermissions"] * 2, [self.arg(w, "--permission-mode") for w in wakes])
+        self.assertEqual(["default"] * 2, [self.arg(w, "--permission-mode") for w in wakes])  # the hub holds a bypass sender's message
         self.assertIn("brackets added: Pult\n", wakes[0]["stdin"])
         self.assertIn("watch-log.py) is retired", self.message(wakes[0]))
         giveup = self.message(wakes[1]).split("\n")
@@ -362,6 +365,26 @@ class WatchServersWakeTest(unittest.TestCase):
         self.assertTrue(any(re.match(r"WAKE Pult \S+ cause=event kinds=GIVEUP$", line) for line in log), log)
         self.assertEqual(2, len([line for line in log if line.startswith("WAKE-TAKEN Pult ")]), log)
         self.assertTrue(json.loads((self.pult / "wake-state.json").read_text(encoding="utf-8"))["PultNote"])
+
+    # protects: Bug
+    def test_pult_hub_listed_with_a_system_name_gets_the_giveup_under_that_name(self):
+        # The hub's session shows as "<user>-e9" in the session list, never "Pult": it is still live, the message is
+        # addressed by the system name and no "Pult did not come up" phone push goes out.
+        system_name = "user-e9"
+        self.config(lead=False, server=True)
+        self.agents(hub_name=system_name)
+        (self.bin / "wake-plan.json").write_text(json.dumps(
+            {"deliver": True, "transcripts": {LEAD: str(self.lead_transcript), system_name: str(self.pult_transcript)}}),
+            encoding="utf-8")
+        log = self.run_watch(3, "-MaxHeals", "0", "-WakeDownSec", "0")
+        wakes = self.wakes()
+        self.assertEqual([system_name], [self.to(w) for w in wakes], log)
+        giveup = self.message(wakes[0]).split("\n")
+        self.assertTrue(giveup[1].startswith(f"GIVEUP {SERVER} ("), giveup)
+        self.assertTrue(any(re.match(r"WAKE Pult \S+ cause=event kinds=GIVEUP$", line) for line in log), log)
+        self.assertTrue(any(line.startswith("WAKE-TAKEN Pult ") for line in log), log)
+        self.assertFalse([line for line in log if "FALLBACK" in line or "phone" in line], log)
+        self.assertEqual([], json.loads((self.pult / "wake-pending.json").read_text(encoding="utf-8")))
 
     # protects: Rule
     def test_lead_on_an_older_dev_kit_is_left_to_its_own_watcher(self):
@@ -441,6 +464,42 @@ class WatchServersWakeTest(unittest.TestCase):
         self.assertEqual(5, len(wakes_args))
         self.assertEqual([True, False, False, True, False], ["--wakes" in c for c in wakes_args],
                          "the SIZE lines every 10 minutes, and at the start of a run")
+
+    def usage_log(self, rows):
+        """rows: (hours ago, weekly per cent); the window resets in 3 days."""
+        folder = self.tmp / "usage"
+        folder.mkdir(exist_ok=True)
+        now, resets = time.time(), int(time.time()) + 3 * 24 * 3600
+        (folder / "usage-log.jsonl").write_text("".join(json.dumps(
+            {"ts": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(now - h * 3600)), "week_pct": p,
+             "week_resets": resets, "five_hour_pct": None}) + "\n" for h, p in rows), encoding="utf-8")
+
+    # protects: Rule
+    def test_weekly_limit_forecast_gets_one_phone_push_per_window(self):
+        self.usage_log([(3, 40), (1, 50)])  # 5 %/h: runs out in about 9 hours, days before the reset
+        self.registry_task()
+        self.agents(pult=True)
+        self.run_watch(2)
+        log = self.run_watch(2)  # a new watcher run (as after WATCH-RESTART) pushes no second time
+        pushes = [w for w in self.wakes() if self.push(w) is not None]
+        self.assertEqual(1, len(pushes), log)
+        self.assertEqual("Pult", self.to(pushes[0]))
+        self.assertRegex(self.push(pushes[0]),
+                         r"^Тижневий ліміт: витрачено 50%, за темпом скінчиться (пн|вт|ср|чт|пт|сб|нд) \d\d:\d\d, "
+                         r"оновиться (пн|вт|ср|чт|пт|сб|нд) \d\d:\d\d$")
+        self.assertEqual(1, len([line for line in log if line.startswith("LIMIT-FORECAST runout=")]), log)
+
+    # protects: Rule
+    def test_weekly_limit_forecast_without_open_task_sessions_pushes_nothing(self):
+        self.usage_log([(3, 40), (1, 50)])
+        self.agents(pult=True)  # no task session in the lead's registry
+        log = self.run_watch(2)
+        self.assertEqual([], [w for w in self.wakes() if self.push(w) is not None])
+        self.assertFalse([line for line in log if line.startswith("LIMIT-FORECAST")])
+        self.assertFalse((self.pult / "limit-forecast.json").exists())
+        self.registry_task()  # a task session opens later in the same window: no mark was set, so it still pushes
+        self.run_watch(2)
+        self.assertEqual(1, len([w for w in self.wakes() if self.push(w) is not None]))
 
     # protects: Rule
     def test_lead_with_a_working_task_or_busy_is_asked_for_a_critical_dev_kit_not_restarted(self):

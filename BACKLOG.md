@@ -35,3 +35,16 @@ What: an item whose cause was seen once and not urgent expires after about 2 wee
 Why: first sightings stay as `waiting` items with no end today; the 2-week expiry of one-off causes had no explicit yes (owner, 2026-11-21).
 Cheapest test: count the `waiting` items older than 14 days in the three projects' item folders and see how many the expiry would drop.
 Verdict (2026-11-22): keep as an idea; moved from the finished retro plan, the owner has not agreed it; no case yet shows it missing. Owner: yes (2026-11-23).
+
+## project-lead: a discussion that waits stays open
+
+What: in `plugins/dev-kit/skills/project-lead/SKILL.md`, "Start an «Обговорення:» session": a discussion session shows no short plan, never asks whether to close and never offers «1 чи 2?» about closing while any agreed point waits on a build or a decision outside the talk (for example another project's agent that must be built first), or while the owner says to wait («почекаєм», «поки ...»); it answers, records the point in the written section and ends with the talk's own next step. "In place of asking him whether it is done" applies only when every point is decided and nothing waits; the session never decides by itself that the talk is done. Same condition added to the first-prompt text ("or where you would ask him whether it is and nothing waits on a build or a decision outside the talk"). Owner approved the idea; the exact wording is the plugin session's.
+Why: owner, 2026-11-23, Zhratva «Обговорення: Інженер ядра аналізу»: the talk's decisions waited on dev-kit's base engineer, yet the session showed the closing plan twice and then offered closing as option 2; owner: «та куди ти спішиш??????? будуть нові вхідні параметри а обговорення вде закінчене, який сенс закінчувать якщо потім знову треба обговорбвать?». Cause: the short plan's second trigger ("in place of asking whether it is done") leaves the judgement to the session, and no rule covers a talk that waits on outside work.
+Cheapest test: in a throwaway discussion say «почекаєм поки зробиться X»; the session shows no plan and no closing question.
+
+## unity-kit: a profile may allow opening a closed editor
+
+What: `plugins/unity-kit/skills/unity-editor/SKILL.md`, "Order of a run": the ban "No batchmode or command-line Unity" and "The editor does not answer ... stop and tell the owner" get a named exception: a profile may allow the wrapper to open a closed editor with the bridge's own launch (`uloop launch <project>`, never `--restart` or `--quit`) and wait until the bridge answers; an open editor is still never restarted, closed or killed.
+Why: owner, 2026-11-23, Prishch «Обговорення: phone stand-in» (`plans/phone-emulator.md`): tasks stood because the editor was closed and the owner had to start it on the PC; Prishch's profile now allows it as an exception to the skill.
+Cheapest test: with the project's editor closed, run the wrapper's state command; the editor opens and the command answers.
+Verdict (2026-11-23): yes as a small rule edit in unity-editor «Order of a run»: one exception bullet, only when the profile allows it, with a wait limit the profile names; a running but silent editor still stops. Waits for the owner.

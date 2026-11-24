@@ -106,7 +106,7 @@ One entry per behaviour. A newer direct observation replaces an older one; the o
 - What happens: While the Claude app is open on the phone screen, no push shows. A test push arrived only after the app was closed.
 - Workaround: none.
 - App: phone app | Claude Code: unknown
-- Seen: 2026-11-20 | live test | ClaudeDevKit, `docs/findings/idle-wake-cost.md`
+- Seen: 2026-11-23 | sighting: a push from a background lead with Remote Control did not show while the owner had the app open | ClaudeDevKit, background lead; 2026-11-20 live test in `docs/findings/idle-wake-cost.md`
 - Re-check: send a push with the app open, then closed | owner-only
 - Status: checked
 
@@ -116,6 +116,14 @@ One entry per behaviour. A newer direct observation replaces an older one; the o
 - App: `PushNotification` tool | Claude Code: unknown
 - Seen: 2026-11-19 | check not stated | ClaudeDevKit, project-lead skill
 - Re-check: call `PushNotification` from an attached session while the owner is at the screen, read the answer | owner-only
+- Status: doubtful
+
+### A `PushNotification` answer of "Mobile push requested" does not show the phone got the push
+- What happens: The answer "Mobile push requested" only means the request was handed to the server. On 2026-11-23 a push from a background lead with Remote Control did not show while the owner had the Claude app open on the phone (see "No push shows while the Claude app is open on the phone").
+- Workaround: none; the answer does not prove the phone showed the push.
+- App: phone app, `PushNotification` tool | Claude Code: 2.1.330
+- Seen: 2026-11-23 | sighting (the push did not show), not re-run | ClaudeDevKit, background lead with Remote Control
+- Re-check: call `PushNotification` from an attached session with the app open, then closed, and watch the phone | owner-only
 - Status: doubtful
 
 ### The phone app's session list does not group by project or show what waits on the owner
@@ -155,12 +163,13 @@ One entry per behaviour. A newer direct observation replaces an older one; the o
 - Status: doubtful
 
 ### The Remote Control server's own session has a system name
-- What happens: The session of a Remote Control server (cwd = the home folder) has a system name like "<user>-f1" in `claude agents --json` (kind `interactive`). The app shows the name the server sets ("Pult").
-- Workaround: the name the server sets ("Pult") is the one that shows in the app; the system name appears only in the `claude agents --json` list (see `plugins/pult/rules/hub.md`, "Answering "статус"").
-- App: Remote Control | Claude Code: unknown
-- Seen: date not stated | check not stated | Pult hub rules
+- What happens: The session of a Remote Control server (cwd = the home folder) has a system name like "<user>-f1" in `claude agents --json` (kind `interactive`). The app shows the name the server sets ("Pult"). `SendMessage` to the name the server sets does not resolve; to the system name it does.
+- Workaround: send to the system name from `claude agents --json`; the name the server sets ("Pult") is the one that shows in the app (see `plugins/pult/rules/hub.md`, "Answering "статус"").
+- App: Remote Control | Claude Code: 2.1.330
+- Seen: 2026-11-23 | live send (the set name failed, the system name worked) and a read of `claude agents --json` | ClaudeDevKit, Pult hub; server started 2026-11-21 with the name Pult
 - Re-check: `claude agents --json` | safe
-- Status: doubtful
+- Status: checked
+- History: until 2026-11-23 the entry named only the list; `SendMessage` to the system name was not recorded (status doubtful, date not stated).
 
 ### Stopping a Remote Control server: Ctrl-C is graceful, a kill can lock the folder
 - What happens: Ctrl-C typed in the console of a `claude remote-control` server is graceful: the server shuts its sessions down and keeps them for the next start. Killing the process can lock the project folder for minutes.
@@ -401,6 +410,15 @@ One entry per behaviour. A newer direct observation replaces an older one; the o
 - Status: doubtful
 - History: 2026-11-19 (Zhratva) and 2026-11-20 (two projects): held for approval, seen live.
 
+### A bypassPermissions sender's message to a Remote Control server's session is held; a default-mode sender's is taken
+- What happens: The session of a Remote Control server started with `claude remote-control --permission-mode bypassPermissions` runs in auto mode (its transcript records permissionMode "auto"; its process line has no `--permission-mode`). A cross-session message from a bypassPermissions sender gets "[Cross-session delivery notice] ... held by that session ... NOT delivered" and never becomes a turn. A message from a default-mode sender (a one-shot `claude -p --permission-mode default` calling `SendMessage`) is taken at once, within seconds.
+- Workaround: send to the server's session in default mode (`plugins/pult/scripts/watch-servers.ps1`, `$PultWakeMode`).
+- App: `SendMessage` tool, Remote Control | Claude Code: 2.1.330
+- Seen: 2026-11-23 | live test (the hold notice from a bypassPermissions send; a default-mode send taken) | ClaudeDevKit, Pult hub
+- Re-check: send to the hub's session once from a bypassPermissions session and once from a one-shot default-mode `claude -p`, read the notice or the hub's transcript | owner-only
+- Status: checked
+- History: the entry above holds the mixed-mode sightings of 2026-11-19 to 2026-11-21; this bypass-to-auto case is not among them.
+
 ### The owner's message in a lead's chat during a restart is not lost
 - What happens: A message the owner types into a lead's chat during a restart is not lost; it is answered after the restart.
 - Workaround: none needed.
@@ -572,8 +590,9 @@ One entry per behaviour. A newer direct observation replaces an older one; the o
 - Workaround: none.
 - App: subagents | Claude Code: unknown
 - Seen: 2026-11-11 | checked on this machine and subscription (the owner's note); the measurement itself is in no findings file or commit of this repo | the earliest trace is the Prishch repo, commit 27a0ce6 of 2026-11-11 (`.claude/agents/core-engineer.md` gets `experimental: cacheTtl: 1h`)
-- Re-check: `grep -h cache_creation ~/.claude/projects/*/*/subagents/agent-*.jsonl | tail -n 5` and read `ephemeral_5m_input_tokens` against `ephemeral_1h_input_tokens` (1h writes show that `cacheTtl: 1h` took effect) | safe
-- Status: doubtful
+- Seen: 2026-11-23 | measured from transcripts on this machine: summed `ephemeral_1h_input_tokens` and `ephemeral_5m_input_tokens` over 20 Prishch `core-engineer` subagent transcripts (models claude-fable-5-1 and claude-fable-5-2). The 13 runs of 2026-10-26 to 2026-11-11, before `cacheTtl: 1h` was added, wrote only 5-minute cache (1h = 0); the 7 runs after it, 2026-11-11 to 2026-11-23, wrote only 1-hour cache (5m = 0) | Prishch | Claude Code: unknown
+- Re-check: pick the agent's transcripts by agentType: for each `~/.claude/projects/*/*/subagents/agent-<id>.meta.json` with `"agentType":"core-engineer"`, sum `ephemeral_5m_input_tokens` and `ephemeral_1h_input_tokens` in the matching `agent-<id>.jsonl` (`grep -h cache_creation`); runs after the agent file got `cacheTtl: 1h` should show only 1h writes | safe
+- Status: checked
 
 ### A main session's prompt cache lives about one hour
 - What happens: A main session's prompt cache lives about one hour (leads write a 1-hour cache; 5-minute writes also occur). A warm cache read costs about 1/20 of a cold rewrite. The next turn of a long-waiting session re-reads its whole context at full price: 21 of 22 Pult wakes found the cache cold, each rewrote about 110k and read about 230k tokens.
