@@ -16,5 +16,6 @@
   "0.1.117": {"kind": "routine", "date": "2026-11-24", "reason": "task sessions show in the Claude app with no push; the owner may write to one and it tells its lead"},
   "0.1.118": {"kind": "routine", "date": "2026-11-24", "reason": "no hand data work for the owner: labelling and data checks go to agents"},
   "0.1.119": {"kind": "routine", "date": "2026-11-24", "reason": "retro: an investigator may write scratch scripts in the job tmp folder; Claude facts re-checked on 2.1.331"},
-  "0.1.120": {"kind": "routine", "date": "2026-11-24", "reason": "the retro, edit-rules and Claude spend code moved to the plugins rules-kit and spend-kit; the weekly docs session stays here; release marks are read per plugin"}
+  "0.1.120": {"kind": "routine", "date": "2026-11-24", "reason": "the retro, edit-rules and Claude spend code moved to the plugins rules-kit and spend-kit; the weekly docs session stays here; release marks are read per plugin"},
+  "0.1.121": {"kind": "routine", "date": "2026-11-24", "reason": "a talk on an idea the owner still weighs opens with one open question; a talk that builds nothing closes with one closing question, no plan"}
 }
