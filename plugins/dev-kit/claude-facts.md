@@ -4,7 +4,7 @@ How the Claude apps behave in practice, where official docs say little: the desk
 Remote Control, background sessions, headless `claude -p`, plugins and hooks, subagents, the shell under Claude
 Code. Facts only, no rules: a rule that relies on a fact keeps what to do and links here.
 
-Last re-check: 2026-11-23 | Claude Code: 2.1.330
+Last re-check: 2026-11-24 | Claude Code: 2.1.331
 
 ## How to use
 
@@ -63,8 +63,8 @@ One entry per behaviour. A newer direct observation replaces an older one; the o
 ### Desktop app data layout
 - What happens: Sessions are `local_*.json` files under `%LOCALAPPDATA%/Claude-Data/claude_pzs8sxrjxfjjc/claude-code-sessions/<accountUuid>/<orgUuid>/`. The CLI writes `~/.claude/sessions/<pid>.json` with a `cliSessionId`. The app shows the statuses `blocked`, `completed` and `review_ready`.
 - Workaround: none; `plugins/pult/scripts/list-sessions.py` reads this layout.
-- App: desktop app | Claude Code: unknown
-- Seen: 2026-11-15 | read of the folders ("Layout of the desktop app data checked on 2026-11-15") | ClaudeDevKit, Pult
+- App: desktop app | Claude Code: 2.1.331
+- Seen: 2026-11-15 | read of the folders ("Layout of the desktop app data checked on 2026-11-15"); re-check 2026-11-24: `list-sessions.py` still lists the sessions with statuses | ClaudeDevKit, Pult
 - Re-check: `python -I -X utf8 plugins/pult/scripts/list-sessions.py` | safe
 - Status: checked
 
@@ -188,10 +188,10 @@ One entry per behaviour. A newer direct observation replaces an older one; the o
 - Status: doubtful
 
 ### The Remote Control server's own session has a system name
-- What happens: The session of a Remote Control server (cwd = the home folder) has a system name like "<user>-f1" in `claude agents --json` (kind `interactive`). The app shows the name the server sets ("Pult"). `SendMessage` to the name the server sets does not resolve; to the system name it does.
+- What happens: The session of a Remote Control server (cwd = the home folder) has a system name like "<user>-e9" in `claude agents --json` (kind `interactive`). The app shows the name the server sets ("Pult"). `SendMessage` to the name the server sets does not resolve; to the system name it does.
 - Workaround: send to the system name from `claude agents --json`; the name the server sets ("Pult") is the one that shows in the app (see `plugins/pult/rules/hub.md`, "Answering "статус"").
-- App: Remote Control | Claude Code: 2.1.330
-- Seen: 2026-11-23 | live send (the set name failed, the system name worked) and a read of `claude agents --json` | ClaudeDevKit, Pult hub; server started 2026-11-21 with the name Pult
+- App: Remote Control | Claude Code: 2.1.331
+- Seen: 2026-11-23 | live send (the set name failed, the system name worked) and a read of `claude agents --json`; re-check 2026-11-24: `claude agents --json` still lists an `interactive` session with cwd = the home folder under a system name ("korov-e9"; the suffix changes between server starts) | ClaudeDevKit, Pult hub; server started 2026-11-21 with the name Pult
 - Re-check: `claude agents --json` | safe
 - Status: checked
 - History: until 2026-11-23 the entry named only the list; `SendMessage` to the system name was not recorded (status doubtful, date not stated).
@@ -234,8 +234,8 @@ One entry per behaviour. A newer direct observation replaces an older one; the o
 ### `claude --bg` with `bypassPermissions` fails until the owner accepts a disclaimer once
 - What happens: `claude --bg --permission-mode bypassPermissions` fails with exit 1 until the owner accepts a disclaimer once per machine. The accepted choice is recorded as `skipDangerousModePermissionPrompt` in the user settings.
 - Workaround: the owner runs `claude --dangerously-skip-permissions` interactively once and accepts.
-- App: background sessions | Claude Code: unknown
-- Seen: 2026-11-15 | live, exit code | ClaudeDevKit, project-lead skill
+- App: background sessions | Claude Code: 2.1.331
+- Seen: 2026-11-15 | live, exit code; re-check 2026-11-24: `skipDangerousModePermissionPrompt` is present in `~/.claude/settings.json` | ClaudeDevKit, project-lead skill
 - Re-check: look for `skipDangerousModePermissionPrompt` in `~/.claude/settings.json` | safe
 - Status: checked
 
@@ -306,8 +306,8 @@ One entry per behaviour. A newer direct observation replaces an older one; the o
 ### A low-memory spell closes idle background sessions
 - What happens: On low memory Claude Code closes idle background sessions early. On 2026-11-16 a C that waited on the owner vanished; a stopped background watcher of a lead was seen in the same spell. A long low-memory spell can close pinned sessions too.
 - Workaround: bring the session back with `claude respawn <id>`; the Pult watcher heals leads.
-- App: background sessions | Claude Code: unknown
-- Seen: 2026-11-16 | seen live | ClaudeDevKit, Pult
+- App: background sessions | Claude Code: 2.1.331
+- Seen: 2026-11-16 | seen live; re-check 2026-11-24: `daemon.log` holds lines like `bg retire 2d9fb437: idle-prompt, idle 25m [low memory]` | ClaudeDevKit, Pult
 - Re-check: `tail -n 200 ~/.claude/daemon.log | grep 'bg retire'` | safe
 - Status: checked
 
@@ -587,8 +587,8 @@ One entry per behaviour. A newer direct observation replaces an older one; the o
 ### The status line JSON holds the subscription limits
 - What happens: For subscribers the status line JSON holds `rate_limits.seven_day.used_percentage` and `resets_at` (and `five_hour`). Claude Code runs the status line script on each turn. Without `rate_limits` (API login, old version) nothing is given.
 - Workaround: none.
-- App: status line | Claude Code: 2.1.330
-- Seen: date not stated | read in the Claude Code 2.1.330 bundle | ClaudeDevKit, `plugins/dev-kit/scripts/statusline.py`
+- App: status line | Claude Code: 2.1.331
+- Seen: date not stated | read in the Claude Code 2.1.330 bundle; re-check 2026-11-24 (2.1.331): `usage-log.jsonl` still gets new lines with `week_pct`, `week_resets` and `five_hour_pct` | ClaudeDevKit, `plugins/dev-kit/scripts/statusline.py`
 - Re-check: pipe a sample JSON to `dev-kit-statusline`, or read `~/.claude/dev-kit/usage-log.jsonl` | safe
 - Status: checked
 
