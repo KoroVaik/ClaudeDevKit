@@ -4,7 +4,8 @@ reader agent (`agents/part-reader.md`, model haiku). No model here.
 Signs are counted for body parts (`parts.body`: the session, a skill part, a subagent file); a hook event or an Agent
 call inside one counts for it, and their sets join its candidates. A part has a sign when
 - a general sign fires (GENERAL, the same for every set): `owner correction` (an owner message matches CORRECTION),
-  `failed calls` (ERRORS_MIN error results), `repeated call` (one tool with one input REPEAT_MIN times; background
+  `failed calls` (ERRORS_MIN error results in a main session; in a subagent's file one error repeated ERRORS_MIN
+  times, `failed_calls`), `repeated call` (one tool with one input REPEAT_MIN times; background
   calls and the plugins' own commands left out, as in the scan), `hook refusal` (REFUSALS_MIN hook refusals),
   `slow call` (a result SLOW_CALL_MIN minutes after its call, WAITING_TOOLS left out), `many calls` (MANY_CALLS);
   the thresholds are the scan's (`retro.py`, "Kinds");
@@ -34,6 +35,7 @@ import talk
 
 REPEAT_MIN = 3  # the same as retro.py
 ERRORS_MIN = 3
+ERROR_KEY_CHARS = 200  # the start of an error text that makes two errors of a subagent the same error
 REFUSALS_MIN = 2
 SLOW_CALL_MIN = 10
 MANY_CALLS = 150
@@ -138,6 +140,22 @@ def collect(entries, found):
     return data
 
 
+def failed_calls(part, errors):
+    """The errors that make the `failed calls` sign of a body part, [] for none: in a main session ERRORS_MIN errors of
+    any kind; in a subagent's file only one error (same tool, same text) repeated ERRORS_MIN times, since a coder's
+    or investigator's tests failing while it works are normal."""
+    root = part
+    while root.parent is not None:
+        root = root.parent
+    if root.kind == "session":
+        return errors if len(errors) >= ERRORS_MIN else []
+    same = defaultdict(list)
+    for error in errors:
+        same[(error[1], " ".join(str(error[2]).split())[:ERROR_KEY_CHARS])].append(error)
+    repeated = max(same.values(), key=len, default=[])
+    return repeated if len(repeated) >= ERRORS_MIN else []
+
+
 def pattern_of(text, length=40):
     """A regular expression for a sign that would catch this text: its first words, escaped."""
     words = " ".join(str(text).split())[:length].strip()
@@ -163,11 +181,12 @@ def mark(entries, found, registry=None, own=None, skip_first=False):
                 marks.general.setdefault("owner correction", ("process", re.escape(match.group(0)), text))
                 marks.lines.add(number)
                 marks.evidence.append(text)
-        if len(item["errors"]) >= ERRORS_MIN:
-            number, name, text = item["errors"][0]
-            marks.general["failed calls"] = ("technical", pattern_of(text), f"{len(item['errors'])} errors, first {name}: {text}")
-            marks.lines.update(line for line, _, _ in item["errors"])
-            marks.evidence += [f"{name} {text}" for _, name, text in item["errors"][:5]]
+        errors = failed_calls(part, item["errors"])
+        if errors:
+            number, name, text = errors[0]
+            marks.general["failed calls"] = ("technical", pattern_of(text), f"{len(errors)} errors, first {name}: {text}")
+            marks.lines.update(line for line, _, _ in errors)
+            marks.evidence += [f"{name} {text}" for _, name, text in errors[:5]]
         repeated = [(key, count) for key, count in item["calls"].most_common() if count >= REPEAT_MIN]
         if repeated:
             number, name, tool_input = item["first"][repeated[0][0]]

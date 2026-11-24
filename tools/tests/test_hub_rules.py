@@ -37,9 +37,11 @@ class HubRulesTests(unittest.TestCase):
         self.assertNotIn("{PLUGIN}", text)
         self.assertNotIn("{DEVKIT}", text)
         self.assertNotIn("{SPENDKIT}", text)
+        self.assertNotIn("{RULESKIT}", text)
         self.assertIn(PLUGIN.resolve().as_posix() + "/scripts/servers.psd1", text)
         self.assertIn(PLUGIN.resolve().parent.as_posix() + "/dev-kit/bin/dev-kit-sessions", text)
         self.assertIn(PLUGIN.resolve().parent.as_posix() + "/spend-kit/bin/spend-kit critical", text)
+        self.assertIn(PLUGIN.resolve().parent.as_posix() + "/rules-kit/bin/rules-kit list --days 7", text)
 
     def test_rules_carry_the_plugin_version_for_the_update_check(self):  # Rule
         text = json.loads(self.run_hook({"cwd": str(self.home)}))["hookSpecificOutput"]["additionalContext"]

@@ -149,7 +149,7 @@ A message with a critical question open (the critical question is last, no closi
 ```
 
 P's own questions («від мене») include its proposals: start a new C, close a task or session, take
-over a session, restart a crashed session, the weekly retro ask, the docs migration offer, new plugin backlog
+over a session, restart a crashed session, the docs migration offer, new plugin backlog
 entries. P makes at most one «Запустити нову сесію «C: <name>»?» proposal for a plan item at a time
 (the docs migration offer is apart): the most important plan item, among close ones the one that needs
 nothing from the owner. After the owner's «ні» to it, the next item becomes the proposal; with none,
@@ -342,7 +342,7 @@ Stale items: at each start status and each wake-up, a question a C put to the ow
 before today, whose answer lies within P's own rights (an Ask-P list step, or a choice inside the
 approved criteria) is decided by its `Рекомендую:` line. P records the decision in the doc the item
 came from and removes the item; it just leaves the counts. Every other item waits for the owner: the
-four kinds below that must enter the queue, a takeover item, the retro item, «Закрити ...?», the
+four kinds below that must enter the queue, a takeover item, «Закрити ...?», the
 «так» / «є питання» check of a built screen and a stuck C. Why: the owner decided on 2026-11-19 that a
 question P may answer itself must not wait on the owner forever.
 
@@ -387,8 +387,7 @@ choice still enters the queue.
 
 One more item always enters the queue: «Взяти «<name>» під керування?» for each session the owner
 started that P has not offered yet (see "Take over a session the owner started"). It is a normal
-item, never critical. The same holds for the weekly retro ask of "Retro of session problems"; an urgent retro
-item is critical.
+item, never critical.
 
 Why: the owner decided on 2026-11-15 that he is the CEO: six messages about three sessions in
 minutes were noise, and spend under 1 USD or a decision inside the criteria needs no owner.
@@ -1051,18 +1050,17 @@ costs tokens while nothing is new.
 
 A small rule edit is one place in one skill, agent or doc, with no clash with other rules and no code or
 tests to run. P does it itself, with no new session, whatever its source: a backlog entry, the owner's
-request in P's chat, a process mistake or a retro item. It edits the project's own rules (`CLAUDE.md`,
+request in P's chat or a process mistake. It edits the project's own rules (`CLAUDE.md`,
 `.claude/`, docs, in the plugin repo the plugins too); in another project a plugin rule still goes to the
 plugin repo's `BACKLOG.md` (`dev-kit:manager`, "A change to the plugins themselves"). This is P's one
 exception to "no task work"; any other rule edit P makes follows `rules-kit:edit-rules` too.
 
 - Up to 3 items at once: one `dev-kit:reviewer`, whose brief carries steps 1-2 of `rules-kit:edit-rules`,
   reviews them together and returns, per item, a recommendation with its reason, the idea in one plain
-  line and the exact edit (a retro item already has this from its «Ретро:» session).
+  line and the exact edit.
 - A backlog entry gets a `Verdict:` line with the recommendation and is removed after the edit (in the
-  worktree's commit) or on «ні». An owner-chat, process-mistake or retro item has no entry.
-- P asks the owner a yes/no batch on the ideas, not the wording (a retro item is asked as in
-  "Retro of session problems"). On «так» P makes a throwaway worktree of main (`git worktree add`, as for a
+  worktree's commit) or on «ні». An owner-chat or process-mistake item has no entry.
+- P asks the owner a yes/no batch on the ideas, not the wording. On «так» P makes a throwaway worktree of main (`git worktree add`, as for a
   C); one `dev-kit:coder`, its brief naming that worktree's path, applies the edits there, bumps the plugin
   version if a plugin changed (with its release mark, `.claude/dev-kit.md`) and runs the repo's lint; P runs steps 5-6 of `rules-kit:edit-rules` on the diff,
   commits, merges into main as in "Acceptance and merge" (its checks of the main checkout, `--ff-only`) and
@@ -1079,49 +1077,24 @@ four times in a minute while the owner was told to wait 12 minutes, and P then e
 ## Retro of session problems
 
 Every project with a lead has its own retro (`rules-kit:retro`); no P runs a scan. rules-kit hooks log each ending
-session's problems into the project's local item folder and start a background session «Ретро: <project>» when new
-findings wait (the docstring of rules-kit's `scripts/retro.py` has the folder, the commands and the hooks). That session
-reviews them with the project's rules, docs and code in view, applies trivial fixes itself and ends with a
-`ГОТОВО` to this P. Dev-kit rule and global-rule items of every project go to the ClaudeDevKit folder, so only P
-of ClaudeDevKit brings them to the owner.
+session's problems and start a background session «Ретро: <project>» when new findings wait (the docstring of
+rules-kit's `scripts/retro.py`). That session fixes, checks and reverts rules by itself and asks the owner nothing.
 
 - `ГОТОВО` from «Ретро: <project>»: P merges its branch as in "Acceptance and merge" with no «Approved design»
-  check and no follow-up C, then closes the session as after any merge; with nothing to merge, P only closes it.
-- `ПИТАННЯ` from «Ретро: <project>» (an urgent item: lost work, a critical token problem, blocked work, one cause
-  repeated the same day): a critical queue item, asked at once.
+  check, then closes the session as after any merge; with nothing to merge, P only closes it. Each `task:` line
+  in it (a hook, script or check the retro does not build itself) becomes a C started with no owner ask. P shows the owner nothing about the retro unless he asks
+  (Pult's «статус» lists what it did).
+- The owner's «поверни <що>» about a retro change: P finds its key in `rules-kit list` and runs `rules-kit
+  revert-request <key>`; the next retro run reverts it.
 - `ГОТОВО` from «Документація: <project>» (the weekly docs session, `dev-kit:maintain-project-docs`, "Weekly
   background run"): P merges and closes it the same way. When its run wrote `open` docs items, P starts one C
   «C: Документація <YYYY-MM-DD>» whose task file lists those item files; that C fixes them and sets each one's
-  `status:` to `fixed`.
-- The line `retro: <N> items due` in P's context (the prompt hook adds it when urgent items are open, or when
-  disputed items, trivial fixes and docs items for the owner wait and the last weekly ask is a week old, a day old
-  after a «ні»): P adds one queue question of its own, «Розібрати <N> пунктів ретро?», a normal item; the docs items
-  join it, never a second weekly question. On the answer P runs
-  `rules-kit asked --answer yes|no`. On «так» P reads the items with `rules-kit items` (the docs items with
-  `dev-kit-docs items`) and goes through
-  them in its own chat: first the trivial fixes as one list, each line the fix in plain words, «скасувати 2» reverts
-  one (as a "Small rule edit"); then each disputed or urgent item and each docs item with `status: owner` as a
-  normal P question of "Message templates",
-  built from the item's Було / Виправлення lines (the long form only on the owner's ask). Each «так» is applied
-  as a "Small rule edit"; a script, hook, new agent or skill becomes a backlog entry with `Verdict: owner yes in
-  retro <YYYY-MM-DD>` in ClaudeDevKit, or a C elsewhere; a docs «так» larger than a small edit goes to a C. P then
-  sets each item's `status:` line in its file (a
-  trivial fix the owner kept and a disputed item he said «так» to: `fixed`; a reverted one or a «ні»: `no-fix`; a
-  docs item: `fixed` or `rejected`); the files are local, outside any repo. The item `claude-facts-owner-check`
-  (plugin repo only) holds facts about the Claude apps only the owner can see: P asks its questions as one batch and
-  passes each answer on with `rules-kit add --project ClaudeDevKit --text "owner check <YYYY-MM-DD>: <fact
-  title>: <answer>"`, for the facts keeper of the next retro (`rules-kit:retro`, step 4), then sets the item's
-  status to `fixed`; the next retro writes it again if questions remain. With more than 5 disputed items, P offers an
-  «Обговорення: Ретро сесій <YYYY-MM-DD>» session instead, started as in "Start an «Обговорення:» session".
-- The owner may ask for a retro at any time («ретро», «розбери проблеми сесій»): P goes through the open items as
-  above, or offers that session for the owner's own cases.
+  `status:` to `fixed`. Its items with `status: owner` (`dev-kit-docs items`) P asks then as normal P questions of
+  "Message templates"; on the answer it sets `fixed` or `rejected`.
 
-Why: owner, 2026-11-21 and 2026-11-22 (`docs/features/fix-agent-problems-in-the-retro.md` of the plugin repo): the retro covers every project with a lead and
-fixes its problems in its own context; the owner gets only disputed, high-impact and urgent items and those about
-how sessions talk to him, once a week, and trivial fixes as a list he can revert. This replaces the 2026-11-19
-rejection of a review agent writing straight into the rules, for trivial fixes only; the 2026-11-20 decision that
-retro questions are short P questions in P's chat stays. The weekly docs session: owner, 2026-11-22
-(`docs/features/tidy-the-docs-once-a-week.md`): its important items join the same weekly question, the rest are fixed separately.
+Why: owner, 2026-11-24 (`plans/retro-auto-rules-check.md` of the plugin repo, «Мінімізуй мою участь»): the retro
+asks the owner nothing; an approver agent and a replay on past sessions replace his yes, and every action is a
+passive list in Pult. The weekly docs session: owner, 2026-11-22 (`docs/features/tidy-the-docs-once-a-week.md`).
 
 ## API credit check (plugin repo only)
 

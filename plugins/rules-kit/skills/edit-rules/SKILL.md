@@ -8,7 +8,7 @@ description: Use when rule text is about to change - a `CLAUDE.md`, `.claude/` r
 Rules are read by agents that load several rule files at once. A rule written twice drifts, and two rules
 that disagree make the agent pick one at random. This skill keeps every rule edit to one home and no clash.
 It does not change who approves an edit: agent rules still need the owner's yes ("Agent rules" in
-`dev-kit:documentation`). Feature rules in product docs follow that skill's "Review" instead.
+`dev-kit:documentation`), except a «Ретро:» session's fix (step 3). Feature rules in product docs follow that skill's "Review" instead.
 
 The session that owns the edit runs the steps (the manager, P, a C or a «Ретро:» session); a subagent cannot run a skill. A
 `dev-kit:coder` or `dev-kit:mechanical-editor` may apply the edit from a brief that carries the step-3 list.
@@ -51,8 +51,8 @@ idea; the exact wording goes to the owner only on request (owner, 2026-11-16: «
 duplicate or conflict that changes the idea (a rule moved, another rule given way) is part of that line.
 The full list with the wording stays in the task file or a scratchpad for the agents.
 
-Exception: a trivial fix of a «Ретро:» session skips this step; the owner sees it afterwards in the weekly
-list and may revert it (`rules-kit:retro`, steps 3-4, which also say what counts as trivial).
+Exception: a fix of a «Ретро:» session skips this step and step 6: the `rules-kit:approver` and the replay on past
+sessions replace the owner's yes and the review (`rules-kit:retro`, step 4).
 
 ## 4. Edit
 

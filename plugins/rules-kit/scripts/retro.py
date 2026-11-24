@@ -23,10 +23,27 @@ default one when it has no file, is reviewed by that project).
                                                   split the transcripts into parts and write a packet per part with a
                                                   sign for the part reader (see "Parts")
     rules-kit sets                                the sets found, their reviewers, and subscription files that fail
-    rules-kit due [--session ID] [--project DIR]  one line when the lead has retro items to act on, else nothing
-    rules-kit asked --answer yes|no [--project DIR]
-                                                  stamp the weekly question to the owner and the answer
+    rules-kit replay --item KEY [--set S] [--file PATH ...]
+                                                  write the replay packets of an item: its problem parts and up to 5
+                                                  good parts (`scripts/fixes.py`, "Replay"); one line per packet
+    rules-kit fixed --item KEY --commit HASH [--set S] [--what TEXT] [--sign]
+                                                  record a landed fix: `fix:` line with the set, the hash and the
+                                                  commit's files, status `fixed`, a done-list line
+    rules-kit check [--project DIR]               the post-change check of the fixed items of the sets the project
+                                                  reviews: in main since when, and the sessions started after that
+    rules-kit revert --item KEY [--set S]         `git revert --no-edit` of the item's last fix in the current folder
+                                                  (the global set: its folder); status `reverted`, `parked` the second time
+    rules-kit mark --item KEY --status S [--set S] [--note TEXT]
+                                                  set a status by hand (`worked`, `second-try`, `parked`, `rejected`...)
+    rules-kit revert-request KEY [--set S] [--from NAME]
+                                                  the owner's «поверни»: the next run of the reviewing project reverts it
+    rules-kit list [--days N]                     the done list, one plain line per action (Pult's «статус»)
+    rules-kit budget --session-id ID              the run's spend against the cap: `under`, `over` or `unknown`
     rules-kit hook-start | hook-end               SessionStart and SessionEnd hooks of the plugin (JSON on stdin)
+
+The fix loop's rules (expiry, the weekly cap, replay, the post-change check, reverts, revert requests, the done list
+`done.jsonl`, the spend cap) are in `scripts/fixes.py`. These commands exit 2 for an unknown item or set and 1 when
+git fails.
 
 Token spend (units, the weekly limit, `critical`, per-session spend) is not counted here: it belongs to the spend-kit
 plugin (`spend-kit session | critical | calibrate`, plugins/spend-kit/scripts/spend.py). The scan runs the command
@@ -37,8 +54,8 @@ this plugin only writes the run file it waits for (see "Run file").
 `--project DIR` is any folder of the project (a worktree too; default the current folder), or a bare repository folder
 name of a known retro project (`ClaudeDevKit`, ignoring case; known = it has an item folder whose `state.json` records
 its `root`, so another project's retro can write `add --project ClaudeDevKit ...`); a bare name that is no known
-project is taken as a folder. A project that is not a retro project gets exit code 2 (`due` and the hooks stay silent
-instead); when the project's `state.json` stays locked (see Lock), `items`, `done` and `asked` exit 1 and change
+project is taken as a folder. A project that is not a retro project gets exit code 2 (the hooks stay silent
+instead); when the project's `state.json` stays locked (see Lock), `items` and `done` exit 1 and change
 nothing.
 
 Parts (`scripts/parts.py`): each transcript window is split into parts by the skill, agent or hook at work. A
@@ -80,11 +97,12 @@ has `<retro folder>/sets/<set name>/` with:
   scan), `<date>-<session id8>-<HHMMSS>.md` (one transcript), `notes-<date>-<HHMMSS>.md` (owner notes), `add-...md`
   (`add`); each finding is a line starting `- `;
 - `seen/`: files moved there by `done`, deleted after SEEN_DAYS days;
-- `items/<cause-key>.md`: one file per item, written by the retro session; lines `- status: <status>`, `- kind:
-  <kind>`, one `- seen: ...` line per sighting and `- fix: <YYYY-MM-DD> | <what> | trivial` per trivial fix.
+- `items/<cause-key>.md`: one file per item, written by the retro session and the fix-loop commands; its lines:
+  `scripts/fixes.py`.
+The retro folder also holds `done.jsonl` (the done list) and `requests/` (revert requests): `scripts/fixes.py`.
 Each retro project has `<retro folder>/<repo-folder-name>-<10 hex>/` (`folder_naming.folder_name`, the name of its
 state folder) with `state.json`: `root` (the main checkout), `last_review`, `retro_started`, `retro_branch`,
-`lead_session`, `asked_at`, `answer`, `shown` (the `<set>/<file>` entries of `new/` the last `items` showed). Written
+`shown` (the `<set>/<file>` entries of `new/` the last `items` showed). Written
 atomically (temp file and replace). The state folders of older versions also hold `new/`, `seen/` and `items/` of the
 time before sets: on the first run the retro copies them into the set folders (`migrate_items`: an item goes to the set
 of the files its `fix:` lines or text name, else to the project's own set; the old files stay where they are;
@@ -109,7 +127,7 @@ changed and written only while `scan.lock` exists (stale after LOCK_STALE_S). A 
 LOCK_WAIT_TRANSCRIPT_S for it and then exits 0 with no output (its lines are read by the next full scan); a full scan
 waits up to LOCK_WAIT_FULL_S. A project's `state.json` is read, changed and written only
 while `state.lock` exists in its item folder (stale after PROJECT_LOCK_STALE_S, wait up to PROJECT_LOCK_WAIT_S): the
-stamps of `hook-start`, `items`, `done`, `asked` and the scan's `root` record. `hook-start` that cannot get it starts
+stamps of `hook-start`, `items`, `done` and the scan's `root` record. `hook-start` that cannot get it starts
 nothing, so two sessions starting at once never both start a retro session.
 
 `scan` reads only what was appended to each transcript since the last scan (`state.json` keeps a byte offset per
@@ -131,23 +149,21 @@ per-transcript kinds (and spend-kit's token findings of that transcript), no cro
 priority lines, no notes; its findings go to one `new/<date>-<id8>-<HHMMSS>.md` and are appended to `scan-<date>.md`;
 nothing found, no file.
 
-`items` prints: the sets folder path; `sets: <the sets the project reviews>`; `last review: <local date and time of
-last_review, or never>`; `claude code: <claude_version>` when the global state has it; the new findings of the `new/`
-of those sets (token problems first, under "Priority"; each set under a `### <set>` heading); for each set under
-`### <set> (<its items folder>)` one line per `items/*.md` file `<cause-key> | <status> | <kind> | sightings <N>` (N =
-the lines starting `- seen:`); and per set `trivial fixes in the last 7 days (<set>): <N> of FIXES_PER_WEEK` (the
-`- fix:` lines marked trivial and dated in the last 7 days, today included). It records the `new/` file names it
+`items` first expires the one-off items of the sets the project reviews (`fixes.expire`, one `expired: <set>/<key>`
+line each), then prints: the sets folder path; `sets: <the sets the project reviews>`; `last review: <local date and
+time of last_review, or never>`; `claude code: <claude_version>` when the global state has it; the new findings of the
+`new/` of those sets (token problems first, under "Priority"; each set under a `### <set>` heading; a line that names a
+file of a recent fix ends `| possible breakage: <key>`, `fixes.breakage`); the revert requests of those sets
+(`## Revert requests`, `<set> | <key>`); for each set under `### <set> (<its items folder>)` one line per `items/*.md`
+file `<cause-key> | <status> | <kind> | sightings <N>` (N = the lines starting `- seen:`); and per set `landed fixes in
+the last 7 days (<set>): <N> of FIXES_PER_WEEK` (`fixes.landed`). It records the `new/` file names it
 showed (`<set>/<file>`); `done` moves exactly those to `seen/` of their set, sets `last_review`, records `retro_branch`
 (`--branch`, else none) and deletes what is older than SEEN_DAYS in `seen/`. Findings that came after `items` stay
 new. `items`, `add` and `done` print the work of the first run (the migration) on stderr.
-`due` prints nothing unless the session (when `--session` is given) is the lead recorded by `hook-start`; then
-`retro: <N> items due (<U> urgent)` when an item has status `urgent`, or when items with status `disputed` or
-`trivial-fixed` exist and the last weekly ask is 7+ days old or missing, or 1+ day old after the answer `no` (N counts
-the urgent items, and the others when the weekly ask is due).
 `hook-start` (never fails, exit 0): in a retro project, a session titled `Ретро:` or `Документація:` does nothing; a
 full scan is spawned
-(detached) when none ran today and the scan lock is free; then, under the project lock, a title `P: ` records the
-lead's session id, and when the `new/` of a set the project reviews has files, `last_review` is older than REVIEW_HOURS (or missing),
+(detached) when none ran today and the scan lock is free; then, under the project lock, when the `new/` of a set the
+project reviews has files, `last_review` is older than REVIEW_HOURS (or missing),
 `retro_started` older than START_GUARD_HOURS (or missing) and no docs session may still run (see "Run file"), it
 stamps `retro_started` and starts a background `Ретро: <repo folder>` session running `/rules-kit:retro` (env RULES_KIT_NO_START=1 skips that
 start, not the stamp). The session starts with the `--settings` file NO_REMOTE_CONTROL (no Remote Control, so it stays
@@ -216,6 +232,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))  # the launcher runs this file with runpy, which adds nothing
 import claude_path  # noqa: E402  the `claude` command (a copy of dev-kit's, no plugin imports another's code)
+import fixes  # noqa: E402  the fix loop on the item files: expiry, cap, replay, check, revert, done list
 import folder_naming  # noqa: E402  the project's folder name and main checkout (a copy of dev-kit's `dev_kit_state`)
 import packets  # noqa: E402  the parts with a sign and their packets for the part reader
 import parts  # noqa: E402  a transcript split into parts by the skill, agent or hook at work
@@ -233,7 +250,7 @@ NO_START_ENV = "RULES_KIT_NO_START"  # 1: the SessionStart hook does not start t
 STATE_ENV = "DEV_KIT_STATE_DIR"  # dev-kit's state root (the same env as its `dev_kit_state.py`), read for `docs.json`
 RUNS_FOLDER = "runs"  # in the retro folder: the run file of each project (see the module doc)
 PROFILE_LINE = "## project-lead"  # the line of `.claude/dev-kit.md` that makes a project a retro project
-FIXES_PER_WEEK = 5  # the cap of trivial fixes per project per week, shown by `items`
+FIXES_PER_WEEK = fixes.FIXES_PER_WEEK  # the cap of landed fixes per set per week, shown by `items`
 REVIEW_HOURS = 20  # no new retro session while the last review is younger
 START_GUARD_HOURS = 6  # no new retro session while the last start is younger (a session that is still running)
 SEEN_DAYS = 30  # `done` deletes what is older in `seen/`
@@ -253,7 +270,6 @@ CREATE_BREAKAWAY_FROM_JOB = 0x01000000
 HEAD_LINES = 200  # the lines of a transcript's start searched for its `cwd`
 WORKTREES = re.compile(r"[\\/]\.claude[\\/]worktrees[\\/]", re.IGNORECASE)
 URGENT_LINE = re.compile(r" \| token (spend|waste) \| ")
-FIX_LINE = re.compile(r"^- fix:\s*(\d{4}-\d\d-\d\d)\s*\|.*\|\s*trivial\s*$")
 Project = namedtuple("Project", "root name folder")  # main checkout, its folder name, the retro folder name
 REPEAT_MIN = 3
 ERRORS_MIN = 3
@@ -632,8 +648,8 @@ def migrate_items(registry, out):
         moved = []
         for path in sorted((old / "items").glob("*.md")) if (old / "items").is_dir() else []:
             text = path.read_text(encoding="utf-8-sig", errors="replace")
-            fixes = "\n".join(line for line in text.splitlines() if line.startswith("- fix:"))
-            named = sets_of_text(fixes, registry, text_roots(root)) or sets_of_text(text, registry, text_roots(root))
+            fix_lines = "\n".join(line for line in text.splitlines() if line.startswith("- fix:"))
+            named = sets_of_text(fix_lines, registry, text_roots(root)) or sets_of_text(text, registry, text_roots(root))
             target = named[0] if named else own
             moved += copy_file(path, set_dir(target) / "items", f"{path.stem}-{Path(root).name.lower()}{path.suffix}",
                                f"{old.name}/items/{path.name} -> {SETS_FOLDER}/{target}/items/")
@@ -1262,10 +1278,9 @@ def state_busy():
 
 
 def read_item(path):
-    """`(status, kind, sightings, fix lines)` of one item file."""
+    """`(status, kind, sightings)` of one item file."""
     status = kind = "?"
     sightings = 0
-    fixes = []
     for line in read_lines(path):
         if line.startswith("- status:"):
             status = line[len("- status:"):].strip() or "?"
@@ -1273,22 +1288,7 @@ def read_item(path):
             kind = line[len("- kind:"):].strip() or "?"
         elif line.startswith("- seen:"):
             sightings += 1
-        elif FIX_LINE.match(line):
-            fixes.append(line)
-    return status, kind, sightings, fixes
-
-
-def trivial_fixes(fixes, now=None):
-    """How many `- fix: <date> | ... | trivial` lines are dated in the last 7 days, today included."""
-    today_date = (now or datetime.datetime.now()).date()
-    count = 0
-    for line in fixes:
-        try:
-            stamp = datetime.date.fromisoformat(FIX_LINE.match(line).group(1))
-        except ValueError:  # a date like 2026-13-45
-            continue
-        count += (today_date - stamp).days < 7
-    return count
+    return status, kind, sightings
 
 
 def items(directory=None, out=None):
@@ -1298,6 +1298,9 @@ def items(directory=None, out=None):
     if not project:
         return no_project(directory)
     names = reviewed_sets(prepare(roots=[project.root], out=sys.stderr), project)
+    for set_name, key in fixes.expire(retro_dir(), retro_dir() / SETS_FOLDER, names):
+        print(f"expired: {set_name}/{key}", file=out)
+    recent = fixes.recent_fixes(retro_dir() / SETS_FOLDER, names)
     folder = project_folder(project)
     with project_lock(folder) as held:
         if not held:
@@ -1307,7 +1310,7 @@ def items(directory=None, out=None):
         for name in names:
             new = set_dir(name) / "new"
             files = sorted(new.glob("*.md")) if new.is_dir() else []
-            lines[name] = [line for path in files for line in read_lines(path)]
+            lines[name] = [breakage_note(line, recent) for path in files for line in read_lines(path)]
             shown += [f"{name}/{path.name}" for path in files]
         state = load_project(folder)
         state["shown"] = shown
@@ -1319,25 +1322,32 @@ def items(directory=None, out=None):
     version = load_state(retro_dir(create=False)).get("claude_version")  # the global state, read only
     if version:
         print(f"claude code: {version}", file=out)
-    print("\n## Priority: token problems (read first; the retro asks them before the rest)", file=out)
+    print("\n## Priority: token problems (read first)", file=out)
     print_by_set(lines, out, lambda line: URGENT_LINE.search(line))
     print("\n## New findings", file=out)
     print_by_set(lines, out, lambda line: not URGENT_LINE.search(line))
+    print("\n## Revert requests", file=out)
+    print("\n".join(f"{set_name} | {key}" for set_name, key in fixes.requests(retro_dir(), names)) or "(none)", file=out)
     print("\n## Items", file=out)
     counts = []
     for name in names:
-        fixes = []
         rows = []
         folder_items = set_dir(name) / "items"
         for path in sorted(folder_items.glob("*.md")) if folder_items.is_dir() else []:
-            status, kind, sightings, found = read_item(path)
-            fixes += found
+            status, kind, sightings = read_item(path)
             rows.append(f"{path.stem} | {status} | {kind} | sightings {sightings}")
         print(f"### {name} ({folder_items})", file=out)
         print("\n".join(rows) or "(none)", file=out)
-        counts.append(f"trivial fixes in the last 7 days ({name}): {trivial_fixes(fixes)} of {FIXES_PER_WEEK}")
+        counts.append(f"landed fixes in the last 7 days ({name}): "
+                      f"{fixes.landed(retro_dir() / SETS_FOLDER, name)} of {FIXES_PER_WEEK}")
     print("\n" + "\n".join(counts), file=out)
     return 0
+
+
+def breakage_note(line, recent):
+    """The finding line, with `| possible breakage: <key>` when it names a file of a recent fix (`fixes.breakage`)."""
+    key = fixes.breakage(line, recent)
+    return f"{line} | possible breakage: {key}" if key else line
 
 
 def print_by_set(lines, out, keep):
@@ -1549,53 +1559,116 @@ def prune(folder, days):
                 old.unlink()
 
 
-def due_line(directory=None, session_id=None):
-    """The `retro: ...` line the lead sees, or "" (see the module doc)."""
-    project = project_for(directory)
-    if not project:
-        return ""
-    folder = retro_dir(create=False) / project.folder
-    state = load_project(folder)
-    if session_id is not None and (not session_id or state.get("lead_session") != session_id):
-        return ""
-    urgent = other = 0
-    for name in reviewed_sets(load_registry(roots=[project.root]), project):
-        items_folder = retro_dir(create=False) / SETS_FOLDER / name / "items"
-        for path in sorted(items_folder.glob("*.md")) if items_folder.is_dir() else []:
-            status = read_item(path)[0].lower()
-            urgent += status == "urgent"
-            other += status in ("disputed", "trivial-fixed")
-    last_ask = parse_time(state.get("asked_at", ""))
-    waited = (now_utc() - last_ask) if last_ask else None
-    weekly = bool(other) and (waited is None or waited >= datetime.timedelta(days=7)
-                              or (state.get("answer") == "no" and waited >= datetime.timedelta(days=1)))
-    if not urgent and not weekly:
-        return ""
-    return f"retro: {urgent + (other if weekly else 0)} items due ({urgent} urgent)"
+def item_or_error(key, set_name):
+    """`(Item, registry)`, or `(None, None)` after printing why on stderr (no such item, or in several sets)."""
+    registry = prepare(out=sys.stderr)
+    item, error = fixes.find_item(retro_dir() / SETS_FOLDER, key, set_name)
+    if error:
+        print(error, file=sys.stderr)
+        return None, None
+    return item, registry
 
 
-def due(session_id=None, directory=None, out=None):
-    line = due_line(directory, session_id)
-    if line:
-        print(line, file=out or sys.stdout)
+def own_set_of(registry, mapper):
+    """A function: a transcript's project set name, or None (for the replay packets' candidate sets)."""
+    def find(path):
+        project = mapper.project_of_transcript(path)
+        return project_set_name(registry, project) if project else None
+    return find
+
+
+def replay_command(key, set_name=None, files=(), out=None):
+    out = out or sys.stdout
+    item, registry = item_or_error(key, set_name)
+    if not item:
+        return 2
+    written = fixes.replay(item, registry, projects_dir(), retro_dir(), own_set_of(registry, Mapper()),
+                           [str(Path(name).resolve()) for name in files])
+    for role, path, label in written:
+        print(f"{role} | {path} | {label}", file=out)
+    problem = sum(role == "problem" for role, _, _ in written)
+    print(f"replay {item.set}/{item.key}: problem parts {problem}, good parts {len(written) - problem}", file=out)
     return 0
 
 
-def asked(answer, directory=None, out=None):
-    """Stamp the weekly question to the owner and his answer in the project state."""
+def fixed_command(key, commit, set_name=None, what="", sign=False, out=None):
+    out = out or sys.stdout
+    item, registry = item_or_error(key, set_name)
+    if not item:
+        return 2
+    subscription = registry.sets.get(item.set)
+    repo = fixes.set_repo(subscription, subscriptions.global_dir())
+    files = fixes.changed_files(repo, commit, subscription)
+    if files is None:
+        print(f"no commit {commit} in {repo}", file=sys.stderr)
+        return 1
+    fixes.fixed(item, retro_dir(), item.set, commit, files, what, sign)
+    print(f"fixed {item.set}/{item.key}: {commit[:8]} ({', '.join(files)}); landed in the last 7 days: "
+          f"{fixes.landed(retro_dir() / SETS_FOLDER, item.set)} of {FIXES_PER_WEEK}", file=out)
+    return 0
+
+
+def check_command(directory=None, out=None):
     out = out or sys.stdout
     project = project_for(directory)
     if not project:
         return no_project(directory)
-    folder = project_folder(project)
-    with project_lock(folder) as held:
-        if not held:
-            return state_busy()
-        state = load_project(folder)
-        state["asked_at"] = now_utc().isoformat()
-        state["answer"] = answer
-        save_project(folder, state)
-    print(f"asked stamped: {answer}", file=out)
+    registry = prepare(roots=[project.root], out=sys.stderr)
+    names = reviewed_sets(registry, project)
+    shown = 0
+    for item in fixes.items_of(retro_dir() / SETS_FOLDER, names):
+        if item.status.lower() != "fixed":
+            continue
+        text, sessions = fixes.check(item, registry.sets.get(item.set), projects_dir())
+        print(f"{item.set} | {item.key} | {text} | sessions after: {len(sessions)}", file=out)
+        for line in sessions:
+            print(f"  {line}", file=out)
+        shown += 1
+    if not shown:
+        print("no fixed items to check", file=out)
+    return 0
+
+
+def revert_command(key, set_name=None, out=None):
+    out = out or sys.stdout
+    item, registry = item_or_error(key, set_name)
+    if not item:
+        return 2
+    repo = fixes.set_repo(registry.sets.get(item.set), subscriptions.global_dir())
+    ok, text = fixes.revert(item, retro_dir(), repo)
+    print(text, file=out if ok else sys.stderr)
+    return 0 if ok else 1
+
+
+def mark_command(key, status, set_name=None, note="", out=None):
+    item, _ = item_or_error(key, set_name)
+    if not item:
+        return 2
+    fixes.mark(item, retro_dir(), status, note)
+    print(f"{item.set}/{item.key}: status {status}", file=out or sys.stdout)
+    return 0
+
+
+def request_command(key, set_name=None, sender="", out=None):
+    item, _ = item_or_error(key, set_name)
+    if not item:
+        return 2
+    path = fixes.request(item, retro_dir(), sender)
+    print(f"revert requested: {item.set}/{item.key} ({path}); the next retro of the set's reviewer carries it out",
+          file=out or sys.stdout)
+    return 0
+
+
+def list_command(days=None, out=None):
+    out = out or sys.stdout
+    lines = fixes.list_lines(retro_dir(create=False), days)
+    print("\n".join(lines) if lines else "(nothing)", file=out)
+    return 0
+
+
+def budget_command(session_id, out=None):
+    word, _, text = fixes.budget(session_id)
+    print(f"{word}: {text}", file=out or sys.stdout)
     return 0
 
 
@@ -1644,9 +1717,6 @@ def hook_start(payload):
             return
         state = load_project(folder)
         state["root"] = str(project.root)
-        session_id = payload.get("session_id")
-        if title.startswith("P: ") and isinstance(session_id, str) and session_id:
-            state["lead_session"] = session_id
         save_project(folder, state)
         names = reviewed_sets(load_registry(roots=[project.root]), project)
         command = retro_start_command(project, folder, state, names)
@@ -1701,15 +1771,11 @@ def main(argv=None):
     command.add_argument("--days", type=float, default=1)
     command.add_argument("--force", action="store_true")
     command.add_argument("--transcript")
-    for name in ("items", "done", "due", "asked", "add"):
+    for name in ("items", "done", "add", "check"):
         command = sub.add_parser(name)
         command.add_argument("--project", help="any folder of the project (default: the current folder)")
-        if name == "due":
-            command.add_argument("--session")
         if name == "done":
             command.add_argument("--branch")
-        if name == "asked":
-            command.add_argument("--answer", choices=("yes", "no"), required=True)
         if name == "add":
             command.add_argument("--text", required=True)
             command.add_argument("--from", dest="sender")
@@ -1720,6 +1786,27 @@ def main(argv=None):
     command.add_argument("--since", help="a date YYYY-MM-DD (default: yesterday)")
     command.add_argument("--limit", type=int, default=PACKETS_MAX)
     sub.add_parser("sets")
+    for name in ("replay", "fixed", "revert", "mark"):
+        command = sub.add_parser(name)
+        command.add_argument("--item", required=True, help="the item's cause key")
+        command.add_argument("--set", dest="set_name", help="the set of the item (when the key is in several)")
+        if name == "replay":
+            command.add_argument("--file", action="append", default=[], help="a file the fix edits")
+        if name == "fixed":
+            command.add_argument("--commit", required=True)
+            command.add_argument("--what", default="", help="what the fix removed or merged")
+            command.add_argument("--sign", action="store_true", help="the fix adds a sign to the subscription")
+        if name == "mark":
+            command.add_argument("--status", required=True)
+            command.add_argument("--note", default="")
+    command = sub.add_parser("revert-request")
+    command.add_argument("key")
+    command.add_argument("--set", dest="set_name")
+    command.add_argument("--from", dest="sender", default="")
+    command = sub.add_parser("list")
+    command.add_argument("--days", type=int)
+    command = sub.add_parser("budget")
+    command.add_argument("--session-id", required=True)
     sub.add_parser("hook-start")
     sub.add_parser("hook-end")
     args = parser.parse_args(argv)
@@ -1729,10 +1816,22 @@ def main(argv=None):
         return scan(days=args.days, force=args.force, transcript=args.transcript)
     if args.command == "items":
         return items(args.project)
-    if args.command == "due":
-        return due(args.session, args.project)
-    if args.command == "asked":
-        return asked(args.answer, args.project)
+    if args.command == "check":
+        return check_command(args.project)
+    if args.command == "replay":
+        return replay_command(args.item, args.set_name, args.file)
+    if args.command == "fixed":
+        return fixed_command(args.item, args.commit, args.set_name, args.what, args.sign)
+    if args.command == "revert":
+        return revert_command(args.item, args.set_name)
+    if args.command == "mark":
+        return mark_command(args.item, args.status, args.set_name, args.note)
+    if args.command == "revert-request":
+        return request_command(args.key, args.set_name, args.sender)
+    if args.command == "list":
+        return list_command(args.days)
+    if args.command == "budget":
+        return budget_command(args.session_id)
     if args.command == "add":
         return add(args.text, args.sender, args.project, set_name=args.set_name, packet=args.packet)
     if args.command == "parts":

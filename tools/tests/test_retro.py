@@ -522,7 +522,7 @@ class RetroTestCase(RetroFixture):
         self.assertFalse(lock.exists())  # released
 
 class RetroCommandsTestCase(RetroFixture):
-    """`items`, `done`, `add`, `due`, `asked` and the two hooks, on item folders written by hand."""
+    """`items`, `done`, `add` and the two hooks, on item folders written by hand."""
 
     def put(self, rel, text):
         """A file of the project's own set (`new/...`, `items/...`), or of its state folder (`state.*`)."""
@@ -540,35 +540,33 @@ class RetroCommandsTestCase(RetroFixture):
             return retro.main(list(args)), err.getvalue()
 
     # protects: Flow
-    def test_items_shows_the_folder_new_findings_priority_first_items_and_the_trivial_fix_count(self):
+    def test_items_shows_the_folder_new_findings_priority_first_items_and_the_landed_fix_count(self):
         day = datetime.date.today()
         self.put("new/scan-a.md", "- repo | S (12345678) | repeated call | Read x3\n"
                                   "- repo | S (12345678) | token spend | 2026-11-19: spent 1%\n")
-        self.put("items/stale-doc.md", "# stale doc\n- status: disputed\n- kind: rule gap\n"
+        self.put("items/stale-doc.md", "# stale doc\n- status: fixed\n- kind: rule gap\n"
                                        "- seen: 2026-11-19 | s1\n- seen: 2026-11-20 | s2\n"
-                                       f"- fix: {day} | reworded one word | trivial\n"
+                                       f"- fix: {day} | repo | abc1234 | CLAUDE.md | -\n"
                                        f"- fix: {day - datetime.timedelta(days=6)} | older | trivial\n"
-                                       f"- fix: {day - datetime.timedelta(days=7)} | too old | trivial\n"
-                                       f"- fix: {day} | big change | high-impact\n")
+                                       f"- fix: {day - datetime.timedelta(days=7)} | too old | trivial\n")
         self.put("items/other.md", "- status: open\n")
         out = self.project_cmd("items")
         self.assertEqual(out.splitlines()[:3], [str(self.retro / retro.SETS_FOLDER), "sets: repo", "last review: never"])
         self.assertLess(out.index("token spend"), out.index("## New findings"))
         self.assertLess(out.index("## New findings"), out.index("repeated call"))
-        self.assertIn("\nstale-doc | disputed | rule gap | sightings 2\n", out)
+        self.assertIn("\nstale-doc | fixed | rule gap | sightings 2\n", out)
         self.assertIn("\nother | open | ? | sightings 0\n", out)
-        self.assertTrue(out.rstrip().endswith(f"trivial fixes in the last 7 days (repo): 2 of {retro.FIXES_PER_WEEK}"), out)
+        self.assertTrue(out.rstrip().endswith(f"landed fixes in the last 7 days (repo): 2 of {retro.FIXES_PER_WEEK}"), out)
         self.assertIn(f"### repo ({self.folder / 'items'})\n", out)
         self.assertEqual(self.project_state()["shown"], ["repo/scan-a.md"])
 
     # protects: Rule
     def test_a_folder_of_another_project_gets_exit_code_2(self):
         plain = make_repo(self.tmp / "plain", retro_project=False)
-        for command in (("items",), ("done",), ("add", "--text", "x"), ("asked", "--answer", "yes")):
+        for command in (("items",), ("done",), ("add", "--text", "x"), ("check",)):
             code, err = self.exit_code(*command, "--project", str(plain))
             self.assertEqual(code, 2, command)
             self.assertIn("no retro project", err)
-        self.assertEqual(self.project_cmd("due", project=plain), "")  # silent: a hook may ask anywhere
 
     # protects: Flow
     def test_done_moves_what_items_showed_and_leaves_later_findings_and_prunes_old_seen_files(self):
@@ -627,7 +625,7 @@ class RetroCommandsTestCase(RetroFixture):
         self.put("new/a.md", "- finding\n")
         lock = self.put("state.lock", "1")
         with mock.patch.object(retro, "PROJECT_LOCK_WAIT_S", 0.2):
-            for command in (("items",), ("done",), ("asked", "--answer", "yes")):
+            for command in (("items",), ("done",)):
                 code, err = self.exit_code(*command, "--project", str(self.repo))
                 self.assertEqual(code, 1, command)
                 self.assertIn("locked", err)
@@ -659,45 +657,6 @@ class RetroCommandsTestCase(RetroFixture):
         self.assertTrue(other.call_args.kwargs["start_new_session"])
         self.assertEqual(other.call_args.kwargs["cwd"], "somewhere")
 
-    def lead(self, **state):
-        self.put("state.json", json.dumps({"lead_session": "lead-1", **state}))
-
-    # protects: Rule
-    def test_due_is_silent_for_other_sessions_and_speaks_for_urgent_or_weekly_items(self):
-        self.lead()
-        self.put("items/open.md", "- status: open\n")
-        self.assertEqual(self.project_cmd("due", "--session", "lead-1"), "")
-        self.put("items/disp.md", "- status: Disputed\n")
-        self.put("items/fixed.md", "- status: trivial-fixed\n")
-        self.assertEqual(self.project_cmd("due", "--session", "lead-1"), "retro: 2 items due (0 urgent)\n")
-        self.assertEqual(self.project_cmd("due"), "retro: 2 items due (0 urgent)\n")  # no session given: the project's
-        self.assertEqual(self.project_cmd("due", "--session", "someone-else"), "")
-        self.assertEqual(self.project_cmd("due", "--session", ""), "")
-        self.put("items/hot.md", "- status: urgent\n")
-        self.assertEqual(self.project_cmd("due", "--session", "lead-1"), "retro: 3 items due (1 urgent)\n")
-
-    # protects: Rule
-    def test_the_weekly_ask_waits_a_week_after_yes_and_a_day_after_no_but_urgent_ignores_it(self):
-        self.lead()
-        self.put("items/disp.md", "- status: disputed\n")
-        base = datetime.datetime(2026, 11, 22, 12, tzinfo=datetime.timezone.utc)
-
-        def at(**delta):
-            return mock.patch.object(retro, "now_utc", return_value=base + datetime.timedelta(**delta))
-
-        def due(**delta):
-            with at(**delta):
-                return self.project_cmd("due", "--session", "lead-1")
-
-        with at():
-            self.assertIn("stamped: yes", self.project_cmd("asked", "--answer", "yes"))
-        self.assertEqual((due(days=6, hours=23), due(days=7)), ("", "retro: 1 items due (0 urgent)\n"))
-        with at():
-            self.project_cmd("asked", "--answer", "no")
-        self.assertEqual((due(hours=23), due(days=1)), ("", "retro: 1 items due (0 urgent)\n"))
-        self.put("items/hot.md", "- status: urgent\n")
-        self.assertEqual(due(hours=1), "retro: 1 items due (1 urgent)\n")  # urgent: asked at once, the others wait
-
     def retro_state(self, **values):
         retro.save_project(self.pfolder, {"root": str(self.repo), **values})
 
@@ -719,18 +678,7 @@ class RetroCommandsTestCase(RetroFixture):
     def test_a_retro_session_start_does_nothing_so_the_retro_never_starts_itself(self):
         self.put("new/a.md", "- finding\n")
         self.assertEqual(self.start(title="Ретро: repo", session_id="retro-1"), [])
-        self.assertFalse((self.pfolder / "state.json").exists())  # not even a lead record
-
-    # protects: Rule
-    def test_only_a_lead_title_records_the_lead_session(self):
-        self.scanned_today()
-        self.start(title="P: repo", session_id="lead-1")
-        self.assertEqual(self.project_state()["lead_session"], "lead-1")
-        self.start(title="C: repo task", session_id="builder-1")
-        self.start(title="", session_id="untitled-1")
-        self.assertEqual(self.project_state()["lead_session"], "lead-1")
-        self.start(title="P: repo", session_id="lead-2")  # a restarted lead replaces it
-        self.assertEqual(self.project_state()["lead_session"], "lead-2")
+        self.assertFalse((self.pfolder / "state.json").exists())  # not even a root record
 
     # protects: Rule
     def test_a_session_of_another_project_starts_nothing_and_leaves_no_folder(self):
@@ -864,7 +812,7 @@ class RetroCommandsTestCase(RetroFixture):
                                     "scan", "--transcript", str(transcript)]])
 
     # protects: Edge
-    def test_hook_scripts_exit_0_with_no_output_on_bad_input_and_record_the_lead(self):
+    def test_hook_scripts_exit_0_with_no_output_on_bad_input_and_record_the_root(self):
         self.scanned_today()
         fake = self.tmp / "bin"
         fake.mkdir()
@@ -883,7 +831,7 @@ class RetroCommandsTestCase(RetroFixture):
                                 capture_output=True)
         self.assertEqual((result.returncode, result.stdout), (0, b""))
         state = self.project_state()
-        self.assertEqual(state["lead_session"], "lead-9")
+        self.assertEqual(state["root"], str(self.repo))
         self.assertIn("retro_started", state)  # RULES_KIT_NO_START=1: stamped, no session started
 
 
@@ -940,8 +888,6 @@ class RetroSetsTestCase(RetroFixture):
         self.assertEqual(sorted(retro.load_project(self.pfolder)["shown"]), ["alpha/a.md", "repo/c.md"])
         self.project_cmd("done")
         self.assertEqual((self.files(mine, "new"), self.files(mine, "seen"), self.files(theirs, "new")), ([], ["a.md"], ["b.md"]))
-        self.put(self.pfolder, "state.json", json.dumps({"lead_session": "lead-1"}))
-        self.assertEqual(self.project_cmd("due", "--session", "lead-1"), "")  # beta's urgent item is not this project's
 
     # protects: Rule
     def test_findings_in_a_set_of_another_project_do_not_start_this_retro_nor_make_it_due(self):

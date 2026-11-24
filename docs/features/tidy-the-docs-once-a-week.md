@@ -24,8 +24,8 @@ Why: owner, 2026-11-22: the session finishes and leaves the items open, to be fi
 stays open.
 
 ### Only the important items reach you
-An item that changes a rule or the product description waits for your answer and joins the weekly retro question
-(one question a week, not two). The other items P hands to one task session after the docs session reports. An item
+An item that changes a rule or the product description waits for your answer: P asks it after the docs session
+reports. The other items P hands to one task session then. An item
 already fixed or rejected is not reopened unless its passage changed.
 Why: owner, 2026-11-22: only truly important items are brought up.
 
@@ -33,7 +33,7 @@ Why: owner, 2026-11-22: only truly important items are brought up.
 - A project with a lead has had a retro that is merged: within a day a «Документація:» session starts, fixes a wrong link and ends.
 - A week passes with no retro: the docs session starts on its own.
 - The session finds a rule that contradicts another: it writes an item for you and does not edit the rule.
-- Your weekly question counts the retro items and the important docs items together.
+- After the docs session reports, P asks you only its important items.
 
 ## Built in
 - `plugins/dev-kit/skills/maintain-project-docs/SKILL.md`

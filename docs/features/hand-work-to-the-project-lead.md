@@ -86,9 +86,9 @@ P decides alone within the approved acceptance criteria. An item reaches your qu
 those criteria (a product choice), what you get is not agreed yet (see "P sorts each task"), the step is
 hard to undo, or API spend (real money through `spend-kit-api`) would pass 1 USD in total per task. Smaller
 API spend and subscription use (sessions, subagents, `claude -p`) never ask you. The C keeps the task's
-spend line in its task file and asks P before a paid call that would pass the limit. The weekly retro ask
-and an offer to take over a session you started
-([Take over a session I started](take-over-a-session-i-started.md)) always enter the queue. A question a C put to you, unanswered
+spend line in its task file and asks P before a paid call that would pass the limit. An offer to take over a
+session you started
+([Take over a session I started](take-over-a-session-i-started.md)) always enters the queue. A question a C put to you, unanswered
 since before today, whose answer lies in P's own rights (a step the C may ask P, a choice inside the
 criteria), P decides by its recommendation, records in the doc it came from and drops from the queue.
 

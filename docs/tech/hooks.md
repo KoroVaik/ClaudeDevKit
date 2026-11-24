@@ -32,8 +32,7 @@ session is registered with `--owner`; only then it adds the note. Any error in t
 failing hook never blocks a message. The rule the user sees:
 [Take over a session I started](../features/take-over-a-session-i-started.md).
 
-The hook adds no `retro: N items due` line for the lead any more (the retro asks the owner nothing from a later
-step on); the command `rules-kit due` stays until then.
+The hook adds no `retro: N items due` line for the lead any more: the retro asks the owner nothing.
 
 ## Retro (rules-kit, SessionStart and SessionEnd)
 

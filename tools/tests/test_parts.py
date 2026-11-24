@@ -279,6 +279,23 @@ class PacketTestCase(unittest.TestCase):
         self.assertIn("22: Always run the build before you deploy the build.", text)  # the global set's process part
         self.assertNotIn("Ordinary reply", text)  # a talk-typed section is not a process rule
 
+    # protects: Rule
+    def test_failed_calls_mark_a_main_session_but_a_subagent_only_for_one_error_repeated(self):
+        # A coder's tests failing while it works are normal: three different errors in a subagent are no sign.
+        def errors(*texts):
+            return numbered([entry for n, text in enumerate(texts) for entry in (
+                use(f"t{n}", "Bash", {"command": f"pytest {n}"}), done(f"t{n}", text, True))])
+
+        def signs(entries, kind):
+            found = parts.split(entries, kind, "dev-kit:coder" if kind == "agent" else "")
+            return [sorted(marks.general) for marks in packets.mark(entries, found)]
+
+        different = errors("1 failed: test_a", "2 failed: test_b", "1 failed: test_c")
+        self.assertEqual(signs(different, "session"), [["failed calls"]])
+        self.assertEqual(signs(different, "agent"), [])
+        same = errors("ImportError: no module x", "ImportError: no module x", "ImportError: no module x")
+        self.assertEqual(signs(same, "agent"), [["failed calls"]])
+
     # protects: Edge
     def test_an_excerpt_over_its_cap_keeps_the_lines_around_the_signs(self):
         filler = [said(f"step {n} " + "x" * 300) for n in range(80)]

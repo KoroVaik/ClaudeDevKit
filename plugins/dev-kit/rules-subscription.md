@@ -60,7 +60,7 @@ that enforce them. `rules-kit` (the retro) reads this file; format: `plugins/rul
 
 | Sign | Kind | Pattern |
 |---|---|---|
-| P asked what a rule says P decides | process | in a «P: » session the owner is asked about a merge, a branch clean-up or a commit, which "Acceptance and merge" gives to P |
+| P asked what a rule says P decides | process | the owner is asked whether to merge, clean up a branch or commit, which "Acceptance and merge" gives to P: «(?i)(змерджит|змержит|мерджимо|мержимо|видаляємо гілку|видалити гілку|закомітит|комітимо|merge it|shall i merge|commit it)[^\n?]{0,60}\?» |
 | hook blocks the same call again | technical | a dev-kit PreToolUse hook (narrow-agents, windows-traps, long-commands) denies a call and the next calls repeat it nearly unchanged |
 
 ## May change itself

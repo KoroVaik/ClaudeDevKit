@@ -5,8 +5,9 @@ user-scope plugin runs in every session on the machine"). It stays silent unless
 session's cwd is exactly the home folder (a project folder under home gets nothing). The rules are `rules/hub.md`;
 `{PLUGIN}` in them is replaced with this plugin's folder, `{VERSION}` with its version (`.claude-plugin/plugin.json`,
 `unknown` when unreadable), `{DEVKIT}` with the dev-kit plugin's folder (a sibling
-of this plugin; in the plugin cache the newest version folder that holds `bin/dev-kit-sessions`) and `{SPENDKIT}` with
-the spend-kit plugin's folder (found the same way by `bin/spend-kit`).
+of this plugin; in the plugin cache the newest version folder that holds `bin/dev-kit-sessions`), `{SPENDKIT}` with
+the spend-kit plugin's folder (found the same way by `bin/spend-kit`) and `{RULESKIT}` with the rules-kit plugin's
+folder (by `bin/rules-kit`).
 Never fails: any error ends it with exit code 0 and no output."""
 import json
 import os
@@ -41,6 +42,10 @@ def spend_kit_folder():
     return sibling_plugin_folder("spend-kit", "spend-kit")
 
 
+def rules_kit_folder():
+    return sibling_plugin_folder("rules-kit", "rules-kit")
+
+
 def plugin_version():
     """This plugin's version from its manifest, or `unknown`."""
     try:
@@ -59,6 +64,7 @@ def main():
         text = text.replace("{VERSION}", plugin_version())
         text = text.replace("{PLUGIN}", PLUGIN.as_posix()).replace("{DEVKIT}", dev_kit_folder().resolve().as_posix())
         text = text.replace("{SPENDKIT}", spend_kit_folder().resolve().as_posix())
+        text = text.replace("{RULESKIT}", rules_kit_folder().resolve().as_posix())
         sys.stdout.reconfigure(encoding="utf-8")
         json.dump({"hookSpecificOutput": {"hookEventName": "SessionStart", "additionalContext": text}}, sys.stdout)
     except Exception:

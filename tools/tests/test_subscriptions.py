@@ -296,6 +296,16 @@ class DiscoveryTestCase(unittest.TestCase):
     def test_a_missing_plugins_folder_gives_no_plugin_sets(self):
         self.assertEqual(subscriptions.discover(self.tmp / "none", self.tmp / "none", []).sets, {})
 
+    # protects: Bug
+    def test_no_sign_of_the_plugins_fires_on_a_bare_session_title(self):
+        # Step 4 left «P: » and «Ретро: » in prose rows; read as expressions they marked unrelated packets.
+        registry = subscriptions.discover(PLUGINS, self.tmp / "none", [])
+        for found in registry.sets.values():
+            for sign in found.signs:
+                if sign.regex is not None:
+                    for text in ("P: ClaudeDevKit", "Ретро: Zhratva", "C: build the page"):
+                        self.assertIsNone(sign.regex.search(text), (found.name, sign.name, text))
+
     # protects: Flow
     def test_environment_variables_replace_the_plugins_and_global_folders(self):
         with mock.patch.dict(os.environ, {subscriptions.PLUGINS_ENV: str(self.tmp / "p"), subscriptions.GLOBAL_ENV: str(self.tmp / "g")}):

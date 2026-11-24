@@ -110,5 +110,4 @@ state, result (trivial fixes made, open and owner items written), what is needed
 nothing to merge). The session then waits; P closes it.
 
 Why: owner, 2026-11-22 (`docs/features/tidy-the-docs-once-a-week.md` in the plugin repo): docs upkeep runs by itself once a week on the
-rules the retro just fixed, ends instead of staying open, and brings the owner only the truly important items, in
-the same weekly question as the retro.
+rules the retro just fixed, ends instead of staying open, and brings the owner only the truly important items.

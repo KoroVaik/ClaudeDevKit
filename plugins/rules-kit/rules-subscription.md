@@ -1,6 +1,6 @@
 # Rules subscription: rules-kit
 
-The rules plugin: the retro, the edit-rules skill, its checker agent, the templates and the scripts and hooks that
+The rules plugin: the retro, the edit-rules skill, its checker agents, the templates and the scripts and hooks that
 serve them. It subscribes itself, reviewed by ClaudeDevKit. Format:
 `plugins/rules-kit/scripts/subscriptions.py`.
 
@@ -18,6 +18,8 @@ serve them. It subscribes itself, reviewed by ClaudeDevKit. Format:
 | skills/edit-rules/SKILL.md | process | skill rules-kit:edit-rules | |
 | agents/rule-reviewer.md | process | agent rules-kit:rule-reviewer | |
 | agents/part-reader.md | process | agent rules-kit:part-reader | |
+| agents/approver.md | process | agent rules-kit:approver | |
+| agents/replayer.md | process | agent rules-kit:replayer | |
 | templates/global-rules-subscription.md | process | skill rules-kit:retro | |
 | hooks/hooks.json | technical | hook rules-kit | |
 | hooks/*.py | technical | hook rules-kit | |
@@ -30,7 +32,7 @@ serve them. It subscribes itself, reviewed by ClaudeDevKit. Format:
 
 | Sign | Kind | Pattern |
 |---|---|---|
-| a retro session writes into a main checkout | technical | in a «Ретро: » session an Edit or Write call fails because its path is in the main checkout (the session must call EnterWorktree first) |
+| a retro session writes into a main checkout | technical | in a `Ретро: ` session an Edit or Write call fails because its path is in the main checkout (the session must call EnterWorktree first); the block's text is not known yet, so no expression |
 | a fix with one sighting | process | an item file has a `- fix:` line, one `- seen:` line and a status other than `urgent` |
 
 ## May change itself

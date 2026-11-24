@@ -34,9 +34,10 @@ Why: owner, 2026-11-23: collecting facts must not add questions for the owner.
 ### Re-checked weekly and after a Claude update
 The daily scan raises a line when Claude Code's version changes and once a week, so the ClaudeDevKit retro starts
 and has the facts agent re-check the file. It runs only safe checks; a failed one marks the fact `doubtful`. Facts only the owner can
-see (a phone push, what the phone app shows) reach the owner as one item in P's weekly retro question, at most 5
-at a time; a fresh observation from another session settles one before that.
-Why: owner, 2026-11-23: «або ж інша сесія внесе факт по цьом питанню, а так ок».
+see (a phone push, what the phone app shows) are not asked: they wait in one parked item that Pult's «статус» lists,
+and a fresh observation from another session settles one.
+Why: owner, 2026-11-23: «або ж інша сесія внесе факт по цьом питанню, а так ок»; not asked: owner, 2026-11-24
+(the retro asks him nothing, `plans/retro-auto-rules-check.md`).
 
 ### Every session learns of the file
 One line in the owner's global rules, loaded in every session and subagent on the machine, says to read the
@@ -45,7 +46,7 @@ matching section before relying on how a Claude app behaves.
 ## Acceptance criteria
 - A session in any project gets a failed send to another session: the next ClaudeDevKit retro hands it to the facts agent.
 - The scan sees a newer Claude Code version: the next ClaudeDevKit retro re-checks the facts.
-- A doubtful fact only the owner can check reaches him once in the weekly retro question.
+- A doubtful fact only the owner can check is parked and listed in Pult's «статус», never asked.
 - A fact appears once in the plugins; the rules that rely on it link to it.
 
 ## Built in
