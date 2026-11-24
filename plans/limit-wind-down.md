@@ -1,6 +1,6 @@
 # Wind down work when the weekly limit runs out
 
-Status: discussion (Обговорення: Плавна зупинка при вичерпанні ліміту).
+Status: approved, next: build (owner «так» to the short plan, 2026-11-25, «Обговорення: Плавна зупинка при вичерпанні ліміту»).
 
 Owner's words, 2026-11-24, P: ClaudeDevKit chat: «потрібно подумать над тим як плавно зупинять роботу менеджерів у яких ще доволі великий скоуп робіт, а тижневий ліміт уже перескочив 95% і навіть за кращого прогнозу не встигне до ресета. Обговорення. Приклад сесія менеджера ядра в жратві».
 
@@ -9,3 +9,49 @@ Example session: «C: Переробка ядра аналізу» in Zhratva (w
 Related: plans/limit-tracking.md (the weekly limit forecast push), the Pult watcher's LIMIT-RESUME (plugins/pult/README.md).
 
 Success criterion: the owner's «так» to the short plan, with the agreed points written in «Owner's approval» below.
+
+## Owner's approval
+
+Owner «так» to the short plan, 2026-11-25. Points agreed one by one in the discussion (2026-11-24/25); product rules in
+[docs/features/wind-down-at-weekly-limit.md](../docs/features/wind-down-at-weekly-limit.md).
+
+How it works now (checked 2026-11-24): the usage % comes from the status line (`rate_limits.seven_day`,
+`five_hour`) appended by `plugins/spend-kit/scripts/statusline.py:69-96` to
+`~/.claude/spend-kit/usage-log.jsonl` (fields `week_pct`, `week_resets`, `five_hour_pct`, written only when a %
+rises). The weekly forecast push (`plugins/spend-kit/scripts/usage_forecast.py`, watcher
+`Invoke-LimitForecast`, `plugins/pult/scripts/watch-servers.ps1:1294-1315`) goes to the owner's phone only;
+no rule tells a lead or a C what to do near a limit; `messages.md` has no kind for it. LIMIT-RESUME
+(`watch-servers.ps1:575-677`) wakes only sessions that stopped on the limit, not ones paused on purpose.
+
+1. Notices to leads (the decision is each lead's, nothing stops sessions centrally).
+   - Weekly limit: a notice to every live lead at 90% and again at 95% of `week_pct`, each threshold once per
+     weekly window (mark per `week_resets`, like the forecast's mark file).
+   - 5-hour limit: one notice at 90% of `five_hour_pct`, once per 5-hour window.
+   - Sent by Pult's watcher through the existing one-shot sender; a new message kind in
+     `plugins/dev-kit/messages.md` (name it in the build, e.g. `ЛІМІТ`) carrying which limit, the % and the reset
+     time.
+2. What a lead does on a notice: base stop rules in `plugins/dev-kit/skills/project-lead/SKILL.md`.
+   - Default: a session keeps working until the limit runs out; the importance of its task is not a reason to
+     stop it (owner: the last share of the limit must not be left unused out of caution).
+   - Stop at a safe point only on a sign from the list: helpers (subagents) are running; a large change is half
+     done. A paid API run is not a sign by itself (a background script keeps running at the limit; a run driven
+     by a helper falls under the helpers sign).
+   - A stop is a `ВКАЗІВКА` to the C: no new step, bring the current one to a safe point, stop helpers, write
+     where it stopped and the resume steps in its plan, save the work (WIP commit), send `ЧЕКАЮ`. This is what the
+     Zhratva core C did on P's ad hoc order on 2026-11-24 in about one minute.
+   - The lead keeps the list of sessions it paused, for step 3.
+   - A project adds its own signs or rules in its `.claude/dev-kit.md` (a `## project-lead` section); the base
+     list may grow over time.
+3. After the reset: the watcher tells every lead that got a notice in that window that the limit is back (once
+   per window); the lead wakes the sessions it paused (a `ВКАЗІВКА` to resume from the written steps).
+   LIMIT-RESUME for sessions cut by the limit stays as is.
+4. Fix: the watcher missed the Zhratva core C's 5-hour stop on 2026-11-24 (no LIMIT line in `servers.log`; it
+   slept about 18 h). Likely cause: `plugins/dev-kit/scripts/sessions.py:753-771` (`usage_limit`, lines 761-764)
+   counts any later non-meta user entry as "it went on", and the reports of the cut helpers
+   (`task-notification` entries) came after the limit notice. Confirm on a copy of that transcript cut at line
+   1979 (`d0846956-...jsonl`, path in the task line above), then fix so such entries with no assistant reply
+   after them do not end the stop.
+5. Unchanged: the weekly forecast push to the owner's phone.
+
+Docs to bring up to date in the build: `plans/limit-tracking.md:27` still says the scripts are in dev-kit (they
+moved to spend-kit); `plugins/pult/README.md`; the feature file above.
