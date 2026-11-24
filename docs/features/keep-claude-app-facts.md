@@ -28,7 +28,7 @@ Why: owner, 2026-11-23: «обовязково апдейт клод факті�
 ### Collected in the background, with no questions
 The daily scan of session transcripts finds Claude app errors (a failed send to a session, a refused launch) in
 every project, Pult and the home folder included, and routes them to the ClaudeDevKit retro. An agent that met a
-quiet quirk and worked around it adds one line with `dev-kit-retro add`. Sessions are not made to report facts.
+quiet quirk and worked around it adds one line with `rules-kit add`. Sessions are not made to report facts.
 Why: owner, 2026-11-23: collecting facts must not add questions for the owner.
 
 ### Re-checked weekly and after a Claude update
@@ -51,5 +51,5 @@ matching section before relying on how a Claude app behaves.
 ## Built in
 - `plugins/dev-kit/claude-facts.md`
 - `plugins/dev-kit/agents/facts-keeper.md`
-- `plugins/dev-kit/scripts/retro.py`
-- `plugins/dev-kit/skills/retro/SKILL.md`
+- `plugins/rules-kit/scripts/retro.py`
+- `plugins/rules-kit/skills/retro/SKILL.md`

@@ -13,7 +13,7 @@ You keep one file: `plugins/dev-kit/claude-facts.md` of the plugin repo (the bri
 
 ## Add candidates
 
-The brief gives candidate facts: `claude app` findings of the retro scan and `dev-kit-retro add` lines, each with
+The brief gives candidate facts: `claude app` findings of the retro scan and `rules-kit add` lines, each with
 its source (project, session, date) and, where known, the Claude Code version.
 
 - Drop noise: a failure caused by our own code, a typo in a call, an expected refusal of a rule we wrote. Keep only

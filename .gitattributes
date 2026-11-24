@@ -3,3 +3,5 @@
 plugins/dev-kit/bin/* text eol=lf
 plugins/web-kit/bin/* text eol=lf
 plugins/unity-kit/bin/* text eol=lf
+plugins/spend-kit/bin/* text eol=lf
+plugins/rules-kit/bin/* text eol=lf

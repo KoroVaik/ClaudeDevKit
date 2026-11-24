@@ -1,4 +1,3 @@
-import contextlib
 import io
 import datetime
 import json
@@ -13,11 +12,12 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
-PLUGIN = Path(__file__).resolve().parent.parent.parent / "plugins" / "dev-kit"
+PLUGIN = Path(__file__).resolve().parent.parent.parent / "plugins" / "rules-kit"
 sys.path.insert(0, str(PLUGIN / "scripts"))
-import dev_kit_state  # noqa: E402
+import claude_path  # noqa: E402
+import folder_naming  # noqa: E402
 import retro  # noqa: E402
-import sessions  # noqa: E402
+import rules_dir  # noqa: E402
 
 SPEND_DIR_ENV = "SPEND_KIT_DIR"  # spend-kit's data folder: the retro runs its command, so the tests point it at a temp folder
 
@@ -93,7 +93,7 @@ class RetroFixture(unittest.TestCase):
         self.projects = tmp / "projects"
         (self.projects / "proj").mkdir(parents=True)
         self.repo = make_repo(tmp / "repo")
-        self.folder = self.retro / dev_kit_state.folder_name(self.repo)  # the item folder of the retro project
+        self.folder = self.retro / folder_naming.folder_name(self.repo)  # the item folder of the retro project
         patcher = mock.patch.dict(os.environ, {retro.RETRO_ENV: str(self.retro),
                                                retro.PROJECTS_ENV: str(self.projects),
                                                retro.NO_START_ENV: "1",
@@ -101,6 +101,7 @@ class RetroFixture(unittest.TestCase):
                                                "DEV_KIT_USAGE_LOG": str(tmp / "usage")})
         patcher.start()
         os.environ.pop("SPEND_KIT_OLD_DIR", None)  # restored with the patch: never the real `~/.claude/dev-kit`
+        os.environ.pop(rules_dir.OLD_ENV, None)  # the same for the retro folder of dev-kit
         os.environ.pop("CLAUDE_CODE_SESSION_ID", None)
         self.addCleanup(patcher.stop)
 
@@ -179,17 +180,33 @@ class RetroTestCase(RetroFixture):
         self.run_cmd("scan")
         self.assertEqual(self.global_state()["offsets"][str(path)], path.read_bytes().index(b"\n") + 1)
 
-    def test_script_candidate_and_subagents_summed(self):
+    # protects: Flow
+    def test_a_script_candidate_counts_the_sessions_of_one_command(self):
         for name in ("s1", "s2", "s3"):
             self.write(f"proj/{name}.jsonl", [call("b", "Bash", {"command": "npm  run build -- --mode production"}, "2026-11-19T10:00:00Z")])
-        for n in range(2):
-            self.write(f"proj/s1/subagents/agent-{n}.jsonl",
-                       [call("c", "Glob", {"pattern": "*"}, "2026-11-19T10:00:00Z")] * 2)
-            (self.projects / f"proj/s1/subagents/agent-{n}.meta.json").write_text('{"agentType": "dev-kit:coder"}')
         self.run_cmd("scan")
+        self.assertIn("3 sessions | script candidate | npm run build -- --mode production", self.project_cmd("items"))
+
+    # protects: Bug
+    # Broke: the scan summed all runs of one subagent type, so short runs read as one repeated call or one huge run
+    def test_two_runs_of_one_subagent_type_count_as_two_not_as_one_summed_run(self):
+        # Each coder run below stays under the thresholds (2 repeats, 2 errors, 80 calls); summed they would read as
+        # "Glob x4", "4 failed calls" and "160 tool calls". One run over a threshold still gets its own line.
+        stamp = "2026-11-19T10:00:00Z"
+        entries = [call(f"g{n}", "Glob", {"pattern": "*"}, stamp) for n in range(2)]
+        entries += [result(f"g{n}", stamp, error=True) for n in range(2)]
+        entries += [call(f"w{n}", "Write", {"n": n}, stamp) for n in range(78)]
+        for n in range(2):
+            self.write(f"proj/s1/subagents/agent-{n}.jsonl", entries)
+            (self.projects / f"proj/s1/subagents/agent-{n}.meta.json").write_text('{"agentType": "dev-kit:coder"}')
+        self.write("proj/s1/subagents/agent-2.jsonl", [call("c", "Glob", {"pattern": "*"}, stamp)] * 3)
+        (self.projects / "proj/s1/subagents/agent-2.meta.json").write_text('{"agentType": "dev-kit:coder"}')
+        self.assertIn("scanned 3 transcript(s)", self.run_cmd("scan"))  # one window per run
         listing = self.project_cmd("items")
-        self.assertIn("3 sessions | script candidate | npm run build -- --mode production", listing)
-        self.assertIn("s1 / subagent dev-kit:coder | repeated call | Glob x4", listing)
+        self.assertEqual(listing.count("s1 / subagent dev-kit:coder |"), 1, listing)
+        self.assertIn("s1 / subagent dev-kit:coder | repeated call | Glob x3", listing)
+        self.assertNotIn("failed calls", listing)
+        self.assertNotIn("many calls", listing)
 
     # protects: Rule
     def test_a_script_candidate_over_several_projects_goes_to_the_plugins_own_project(self):
@@ -199,10 +216,10 @@ class RetroTestCase(RetroFixture):
         self.write("proj2/s2.jsonl", [call("b", "Bash", command, "2026-11-19T10:00:00Z")], cwd=other)
         self.write("proj2/s3.jsonl", [call("b", "Bash", command, "2026-11-19T10:00:00Z")], cwd=other)
         self.run_cmd("scan")
-        plugin = self.retro / dev_kit_state.folder_name(Path(retro.__file__).resolve().parents[3])
+        plugin = self.retro / folder_naming.folder_name(Path(retro.__file__).resolve().parents[3])
         self.assertIn("2 project(s) | 3 sessions | script candidate", self.new_text(plugin))
         self.assertNotIn("script candidate", self.new_text())
-        self.assertNotIn("script candidate", self.new_text(self.retro / dev_kit_state.folder_name(other)))
+        self.assertNotIn("script candidate", self.new_text(self.retro / folder_naming.folder_name(other)))
 
     # protects: Rule
     def test_owner_notes_are_sorted_by_their_project_field_once(self):
@@ -217,8 +234,8 @@ class RetroTestCase(RetroFixture):
         self.run_cmd("scan")
         self.assertIn("for repo", self.new_text())
         self.assertNotIn("for other", self.new_text())
-        self.assertIn("for other, case ignored", self.new_text(self.retro / dev_kit_state.folder_name(other)))
-        self.assertNotIn("no such project", self.new_text() + self.new_text(self.retro / dev_kit_state.folder_name(other)))
+        self.assertIn("for other, case ignored", self.new_text(self.retro / folder_naming.folder_name(other)))
+        self.assertNotIn("no such project", self.new_text() + self.new_text(self.retro / folder_naming.folder_name(other)))
         with open(notes, "a", encoding="utf-8") as handle:
             handle.write("- 2026-11-20 | repo | C: X | correction | later line\n")
         self.run_cmd("scan", "--force")
@@ -274,7 +291,7 @@ class RetroTestCase(RetroFixture):
         plain = make_repo(self.tmp / "plain", retro_project=False)
         mapper = retro.Mapper()
         project = mapper.project_of_cwd(str(self.repo))
-        self.assertEqual((project.name, project.folder), ("repo", dev_kit_state.folder_name(self.repo)))
+        self.assertEqual((project.name, project.folder), ("repo", folder_naming.folder_name(self.repo)))
         gone = str(self.repo / ".claude" / "worktrees" / "gone")
         for cwd in (str(worktree), str(self.repo / ".claude"), gone, gone + "\\sub", gone.replace("\\", "/"),
                     str(self.repo) + "\\.CLAUDE\\worktrees\\gone"):
@@ -305,7 +322,7 @@ class RetroTestCase(RetroFixture):
     def devkit_project(self):
         """The retro project named ClaudeDevKit, with its item folder `state.json` (what makes it a known project)."""
         path = make_repo(self.tmp / "ClaudeDevKit")
-        folder = self.retro / dev_kit_state.folder_name(path)
+        folder = self.retro / folder_naming.folder_name(path)
         retro.write_json(folder / "state.json", {"root": str(path)})
         return path, folder
 
@@ -435,7 +452,7 @@ class RetroTestCase(RetroFixture):
         self.write("proj/abcdef01.jsonl", self.session())
         self.write("proj2/12345678.jsonl", self.session(), cwd=other)
         self.run_cmd("scan")
-        mine, theirs = self.new_files(), self.new_files(self.retro / dev_kit_state.folder_name(other))
+        mine, theirs = self.new_files(), self.new_files(self.retro / folder_naming.folder_name(other))
         self.assertEqual((len(mine), len(theirs)), (1, 1))
         self.assertIn("(abcdef01)", mine[0].read_text(encoding="utf-8"))
         self.assertNotIn("(12345678)", mine[0].read_text(encoding="utf-8"))
@@ -530,8 +547,7 @@ class RetroCommandsTestCase(RetroFixture):
         self.assertLess(out.index("## New findings"), out.index("repeated call"))
         self.assertIn("\nstale-doc | disputed | rule gap | sightings 2\n", out)
         self.assertIn("\nother | open | ? | sightings 0\n", out)
-        self.assertIn(f"trivial fixes in the last 7 days: 2 of {retro.FIXES_PER_WEEK}" + chr(10) * 2
-                      + "## Docs items" + chr(10) + "(none)", out)
+        self.assertTrue(out.rstrip().endswith(f"trivial fixes in the last 7 days: 2 of {retro.FIXES_PER_WEEK}"), out)
         self.assertEqual(self.project_state()["shown"], ["scan-a.md"])
 
     # protects: Rule
@@ -674,15 +690,12 @@ class RetroCommandsTestCase(RetroFixture):
     def retro_state(self, **values):
         retro.save_project(self.folder, {"root": str(self.repo), **values})
 
-    def start(self, title="C: task", cwd=None, session_id="s-1", claude="fake-claude", docs=False):
-        """hook_start with the spawn recorded; returns the recorded commands. The weekly docs session is left out
-        unless `docs` is set."""
+    def start(self, title="C: task", cwd=None, session_id="s-1", claude="fake-claude"):
+        """hook_start with the spawn recorded; returns the recorded commands."""
         spawned = []
-        no_docs = mock.patch.object(retro, "docs_start_command", lambda *args: None) if not docs \
-            else contextlib.nullcontext()
         with mock.patch.object(retro, "spawn", lambda argv, cwd=None: spawned.append((argv, cwd))), \
-                mock.patch.object(sessions, "find_claude", return_value=claude), \
-                mock.patch.dict(os.environ), no_docs:
+                mock.patch.object(claude_path, "find_claude", return_value=claude), \
+                mock.patch.dict(os.environ):
             os.environ.pop(retro.NO_START_ENV, None)
             retro.hook_start({"cwd": str(cwd or self.repo), "session_id": session_id, "session_title": title})
         return spawned
@@ -732,7 +745,7 @@ class RetroCommandsTestCase(RetroFixture):
     def test_the_retro_session_starts_when_findings_wait_the_review_is_old_and_no_start_is_recent(self):
         self.scanned_today()
         command = ["fake-claude", "--bg", "--name", "Ретро: repo", "--settings", str(retro.NO_REMOTE_CONTROL), "--model", "opus", "--effort", "medium",
-                   "--permission-mode", "bypassPermissions", "--", "/dev-kit:retro"]
+                   "--permission-mode", "bypassPermissions", "--", "/rules-kit:retro"]
         self.assertEqual(self.start(), [])  # no findings
         self.put("new/a.md", "- finding\n")
         self.assertEqual(self.start(claude=None), [])  # no claude command: no stamp, a later session retries
@@ -749,83 +762,75 @@ class RetroCommandsTestCase(RetroFixture):
         self.assertEqual(self.start(), [(command, str(self.repo))])
 
     # protects: Flow
-    def test_the_weekly_docs_session_starts_after_the_retro_or_on_its_own_once_a_week(self):
+    def test_the_run_file_tells_the_docs_session_what_the_retro_did(self):
         self.scanned_today()
-        command = ["fake-claude", "--bg", "--name", "Документація: repo", "--settings", str(retro.NO_REMOTE_CONTROL), "--model", "opus", "--effort", "medium",
-                   "--permission-mode", "bypassPermissions", "--", "/dev-kit:maintain-project-docs weekly"]
         hours = lambda value: (retro.now_utc() - datetime.timedelta(hours=value)).isoformat()  # noqa: E731
-        self.assertEqual(self.start(docs=True), [(command, str(self.repo))])  # never ran: on its own, in main
-        self.assertIsNotNone(retro.parse_time(self.project_state()["docs_started"]))
-        self.assertEqual(self.start(docs=True), [])  # started a moment ago
-        self.project_cmd("docs-done")
-        self.retro_state(docs_done=self.project_state()["docs_done"])
-        self.assertEqual(self.start(docs=True), [])  # ran this week
-        week = retro.DOCS_DAYS * 24
-        self.retro_state(docs_done=hours(week + 1))
-        self.assertEqual(self.start(docs=True), [(command, str(self.repo))])  # a week with no retro
-        self.retro_state(docs_done=hours(week + 1), retro_started=hours(1))
-        self.assertEqual(self.start(docs=True), [])  # the retro session may still run
+        run_file = self.retro / retro.RUNS_FOLDER / f"{folder_naming.folder_name(self.repo)}.json"
+        self.start()  # nothing waits: the file still says so
+        self.assertEqual(json.loads(run_file.read_text(encoding="utf-8")),
+                         {"root": str(self.repo), "retro_started": None, "last_review": None, "retro_branch": None,
+                          "retro_due": False})
         self.put("new/a.md", "- finding\n")
-        self.retro_state(docs_done=hours(week + 1), retro_started=hours(retro.START_GUARD_HOURS + 1))
-        names = [argv[3] for argv, _ in self.start(docs=True)]
-        self.assertEqual(names, ["Ретро: repo"])  # findings wait: the retro session first, never both at once
-        (self.folder / "new" / "a.md").unlink()
-        self.retro_state(retro_started=hours(2), last_review=hours(1), docs_done=hours(week + 1))
-        self.assertEqual(self.start(title="Документація: repo", docs=True), [])  # the docs session starts nothing
-        self.assertEqual(self.start(docs=True), [(command, str(self.repo))])  # after the retro ended
-        self.put("new/b.md", "- finding\n")
-        self.retro_state(docs_started=hours(1), docs_done=hours(week + 1))
-        self.assertEqual(self.start(), [])  # the docs session may still run: the retro waits
-        self.retro_state(docs_started=hours(retro.DOCS_GUARD_HOURS - 1), docs_done=hours(week + 1))
-        self.assertEqual([argv[3] for argv, _ in self.start(docs=True)], ["Ретро: repo"])  # docs did not end
-        (self.folder / "new" / "b.md").unlink()
-        self.retro_state(docs_started=hours(retro.DOCS_GUARD_HOURS - 1), docs_done=hours(week + 1))
-        self.assertEqual(self.start(docs=True), [])  # a run with no docs-done is retried once a day, not sooner
-        self.retro_state(docs_started=hours(retro.DOCS_GUARD_HOURS + 1), docs_done=hours(week + 1))
-        self.assertEqual(self.start(docs=True), [(command, str(self.repo))])
-
-    # protects: Rule
-    def test_the_docs_session_waits_for_the_merge_of_the_retro_branch_at_most_two_days(self):
-        self.scanned_today()
-        git(self.repo, "branch", "retro-x")
-        git(self.repo, "checkout", "-q", "retro-x")
-        git(self.repo, "commit", "-q", "--allow-empty", "-m", "fix")
-        git(self.repo, "checkout", "-q", "main")
-        hours = lambda value: (retro.now_utc() - datetime.timedelta(hours=value)).isoformat()  # noqa: E731
-        self.retro_state(retro_started=hours(2), last_review=hours(1))
+        self.start()
+        run = json.loads(run_file.read_text(encoding="utf-8"))
+        self.assertTrue(run["retro_due"])
+        self.assertEqual(retro.parse_time(run["retro_started"]), retro.parse_time(self.project_state()["retro_started"]))
+        self.project_cmd("items")
         self.project_cmd("done", "--branch", "retro-x")
-        self.assertEqual(self.project_state()["retro_branch"], "retro-x")
-        self.assertEqual(self.start(docs=True), [])  # the retro's fixes are not on main yet
-        state = self.project_state()
-        state["last_review"] = hours(retro.DOCS_MERGE_WAIT_HOURS + 1)
-        state["retro_started"] = hours(retro.DOCS_MERGE_WAIT_HOURS + 2)
-        retro.save_project(self.folder, state)
-        self.assertEqual(len(self.start(docs=True)), 1)  # waited long enough: runs anyway
-        self.retro_state(retro_started=hours(2), last_review=hours(1), retro_branch="retro-x")
-        git(self.repo, "merge", "-q", "--ff-only", "retro-x")
-        self.assertEqual(len(self.start(docs=True)), 1)  # merged
-        git(self.repo, "branch", "-q", "-D", "retro-x")
-        self.retro_state(retro_started=hours(2), last_review=hours(1), retro_branch="retro-x")
-        self.assertEqual(len(self.start(docs=True)), 1)  # deleted after its merge
+        run = json.loads(run_file.read_text(encoding="utf-8"))
+        self.assertEqual((run["retro_branch"], run["retro_due"]), ("retro-x", False))  # reviewed: nothing is due
+        self.assertIsNotNone(retro.parse_time(run["last_review"]))
         self.project_cmd("done")
-        self.assertNotIn("retro_branch", self.project_state())  # nothing left to merge
+        self.assertIsNone(json.loads(run_file.read_text(encoding="utf-8"))["retro_branch"])  # nothing left to merge
+        self.put("new/b.md", "- finding\n")
+        self.retro_state(last_review=hours(retro.REVIEW_HOURS - 1))
+        self.start()
+        self.assertFalse(json.loads(run_file.read_text(encoding="utf-8"))["retro_due"])  # reviewed lately
 
     # protects: Rule
-    def test_docs_items_for_the_owner_join_the_weekly_ask_and_items_lists_them(self):
-        self.lead()
-        self.put("docs-items/stale-epic.md", "# stale epic\n- status: open\n")
-        self.assertEqual(self.project_cmd("due", "--session", "lead-1"), "")  # P has it fixed with no owner
-        self.put("docs-items/product-rule.md", "# product rule\n- status: owner\n")
-        self.put("items/disp.md", "- status: disputed\n")
-        self.assertEqual(self.project_cmd("due", "--session", "lead-1"), "retro: 2 items due (0 urgent)\n")
-        out = self.project_cmd("items")
-        self.assertTrue(out.rstrip().endswith("## Docs items\nproduct-rule | owner\nstale-epic | open"))
+    def test_no_retro_session_starts_while_the_docs_session_may_still_run(self):
+        self.scanned_today()
+        self.put("new/a.md", "- finding\n")
+        hours = lambda value: (retro.now_utc() - datetime.timedelta(hours=value)).isoformat()  # noqa: E731
+        state_root = self.tmp / "dev-kit-state"
+        docs = state_root / folder_naming.folder_name(self.repo) / "docs.json"
+        docs.parent.mkdir(parents=True)
+        with mock.patch.dict(os.environ, {retro.STATE_ENV: str(state_root)}):
+            docs.write_text(json.dumps({"docs_started": hours(1)}), encoding="utf-8")
+            self.assertEqual(self.start(), [])  # started an hour ago, not ended
+            docs.write_text(json.dumps({"docs_started": hours(2), "docs_done": hours(1)}), encoding="utf-8")
+            self.assertEqual(len(self.start()), 1)  # ended
+            self.retro_state()
+            docs.write_text(json.dumps({"docs_started": hours(retro.START_GUARD_HOURS + 1)}), encoding="utf-8")
+            self.assertEqual(len(self.start()), 1)  # ended with no stamp long ago: it does not hold the retro
+            self.retro_state()
+            docs.write_text("{nope", encoding="utf-8")
+            self.assertEqual(len(self.start()), 1)  # an unreadable file holds nothing
+
+    # protects: Flow
+    def test_the_old_retro_folder_of_dev_kit_is_copied_once_on_the_first_run_and_stays(self):
+        old = self.tmp / "old-retro"
+        (old / "repo-x" / "items").mkdir(parents=True)
+        (old / "repo-x" / "items" / "k.md").write_text("- status: waiting\n", encoding="utf-8")
+        (old / "repo-x" / "state.lock").write_text("1", encoding="ascii")
+        (old / "notes.md").write_text("- one\n", encoding="utf-8")
+        with mock.patch.dict(os.environ, {rules_dir.OLD_ENV: str(old)}):
+            self.assertEqual(self.run_cmd("scan"), "scanned 0 transcript(s), 0 finding(s)\n")
+            self.assertEqual((self.retro / "repo-x" / "items" / "k.md").read_text(encoding="utf-8"), "- status: waiting\n")
+            self.assertEqual((self.retro / "notes.md").read_text(encoding="utf-8"), "- one\n")
+            self.assertFalse((self.retro / "repo-x" / "state.lock").exists())  # a lock is not state
+            (self.retro / "repo-x" / "items" / "k.md").write_text("- status: fixed\n", encoding="utf-8")
+            (old / "notes.md").write_text("- two\n", encoding="utf-8")
+            self.run_cmd("scan", "--force")
+        self.assertEqual((self.retro / "repo-x" / "items" / "k.md").read_text(encoding="utf-8"), "- status: fixed\n")
+        self.assertEqual((self.retro / "notes.md").read_text(encoding="utf-8"), "- one\n")  # copied once, not again
+        self.assertEqual((old / "notes.md").read_text(encoding="utf-8"), "- two\n")  # the old folder stays as it was
 
     # protects: Rule
     def test_no_start_env_stamps_but_does_not_spawn(self):
         self.scanned_today()
         self.put("new/a.md", "- finding\n")
-        with mock.patch.object(retro, "spawn") as spawn, mock.patch.object(sessions, "find_claude", return_value="c"):
+        with mock.patch.object(retro, "spawn") as spawn, mock.patch.object(claude_path, "find_claude", return_value="c"):
             retro.hook_start({"cwd": str(self.repo), "session_id": "s", "session_title": "C: x"})  # env set by setUp
         spawn.assert_not_called()
         self.assertIn("retro_started", self.project_state())
@@ -868,7 +873,7 @@ class RetroCommandsTestCase(RetroFixture):
         self.assertEqual((result.returncode, result.stdout), (0, b""))
         state = self.project_state()
         self.assertEqual(state["lead_session"], "lead-9")
-        self.assertIn("retro_started", state)  # DEV_KIT_RETRO_NO_START=1: stamped, no session started
+        self.assertIn("retro_started", state)  # RULES_KIT_NO_START=1: stamped, no session started
 
 
 if __name__ == "__main__":

@@ -11,8 +11,8 @@ really yours.
 ### One run a week, on the freshly fixed rules
 Once a week, after the project's retro session has ended and its branch is merged (or 48 hours after it), a
 background session «Документація: <project>» runs `dev-kit:maintain-project-docs` in its weekly mode. With no retro
-that week it starts on its own after 7 days. The SessionStart hook of the retro starts it; there is no Pult task
-and no scheduled task. It runs for every project that has a lead.
+that week it starts on its own after 7 days. A SessionStart hook of dev-kit starts it (it reads the retro's run
+file in the rules-kit folder to wait for the retro and its merge); there is no Pult task and no scheduled task. It runs for every project that has a lead.
 Why: owner, 2026-11-22: run the docs upkeep after the retro, so it uses the updated rules, and by itself, not by hand.
 
 ### It ends and does not stay open
@@ -37,7 +37,10 @@ Why: owner, 2026-11-22: only truly important items are brought up.
 
 ## Built in
 - `plugins/dev-kit/skills/maintain-project-docs/SKILL.md`
-- `plugins/dev-kit/hooks/retro-start.py`
-- `plugins/dev-kit/scripts/retro.py`
+- `plugins/dev-kit/hooks/docs-start.py`
+- `plugins/dev-kit/scripts/docs_weekly.py`
+- `plugins/dev-kit/bin/dev-kit-docs`
+- `plugins/rules-kit/scripts/retro.py`
 - `plugins/dev-kit/skills/project-lead/SKILL.md`
+- `tools/tests/test_docs_weekly.py`
 - `tools/tests/test_retro.py`

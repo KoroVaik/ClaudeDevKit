@@ -261,6 +261,15 @@ class NarrowAgentsTests(unittest.TestCase):
         self.enable("user", **{"dev-kit@korov-dev": True})
         self.assertAllowed("dev-kit:coder")
 
+    # protects: Flow
+    def test_the_rule_reviewer_of_rules_kit_is_allowed_beside_the_dev_kit_agents(self):
+        # The repo layout: the hook of the real dev-kit folder finds the real rules-kit agents as its sibling.
+        self.plugin_root = SCRIPT.parents[1]
+        self.enable("user", **{"dev-kit@korov-dev": True, "rules-kit@korov-dev": True})
+        self.assertAllowed("rules-kit:rule-reviewer")
+        self.assertAllowed("dev-kit:reviewer")
+        self.assertIn("rules-kit:rule-reviewer", self.assertDenied("rules-kit:ghost"))
+
     def test_broken_settings_json_is_skipped(self):
         write(self.project / ".claude" / "settings.json", "{")
         self.enable("user", **{"dev-kit@korov-dev": True})

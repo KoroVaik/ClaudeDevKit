@@ -7,7 +7,7 @@ skills' rule (`dev-kit:project-lead`, `dev-kit:manager`); this file only sets th
 
 | Kind | Sent by | When | Receiver does |
 |---|---|---|---|
-| `ГОТОВО` | a C; a «Ретро:» session (`dev-kit:retro`); a «Документація:» session (`dev-kit:maintain-project-docs`) | its task is done and its branch is ready; 3 lines: state, result, what is needed | merges ("Acceptance and merge") |
+| `ГОТОВО` | a C; a «Ретро:» session (`rules-kit:retro`); a «Документація:» session (`dev-kit:maintain-project-docs`) | its task is done and its branch is ready; 3 lines: state, result, what is needed | merges ("Acceptance and merge") |
 | `ЗАКРИТО` | an «Обговорення:» session | the owner said «так» to its short plan and wrote nothing after it; this is its done report | merges and closes it |
 | `ПИТАННЯ` | a C or a «Ретро:» session to its own P; a lead or an «Обговорення:» session to a lead | it needs a decision or a consent; it waits for the answer | answers with `ВІДПОВІДЬ`, or puts it in the owner queue |
 | `ЗАСТРЯГ` | a C | it cannot go on, and no choice by P would unblock it (a crash of a tool, a queue timeout) | shows it as `чекає на тебе` or `стоїть, сесія впала` with its own question |

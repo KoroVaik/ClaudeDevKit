@@ -1,15 +1,16 @@
 ---
 name: retro
-description: Use when a background session named «Ретро: <project>» starts (the dev-kit SessionStart hook starts it with "/dev-kit:retro") to review the problems logged from this project's sessions and fix the gaps in the rules, skills, agents and docs that made agents err.
+description: Use when a background session named «Ретро: <project>» starts (the rules-kit SessionStart hook starts it with "/rules-kit:retro") to review the problems logged from this project's sessions and fix the gaps in the rules, skills, agents and docs that made agents err.
 ---
 
 # Retro of session problems
 
 The session runs in the background with no owner, in the main checkout of one project with a lead (a project whose
 profile `.claude/dev-kit.md` has a `## project-lead` section). It never asks the owner and never uses
-`AskUserQuestion`; it talks only to its lead, `P: <project>` (the repo folder name), by SendMessage with the kind
-words of `${CLAUDE_PLUGIN_ROOT}/messages.md`. Its input is `dev-kit-retro items`: the project's new
-findings (token problems first) and its item files. Every `dev-kit-retro` command runs in the Bash tool (in
+`AskUserQuestion`; it talks only to its lead, `P: <project>` (the repo folder name), by SendMessage that starts with one
+kind word: `ГОТОВО` (done) and, while it still asks, `ПИТАННЯ` (an urgent item); dev-kit's `messages.md` defines the
+kinds. Its input is `rules-kit items`: the project's new
+findings (token problems first) and its item files. Every `rules-kit` command runs in the Bash tool (in
 PowerShell it prints nothing); where Bash cannot run it, use `python -X utf8 <this plugin>/scripts/retro.py`
 with the same arguments. The folder, the commands and the hooks that fill it: the docstring of `scripts/retro.py`.
 
@@ -23,7 +24,7 @@ The retro catches every problem of agent work in this project, and only that:
   `dev-kit:documentation` says ("Where things go"), the item gets `status: handed`, and the retro stops there.
 - A cause in a dev-kit plugin's rules, or in the owner's global rules (`C:/Users/korov/.claude/`, chat style
   included), is handled only by the ClaudeDevKit retro, so two projects never ask the owner the same thing: in
-  any other project the item is moved there with `dev-kit-retro add --project ClaudeDevKit
+  any other project the item is moved there with `rules-kit add --project ClaudeDevKit
   --text "<item line>" --from <project>` and gets `status: handed`.
 - A cause in another project's own rules goes to that project the same way (rare).
 
@@ -32,7 +33,7 @@ their evidence.
 
 ## 1. Check every finding
 
-One `dev-kit:reviewer` (model sonnet) checks the new findings (in ClaudeDevKit not the `claude app` lines and the
+One `rules-kit:rule-reviewer` (model sonnet) checks the new findings (in ClaudeDevKit not the `claude app` lines and the
 added `claude app:` and `owner check` lines: step 4 hands them to the facts keeper); brief it to stop and report
 after 30 minutes. Give
 it the `items` output (the new findings and the list of existing cause keys), the transcripts folder
@@ -47,7 +48,7 @@ returns:
 - the cause kind: `no rule` (missing or unclear), `ignored rule` (the rule exists and is clear, agents did not
   follow it; `file:line` of the rule), `one-off` (random, no rule would have helped), `code bug`, `dev-kit rule`,
   `global rule` or `other project`;
-- for `no rule`: the fix in one plain line, the exact edit with `file:line`, steps 1-2 of `dev-kit:edit-rules`
+- for `no rule`: the fix in one plain line, the exact edit with `file:line`, steps 1-2 of `rules-kit:edit-rules`
   done on it, and what the same edit removes or merges, so the rules do not grow; for `ignored rule`: another
   means (a hook, a check, a script), never a new wording;
 - whether the fix is trivial: one place, a word or a sentence made clearer, with no clash; a fix about how
@@ -98,7 +99,7 @@ A recurrence counts separate sessions or days: a lead and its own subagents are 
 ## 4. Apply the trivial fixes
 
 Before the first edit, call `EnterWorktree` (name `retro-<YYYY-MM-DD>`): writes into the main checkout are blocked.
-Each trivial fix goes through `dev-kit:edit-rules` steps 4-6 (the reviewer did steps 1-2; the trivial lane is
+Each trivial fix goes through `rules-kit:edit-rules` steps 4-6 (the reviewer did steps 1-2; the trivial lane is
 that skill's exception to step 3), and each removes or merges something as the reviewer named. In ClaudeDevKit,
 bump the plugin version once for the whole run, with its release mark (`.claude/dev-kit.md`); the facts keeper's
 edits go in the same commit and alone need no bump. Commit
@@ -116,7 +117,7 @@ item gets `status: fixed`.
 
 ## 5. Close
 
-Run `dev-kit-retro done --branch <branch>` (plain `dev-kit-retro done` when nothing was committed): the weekly docs
+Run `rules-kit done --branch <branch>` (plain `rules-kit done` when nothing was committed): the weekly docs
 session waits for that branch's merge, so it runs on the fixed rules. Then send P one `ГОТОВО` in 3 lines: state, result (fixes made, items for the owner,
 urgent ones sent), what is needed (merge branch `<branch>`, or nothing to merge). The session then waits; P closes
 it.

@@ -68,9 +68,9 @@ nothing: the merge is P's step, so the owner sees in this chat why the session c
   misses the silent restart and costs every session a turn.
 - A session named «Обговорення: ...» is the exception: it talks with the owner directly and builds
   no product code; how it works and ends is in `dev-kit:project-lead`, "Start an «Обговорення:» session".
-- A background session named «Ретро: <project>» is started by a dev-kit hook, not by P, and follows
-  `dev-kit:retro`; it never talks with the owner and sends its P only `ПИТАННЯ` (urgent items) and one `ГОТОВО`.
-  The weekly «Документація: <project>» session, started by the same hook, follows `dev-kit:maintain-project-docs`,
+- A background session named «Ретро: <project>» is started by a rules-kit hook, not by P, and follows
+  `rules-kit:retro`; it never talks with the owner and sends its P only `ПИТАННЯ` (urgent items) and one `ГОТОВО`.
+  The weekly «Документація: <project>» session, started by a dev-kit hook, follows `dev-kit:maintain-project-docs`,
   "Weekly background run", and sends its P only one `ГОТОВО`.
 
 A session the owner started that P took over (after the owner's yes) is not a C: it keeps talking with
@@ -105,7 +105,7 @@ fast.
 A small task - a few known places, no design or rule change - skips the `new-feature` and `fix-bug`
 chains and the subagents: the manager makes the change itself and keeps what the project's rules
 require anyway (checks that fit, docs the change touches, the commit). Anything larger goes through
-the tables below. Any edit of rule text, small or not, runs `dev-kit:edit-rules`.
+the tables below. Any edit of rule text, small or not, runs `rules-kit:edit-rules`.
 
 ## How routing reads
 
@@ -137,7 +137,7 @@ A slot nobody fills is told to the owner; do not guess a command for it.
 | Moving an existing project's docs onto the `dev-kit:documentation` standard (a dry run first) | `dev-kit:migrate-docs` |
 | A public showcase repo for a private project: create it or bring it up to date | `dev-kit:showcase` |
 | Prune a project's existing tests or mark old tests with what they protect | `dev-kit:prune-tests` |
-| Editing rule text: `CLAUDE.md`, `.claude/`, skills, agents, rule docs, the owner's global rules, notes | `dev-kit:edit-rules` |
+| Editing rule text: `CLAUDE.md`, `.claude/`, skills, agents, rule docs, the owner's global rules, notes | `rules-kit:edit-rules` |
 
 | Step | Slot |
 |---|---|
@@ -290,7 +290,7 @@ skills, agents, hooks, scripts) directly, not even to fix a process mistake or a
 an entry to the plugin repo's own `BACKLOG.md` (not the project's), at
 `C:/Users/korov/MyRepositories/ClaudeDevKit/BACKLOG.md`. A session working in that repo decides and
 builds the entry, only after the owner's yes. A project's own files (`CLAUDE.md`, `.claude/`) are edited
-in the project as before, through `dev-kit:edit-rules`. The agent still fixes its own work in the current task as before; the entry
+in the project as before, through `rules-kit:edit-rules`. The agent still fixes its own work in the current task as before; the entry
 is only for the plugin rule, and the agent tells the owner (in a P-started session, tells P) in one line that it added one.
 
 Entry format, appended at the end of the file, 2-4 lines under a `##` title:

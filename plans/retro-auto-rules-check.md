@@ -128,3 +128,8 @@ rules-kit itself and apply to every set; a set's own signs add to them. The glob
 
 - Step 1 built (spend-kit). Left for step 6: `api-calls.jsonl` and `credits.md` still live in `~/.claude/dev-kit/`
   (other projects' programs append to that log by path); move them with a read of both paths during the switch.
+- Step 2 built (rules-kit move; dev-kit owns the weekly docs start, reads `~/.claude/rules-kit/runs/<folder>.json`).
+  At merge, through `rules-kit:edit-rules`: the owner's global `docs/process-mistakes.md` lines 11, 13, 15 still
+  name `dev-kit:edit-rules`, `~/.claude/dev-kit/retro/notes.md` and `dev-kit:retro` (the notes path matters: the
+  retro now reads `~/.claude/rules-kit/notes.md`). Step 5 removes the lead's retro ask text in `project-lead` and
+  the feature doc.

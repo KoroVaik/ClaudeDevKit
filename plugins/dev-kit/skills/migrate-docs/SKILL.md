@@ -9,7 +9,7 @@ Moves the docs of a project that already has some onto the layout of the `dev-ki
 standard, without losing a fact. The project's `CLAUDE.md` sets the language and approval rules. Read the
 profile section `## migrate-docs` of `.claude/dev-kit.md` if it exists; it adds to these steps and
 overrides them. The migration restructures docs and agent rules only; it never changes code or data. Its edits of
-agent rules and skills run steps 1-2 and 5-6 of `dev-kit:edit-rules`; step 4's change list is their
+agent rules and skills run steps 1-2 and 5-6 of `rules-kit:edit-rules`; step 4's change list is their
 approval.
 
 A **dry run** stops after step 4 and changes nothing. A run is a dry run when the owner asks for one, or

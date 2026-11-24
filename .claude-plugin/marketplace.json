@@ -29,6 +29,11 @@
       "name": "spend-kit",
       "source": "./plugins/spend-kit",
       "description": "Claude spend: weekly limit, per-session spend and API money"
+    },
+    {
+      "name": "rules-kit",
+      "source": "./plugins/rules-kit",
+      "description": "Rules: how to write them and how to improve them; the retro of session problems"
     }
   ]
 }

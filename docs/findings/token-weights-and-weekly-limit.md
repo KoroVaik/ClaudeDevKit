@@ -1,7 +1,7 @@
 # Token units and the weekly limit
 
 Measured 2026-11-16..20 from the session transcripts under `~/.claude/projects` and from the owner's `/usage` meter.
-The weights are in `plugins/dev-kit/scripts/retro.py` (`WEIGHTS`, `MODEL_WEIGHTS`, `WEEKLY_LIMIT_UNITS`).
+The weights are in `plugins/spend-kit/scripts/spend.py` (`WEIGHTS`, `MODEL_WEIGHTS`, `WEEKLY_LIMIT_UNITS`).
 
 ## Raw tokens mislead
 

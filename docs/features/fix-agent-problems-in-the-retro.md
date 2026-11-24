@@ -76,14 +76,12 @@ reuse are not built (`BACKLOG.md`).
 - A session spends over 2% of the weekly limit in a day: Pult's «статус» shows it once.
 
 ## Built in
-- `plugins/dev-kit/scripts/retro.py`
-- `plugins/dev-kit/bin/dev-kit-retro`
-- `plugins/dev-kit/hooks/retro-start.py`
-- `plugins/dev-kit/hooks/retro-end.py`
-- `plugins/dev-kit/hooks/hooks.json`
-- `plugins/dev-kit/skills/retro/SKILL.md`
+- `plugins/rules-kit/scripts/retro.py`
+- `plugins/rules-kit/bin/rules-kit`
+- `plugins/rules-kit/hooks/retro-start.py`
+- `plugins/rules-kit/hooks/retro-end.py`
+- `plugins/rules-kit/hooks/hooks.json`
+- `plugins/rules-kit/skills/retro/SKILL.md`
+- `plugins/rules-kit/agents/rule-reviewer.md`
 - `plugins/dev-kit/skills/project-lead/SKILL.md`
 - `tools/tests/test_retro.py`
-
-## Open
-- [ ] Defect: the scan adds up all runs of one subagent type in a session, so three short runs read as one repeated call and five coder runs as one run with 254 calls; `plugins/dev-kit/scripts/retro.py:798` keys its windows by type, not by subagent file.

@@ -26,7 +26,7 @@ exist), the parts on the same topic:
 
 Then Grep the key words of the new rule (and of the old wording, for a change) across the whole rule set:
 plugins, `CLAUDE.md` files, `README.md`, the profile. A user-facing doc that restates a rule counts. Over
-about 100 lines in total, a `dev-kit:reviewer` (sonnet) does this sweep and returns the places with
+about 100 lines in total, a `rules-kit:rule-reviewer` (sonnet) does this sweep and returns the places with
 `file:line`.
 
 ## 2. Find
@@ -52,7 +52,7 @@ duplicate or conflict that changes the idea (a rule moved, another rule given wa
 The full list with the wording stays in the task file or a scratchpad for the agents.
 
 Exception: a trivial fix of a «Ретро:» session skips this step; the owner sees it afterwards in the weekly
-list and may revert it (`dev-kit:retro`, steps 3-4, which also say what counts as trivial).
+list and may revert it (`rules-kit:retro`, steps 3-4, which also say what counts as trivial).
 
 ## 4. Edit
 
@@ -70,7 +70,7 @@ language, no em dash). A typo or broken link with no change of meaning skips ste
 
 ## 6. Review
 
-A `dev-kit:reviewer` (sonnet) gets the diff, the read set, the step-2 list and the approved idea line. It
+A `rules-kit:rule-reviewer` (sonnet) gets the diff, the read set, the step-2 list and the approved idea line. It
 checks for a duplicate, a conflict or a stale restatement left, a broken pointer, and wording that says
 more, less or other than the approved idea. Fix its confirmed findings; a change of the idea goes back to
 step 3.

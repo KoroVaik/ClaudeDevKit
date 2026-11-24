@@ -16,7 +16,7 @@ rules and this skill does not restate them. Apply the language and approval rule
 `CLAUDE.md`. Read the profile section `## maintain-project-docs` of `.claude/dev-kit.md` if it exists; it
 adds to these steps and overrides them. The audit may edit any docs, agent rules and skills, but only
 after the owner's yes on the proposed list (step 3; the weekly run replaces that step, see "Weekly
-background run"); edits of agent rules and skills follow `dev-kit:edit-rules`. It never changes code or data, a problem found there
+background run"); edits of agent rules and skills follow `rules-kit:edit-rules`. It never changes code or data, a problem found there
 is reported.
 
 ## 1. Mechanical part
@@ -66,7 +66,7 @@ name before putting a finding in the list. Subagents do not edit.
 
 State a concrete change list: per item the file, the passage, the proposed change and why,
 plus the success criterion (the "Before finishing" rule of the standard). An edit of agent rules or
-skills is shown to the owner as one plain idea line, as `dev-kit:edit-rules` step 3 says. Wait for the owner's
+skills is shown to the owner as one plain idea line, as `rules-kit:edit-rules` step 3 says. Wait for the owner's
 explicit yes before editing; a directly specified edit needs no repeat approval. Deleting a whole file
 or discarding unique evidence needs its own explicit yes. Age alone does not prove a claim obsolete:
 check it against the code or the evidence.
@@ -81,7 +81,7 @@ uncertain, and the checks actually run. Do not claim a check, status or acceptan
 
 Started with the argument `weekly`: a dev-kit hook starts the session «Документація: <project>» in the main
 checkout of a project with a lead once a week, after that week's retro («Ретро: <project>») ended and its branch was
-merged, or on its own in a week with no retro (`dev-kit-retro`, the docstring of `scripts/retro.py`). It never asks
+merged, or on its own in a week with no retro (`dev-kit-docs`, the docstring of `scripts/docs_weekly.py`). It never asks
 the owner and never uses `AskUserQuestion`; it sends its P, `P: <project>` (the repo folder name), only one `ГОТОВО`
 by SendMessage (`${CLAUDE_PLUGIN_ROOT}/messages.md`). It runs steps 1-2 and 4 as above; every "after the owner's
 yes" and "proposed" in them becomes an item below, never a wait. Step 3 becomes:
@@ -95,8 +95,8 @@ yes" and "proposed" in them becomes an item below, never a wait. Step 3 becomes:
   a duplicate turned into a link or a fact moved to its home changes no rule.
 - **Open** item (`status: open`): everything else; P has it fixed later with no owner.
 
-Each item is one file `docs-items/<key>.md` in the project's retro folder (the folder path is the first line of
-`dev-kit-retro items`; its "Docs items" part lists the keys already there; a problem with an existing key updates
+Each item is one file `docs-items/<key>.md` in the project's docs folder (the folder path is the first line of
+`dev-kit-docs items`; its "Docs items" part lists the keys already there; a problem with an existing key updates
 that file instead of a new one). An item with status `fixed` or `rejected` is not reopened unless its passage changed
 since, so the owner is never asked the same thing twice. The key is a short kebab-case name; the file:
 
@@ -105,7 +105,7 @@ since, so the owner is never asked the same thing twice. The key is a short keba
     - seen: <YYYY-MM-DD> | <file and passage>
     <Було / Це проблема, бо / Виправлення / Стане, one line each, in Ukrainian: the text P shows the owner>
 
-Then commit the trivial fixes in the worktree, run `dev-kit-retro docs-done`, and send P one `ГОТОВО` in 3 lines:
+Then commit the trivial fixes in the worktree, run `dev-kit-docs done`, and send P one `ГОТОВО` in 3 lines:
 state, result (trivial fixes made, open and owner items written), what is needed (merge branch `<branch>`, or
 nothing to merge). The session then waits; P closes it.
 

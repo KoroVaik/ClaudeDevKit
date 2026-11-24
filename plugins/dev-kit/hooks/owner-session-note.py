@@ -2,9 +2,7 @@
 
 A session the owner started and the lead took over is an active record with `"owner": true` in the project's
 session registry (`dev-kit-sessions add --owner`). At each owner message to such a session this hook adds a short
-note to its context. It also adds the line of `dev-kit-retro due` to the context of the project's recorded lead
-session (`retro: N items due ...`, see `scripts/retro.py`). It never blocks: any error ends it with exit code 0 and
-no output."""
+note to its context. It never blocks: any error ends it with exit code 0 and no output."""
 import json
 import os
 import sys
@@ -40,15 +38,6 @@ def in_worktree(cwd):
     return git_dir != common
 
 
-def retro_line(cwd, session_id):
-    """The `retro: N items due ...` line when the session is its project's recorded lead; "" on any error."""
-    try:
-        import retro  # imported late so that any failure of it is caught here
-        return retro.due_line(cwd, session_id)
-    except Exception:
-        return ""
-
-
 def main():
     try:
         call = json.loads(sys.stdin.buffer.read().decode("utf-8-sig"))
@@ -58,23 +47,14 @@ def main():
         return
     if not session_id or not cwd:
         return
-    parts = []
     try:
-        if is_owner_session(cwd, session_id):
-            parts.append(NOTE if in_worktree(cwd) else NOTE + COMMIT_NOTE)
-    except Exception:
-        pass  # a broken registry must not hide the retro line
-    try:
-        line = retro_line(cwd, session_id)
-        if line:
-            parts.append(line)
-        if not parts:
+        if not is_owner_session(cwd, session_id):
             return
+        note = NOTE if in_worktree(cwd) else NOTE + COMMIT_NOTE
         sys.stdout.reconfigure(encoding="utf-8")
-        json.dump({"hookSpecificOutput": {"hookEventName": "UserPromptSubmit",
-                                          "additionalContext": "\n".join(parts)}}, sys.stdout)
+        json.dump({"hookSpecificOutput": {"hookEventName": "UserPromptSubmit", "additionalContext": note}}, sys.stdout)
     except Exception:
-        return
+        return  # a broken registry never blocks a message
 
 
 if __name__ == "__main__":

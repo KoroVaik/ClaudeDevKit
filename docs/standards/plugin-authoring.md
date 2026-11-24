@@ -1,6 +1,6 @@
 # Plugin authoring
 
-How the skills and agents of the plugins are written. Edits of them follow `dev-kit:edit-rules`.
+How the skills and agents of the plugins are written. Edits of them follow `rules-kit:edit-rules`.
 
 ## Rules
 

@@ -11,8 +11,8 @@ Last re-check: 2026-11-24 | Claude Code: 2.1.331
 - Find the section of the app or area you rely on and read its entries.
 - `checked`: trust it. `doubtful`: a hypothesis; check it before you build on it. `outdated`: no longer true.
 - Met a quirk and used a workaround for it, and it is not here or behaves otherwise: add one line, no subagent
-  and no message: `dev-kit-retro add --project ClaudeDevKit --text "claude app: <app>: <what happened>; workaround:
-  <what you did>"` (in Bash; where `dev-kit-retro` is not found, `python -X utf8 <dev-kit plugin>/scripts/retro.py`
+  and no message: `rules-kit add --project ClaudeDevKit --text "claude app: <app>: <what happened>; workaround:
+  <what you did>"` (in Bash; where `rules-kit` is not found, `python -X utf8 <rules-kit plugin>/scripts/retro.py`
   with the same arguments).
   Errors of tools (a failed send, a refused launch) are collected by the daily scan by themselves.
 - Only the `dev-kit:facts-keeper` agent edits this file. The ClaudeDevKit retro hands it new findings and has it
@@ -645,7 +645,7 @@ One entry per behaviour. A newer direct observation replaces an older one; the o
 
 ### A resumed session's file copies old lines with their old timestamps
 - What happens: The transcript file of a resumed session copies the old lines with their old timestamps, so the same call shows up twice when files are summed.
-- Workaround: count a line once (`retro.py` and the usage scripts de-duplicate).
+- Workaround: count a line once (`plugins/rules-kit/scripts/retro.py` and the usage scripts de-duplicate).
 - App: Claude Code sessions | Claude Code: unknown
 - Seen: 2026-11-16 | measured from transcripts | ClaudeDevKit, `docs/findings/token-weights-and-weekly-limit.md`
 - Re-check: compare line ids of a resumed session's file with its parent | safe

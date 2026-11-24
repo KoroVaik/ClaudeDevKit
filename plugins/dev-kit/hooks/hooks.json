@@ -49,18 +49,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python \"${CLAUDE_PLUGIN_ROOT}/hooks/retro-start.py\"",
-            "timeout": 10
-          }
-        ]
-      }
-    ],
-    "SessionEnd": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "python \"${CLAUDE_PLUGIN_ROOT}/hooks/retro-end.py\"",
+            "command": "python \"${CLAUDE_PLUGIN_ROOT}/hooks/docs-start.py\"",
             "timeout": 10
           }
         ]

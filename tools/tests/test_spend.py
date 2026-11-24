@@ -205,6 +205,18 @@ class FindingsTestCase(SpendFixture):
         self.assertIn("C: Long (long1234) | long session | 100 main turns so far; this scan 40 turns at 2.2k units per "
                       "turn, x6.0 of a session under 50 turns", long_lines[0])
 
+    # protects: Bug
+    # Broke: the retro scan summed the runs of one subagent type, so two coder runs read as one run
+    def test_two_runs_of_one_subagent_type_and_model_are_two_runs_in_the_spend_table(self):
+        self.write("proj/main1234.jsonl", [assistant("a", "claude-sonnet-5-5", {"output_tokens": 100},
+                                                     "2026-11-19T10:00:00Z")])
+        for n in range(2):
+            self.write(f"proj/main1234/subagents/agent-{n}.jsonl",
+                       [assistant(f"A{n}", "claude-sonnet-5-5", {"output_tokens": 200}, "2026-11-19T10:00:00Z")])
+            (self.projects / f"proj/main1234/subagents/agent-{n}.meta.json").write_text('{"agentType": "dev-kit:coder"}')
+        _, table = self.findings()
+        self.assertIn("| dev-kit:coder | sonnet | 2 | 2.0k | 1.0k |", "\n".join(table))  # two runs, 1.0k each
+
     # protects: Rule
     def test_findings_are_taken_once_and_name_the_folder_and_title_of_their_session(self):
         self.write("proj/big12345.jsonl", [{"type": "custom-title", "customTitle": "C: Big"}]

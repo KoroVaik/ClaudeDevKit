@@ -3,11 +3,11 @@
 # off in background sessions"), so cygpath hands Windows python a path it can open.
 here=$(dirname "$(readlink -f "$0" 2>/dev/null || echo "$0")")
 command -v cygpath >/dev/null 2>&1 && here=$(cygpath -m "$here")
-exec python "$here/../scripts/retro.py" "$@"
+exec python "$here/../scripts/docs_weekly.py" "$@"
 """
-# Python part: `python dev-kit-sessions` runs the script directly.
+# Python part: `python dev-kit-docs` runs the script directly.
 import os
 import runpy
 
-script = os.path.join(os.path.dirname(os.path.realpath(__file__)), "..", "scripts", "retro.py")
+script = os.path.join(os.path.dirname(os.path.realpath(__file__)), "..", "scripts", "docs_weekly.py")
 runpy.run_path(os.path.normpath(script), run_name="__main__")

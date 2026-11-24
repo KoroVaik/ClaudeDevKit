@@ -35,7 +35,7 @@ describes a state that is gone.
 | Open item | Agreed work not started yet, or a defect found on the way | Owner approves a task; agents record a defect | Section "Open" of the feature or tech file the work belongs to |
 | Backlog | Ideas not agreed: 2-4 lines each, what, why and the cheapest test | Owner approves | `BACKLOG.md` |
 | Plan | Agreed work in flight, removed when done | Owner approves | `plans/<name>.md` |
-| Agent rules | How agents work in this repo | Owner approves (a «Ретро:» session's trivial fix: after, `dev-kit:edit-rules` step 3) | `CLAUDE.md`, `.claude/` |
+| Agent rules | How agents work in this repo | Owner approves (a «Ретро:» session's trivial fix: after, `rules-kit:edit-rules` step 3) | `CLAUDE.md`, `.claude/` |
 
 Mockups are design assets under `docs/mockups/`, linked from features. A mockup is named after its
 feature; a feature with several screens adds the screen to the name (`<feature>-<screen>`).
@@ -85,7 +85,7 @@ in the UI design standard, platform rules in the engineering standard, product p
 - **Review.** When feature rules are added, removed or rewritten, `dev-kit:reviewer`, model sonnet,
   checks the file: glossary names, no contradiction with other features, the epic or the standards, no
   technical detail, nothing stale. Small wording fixes need no review.
-- **Agent rules.** Edits of `CLAUDE.md`, `.claude/`, skills and agents follow `dev-kit:edit-rules`.
+- **Agent rules.** Edits of `CLAUDE.md`, `.claude/`, skills and agents follow `rules-kit:edit-rules`.
 
 Tech files follow the code. When interdependent parts share code (two frontends, an API and a worker),
 one shared tech file holds what they share and one file per part holds what belongs only to it; a change

@@ -1,7 +1,7 @@
 # Project lead tools
 
-Code: `plugins/dev-kit/scripts/sessions.py`, `plugins/dev-kit/scripts/migrations.py`, `plugins/dev-kit/scripts/retro.py`,
-`plugins/dev-kit/bin`, `plugins/dev-kit/skills/project-lead`. The rules the owner sees:
+Code: `plugins/dev-kit/scripts/sessions.py`, `plugins/dev-kit/scripts/migrations.py`, `plugins/rules-kit/scripts/retro.py`,
+`plugins/dev-kit/scripts/docs_weekly.py`, `plugins/dev-kit/bin`, `plugins/dev-kit/skills/project-lead`. The rules the owner sees:
 [Hand work to the project lead](../features/hand-work-to-the-project-lead.md) and
 [Take over a session I started](../features/take-over-a-session-i-started.md); the rules for P itself are in
 `plugins/dev-kit/skills/project-lead/SKILL.md`.
@@ -40,15 +40,16 @@ After a dev-kit update, Pult restarts the leads so they load the new skill (a ro
 P runs `dev-kit-migrations pending` and hands the changes every project must make in its own files (the
 entries of `plugins/dev-kit/migrations.md`) to one task session.
 
-## Retro: `dev-kit-retro`
+## Retro: `rules-kit`
 
-Each project with a lead has its own retro. dev-kit hooks scan, with no model, each ending session's
+Each project with a lead has its own retro. rules-kit hooks scan, with no model, each ending session's
 transcript (and once a day all of them) for repeated, failed, slow and very many calls, for commands worth a
 script and for token spend (too-long sessions, Opus coder subagents), and sort the findings into the project's
 local item folder. When new findings wait, a session start in that project launches a background «Ретро:
-<project>» session (`dev-kit:retro`): it reviews them with the project's rules in view, fixes trivial,
+<project>» session (`rules-kit:retro`): it reviews them with the project's rules in view, fixes trivial,
 recurring gaps itself, sends urgent items to P and leaves the rest for P's weekly question to the owner. Once a
-week, after the retro's branch is merged (or on its own in a week with no retro), the same hook launches a background
+week, after the retro's branch is merged (or on its own in a week with no retro), a dev-kit hook (`dev-kit-docs`,
+`docs_weekly.py`) launches a background
 «Документація: <project>» session (`dev-kit:maintain-project-docs`, "Weekly background run"): it fixes trivial docs
 problems, writes the rest as local docs items and ends; the items for the owner join the same weekly question. The
 critical token problems (`spend-kit critical`) also show in Pult's «статус». `spend-kit session` gives one session's

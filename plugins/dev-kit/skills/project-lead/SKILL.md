@@ -546,7 +546,7 @@ the pending entries and the list's path. Exit 2 (a broken list or level): P adds
   waits for the answer (it never records past an entry it has not applied). P puts that choice in the
   owner queue and passes the answer back; a step the entry leaves to P after the yes (entry 4: P writes
   `.claude/hard-bans.json` and runs `dev-kit-bans add-approved`), P does itself, and the C does not wait for it. With a migration C registered, P starts no second one.
-- The C's edits of rule text run steps 1-2 and 5-6 of `dev-kit:edit-rules`: the owner's yes to the
+- The C's edits of rule text run steps 1-2 and 5-6 of `rules-kit:edit-rules`: the owner's yes to the
   entry, given when it was added to the list, is their approval (as in `dev-kit:migrate-docs`). P does
   not apply entries itself.
 - The recorded number reaches main with P's merge (see "Acceptance and merge"); until then `pending`
@@ -1054,9 +1054,9 @@ tests to run. P does it itself, with no new session, whatever its source: a back
 request in P's chat, a process mistake or a retro item. It edits the project's own rules (`CLAUDE.md`,
 `.claude/`, docs, in the plugin repo the plugins too); in another project a plugin rule still goes to the
 plugin repo's `BACKLOG.md` (`dev-kit:manager`, "A change to the plugins themselves"). This is P's one
-exception to "no task work"; any other rule edit P makes follows `dev-kit:edit-rules` too.
+exception to "no task work"; any other rule edit P makes follows `rules-kit:edit-rules` too.
 
-- Up to 3 items at once: one `dev-kit:reviewer`, whose brief carries steps 1-2 of `dev-kit:edit-rules`,
+- Up to 3 items at once: one `dev-kit:reviewer`, whose brief carries steps 1-2 of `rules-kit:edit-rules`,
   reviews them together and returns, per item, a recommendation with its reason, the idea in one plain
   line and the exact edit (a retro item already has this from its «Ретро:» session).
 - A backlog entry gets a `Verdict:` line with the recommendation and is removed after the edit (in the
@@ -1064,11 +1064,11 @@ exception to "no task work"; any other rule edit P makes follows `dev-kit:edit-r
 - P asks the owner a yes/no batch on the ideas, not the wording (a retro item is asked as in
   "Retro of session problems"). On «так» P makes a throwaway worktree of main (`git worktree add`, as for a
   C); one `dev-kit:coder`, its brief naming that worktree's path, applies the edits there, bumps the plugin
-  version if a plugin changed (with its release mark, `.claude/dev-kit.md`) and runs the repo's lint; P runs steps 5-6 of `dev-kit:edit-rules` on the diff,
+  version if a plugin changed (with its release mark, `.claude/dev-kit.md`) and runs the repo's lint; P runs steps 5-6 of `rules-kit:edit-rules` on the diff,
   commits, merges into main as in "Acceptance and merge" (its checks of the main checkout, `--ff-only`) and
   removes the worktree. A rule edit never goes into the main checkout directly or around its guard: the
   harness blocks writes there by P and its subagents (`plugins/dev-kit/claude-facts.md`, "The host's worktree guard blocks writes to the main checkout from another worktree"). The owner's global files (the local `.claude` folder) are edited in place and committed in that
-  folder's local git (step 6 of `dev-kit:edit-rules`).
+  folder's local git (step 6 of `rules-kit:edit-rules`).
 
 Why: owner, 2026-11-20, retro: a retro session was started for one finding already fixed; owner: «То нащо
 ця сесія?» and «щось багато сесій створюється на різні мінорні зміни»; he prefers subagents for minor
@@ -1078,9 +1078,9 @@ four times in a minute while the owner was told to wait 12 minutes, and P then e
 
 ## Retro of session problems
 
-Every project with a lead has its own retro (`dev-kit:retro`); no P runs a scan. dev-kit hooks log each ending
+Every project with a lead has its own retro (`rules-kit:retro`); no P runs a scan. rules-kit hooks log each ending
 session's problems into the project's local item folder and start a background session «Ретро: <project>» when new
-findings wait (the docstring of `scripts/retro.py` has the folder, the commands and the hooks). That session
+findings wait (the docstring of rules-kit's `scripts/retro.py` has the folder, the commands and the hooks). That session
 reviews them with the project's rules, docs and code in view, applies trivial fixes itself and ends with a
 `ГОТОВО` to this P. Dev-kit rule and global-rule items of every project go to the ClaudeDevKit folder, so only P
 of ClaudeDevKit brings them to the owner.
@@ -1097,7 +1097,8 @@ of ClaudeDevKit brings them to the owner.
   disputed items, trivial fixes and docs items for the owner wait and the last weekly ask is a week old, a day old
   after a «ні»): P adds one queue question of its own, «Розібрати <N> пунктів ретро?», a normal item; the docs items
   join it, never a second weekly question. On the answer P runs
-  `dev-kit-retro asked --answer yes|no`. On «так» P reads the items with `dev-kit-retro items` and goes through
+  `rules-kit asked --answer yes|no`. On «так» P reads the items with `rules-kit items` (the docs items with
+  `dev-kit-docs items`) and goes through
   them in its own chat: first the trivial fixes as one list, each line the fix in plain words, «скасувати 2» reverts
   one (as a "Small rule edit"); then each disputed or urgent item and each docs item with `status: owner` as a
   normal P question of "Message templates",
@@ -1108,8 +1109,8 @@ of ClaudeDevKit brings them to the owner.
   trivial fix the owner kept and a disputed item he said «так» to: `fixed`; a reverted one or a «ні»: `no-fix`; a
   docs item: `fixed` or `rejected`); the files are local, outside any repo. The item `claude-facts-owner-check`
   (plugin repo only) holds facts about the Claude apps only the owner can see: P asks its questions as one batch and
-  passes each answer on with `dev-kit-retro add --project ClaudeDevKit --text "owner check <YYYY-MM-DD>: <fact
-  title>: <answer>"`, for the facts keeper of the next retro (`dev-kit:retro`, step 4), then sets the item's
+  passes each answer on with `rules-kit add --project ClaudeDevKit --text "owner check <YYYY-MM-DD>: <fact
+  title>: <answer>"`, for the facts keeper of the next retro (`rules-kit:retro`, step 4), then sets the item's
   status to `fixed`; the next retro writes it again if questions remain. With more than 5 disputed items, P offers an
   «Обговорення: Ретро сесій <YYYY-MM-DD>» session instead, started as in "Start an «Обговорення:» session".
 - The owner may ask for a retro at any time («ретро», «розбери проблеми сесій»): P goes through the open items as

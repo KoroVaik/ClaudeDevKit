@@ -186,7 +186,7 @@ Known limits: your global rules keep five lines that P messages override (no hea
 deferring a result mid-discussion, no relay of a started session, every question written out, the
 closing next-step question); they still guard ordinary sessions, so a one-line exception names P's
 format instead of removing them. Those rules live outside this repo and change only through
-`dev-kit:edit-rules`.
+`rules-kit:edit-rules`.
 
 ## Acceptance criteria
 - You give P a task whose outcome is not agreed: P asks up to 3 questions through the queue, or proposes an «Обговорення:» session when there are more or a screen is involved.
