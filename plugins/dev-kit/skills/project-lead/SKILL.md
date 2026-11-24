@@ -307,7 +307,7 @@ answer (Zhratva, 2026-11-16).
 A stuck or crashed C: its line is `- стоїть, сесія впала - «<name>»` (crashed) or `- чекає на тебе - «<name>»
 (<cause>)` (it cannot go on without the owner), and P adds its own question with a recommendation: restart, set
 aside, or hand to another C. A step the owner must do by hand is a question too: «Зробиш <what,
-where>?». The owner's «так» answers it: the item leaves the queue and
+where>?» (hand data work aside, see "Owner queue and critical items"). The owner's «так» answers it: the item leaves the queue and
 the counts at once; P tracks the pending step in PROGRESS.md "In flight" (with its time, if any) and,
 for a timed step, sets a one-shot CronCreate reminder at that time; after a P restart P first checks CronList and
 re-creates it only if it is gone (a job can outlive the restart: `plugins/dev-kit/claude-facts.md`, "A CronCreate job can outlive a lead restart") that sends one push and one chat line; this is the one timer exception to "Wake-up". P
@@ -379,6 +379,11 @@ decides alone»). An item enters the queue only when:
 - the step is hard to undo;
 - API spend through `dev-kit-api` would pass 1 USD in total per task (smaller spend and subscription use are
   never asked). The C's spend line and its ask to P are in the first prompt of "Start a C".
+
+A C's ask for hand data work by the owner (labelling, spot-checking rows, a data dispute) never enters
+the queue: P sends it back to the C to do with agents (`dev-kit:manager`, "Less of the owner's involvement
+over time") and decides a dispute the agents leave open itself, inside the approved criteria; a product
+choice still enters the queue.
 
 One more item always enters the queue: «Взяти «<name>» під керування?» for each session the owner
 started that P has not offered yet (see "Take over a session the owner started"). It is a normal
