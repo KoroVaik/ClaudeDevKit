@@ -7,7 +7,8 @@ description: Use when the owner answers numbered questions, says "continue" ("п
 
 One round of product discovery: reflect the owner's answers, record accepted product decisions in the
 feature, epic, standard or `docs/product.md` they belong to and open questions in `PROGRESS.md`, then ask
-the next numbered questions with recommendations. The owner shapes the idea deliberately before any
+the next numbered questions with recommendations (a talk on an idea he is still weighing opens with an
+open question first, step 4). The owner shapes the idea deliberately before any
 plan. Your job is to keep the thread, record every answer, and move one step forward per round. The
 project's `CLAUDE.md` sets the language rules. Read the profile section `## discovery-round` of
 `.claude/dev-kit.md` if it exists; it adds to these steps and overrides them.
@@ -68,7 +69,16 @@ not agreed go to `BACKLOG.md`. Use the existing headings, in the project's docum
 
 ## 4. Reply
 
-One line on what was recorded, then **at most 3 numbered questions** per round, numbering continuing
+The first message of a talk about an idea the owner is still weighing (his own words show it, e.g. «думаю над»,
+«не знаю, чи...»; no question of yours open) is an open talk, not a round: at most 4 plain sentences on what he weighs and how
+it is now, then one open question on his reason or what bothers him. That question asks his view, not a
+decision, so it has no «Рекомендую» (a named exception to the owner's global question format) and no
+numbered batch. Numbered questions with recommendations start once his answer makes the direction clear,
+or when he asks for them; until then each reply is one plain sentence on what he said plus one more
+open question of the same kind. Why: owner, 2026-11-24, ClaudeDevKit, «Обговорення» on separating Pult: «Нашо
+відраду купу питань і рекомендацій, миж обговрбєм».
+
+Every other reply: one line on what was recorded, then **at most 3 numbered questions** per round, numbering continuing
 from the last round. Each question is at most 30 words: the question, its example (one real example
 from the project of at most 15 words, as the owner's global rules ask) and
 the **recommendation** with its reason. This skill's questions are its own exception to the owner's global reply cap. No long
