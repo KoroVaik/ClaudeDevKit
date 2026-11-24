@@ -8,7 +8,7 @@ skills' rule (`dev-kit:project-lead`, `dev-kit:manager`); this file only sets th
 | Kind | Sent by | When | Receiver does |
 |---|---|---|---|
 | `ГОТОВО` | a C; a «Ретро:» session (`rules-kit:retro`, its only message); a «Документація:» session (`dev-kit:maintain-project-docs`) | its task is done and its branch is ready; 3 lines: state, result, what is needed (a «Ретро:» one may add `task: <what to build>` lines) | merges ("Acceptance and merge"); starts a C per `task:` line, with no owner ask |
-| `ЗАКРИТО` | an «Обговорення:» session | the owner said «так» to its short plan and wrote nothing after it; this is its done report | merges and closes it |
+| `ЗАКРИТО` | an «Обговорення:» session | the owner said «так» to its short plan (or to «Закриваємо обговорення?» when nothing is built) and wrote nothing after it; this is its done report | merges and closes it |
 | `ПИТАННЯ` | a C to its own P; a lead or an «Обговорення:» session to a lead | it needs a decision or a consent; it waits for the answer | answers with `ВІДПОВІДЬ`, or puts it in the owner queue |
 | `ЗАСТРЯГ` | a C | it cannot go on, and no choice by P would unblock it (a crash of a tool, a queue timeout) | shows it as `чекає на тебе` or `стоїть, сесія впала` with its own question |
 | `ЧЕКАЮ` | a C | it will wait more than 1 minute on something other than P or the owner (low memory, a retry timer, a store cool-off, another session, the app queue), idle itself (not its own build, test run or subagent); the reason in plain words and the time it resumes, if known | shows it at once as `чекає` with that reason (`dev-kit:project-lead`, «Статуси сесій») |

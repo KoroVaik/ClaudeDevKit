@@ -602,7 +602,11 @@ close, never offers closing as an option of a question and never decides by itse
 it answers, records the point in the written section and ends with the talk's own next step. The owner's
 own words that the talk is done always bring the plan. A title line «План «<topic>»:», then 3-5 numbered points, each one plain sentence on what the owner
 gets (build work only, never a check of the idea: `dev-kit:discovery-round`, step 1), then the question «Погоджуєш план і закриваємо обговорення?». The details
-stay in the written section for the builders. The question is always alone in its message: never an
+stay in the written section for the builders. When the agreed outcome builds nothing (the owner chose not to
+do it), there is no plan: «Закриваємо обговорення?» is that one closing question, and its «так» counts as
+the «так» to the plan wherever this skill or `messages.md` names it (the first prompt, the done report,
+P's merge check); the session's last line is then «Обговорення закрите.» and P starts no C. Either
+question is always alone in its message: never an
 item of a batch or of a numbered list, never repeated in the replies after the plan message. A named
 exception to the owner's global "Batches of questions": a «так всім» or a «так» to a batch never
 approves the plan; only a «так» to a message whose one question is the plan does. Any owner message
@@ -615,7 +619,8 @@ closes the session right after and an answer there is lost. Why: owner, 2026-11-
 plan replaces a closing question: owner, 2026-11-23: «Чому двічі доводиться підтверджувать закриття
 розмови?», «Закрити значить закрити». Why the wait: owner, 2026-11-24 (Zhratva «Обговорення: Інженер ядра
 аналізу», 2026-11-23): the talk waited on outside work, yet the plan was shown twice and closing was
-offered as an option («та куди ти спішиш???»). Example:
+offered as an option («та куди ти спішиш???»). Why no plan when nothing is built: owner, 2026-11-24,
+ClaudeDevKit, «Обговорення» on separating Pult: «Нащо план. Ми ж вімовились від переносу?». Example:
 
 ```
 План «Повідомлення керівника»:
@@ -910,7 +915,8 @@ committing it. This is a stopgap: the cause, the host's worktree guard that bloc
 of reach (`plugins/dev-kit/claude-facts.md`, "The host's worktree guard blocks writes to the main checkout from another worktree").
 
 For an «Обговорення:» session, before the merge and before `claude rm`, P reads its
-transcript and finds the owner's «так» to the short plan. If an owner message follows it, P does not
+transcript and finds the owner's «так» to the short plan (or to «Закриваємо обговорення?» when nothing
+is built, see "Short plan"). If an owner message follows it, P does not
 merge or close the session and sends it back: «ВКАЗІВКА - Власник писав після «так»: дообговори і покажи план
 знову». An owner message is a plain-text user entry; tool results and messages from sessions or agents
 do not count. Why: owner, 2026-11-20: «я не закінчив обговорення, і не погодив список змін» (P merged
