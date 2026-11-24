@@ -69,7 +69,7 @@ nothing: the merge is P's step, so the owner sees in this chat why the session c
 - A session named «Обговорення: ...» is the exception: it talks with the owner directly and builds
   no product code; how it works and ends is in `dev-kit:project-lead`, "Start an «Обговорення:» session".
 - A background session named «Ретро: <project>» is started by a rules-kit hook, not by P, and follows
-  `rules-kit:retro`; it never talks with the owner and sends its P only `ПИТАННЯ` (urgent items) and one `ГОТОВО`.
+  `rules-kit:retro`; it never talks with the owner and sends its P only one `ГОТОВО` (never a `ПИТАННЯ`).
   The weekly «Документація: <project>» session, started by a dev-kit hook, follows `dev-kit:maintain-project-docs`,
   "Weekly background run", and sends its P only one `ГОТОВО`.
 

@@ -38,8 +38,8 @@ message has neither.
 ### How a question and a state are written
 The counts are three lines: «❗ термінові» (a session stands and cannot move without your answer; a session
 that asks and goes on, or a closed session with a leftover question, is not urgent), «від сесій» and «від
-мене» (P's own: start a new task session, close a session, take one over, restart a crashed one, the weekly
-retro, new plugin backlog entries; P never asks «Яку задачу запустити?»). A kind with zero is left out. A
+мене» (P's own: start a new task session, close a session, take one over, restart a crashed one,
+new plugin backlog entries (the retro asks nothing: it fixes by itself and shows a passive list in Pult's status); P never asks «Яку задачу запустити?»). A kind with zero is left out. A
 question stands alone: a session's question starts with its name and «питає:»; it is in your words (what you
 see or do on your side, never P's own mechanisms), with the consequence in brackets, worded so the advice is
 «так», then an indented `Рекомендую: так - <reason>` (P adds one a session did not give). A question about

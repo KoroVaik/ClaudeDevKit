@@ -39,5 +39,9 @@ serve them. It subscribes itself, reviewed by ClaudeDevKit. Format:
 
 | Path | Changes |
 |---|---|
-| skills/** | word, sentence, new sign |
-| agents/** | word, sentence, new sign |
+| skills/edit-rules/SKILL.md | word, sentence, new sign |
+| agents/rule-reviewer.md | word, sentence, new sign |
+| agents/part-reader.md | word, sentence, new sign |
+
+The gates cannot edit themselves: `agents/approver.md`, `agents/replayer.md` and `skills/retro/SKILL.md` are not in
+this table, so a fix there goes to P as a `task:` line in the closing `ГОТОВО`.

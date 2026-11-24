@@ -44,13 +44,21 @@ class FixLoopTestCase(RetroFixture):
         path.write_text(text, encoding="utf-8")
         return path
 
-    def commit(self, rel, text, message="retro-fix"):
-        path = self.repo / rel
+    def commit(self, rel, text, message="retro-fix", repo=None):
+        repo = repo or self.repo
+        path = repo / rel
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(text, encoding="utf-8")
-        git(self.repo, "add", rel)
-        git(self.repo, "commit", "-q", "-m", message)
-        return subprocess.run(["git", "rev-parse", "HEAD"], cwd=self.repo, capture_output=True, text=True).stdout.strip()
+        git(repo, "add", rel)
+        git(repo, "commit", "-q", "-m", message)
+        return subprocess.run(["git", "rev-parse", "HEAD"], cwd=repo, capture_output=True, text=True).stdout.strip()
+
+    def enter_worktree(self):
+        """The retro's worktree of the project (a revert runs only there): made from main, and the current folder."""
+        work = self.tmp / "retro-worktree"
+        git(self.repo, "worktree", "add", "-q", "-b", "retro-wt", str(work))
+        os.chdir(work)
+        return work
 
     def done_list(self):
         path = self.retro / fixes.DONE_FILE
@@ -76,16 +84,17 @@ class FixLoopTestCase(RetroFixture):
     def test_a_fix_is_recorded_reverted_once_then_parked_on_the_second_failed_try(self):
         self.item("vague-step", "# Нечіткий крок\n- status: waiting\n- kind: no rule\n- seen: 2026-11-20 | S (abcdef12) | x\n"
                                 "\nБуло: ...\n")
-        first = self.commit("CLAUDE.md", "rule v1\n")
+        work = self.enter_worktree()
+        first = self.commit("CLAUDE.md", "rule v1\n", repo=work)
         out = self.run_cmd("fixed", "--item", "vague-step", "--commit", first, "--what", "merged two lines")
         self.assertIn("landed in the last 7 days: 1 of 5", out)
         text = (self.set_folder("repo") / "items" / "vague-step.md").read_text(encoding="utf-8")
         self.assertIn(f"- fix: {TODAY} | repo | {first} | CLAUDE.md | merged two lines\n\nБуло:", text)
         self.assertEqual(self.status("vague-step"), "fixed")
         self.assertIn("reverted", self.run_cmd("revert", "--item", "vague-step"))
-        self.assertFalse((self.repo / "CLAUDE.md").exists())  # the revert commit undid the fix
+        self.assertFalse((work / "CLAUDE.md").exists())  # the revert commit undid the fix
         self.assertEqual(self.status("vague-step"), "reverted")
-        second = self.commit("CLAUDE.md", "rule v2\n")
+        second = self.commit("CLAUDE.md", "rule v2\n", repo=work)
         self.run_cmd("fixed", "--item", "vague-step", "--commit", second)
         self.run_cmd("revert", "--item", "vague-step")
         self.assertEqual(self.status("vague-step"), "parked")
@@ -98,7 +107,8 @@ class FixLoopTestCase(RetroFixture):
     # protects: Flow
     def test_a_revert_request_shows_in_items_and_the_revert_clears_it(self):
         self.item("bad-fix", "# Погана зміна\n- status: fixed\n")
-        commit = self.commit("CLAUDE.md", "rule\n")
+        work = self.enter_worktree()
+        commit = self.commit("CLAUDE.md", "rule\n", repo=work)
         self.run_cmd("fixed", "--item", "bad-fix", "--commit", commit)
         self.assertIn("revert requested: repo/bad-fix", self.run_cmd("revert-request", "bad-fix"))
         self.assertIn("## Revert requests\nrepo | bad-fix\n", self.project_cmd("items"))
@@ -147,6 +157,103 @@ class FixLoopTestCase(RetroFixture):
                              ("~1.9% of the weekly limit, estimate", "under"), (None, "unknown")):
             with run(stdout):
                 self.assertTrue(self.run_cmd("budget", "--session-id", "s1").startswith(word + ":"), stdout)
+
+
+    def code(self, *args):
+        """`(exit code, stdout, stderr)` of a retro command."""
+        out, err = io.StringIO(), io.StringIO()
+        with mock.patch("sys.stdout", out), mock.patch("sys.stderr", err):
+            return retro.main(list(args)), out.getvalue(), err.getvalue()
+
+    # protects: Rule
+    def test_a_revert_runs_only_in_a_worktree_never_in_a_main_checkout_and_in_place_in_the_global_folder(self):
+        self.item("risky", "# Ризик\n- status: fixed\n")
+        commit = self.commit("CLAUDE.md", "rule\n")  # on main, in the main checkout (the current folder)
+        self.run_cmd("fixed", "--item", "risky", "--commit", commit)
+        code, _, err = self.code("revert", "--item", "risky")
+        self.assertEqual(code, 1)
+        self.assertIn("main checkout", err)
+        self.assertTrue((self.repo / "CLAUDE.md").exists())  # nothing was reverted on main
+        self.assertEqual(self.status("risky"), "fixed")
+        self.assertEqual(len(subprocess.run(["git", "log", "--oneline"], cwd=self.repo, capture_output=True,
+                                            text=True).stdout.splitlines()), 2, "no revert commit on main")
+        self.assertIsNone(fixes.revert_refusal(self.repo, self.repo), "the global folder reverts in place")
+        work = self.enter_worktree()
+        self.assertIsNone(fixes.revert_refusal(work, self.tmp / "global"))
+
+    # protects: Rule
+    def test_the_old_retros_fix_lines_give_their_commit_or_a_date_only_fix_that_cannot_be_reverted(self):
+        self.item("old-a", f"# Старе\n- status: trivial-fixed\n- fix: {days_ago(3)} | CLAUDE.md:3, docs/a.md (commit abc1234) | nothing removed | owner\n")
+        self.item("old-b", f"# Інше\n- status: fixed\n- fix: {days_ago(3)} | CLAUDE.md (6e087bd, e5902ba) | plugin commit | owner\n")
+        self.item("old-c", f"# Без коміту\n- status: fixed\n- fix: {days_ago(3)} | plugins/x/SKILL.md:11 | merged | trivial\n")
+        item = lambda key: fixes.Item(self.set_folder("repo") / "items" / f"{key}.md", "repo")  # noqa: E731
+        self.assertEqual(item("old-a").status, "fixed")
+        self.assertEqual(item("old-a").fixes()[0][2:], ("abc1234", ["CLAUDE.md:3", "docs/a.md"]))
+        self.assertEqual(item("old-b").fixes()[0][2], "e5902ba")  # the last hash of the list
+        self.assertIsNone(item("old-c").fixes()[0][2])
+        self.assertEqual(item("old-c").fixes()[0][3], ["plugins/x/SKILL.md:11"])
+        text, sessions = fixes.check(item("old-c"), None, self.projects)
+        self.assertIn("date-only fix", text)
+        self.assertEqual(sessions, [])
+        self.write("proj/dddd4444-0.jsonl", [{"type": "user", "timestamp": retro.now_utc().isoformat(),
+                                                "message": {"content": "z"}}])
+        self.assertEqual(len(fixes.check(item("old-c"), None, self.projects)[1]), 1)  # sessions after its date
+        code, _, err = self.code("revert", "--item", "old-c")
+        self.assertEqual(code, 1)
+        self.assertIn("nothing to revert", err)
+        self.assertEqual(self.status("old-c"), "fixed")
+
+    # protects: Rule
+    def test_the_global_folder_is_edited_only_when_clean_and_only_its_own_files_are_committed_or_restored(self):
+        folder = self.tmp / "global"
+        folder.mkdir(parents=True, exist_ok=True)
+        for args in (["init", "-q", "-b", "main"], ["config", "user.email", "t@t"], ["config", "user.name", "t"]):
+            subprocess.run(["git", "-C", str(folder), *args], check=True, capture_output=True)
+        (folder / "docs").mkdir()
+        for name in ("a.md", "b.md"):
+            (folder / "docs" / name).write_text("v1\n", encoding="utf-8")
+        subprocess.run(["git", "-C", str(folder), "add", "."], check=True, capture_output=True)
+        subprocess.run(["git", "-C", str(folder), "commit", "-q", "-m", "i"], check=True, capture_output=True)
+        self.assertEqual(self.code("global", "check", "--file", "docs/a.md")[:2], (0, "clean\n"))
+        (folder / "docs" / "b.md").write_text("the owner is editing\n", encoding="utf-8")  # another file: not our business
+        self.assertEqual(self.code("global", "check", "--file", "docs/a.md")[0], 0)
+        (folder / "docs" / "a.md").write_text("the owner is editing this too\n", encoding="utf-8")
+        code, _, err = self.code("global", "check", "--file", "docs/a.md")
+        self.assertEqual(code, 1)
+        self.assertIn("docs/a.md", err)
+        (folder / "docs" / "a.md").write_text("v1\n", encoding="utf-8")  # clean again; now the retro's own edit
+        subprocess.run(["git", "-C", str(folder), "checkout", "--", "docs/a.md"], check=True, capture_output=True)
+        (folder / "docs" / "a.md").write_text("v2 by the retro\n", encoding="utf-8")
+        subprocess.run(["git", "-C", str(folder), "add", "docs/b.md"], check=True, capture_output=True)  # staged by the owner
+        code, out, _ = self.code("global", "commit", "--file", "docs/a.md", "--message", "retro-fix: global k")
+        self.assertEqual(code, 0)
+        files = subprocess.run(["git", "-C", str(folder), "show", "--name-only", "--format=", out.strip()],
+                               capture_output=True, text=True).stdout.split()
+        self.assertEqual(files, ["docs/a.md"], "the owner's staged b.md stays out of the fix commit")
+        self.assertEqual((folder / "docs" / "b.md").read_text(encoding="utf-8"), "the owner is editing\n")
+        (folder / "docs" / "a.md").write_text("v3 rejected\n", encoding="utf-8")
+        self.assertEqual(self.code("global", "restore", "--file", "docs/a.md")[0], 0)
+        self.assertEqual((folder / "docs" / "a.md").read_text(encoding="utf-8"), "v2 by the retro\n")
+        self.assertEqual((folder / "docs" / "b.md").read_text(encoding="utf-8"), "the owner is editing\n")
+
+    # protects: Rule
+    def test_an_unknown_spend_stops_the_run_like_an_over_one(self):
+        def run(stdout):
+            return mock.patch.object(fixes.spend_client, "run", return_value=None if stdout is None else
+                                     subprocess.CompletedProcess([], 0, stdout, ""))
+        for stdout, code in (("~1.9% of the weekly limit, estimate", 0), ("~2.3% of the weekly limit, estimate", 1),
+                             (None, 1)):
+            with run(stdout):
+                self.assertEqual(self.code("budget", "--session-id", "s1")[0], code, stdout)
+
+    # protects: Rule
+    def test_a_parked_item_shows_its_own_reason_in_the_done_list(self):
+        self.item("owner-only", "# Питання власнику\n- status: waiting\n")
+        self.run_cmd("mark", "--item", "owner-only", "--status", "parked", "--note", "owner-only questions of the facts keeper")
+        entry = self.done_list()[-1]
+        self.assertEqual(entry["action"], "parked")
+        self.assertIn("owner-only questions of the facts keeper", entry["text"])
+        self.assertNotIn("двох невдалих", entry["text"])
 
 
 class ReplayTestCase(RetroFixture):

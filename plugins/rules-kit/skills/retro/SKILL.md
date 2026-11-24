@@ -12,8 +12,16 @@ nothing and never uses `AskUserQuestion`: an approver agent and a replay on past
 nothing); where Bash cannot run it, use `python -X utf8 <this plugin>/scripts/retro.py` with the same arguments. The
 folders, the commands and the item lines: the docstrings of `scripts/retro.py` and `scripts/fixes.py`.
 
+This session is a helper session the owner is not in, so the hook starts it on Sonnet; the approver of step 4 runs on
+Opus, another model than the one that wrote the fix.
+
 Spend cap: before step 1 and before each fix run `rules-kit budget --session-id <this session's id>` (env
-`CLAUDE_CODE_SESSION_ID`); on `over` go to step 6 at once and leave the rest for the next run.
+`CLAUDE_CODE_SESSION_ID`); on `over` or `unknown` (spend-kit missing or failing: the command fails closed and exits 1
+for both) go to step 6 at once and leave the rest for the next run.
+
+Worktree: at the start of any run that has a fix, a revert or a revert request (`items` lists them), call
+`EnterWorktree` (name `retro-<YYYY-MM-DD>`) before the first edit or revert: writes into the main checkout are blocked,
+and `rules-kit revert` refuses to run in a main checkout. Only the owner's global folder is edited and reverted in place.
 
 ## Scope
 
@@ -84,24 +92,32 @@ counts separate sessions or days: a lead and its own subagents are one session.
 - In ClaudeDevKit only: each plugin commit since the last review that changes agent behaviour (`git log
   --since=<last review> -- plugins`) gets an item `check-<slug>` with `status: fixed` and a hand-written line `- fix:
   <date> | <set> | <hash> | <files> | plugin commit`; the check reads later sessions for it the same way, and its
-  `did not work` becomes a new finding, never a revert of another session's work.
+  `did not work` becomes a new finding, never a revert of another session's work; such items do not count to the
+  weekly cap of landed fixes.
 
 ## 4. Fix through the gates
 
-Before the first edit call `EnterWorktree` (name `retro-<YYYY-MM-DD>`): writes into the main checkout are blocked.
-A fix of the owner's global set is made in that folder (`C:/Users/korov/.claude/`, its own git repo) instead. Each
-fix, one at a time:
+Work in the worktree of "Worktree" above. A fix of the owner's global set is made in that folder instead
+(`C:/Users/korov/.claude/`, its own git repo, edited in place): before the edit run `rules-kit global check --file
+<each file>`; on exit 1 a file has uncommitted changes (the owner's own edit), so do not touch it: skip the fix and
+say it in the closing `ГОТОВО` (`global file <file> has uncommitted changes, fix skipped`). Only a file the set's
+«May change itself» table lists is edited here; for any other file (rules-kit's own approver, replayer and retro skill
+are not listed: the gates cannot edit themselves) write a `task:` line for the closing `ГОТОВО` and
+`rules-kit mark --item <key> --status handed --note "<task>"`. Each fix, one at a time:
 1. Edit through `rules-kit:edit-rules` steps 4-5 (the reviewer did steps 1-2; steps 3 and 6 are replaced by the
    gates below): the smallest edit, removing or merging what the reviewer named.
 2. Approve: one `rules-kit:approver` (model opus) gets the item file, the diff (`git diff`), the set's
-   `rules-subscription.md` and the read set. `reject: <why>` -> undo the edit (`git checkout -- <files>`) and
+   `rules-subscription.md` and the read set. `reject: <why>` -> undo the edit (`git checkout -- <files>`; for the global
+   set `rules-kit global restore --file <each file>`, which restores only those files) and
    `rules-kit mark --item <key> --status rejected --note "<why>"`.
 3. Replay: `rules-kit replay --item <key> --file <each edited file>`; one `rules-kit:replayer` (model sonnet) per
    printed packet gets the old and the new rule text, the packet path and its role. It lands only when every problem
    part answers `covers` and no good part `breaks`; no problem part found, or any other answer -> undo and mark
    `rejected` as above.
-4. Commit it alone (`retro-fix: <set> <key>`), so a revert is one `git revert`; then `rules-kit fixed --item <key>
-   --commit <hash> --what "<what it removed or merged>"` (add `--sign` for a Signs row).
+4. Commit it alone (`retro-fix: <set> <key>`), so a revert is one `git revert`; in the global folder `rules-kit global
+   commit --file <each file> --message "retro-fix: global <key>"` (it commits only those files and prints the hash);
+   then `rules-kit fixed --item <key> --commit <hash> --what "<what it removed or merged>"` (add `--sign` for a Signs
+   row).
 
 After the last fix, each changed plugin gets one version bump (`.claude-plugin/plugin.json`) with a routine release
 mark in its own `releases.json` (the format of `plugins/dev-kit/releases.json`; create the file when missing), in one
@@ -112,15 +128,17 @@ In the ClaudeDevKit retro, one `dev-kit:facts-keeper` (model sonnet) gets the `c
 even when the run has no other fix; its brief also says "re-check", with `claude --version`, when a line reads
 `updated <old> -> <new>` or `weekly re-check due`, or the file's `Last re-check:` line is `none yet`. Its edits are
 one commit and alone need no bump. The owner-only questions it returns are not asked: they replace the body of
-`items/claude-facts-owner-check.md`, then `rules-kit mark --item claude-facts-owner-check --status parked`.
+`items/claude-facts-owner-check.md`, then `rules-kit mark --item claude-facts-owner-check --status parked --note
+"owner-only questions of the facts keeper"` (the note is the reason the done list shows).
 
 ## 5. Revert and the second try
 
-`rules-kit revert --item <key>` in the worktree (for the global set it reverts in that folder). Status `reverted`:
+`rules-kit revert --item <key>` in the worktree (for the global set it reverts in that folder; in a main checkout it
+refuses). Status `reverted`:
 one second try by other means, through step 4 again when it is rule text; a hook, script or check becomes a `task:`
 line for the closing `ГОТОВО` and `rules-kit mark --item <key> --status second-try --note "<task>"`. When the second
 try fails too, `revert` parks a rule-text item itself; a handed one gets `rules-kit mark --item <key> --status
-parked`. A parked item is shown in Pult and never asked.
+parked --note "<the actual reason>"`. A parked item is shown in Pult with that reason and never asked.
 
 ## 6. Close
 

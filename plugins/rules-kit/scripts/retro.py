@@ -37,8 +37,14 @@ default one when it has no file, is reviewed by that project).
                                                   set a status by hand (`worked`, `second-try`, `parked`, `rejected`...)
     rules-kit revert-request KEY [--set S] [--from NAME]
                                                   the owner's «поверни»: the next run of the reviewing project reverts it
+    rules-kit global check|commit|restore --file F [--file F ...] [--message M]
+                                                  the owner's global folder (a git repo edited in place): `check` refuses
+                                                  files with uncommitted changes (exit 1), `commit` commits only those
+                                                  files (`git commit -- <files>`) and prints the hash, `restore` undoes
+                                                  the edit of only those files (a rejected fix)
     rules-kit list [--days N]                     the done list, one plain line per action (Pult's «статус»)
     rules-kit budget --session-id ID              the run's spend against the cap: `under`, `over` or `unknown`
+                                                  (exit 0 for `under`, 1 otherwise: an unknown spend stops the run)
     rules-kit hook-start | hook-end               SessionStart and SessionEnd hooks of the plugin (JSON on stdin)
 
 The fix loop's rules (expiry, the weekly cap, replay, the post-change check, reverts, revert requests, the done list
@@ -115,8 +121,9 @@ Transcripts: every `*.jsonl` under env DEV_KIT_PROJECTS_DIR, else `~/.claude/pro
 Run file: `<retro folder>/runs/<project folder name>.json`, written (atomically, under the project lock) at each
 `hook-start` of the project and by `done`: `{"root": <main checkout>, "retro_started": <ISO time or null>,
 "last_review": <ISO time or null>, "retro_branch": <branch the retro left for its lead to merge or null>, "retro_due":
-<true when findings wait in the `new/` of a set the project reviews and the last review is REVIEW_HOURS old or
-missing>}`. dev-kit's weekly docs session
+<true when the last review is REVIEW_HOURS old or missing and, in a set the project reviews, findings wait in
+`new/`, or a revert request waits, or an item is `reverted` (its second try waits), or a `fixed` item has sessions
+started since its fix and the last review that its check has not read: `retro_due`>}`. dev-kit's weekly docs session
 start reads it as a file (never an import) to wait for the retro and for the merge of its branch; whether the branch
 is merged it asks git itself. The other way, `hook-start` reads dev-kit's `<state root>/<project folder name>/docs.json`
 (`docs_started`, `docs_done`; env DEV_KIT_STATE_DIR, else `~/.claude/dev-kit`) as a file to start no retro session
@@ -164,10 +171,12 @@ showed (`<set>/<file>`); `done` moves exactly those to `seen/` of their set, set
 new. `items`, `add` and `done` print the work of the first run (the migration) on stderr.
 `hook-start` (never fails, exit 0): in a retro project, a session titled `Ретро:` or `Документація:` does nothing; a
 full scan is spawned
-(detached) when none ran today and the scan lock is free; then, under the project lock, when the `new/` of a set the
-project reviews has files, `last_review` is older than REVIEW_HOURS (or missing),
+(detached) when none ran today and the scan lock is free; then, under the project lock, when a retro is due
+(`retro_due`: `new/` of a set the project reviews has files, a revert request, a `reverted` item or a fixed item with
+new sessions to check waits) and `last_review` is older than REVIEW_HOURS (or missing),
 `retro_started` older than START_GUARD_HOURS (or missing) and no docs session may still run (see "Run file"), it
-stamps `retro_started` and starts a background `Ретро: <repo folder>` session running `/rules-kit:retro` (env RULES_KIT_NO_START=1 skips that
+stamps `retro_started` and starts a background `Ретро: <repo folder>` session on Sonnet (a helper session the owner is
+not in; the approver runs on another model, Opus) running `/rules-kit:retro` (env RULES_KIT_NO_START=1 skips that
 start, not the stamp). The session starts with the `--settings` file NO_REMOTE_CONTROL (no Remote Control, so it stays
 out of the app). The weekly docs session is not started here any more: dev-kit's own SessionStart hook starts it.
 `hook-end` in a retro project spawns (detached) `scan --transcript` of the ending session when its transcript
@@ -654,7 +663,7 @@ def migrate_items(registry, out):
             named = sets_of_text(fix_lines, registry, text_roots(root)) or sets_of_text(text, registry, text_roots(root))
             target = named[0] if named else own
             moved += copy_file(path, set_dir(target) / "items", f"{path.stem}-{Path(root).name.lower()}{path.suffix}",
-                               f"{old.name}/items/{path.name} -> {SETS_FOLDER}/{target}/items/")
+                               f"{old.name}/items/{path.name} -> {SETS_FOLDER}/{target}/items/", normalize_item)
         for path in sorted((old / "new").glob("*.md")) if (old / "new").is_dir() else []:
             moved += copy_file(path, set_dir(own) / "new", None, f"{old.name}/new/{path.name} -> {SETS_FOLDER}/{own}/new/")
         done_folders[old.name] = {"set": own, "moved": len(moved)}
@@ -665,10 +674,19 @@ def migrate_items(registry, out):
         write_json(marker, {"folders": done_folders})
 
 
-def copy_file(source, folder, alternative, label):
-    """Copy `source` into `folder` under its own name; when that name holds other bytes, under `alternative` (or a
-    numbered name when there is none). `[label]` when something was copied, [] for an identical file already there."""
+def normalize_item(data):
+    """The bytes of an old item with its status of the old retro rewritten (`fixes.normalize_text`: `disputed` is
+    `waiting`, `trivial-fixed` is `fixed`); its old-format `fix:` lines stay, `fixes.Item.fixes` reads them."""
+    return fixes.normalize_text(data.decode("utf-8", errors="surrogateescape")).encode("utf-8", errors="surrogateescape")
+
+
+def copy_file(source, folder, alternative, label, transform=None):
+    """Copy `source` into `folder` under its own name (the bytes through `transform` when given); when that name holds
+    other bytes, under `alternative` (or a numbered name when there is none). `[label]` when something was copied, []
+    for an identical file already there."""
     data = source.read_bytes()
+    if transform:
+        data = transform(data)
     folder.mkdir(parents=True, exist_ok=True)
     names = [source.name] + ([alternative] if alternative else []) + [f"{source.stem}-{n}{source.suffix}" for n in range(1, 100)]
     for name in names:
@@ -1313,7 +1331,7 @@ def read_item(path):
     sightings = 0
     for line in read_lines(path):
         if line.startswith("- status:"):
-            status = line[len("- status:"):].strip() or "?"
+            status = fixes.status_word(line[len("- status:"):].strip() or "?")
         elif line.startswith("- kind:"):
             kind = line[len("- kind:"):].strip() or "?"
         elif line.startswith("- seen:"):
@@ -1369,7 +1387,7 @@ def items(directory=None, out=None):
         print(f"### {name} ({folder_items})", file=out)
         print("\n".join(rows) or "(none)", file=out)
         counts.append(f"landed fixes in the last 7 days ({name}): "
-                      f"{fixes.landed(retro_dir() / SETS_FOLDER, name)} of {FIXES_PER_WEEK}")
+                      f"{fixes.landed(retro_dir(), name)} of {FIXES_PER_WEEK}")
     print("\n" + "\n".join(counts), file=out)
     return 0
 
@@ -1399,7 +1417,8 @@ def done(directory=None, out=None, branch=None):
     project = project_for(directory)
     if not project:
         return no_project(directory)
-    names = reviewed_sets(prepare(roots=[project.root], out=sys.stderr), project)
+    registry_now = prepare(roots=[project.root], out=sys.stderr)
+    names = reviewed_sets(registry_now, project)
     folder = project_folder(project)
     moved = 0
     with project_lock(folder) as held:
@@ -1425,7 +1444,7 @@ def done(directory=None, out=None, branch=None):
         else:
             state.pop("retro_branch", None)
         save_project(folder, state)
-        write_run_file(project, state, names)
+        write_run_file(project, state, names, registry_now)
     limit = time.time() - SEEN_DAYS * 86400
     for name in names:
         seen = set_dir(name) / "seen"
@@ -1443,19 +1462,34 @@ def older(state, key, hours):
     return not stamp or now_utc() - stamp >= datetime.timedelta(hours=hours)
 
 
-def retro_due(names, state):
-    """Whether findings wait in `new/` of one of the sets (`names`) the project reviews and the last review is at least
-    REVIEW_HOURS old (or none): a retro session is due."""
-    waiting = any((set_dir(name) / "new").is_dir() and any((set_dir(name) / "new").iterdir()) for name in names)
-    return waiting and older(state, "last_review", REVIEW_HOURS)
+def retro_due(names, state, registry=None):
+    """Whether a retro session is due: the last review is at least REVIEW_HOURS old (or none) and, in the sets (`names`)
+    the project reviews, findings wait in `new/`, or a revert request waits, or a `reverted` item waits for its second
+    try, or a `fixed` item has sessions started since its fix and the last review that its check has not read yet
+    (`registry`: to place the fix in its repository; without it that last case is skipped)."""
+    if not older(state, "last_review", REVIEW_HOURS):
+        return False
+    if any((set_dir(name) / "new").is_dir() and any((set_dir(name) / "new").iterdir()) for name in names):
+        return True
+    if fixes.requests(retro_dir(), names):
+        return True
+    since = parse_time(state.get("last_review", ""))
+    for item in fixes.items_of(retro_dir() / SETS_FOLDER, names):
+        status = item.status.lower()
+        if status == "reverted":
+            return True
+        if status == "fixed" and fixes.has_new_sessions(item, registry.sets.get(item.set) if registry else None,
+                                                        projects_dir(), since):
+            return True
+    return False
 
 
-def write_run_file(project, state, names):
+def write_run_file(project, state, names, registry=None):
     """Write the project's run file from its state (see "Run file" in the module doc); `names`: the sets the project
     reviews. The caller holds the project lock. A write failure is ignored: the next start or review writes it again."""
     data = {"root": state.get("root"), "retro_started": state.get("retro_started"),
             "last_review": state.get("last_review"), "retro_branch": state.get("retro_branch"),
-            "retro_due": retro_due(names, state)}
+            "retro_due": retro_due(names, state, registry)}
     with contextlib.suppress(OSError):
         write_json(retro_dir() / RUNS_FOLDER / f"{project.folder}.json", data)
 
@@ -1634,7 +1668,7 @@ def fixed_command(key, commit, set_name=None, what="", sign=False, out=None):
         return 1
     fixes.fixed(item, retro_dir(), item.set, commit, files, what, sign)
     print(f"fixed {item.set}/{item.key}: {commit[:8]} ({', '.join(files)}); landed in the last 7 days: "
-          f"{fixes.landed(retro_dir() / SETS_FOLDER, item.set)} of {FIXES_PER_WEEK}", file=out)
+          f"{fixes.landed(retro_dir(), item.set)} of {FIXES_PER_WEEK}", file=out)
     return 0
 
 
@@ -1665,8 +1699,44 @@ def revert_command(key, set_name=None, out=None):
     if not item:
         return 2
     repo = fixes.set_repo(registry.sets.get(item.set), subscriptions.global_dir())
+    recorded = item.fixes()
+    refusal = None if recorded and recorded[-1][2] is None else fixes.revert_refusal(repo, subscriptions.global_dir())
+    if refusal:  # (a date-only fix has nothing to revert: `fixes.revert` says so)
+        print(refusal, file=sys.stderr)
+        return 1
     ok, text = fixes.revert(item, retro_dir(), repo)
     print(text, file=out if ok else sys.stderr)
+    return 0 if ok else 1
+
+
+def global_command(action, files, message="", out=None):
+    """`rules-kit global check|commit|restore --file F ...`: the owner's global folder is a git repository edited in
+    place, so a fix there needs a clean start and touches only its own files. `check`: `clean`, or the files with
+    uncommitted changes (exit 1: the fix is not made, the closing ГОТОВО says so); `commit`: `git commit -- <files>`
+    prints the hash for `fixed --commit`; `restore`: undo the edit of those files only (a rejected fix)."""
+    out = out or sys.stdout
+    repo = subscriptions.global_dir()
+    names = [str(Path(name).resolve().relative_to(Path(repo).resolve())) if Path(name).is_absolute() else name
+             for name in files]
+    if action == "check":
+        dirty = fixes.uncommitted(repo, names)
+        if dirty is None:
+            print(f"git cannot read {repo}", file=sys.stderr)
+            return 1
+        if dirty:
+            print("uncommitted changes, do not edit: " + ", ".join(dirty), file=sys.stderr)
+            return 1
+        print("clean", file=out)
+        return 0
+    if action == "commit":
+        commit, error = fixes.commit_files(repo, names, message or "retro-fix")
+        if not commit:
+            print(error, file=sys.stderr)
+            return 1
+        print(commit, file=out)
+        return 0
+    ok, error = fixes.restore_files(repo, names)
+    print("restored: " + ", ".join(names) if ok else error, file=out if ok else sys.stderr)
     return 0 if ok else 1
 
 
@@ -1699,7 +1769,7 @@ def list_command(days=None, out=None):
 def budget_command(session_id, out=None):
     word, _, text = fixes.budget(session_id)
     print(f"{word}: {text}", file=out or sys.stdout)
-    return 0
+    return 0 if word == "under" else 1  # `unknown` stops the run like `over` (fail closed)
 
 
 def spawn(argv, cwd=None):
@@ -1748,18 +1818,20 @@ def hook_start(payload):
         state = load_project(folder)
         state["root"] = str(project.root)
         save_project(folder, state)
-        names = reviewed_sets(load_registry(roots=[project.root]), project)
-        command = retro_start_command(project, folder, state, names)
-        write_run_file(project, state, names)  # after the stamp: dev-kit's docs session start reads it
+        registry = load_registry(roots=[project.root])
+        names = reviewed_sets(registry, project)
+        command = retro_start_command(project, folder, state, names, registry)
+        write_run_file(project, state, names, registry)  # after the stamp: dev-kit's docs session start reads it
     if command:
         spawn(command, cwd=str(project.root))
 
 
-def retro_start_command(project, folder, state, names):
-    """The command that starts the retro session when findings wait in the sets `names`, the review is old and no
+def retro_start_command(project, folder, state, names, registry=None):
+    """The command that starts the retro session when a retro is due in the sets `names` (`retro_due`: findings, a
+    revert request, a reverted item, a fixed item with new sessions to check), the review is old and no
     start is recent; it stamps `retro_started` (the caller holds the project lock). None otherwise, and with env
     RULES_KIT_NO_START=1."""
-    if not retro_due(names, state) or not older(state, "retro_started", START_GUARD_HOURS):
+    if not retro_due(names, state, registry) or not older(state, "retro_started", START_GUARD_HOURS):
         return None
     if docs_may_run(project):
         return None  # dev-kit's docs session may still run: never both at once
@@ -1771,7 +1843,7 @@ def retro_start_command(project, folder, state, names):
     if os.environ.get(NO_START_ENV) == "1":
         return None
     return [claude, "--bg", "--name", f"{RETRO_TITLE} {project.name}", "--settings", str(NO_REMOTE_CONTROL),
-            "--model", "opus", "--effort", "medium", "--permission-mode", "bypassPermissions", "--", "/rules-kit:retro"]
+            "--model", "sonnet", "--effort", "medium", "--permission-mode", "bypassPermissions", "--", "/rules-kit:retro"]
 
 
 # A background session the owner need not open starts with no Remote Control, so it stays out of the app: the
@@ -1833,6 +1905,10 @@ def main(argv=None):
     command.add_argument("key")
     command.add_argument("--set", dest="set_name")
     command.add_argument("--from", dest="sender", default="")
+    command = sub.add_parser("global")
+    command.add_argument("action", choices=("check", "commit", "restore"))
+    command.add_argument("--file", action="append", required=True, help="a file of the global folder the fix edits")
+    command.add_argument("--message", default="")
     command = sub.add_parser("list")
     command.add_argument("--days", type=int)
     command = sub.add_parser("budget")
@@ -1858,6 +1934,8 @@ def main(argv=None):
         return mark_command(args.item, args.status, args.set_name, args.note)
     if args.command == "revert-request":
         return request_command(args.key, args.set_name, args.sender)
+    if args.command == "global":
+        return global_command(args.action, args.file, args.message)
     if args.command == "list":
         return list_command(args.days)
     if args.command == "budget":

@@ -4,6 +4,7 @@ import importlib.util
 import io
 import json
 import shutil
+import subprocess
 import tempfile
 import unittest
 from pathlib import Path
@@ -44,7 +45,7 @@ class EnableTest(unittest.TestCase):
         self.assertEqual(code, 0)
         self.assertEqual(data["enabledPlugins"], {**START["enabledPlugins"], "spend-kit@korov-dev": True,
                                                   "rules-kit@korov-dev": True})  # nothing removed, pult stays false
-        expected = f"python -X utf8 {enable.REPO.as_posix()}/plugins/spend-kit/scripts/statusline.py"
+        expected = f"python -X utf8 {enable.main_checkout(enable.REPO).as_posix()}/plugins/spend-kit/scripts/statusline.py"
         self.assertEqual(data["statusLine"], {"type": "command", "command": expected, "padding": 1})
         self.assertEqual({key: data[key] for key in ("permissions", "model")},
                          {key: START[key] for key in ("permissions", "model")})
@@ -82,6 +83,23 @@ class EnableTest(unittest.TestCase):
         self.run_script()
         self.assertTrue(self.data()["enabledPlugins"]["rules-kit@korov-dev"])  # no file yet: created, nothing to back up
         self.assertEqual(len(self.backups()), 1)
+
+    # protects: Bug
+    def test_the_status_line_points_at_the_main_checkout_not_at_the_worktree_the_script_runs_from(self):
+        main = self.settings.parent / "main-repo"
+        work = self.settings.parent / "work"
+        for args in (["init", "-q", "-b", "main", str(main)],):
+            subprocess.run(["git", *args], check=True, capture_output=True)
+        for args in (["config", "user.email", "t@t"], ["config", "user.name", "t"], ["commit", "-q", "--allow-empty", "-m", "i"],
+                     ["worktree", "add", "-q", str(work)]):
+            subprocess.run(["git", "-C", str(main), *args], check=True, capture_output=True)
+        self.assertEqual(enable.main_checkout(work), main.resolve())
+        self.assertEqual(enable.main_checkout(main), main.resolve())
+        self.assertEqual(enable.status_line_command(work),
+                         f"python -X utf8 {main.resolve().as_posix()}/plugins/spend-kit/scripts/statusline.py")
+        plain = self.settings.parent / "not-a-repo"
+        plain.mkdir()
+        self.assertEqual(enable.main_checkout(plain), plain.resolve())  # no git repository: the folder itself
 
     # protects: Rule
     def test_a_settings_file_that_is_not_json_is_left_alone(self):

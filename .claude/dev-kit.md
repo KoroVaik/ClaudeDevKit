@@ -14,7 +14,8 @@
 - The plugins under `plugins/` are the product: their skills, agents, `slots.md` and `rules/` are edited through `rules-kit:edit-rules`.
 - Never kill the running Pult servers or project leads by hand; stop or restart them only with the Pult scripts (`plugins/pult/rules/hub.md`, section "Servers").
 - Checks: the commands in `README.md`, section "Develop".
-- A commit that bumps the `dev-kit` version adds its release mark to `plugins/dev-kit/releases.json`:
+- A commit that bumps a plugin's version (`dev-kit`, `pult`, `web-kit`, `unity-kit`, `rules-kit`, `spend-kit`) adds its
+  release mark to that plugin's own `plugins/<plugin>/releases.json` (create it when missing):
   `"<version>": {"kind": "critical" | "routine", "date": "<YYYY-MM-DD>", "reason": "<one line>"}`. Critical only
   when agents cannot cope without it: messages lost, sessions stuck or looping, a lead or C cannot do its job,
   harm to data; everything else is routine (a missing mark counts as routine). The Pult watcher restarts the

@@ -395,6 +395,15 @@ class RealFilesTestCase(unittest.TestCase):
         self.assertEqual([sub.name for sub in registry.candidates("agent", "dev-kit:question-reader")], ["dev-kit"])
         self.assertEqual(registry.type_of(PLUGINS / "dev-kit" / "agents" / "question-reader.md"), "talk")
 
+    # protects: Rule
+    def test_the_retro_gates_are_not_among_the_files_the_retro_may_change_itself(self):
+        folder = PLUGINS / "rules-kit"
+        sub = subscriptions.load(folder / subscriptions.FILE_NAME, folder)
+        for gate in ("agents/approver.md", "agents/replayer.md", "skills/retro/SKILL.md"):
+            self.assertEqual(sub.may_change_path(folder / gate), [], gate)  # a fix there goes to P as a task
+        for free in ("agents/rule-reviewer.md", "agents/part-reader.md", "skills/edit-rules/SKILL.md"):
+            self.assertTrue(sub.may_change_path(folder / free), free)
+
 
 if __name__ == "__main__":
     unittest.main()

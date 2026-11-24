@@ -6,7 +6,8 @@ SETTINGS_FILE defaults to `~/.claude/settings.json`. The script changes only two
 - `enabledPlugins`: adds `"spend-kit@korov-dev": true` and `"rules-kit@korov-dev": true` (a missing or false entry
   becomes true); no other plugin entry is touched or removed;
 - `statusLine.command`: becomes `python -X utf8 <repo>/plugins/spend-kit/scripts/statusline.py`, where `<repo>` is the
-  repository this script lives in (the other keys of `statusLine` stay; a missing `statusLine` becomes
+  MAIN checkout of the repository this script lives in (the parent of the git common dir, so a run from a worktree
+  does not point the status line at a folder that is deleted after the merge) (the other keys of `statusLine` stay; a missing `statusLine` becomes
   `{"type": "command", "command": ...}`).
 Nothing else is changed or deleted. Before any write the file is copied next to itself as
 `settings.json.bak-YYYYMMDD-HHMMSS`. A second run finds nothing to change, writes nothing and makes no backup. It
@@ -19,6 +20,7 @@ import argparse
 import datetime
 import json
 import shutil
+import subprocess
 import sys
 from pathlib import Path
 
@@ -27,8 +29,20 @@ MARKETPLACE = "korov-dev"
 PLUGINS = ("spend-kit", "rules-kit")
 
 
+def main_checkout(repo=REPO):
+    """The main checkout of the repository `repo` is in: the parent of the git common dir, so a run from a worktree
+    (deleted after its merge) does not point the status line at the worktree. `repo` itself when git cannot tell."""
+    try:
+        done = subprocess.run(["git", "-C", str(repo), "rev-parse", "--path-format=absolute", "--git-common-dir"],
+                              capture_output=True, text=True, encoding="utf-8", timeout=30)
+    except (OSError, subprocess.SubprocessError):
+        return Path(repo).resolve()
+    common = Path(done.stdout.strip()) if done.returncode == 0 and done.stdout.strip() else None
+    return common.resolve().parent if common is not None and common.name == ".git" else Path(repo).resolve()
+
+
 def status_line_command(repo=REPO):
-    return f"python -X utf8 {Path(repo).resolve().as_posix()}/plugins/spend-kit/scripts/statusline.py"
+    return f"python -X utf8 {main_checkout(repo).as_posix()}/plugins/spend-kit/scripts/statusline.py"
 
 
 def indent_of(text):

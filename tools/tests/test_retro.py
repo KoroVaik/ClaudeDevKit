@@ -574,6 +574,14 @@ class RetroCommandsTestCase(RetroFixture):
                                        f"- fix: {day - datetime.timedelta(days=6)} | older | trivial\n"
                                        f"- fix: {day - datetime.timedelta(days=7)} | too old | trivial\n")
         self.put("items/other.md", "- status: open\n")
+        # The cap counts the fixes the retro landed (the done list), not the hand-written `fix:` lines above of
+        # `check-<slug>` items that record other sessions' plugin commits.
+        self.put("items/check-x.md", f"# plugin commit\n- status: fixed\n- fix: {day} | repo | abc9999 | CLAUDE.md | plugin commit\n")
+        self.retro.mkdir(parents=True, exist_ok=True)
+        retro.fixes.record(self.retro, "repo", "stale-doc", "fixed", "t", day)
+        retro.fixes.record(self.retro, "repo", "stale-doc", "sign added", "t", day - datetime.timedelta(days=6))
+        retro.fixes.record(self.retro, "repo", "stale-doc", "fixed", "t", day - datetime.timedelta(days=7))  # too old
+        retro.fixes.record(self.retro, "alpha", "stale-doc", "fixed", "t", day)  # another set
         out = self.project_cmd("items")
         self.assertEqual(out.splitlines()[:3], [str(self.retro / retro.SETS_FOLDER), "sets: repo", "last review: never"])
         self.assertLess(out.index("token spend"), out.index("## New findings"))
@@ -727,8 +735,8 @@ class RetroCommandsTestCase(RetroFixture):
     # protects: Flow
     def test_the_retro_session_starts_when_findings_wait_the_review_is_old_and_no_start_is_recent(self):
         self.scanned_today()
-        command = ["fake-claude", "--bg", "--name", "Ретро: repo", "--settings", str(retro.NO_REMOTE_CONTROL), "--model", "opus", "--effort", "medium",
-                   "--permission-mode", "bypassPermissions", "--", "/rules-kit:retro"]
+        command = ["fake-claude", "--bg", "--name", "Ретро: repo", "--settings", str(retro.NO_REMOTE_CONTROL), "--model", "sonnet", "--effort", "medium",
+                   "--permission-mode", "bypassPermissions", "--", "/rules-kit:retro"]  # sonnet: the approver (opus) is another model
         self.assertEqual(self.start(), [])  # no findings
         self.put("new/a.md", "- finding\n")
         self.assertEqual(self.start(claude=None), [])  # no claude command: no stamp, a later session retries
@@ -769,6 +777,29 @@ class RetroCommandsTestCase(RetroFixture):
         self.retro_state(last_review=hours(retro.REVIEW_HOURS - 1))
         self.start()
         self.assertFalse(json.loads(run_file.read_text(encoding="utf-8"))["retro_due"])  # reviewed lately
+
+    # protects: Rule
+    def test_a_retro_is_also_due_for_a_revert_request_a_reverted_item_and_new_sessions_after_a_fix(self):
+        # With no new finding the retro would never start to carry these out.
+        self.scanned_today()
+        head = subprocess.run(["git", "rev-parse", "HEAD"], cwd=self.repo, capture_output=True, text=True).stdout.strip()
+        self.assertEqual(self.start(), [], "nothing waits")
+        self.put("items/stuck.md", "# t\n- status: reverted\n")
+        self.assertEqual(len(self.start()), 1, "a reverted item waits for its second try")
+        (self.folder / "items" / "stuck.md").unlink()
+        self.retro_state()
+        self.put("items/bad.md", f"# t\n- status: fixed\n- fix: {retro.today()} | repo | {head} | CLAUDE.md | -\n")
+        self.assertEqual(self.start(), [], "a fixed item with no session after it has nothing to check")
+        later = (datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(hours=1)).isoformat()
+        self.write("proj/cccc3333-0.jsonl", [{"type": "user", "timestamp": later, "message": {"content": "y"}}])
+        self.retro_state()
+        self.assertEqual(len(self.start()), 1, "a session started after the fix is to be read")
+        self.retro_state(last_review=(retro.now_utc() - datetime.timedelta(hours=1)).isoformat())
+        self.assertEqual(self.start(), [], "reviewed lately")
+        self.retro_state()
+        retro.fixes.request(retro.fixes.Item(self.folder / "items" / "bad.md", "repo"), self.retro)
+        (self.folder / "items" / "bad.md").write_text("# t\n- status: worked\n", encoding="utf-8")  # no check left
+        self.assertEqual(len(self.start()), 1, "a revert request waits")
 
     # protects: Rule
     def test_no_retro_session_starts_while_the_docs_session_may_still_run(self):
@@ -1059,6 +1090,20 @@ class RetroSetsTestCase(RetroFixture):
         retro.prepare(out=again)
         self.assertEqual(again.getvalue(), "")  # once
         self.assertEqual((sets("alpha") / "items" / "by-text.md").read_text(encoding="utf-8"), "# edited since\n")
+
+    # protects: Rule
+    def test_old_statuses_are_read_as_the_new_ones_in_the_copy_and_the_old_file_stays_as_it_was(self):
+        retro.write_json(self.pfolder / "state.json", {"root": str(self.repo)})
+        self.old_item(self.pfolder, "dis", "# t\n- status: disputed\n- seen: 2026-11-20 | s | x\n")
+        self.old_item(self.pfolder, "triv", "# t\n- status: trivial-fixed\n- fix: 2026-11-21 | CLAUDE.md | nothing | trivial\n")
+        retro.prepare(out=io.StringIO())
+        items = self.folder / "items"
+        self.assertIn("- status: waiting\n", (items / "dis.md").read_text(encoding="utf-8"))  # the loop reviews it again
+        self.assertIn("- status: fixed\n", (items / "triv.md").read_text(encoding="utf-8"))
+        self.assertIn("- status: disputed", (self.pfolder / "items" / "dis.md").read_text(encoding="utf-8"))
+        out = self.project_cmd("items")
+        self.assertIn("dis | waiting |", out)
+        self.assertIn("triv | fixed |", out)
 
     # protects: Edge
     def test_an_old_folder_with_no_recorded_root_waits_and_a_copy_that_already_exists_is_not_repeated(self):

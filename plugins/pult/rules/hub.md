@@ -103,16 +103,17 @@ five mechanical problems itself, with no yes (the owner's yes, 2026-11-16; the o
   in `~/.claude/daemon.log`) for two checks in a row: `claude respawn <id>`, log HEAL-TASK
   (HEAL-TASK-FAILED when respawn fails, HEAL-TASK-TIMEOUT when it hung past the same 5 minutes); GIVEUP-TASK when it gives up; held by the hold file too. Why: Claude Code
   closes idle background sessions on low memory (`{DEVKIT}/claude-facts.md`, "A low-memory spell closes idle background sessions").
-- A lead that runs an older dev-kit version than `plugin.json` of the main checkout (log LEAD-VERSION
-  when it sees a lead's process first): the release's mark in `plugins/dev-kit/releases.json` decides when
+- A lead that runs an older version than `plugin.json` of the main checkout of dev-kit, rules-kit or spend-kit, or of
+  web-kit or unity-kit when its project enables them (log LEAD-VERSION when it sees a lead's process first): the
+  release's mark in that plugin's own `releases.json` (`plugins/<plugin>/releases.json`) decides when
   (dev-kit project-lead skill, "Restart for a plugin update"). A routine release waits for a later day and a
   quiet moment of the lead (RESTART-DEFERRED on the first day); a critical one restarts a quiet lead at once
   with `restart-leads.ps1` (RESTART-LEAD) and asks a lead that is not quiet by the watcher's `restart` event
   message (RESTART-ASKED, dev-kit 0.1.78 or later). An asked lead writes a 30-second warning and marks
   itself ready (`dev-kit-sessions restart ready`); the watcher restarts it 30 seconds after that mark (a
   mark older than 10 minutes is dropped, READY-EXPIRED, and for the current version the lead is asked once
-  more as with `-Ask`). A lead counts as not quiet while one of its task sessions works. The same for an extension plugin the lead's project enables (web-kit, unity-kit): an idle lead
-  is restarted, a busy one is never woken for it and waits until it is idle. One try per lead per version;
+  more as with `-Ask`). A lead counts as not quiet while one of its task sessions works. The same rules hold for every plugin the lead loads (rules-kit, spend-kit, and web-kit, unity-kit
+  when its project enables them), each by its own `releases.json`: a routine release waits, a critical one restarts a quiet lead and asks the others. One try per lead per version;
   RESTART-LEAD-FAILED when it did not come back; RESTART-LEAD-TIMEOUT when the restart still ran after 10 minutes
   and was stopped (its pause is lifted at once, a lead it stopped comes back by HEAL). Held by the hold file too.
 - Its own code (added 2026-11-19, P's yes): when `watch-servers.ps1` (or the script it loads) changed and stayed
@@ -189,10 +190,10 @@ Why: the owner decided on 2026-11-19 that only urgent events reach the phone (wh
 
 ## Restart leads for a plugin update
 
-The watcher restarts the leads after a dev-kit version bump by itself (see "Servers"); the hub sends no
+The watcher restarts the leads after a version bump of a plugin they load by itself (see "Servers"); the hub sends no
 messages for it. Pult only shows the log: RESTART-LEAD followed by UP is fixed ("перезапущено на нову
 версію"); RESTART-LEAD-FAILED, RESTART-LEAD-TIMEOUT, or a lead still on an older version for over 3 hours after a critical release
-(`plugins/dev-kit/releases.json`), is a problem to show with a proposed fix; RESTART-DEFERRED and a lead
+(the plugin's own `releases.json`), is a problem to show with a proposed fix; RESTART-DEFERRED and a lead
 behind a routine release until a later day are normal. A lead that is not quiet gets a `restart` event
 message from the watcher for a critical release at once. When the owner asks to update or restart the leads («онови керівників»), Pult runs
 `{PLUGIN}/scripts/restart-leads.ps1 -Ask`: leads already on the new version are left alone (`Up to date`), idle leads restart now, each busy one is woken at once to

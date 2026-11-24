@@ -13,7 +13,7 @@ import time
 import unittest
 from datetime import datetime
 
-from test_watch_servers_restart import LEAD, PLUGINS, POWERSHELL, WatcherEnv, plugin_json
+from test_watch_servers_restart import LEAD, PLUGINS, POWERSHELL, WatcherEnv, lead_said, owner_said, plugin_json
 
 # `claude agents` prints agents.json; `claude respawn <id>` records its pid and sleeps respawn_sleep seconds.
 FAKE_CLAUDE = '''import json, os, pathlib, sys, time
@@ -207,6 +207,7 @@ class WatchServersRestartTimeoutTest(WatcherEnv, unittest.TestCase):
         super().setUp()
         (self.scripts / "restart-leads.ps1").write_text(STUB_RESTART_HANG, encoding="ascii")
         self.releases({"1.1.0": "critical"}, "web-kit")
+        self.lead_chat(owner_said("go", 60), lead_said("Done."))  # a quiet lead: a critical release restarts it at once
         self.plan({2: [{"path": str(self.plugins / "web-kit" / ".claude-plugin" / "plugin.json"),
                         "write": plugin_json("1.1.0")}]})
         self.restart_sleep = 0

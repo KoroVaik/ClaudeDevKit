@@ -983,10 +983,11 @@ release restart, with no question and no push; a resume of the same session with
 
 ## Restart for a plugin update
 
-The Pult watcher restarts the leads after a dev-kit version bump so they load the new skills, agents
+The Pult watcher restarts the leads after a version bump of dev-kit, or of another plugin P loads (rules-kit,
+spend-kit, and web-kit or unity-kit when its project enables them), so they load the new skills, agents
 and hooks (the owner's request of 2026-11-16). It notices the bump itself: it compares the version P's
-process started on with `plugin.json` of the main checkout, and reads the release's mark in
-`plugins/dev-kit/releases.json` (critical or routine; `.claude/dev-kit.md` of the plugin repo says who
+process started on with `plugin.json` of the main checkout, and reads the release's mark in the plugin's own
+`releases.json` (`plugins/<plugin>/releases.json`; critical or routine; `.claude/dev-kit.md` of the plugin repo says who
 marks it). A routine release waits: P restarts once on a later day, at its first quiet moment, onto the
 newest version. A critical one restarts P the same day. Quiet means P is idle with no working C (a restart
 would lose that C's reports), its last message to the owner is not an open question and the owner has

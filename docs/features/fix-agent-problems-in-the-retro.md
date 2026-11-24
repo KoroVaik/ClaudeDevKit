@@ -10,18 +10,21 @@ tools](../tech/project-lead.md).
 
 ## Rules
 ### The retro catches every problem of agent work, and only that
-It works for each project that has a lead (the project's profile has a `## project-lead` section); sessions in
-other folders are skipped. A cause in the project's own rules, docs or profile (an old doc that sends agents to the
-wrong file) is agent work and is fixed there. A bug in the project's code (a flaky test) is not: it goes to the
-project as a defect and the retro stops there. A cause in a dev-kit plugin's rules or in your global rules
+A project with a lead (its profile has a `## project-lead` section) gets its own retro for its own rules, docs
+and profile (an old doc that sends agents to the wrong file is agent work and is fixed there). A bug in the
+project's code (a flaky test) is not: it goes to the project as a defect and the retro stops there. A cause in a
+plugin's rules (dev-kit, web-kit, unity-kit, pult, rules-kit, spend-kit) or in your global rules
 (`C:/Users/korov/.claude/`, chat style included) is handled only by the ClaudeDevKit retro, so two projects never
-fix the same thing. Projects with no lead (Pult, KnowledgeBase, a design sandbox) are not covered, except
-their Claude app errors, which go to ClaudeDevKit ([Keep Claude app facts](keep-claude-app-facts.md)).
-Why: owner, 2026-11-21 and 2026-11-22: the retro fixes the problems of the projects, not only of the plugin; it does
-not run on sessions with no dev-kit, since they would give little (the scans of 2026-11-19..21 named only dev-kit
-projects). Those two days it stayed in dev-kit (no separate plugin); owner, 2026-11-24: it is now its own plugin,
-`rules-kit` (the plugin about rules; dev-kit, web-kit, unity-kit, pult, the owner's global rules and each project's own
-rules subscribe to it), reviewed from ClaudeDevKit.
+fix the same thing. Projects with no lead (Pult, KnowledgeBase, a design sandbox) have no retro of their own, but
+their sessions are still read for the plugin and global sets: the talk, part and spend findings of every
+transcript go to those sets, and their Claude app errors go to ClaudeDevKit ([Keep Claude app
+facts](keep-claude-app-facts.md)).
+Why: owner, 2026-11-21 and 2026-11-22: the retro fixes the problems of the projects, not only of the plugin, and
+stayed in dev-kit (no separate plugin); it did not run on sessions with no dev-kit, since they would give little (the
+scans of 2026-11-19..21 named only dev-kit projects). Owner, 2026-11-24: it is now its own plugin, `rules-kit` (the
+plugin about rules; dev-kit, web-kit, unity-kit, pult, the owner's global rules and each project's own rules
+subscribe to it), reviewed from ClaudeDevKit, and the global rules are checked in the sessions of every project, those
+without a lead too.
 
 ### Items are local files, one per cause, one folder per rule set
 Each finding becomes an item file in a local folder of the rule set it concerns (a plugin, your global rules or a
@@ -51,8 +54,9 @@ merges something, so the rules do not keep growing; at most 5 fixes land per rul
 expiry: owner, 2026-11-24.
 
 ### Two checks replace your yes
-Each fix is approved by an independent agent on another model (a deleted rule and a change of what the agent may
-change itself included), then replayed on past session parts: it lands only if it covers every part where the
+Each fix is approved by an independent agent on another model than the one that wrote it (the retro session is a
+helper session the owner is not in, so it runs on Sonnet and the approver on Opus; a deleted rule and a change of
+what the agent may change itself included), then replayed on past session parts: it lands only if it covers every part where the
 problem happened and breaks none of up to 5 parts of the same skill or agent that went well. Each fix is its own
 commit. Why: owner, 2026-11-24 («Мінімізуй мою участь, я всеодно буду бездумно апрувать. Краще додай більш надійні
 верифікації»). Weak spot accepted: an agent checking an agent may share its blind spots; a bad change to how

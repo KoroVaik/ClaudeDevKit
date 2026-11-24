@@ -276,16 +276,18 @@ class WatchServersRestartTest(WatcherEnv, unittest.TestCase):
     # protects: Flow
     def test_idle_lead_is_restarted_when_an_extension_changed_version(self):
         self.releases({"1.1.0": "critical"}, "web-kit")
+        self.lead_chat(owner_said("go", 60), lead_said("Done."))
         self.plan({2: [{"path": str(self.plugins / "web-kit" / ".claude-plugin" / "plugin.json"),
                         "write": plugin_json("1.1.0")}]})
         log = self.run_watch(3)
         self.assertEqual([f"Name={LEAD} Ready= call=2"], self.restart_calls())
-        self.assertTrue(any(f"RESTART-LEAD {LEAD} (web-kit 1.0.0 -> 1.1.0, idle)" in line for line in log), log)
+        self.assertTrue(any(f"RESTART-LEAD {LEAD} (web-kit 1.0.0 -> 1.1.0, critical, quiet)" in line for line in log), log)
 
     # protects: Rule
     def test_lead_without_hard_bans_is_not_restarted_again_and_again_and_is_reported_once(self):
         (self.scripts / "restart-leads.ps1").write_text(STUB_RESTART_NO_BANS, encoding="ascii")
         self.releases({"1.1.0": "critical"}, "web-kit")
+        self.lead_chat(owner_said("go", 60), lead_said("Done."))
         self.plan({2: [{"path": str(self.plugins / "web-kit" / ".claude-plugin" / "plugin.json"),
                         "write": plugin_json("1.1.0")}]})
         log = self.run_watch(6)
@@ -301,6 +303,7 @@ class WatchServersRestartTest(WatcherEnv, unittest.TestCase):
             STUB_RESTART + 'Write-Output "NO-BANS P: Other (no Bash and PowerShell hard-ban deny lines on main): not restarted"\n',
             encoding="ascii")
         self.releases({"1.1.0": "critical"}, "web-kit")
+        self.lead_chat(owner_said("go", 60), lead_said("Done."))
         self.plan({2: [{"path": str(self.plugins / "web-kit" / ".claude-plugin" / "plugin.json"),
                         "write": plugin_json("1.1.0")}]})
         log = self.run_watch(4)
@@ -318,19 +321,35 @@ class WatchServersRestartTest(WatcherEnv, unittest.TestCase):
         self.assertFalse([line for line in log if "HEAL-FAILED" in line or "GIVEUP" in line], log)
 
     # protects: Rule
-    def test_busy_lead_is_not_woken_for_an_extension_and_restarts_when_idle(self):
+    def test_busy_lead_is_not_woken_for_a_routine_extension_release_and_waits(self):
+        self.agents("busy")
+        self.plan({2: [{"path": str(self.plugins / "web-kit" / ".claude-plugin" / "plugin.json"),
+                        "write": plugin_json("1.1.0")}]})  # no mark: routine
+        self.run_watch(3)
+        self.assertEqual([], self.restart_calls())
+        self.assertEqual([], list(self.state.rglob("restart.json")), "a request would wake the lead (a paid turn)")
+
+    # protects: Rule
+    def test_busy_lead_is_asked_for_a_critical_extension_release_like_for_a_dev_kit_one_and_restarts_when_ready(self):
         self.agents("busy")
         self.releases({"1.1.0": "critical"}, "web-kit")
         self.plan({2: [{"path": str(self.plugins / "web-kit" / ".claude-plugin" / "plugin.json"),
                         "write": plugin_json("1.1.0")}]})
-        self.run_watch(3)
+        log = self.run_watch(3)
         self.assertEqual([], self.restart_calls())
-        self.assertEqual([], list(self.state.rglob("restart.json")), "a request would wake the lead (a paid turn)")
-        (self.bin / "count").unlink()  # a new run: the lead goes idle in its round 3
-        idle = (self.bin / "agents.json").read_text().replace("busy", "idle")
-        self.plan({3: [{"path": str(self.bin / "agents.json"), "write": idle}]})
-        self.run_watch(4)
-        self.assertEqual([f"Name={LEAD} Ready= call=3"], self.restart_calls())
+        self.assertEqual("1.0.0", self.restart_file()["version"], "the request carries the installed dev-kit version")
+        asked = [line for line in log if " RESTART-ASKED " in line]
+        self.assertEqual(1, len(asked), log)
+        self.assertTrue(asked[0].endswith(f"RESTART-ASKED {LEAD} (web-kit 1.0.0 -> 1.1.0, critical, busy)"))
+        env = dict(os.environ, DEV_KIT_STATE_DIR=str(self.state))
+        subprocess.run(["python", str(self.plugins / "dev-kit" / "scripts" / "sessions.py"), "--project",
+                        str(self.project), "restart", "ready", "--version", "1.0.0"],
+                       env=env, check=True, capture_output=True, timeout=60)  # the lead's handshake
+        (self.bin / "count").unlink()
+        self.plan({})
+        log = self.run_watch(2, "-ReadyWarnSec", "1")
+        self.assertEqual([f"Name= Ready={LEAD} call=1"], self.restart_calls())
+        self.assertTrue(any(f"RESTART-LEAD {LEAD} (web-kit 1.0.0 -> 1.1.0, ready)" in line for line in log), log)
 
     # protects: Rule
     def test_old_lead_versions_entry_without_extensions_causes_no_restart(self):
