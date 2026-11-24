@@ -44,7 +44,7 @@ tests green; doers are `dev-kit:coder` (sonnet; opus for step 4-5 engine) with t
 rerunning the checks. Rule text goes through `dev-kit:edit-rules` (step 3 of that skill: the owner's approval above
 covers the behaviour lines; anything beyond it goes to P).
 
-Spend: ~0% of the weekly limit, estimate; API: 0 USD (updated at each step).
+Spend: ~3.6% of the weekly limit, estimate; API: 0 USD.
 
 Design choices (manager, within the approval):
 - Folders `plugins/spend-kit`, `plugins/rules-kit`, each with its own manifest, `releases.json`, `bin/`, hooks and
@@ -166,3 +166,13 @@ One retro run, in the «Ретро: <project>» session of a project that review
    <key>`; the next run of the reviewing project reverts it.
 7. Spend cap: the run checks its own spend (`spend-kit session`) and stops at 2% of the weekly limit, leaving the
    rest for the next run. The run sends P one `ГОТОВО` (branch to merge, or nothing), never a question.
+- Step 5 built (fix loop), step 6 built (wiring, versions: dev-kit 0.1.120, pult 0.1.32, web-kit 0.4.2,
+  unity-kit 0.2.4, rules-kit 0.1.0, spend-kit 0.1.0, all routine). An independent review (sonnet) of steps 1-5 gave
+  15 fixes, all applied: revert only in a worktree, the gates cannot edit themselves, the retro session runs on
+  sonnet so the opus approver is another model, fail-closed spend cap, global-folder dirty guard, migrated items
+  readable, per-plugin release marks for every lead restart.
+- At merge (P): run `python -X utf8 tools/enable-rules-spend-kit.py --dry-run`, then without it, from the main
+  checkout; then, through `rules-kit:edit-rules`, the owner's global `docs/process-mistakes.md` lines 11, 13, 15:
+  `dev-kit:edit-rules` -> `rules-kit:edit-rules`, `~/.claude/dev-kit/retro/notes.md` -> `~/.claude/rules-kit/notes.md`
+  (the old path is still read), `dev-kit:retro` -> `rules-kit:retro`.
+- Left open: `restart-leads.ps1 -Ask` does not ask a busy lead for an extension-only change (as before).
