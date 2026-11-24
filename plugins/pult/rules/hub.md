@@ -135,7 +135,7 @@ itself: a fresh session's PushNotification is refused (`{DEVKIT}/claude-facts.md
 that did not take the message. Its log lines: WAKE (a message queued, with its cause), WAKE-SENT, WAKE-TAKEN
 (it reached the session), WAKE-FAILED, WAKE-FALLBACK (its lines go to the phone instead), WAKE-FALLBACK-NONE
 (no live session to push them; tried again in 10 minutes), PUSH-SIZE and SIZE (each live session's
-conversation size, every 10 minutes), LIMIT-FORECAST (the weekly limit forecast push, see "Phone push"); "статус" shows them only when asked (a fallback already reached the
+conversation size, every 10 minutes), LIMIT-FORECAST (the weekly limit forecast push, see "Phone push"), LIMIT-NOTICE and LIMIT-BACK (the `ЛІМІТ:` lines to the leads near a usage limit and after its reset); "статус" shows them only when asked (a fallback already reached the
 phone). Why: the
 owner's yes of 2026-11-20 (`docs/findings/idle-wake-cost.md` of the dev-kit repo): Pult and the leads were woken
 every 2 hours only to arm their watchers again (`{DEVKIT}/claude-facts.md`, "The host kills a background Bash run after 2 hours").

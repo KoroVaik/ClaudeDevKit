@@ -834,6 +834,23 @@ Event lines:
 - `limited: <name> | <id> | resets <time>`: that C stopped on the usage limit and did not go on after the
   reset. The Pult watcher sends each limited lead and C it watches a «go on» message after the reset and
   passes this line only when it could not get the session going (`plugins/pult/README.md`, LIMIT-RESUME). Write its `стоїть, скінчився ліміт (до <time>)` line at once, and never `end` or stop that C. Each stop is reported once.
+- `ЛІМІТ: <тижневий | 5-годинний> <N>%, оновиться <time>`: the weekly limit reached 90% or 95%, or the 5-hour one
+  90% (each once per window). P decides for each of its C sessions itself; nothing stops sessions centrally.
+  By default a C keeps working until the limit runs out: the importance of its task is no reason to stop it.
+  P stops a C only on a sign it sees in the C's transcript tail or task file: helpers (subagents) are running,
+  or a large change is half done. A paid API run alone is not a sign (a background script keeps running at the
+  limit; one a helper drives falls under helpers). A project adds its own signs or rules in its
+  `.claude/dev-kit.md`, section `## project-lead`. The stop is a `ВКАЗІВКА`: start no new step, bring the
+  current one to a safe point, stop the helpers, write in the task file where it stopped and the steps to
+  resume, save the work in a WIP commit, then send `ЧЕКАЮ` with the limit and the reset time as the reason
+  (this `ЧЕКАЮ` is ordered, though it waits on no other session). The task file's status line then names the
+  limit stop, so P finds its paused C sessions there after a «Restart P». A paused C shows as `чекає`; a notice
+  that stops no C gives the owner no text.
+- `ЛІМІТ: <тижневий | 5-годинний> ліміт оновився, ...`: the limit P got a notice for has reset. P sends each
+  C it paused for that limit (its task file names the stop) a `ВКАЗІВКА` to go on from the resume steps in its task file; the C answers
+  `ПРОДОВЖУЮ`. A C cut by the limit itself is woken by the watcher, as for `limited` above.
+  Why: owner, 2026-11-24/25 (`plans/limit-wind-down.md` of the plugin repo): sessions were cut mid-step at
+  the weekly limit; the last share of the limit must not be left unused out of caution.
 - `stale: <name> | <id> | waiting <N> min` (one line per session): if the session waits on the
   owner, send the reminder push of "Owner queue and critical items" ("Reminder push"); else nothing.
   No text. Each wait is reported once.

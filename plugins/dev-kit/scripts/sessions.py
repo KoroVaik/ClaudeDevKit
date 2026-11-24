@@ -750,15 +750,23 @@ def is_limit_notice(entry):
                                                  or (entry.get("isApiErrorMessage") and entry.get("error") == "rate_limit"))
 
 
+def is_task_notification(entry):
+    """Whether a transcript entry is a helper's (subagent's) report delivered to the session: a user entry with
+    `origin.kind` task-notification. Helpers cut by the same usage limit report after the notice, with no reply."""
+    origin = entry.get("origin")
+    return entry.get("type") == "user" and isinstance(origin, dict) and origin.get("kind") == "task-notification"
+
+
 def usage_limit(path):
     """(key, resets_at) when the session stopped on the usage limit: the last entry of its transcript that is not a
-    side chain or a meta note is the limit notice (any later reply, tool result, owner or peer message means it went
-    on). key tells one stop from the next (the notice's uuid or time); resets_at is epoch seconds or None. Else
-    None. The session list cannot tell it (plugins/dev-kit/claude-facts.md, "Other sessions listed as `blocked` or
-    `done` in `claude agents --json`")."""
+    side chain, a meta note or a helper's report (task notification, which arrives after the notice and gets no
+    reply) is the limit notice (any later reply, tool result, owner or peer message means it went on). key tells
+    one stop from the next (the notice's uuid or time); resets_at is epoch seconds or None. Else None. The session
+    list cannot tell it (plugins/dev-kit/claude-facts.md, "Other sessions listed as `blocked` or `done` in
+    `claude agents --json`")."""
     try:
         for entry in tail_entries(path):
-            if entry.get("isSidechain") or entry.get("isMeta"):
+            if entry.get("isSidechain") or entry.get("isMeta") or is_task_notification(entry):
                 continue
             if not is_limit_notice(entry):
                 return None

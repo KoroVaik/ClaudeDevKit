@@ -844,7 +844,8 @@ def usage_message(raw, main_only=False):
 
 
 def read_log():
-    """The readings of the status line log with a valid time and weekly per cent, oldest first."""
+    """The readings of the status line log with a valid time and weekly per cent, oldest first (`five_only` lines
+    are skipped: their weekly per cent did not rise)."""
     readings = []
     try:
         with open(statusline.log_file(), "rb") as handle:
@@ -856,7 +857,7 @@ def read_log():
             entry = json.loads(raw)
         except ValueError:
             continue
-        stamp = parse_time(entry.get("ts")) if isinstance(entry, dict) else None
+        stamp = parse_time(entry.get("ts")) if isinstance(entry, dict) and not entry.get("five_only") else None
         pct = statusline.number(entry.get("week_pct")) if stamp else None
         if pct is not None:
             readings.append({"ts": stamp, "pct": pct, "resets": entry.get("week_resets")})

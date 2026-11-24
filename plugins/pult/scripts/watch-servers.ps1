@@ -126,6 +126,17 @@
 #     call (the forecast, the "open tasks" test and the once-per-weekly-window mark are its own; see its doc). On `push`
 #     it logs LIMIT-FORECAST runout=<local time> resets=<local time> pct=<last %> pace=<%/h> and queues one phone push
 #     (cause limit) with its text, delivered like a size push. After it nothing is paused or asked.
+#   - Limit notices (docs/features/wind-down-at-weekly-limit.md, plans/limit-wind-down.md): when the same usage log
+#     changed since the last look, or $LimitNoticeSec s passed since the last call (the `back` lines are time based), one
+#     `<SpendKitDir>\scripts\usage_forecast.py notices --mark <StateDir>\limit-notices.json --log <usage log>` call
+#     (the thresholds and the once-per-window marks are its own). Each `notice | <week|five> | <threshold> | <pct> |
+#     <reset epoch> | <text>` line becomes an event line (kind limitnote, no `sessions.py mark`) for every lead of the
+#     list with a Path that is live and passes the gate of the lead events (Test-WakeLead), merged into its message like
+#     any lead event; the names are kept in wake-state.json LimitNotified under `<limit>|<reset epoch>`. Logged:
+#     LIMIT-NOTICE <limit> <threshold> <pct> leads=<names|none>. After the reset each `back | <limit> | <reset epoch> |
+#     <text>` line goes the same way, only to the leads kept under its key that are live now, and the key is removed:
+#     LIMIT-BACK <limit> leads=<names|none>. A key more than 8 days past its reset with no `back` line is dropped. A
+#     failing call is logged once as a WARN.
 #   The lines of one target are merged into one message (`[EVT-<id>] Pult server watcher:`, the lines, one fixed
 #   instruction line; control characters removed, each line cut at 300 characters, at most about 1500 per
 #   message, more lines wait for the next one), kept in <StateDir>\wake-pending.json until delivered. At most
@@ -277,6 +288,7 @@ $PingQuietMin = 50         # a lead with a busy task session silent this long ge
 $HandoffWakeQuietSec = 120 # a lead that saved a handoff (not go) is moved only when it was last sent a message at least this long ago (a just-sent one is not handled yet)
 $SizePushShare = 0.7       # a conversation at this share of its window gets one phone push
 $SizeLogMin = 10           # minutes between the SIZE lines
+$LimitNoticeSec = 300      # the limit notices script is called at least this often (its `back` lines are time based)
 $PingLine = 'PING keep-warm: run dev-kit-sessions fill for your C sessions and dev-kit-sessions fill --self for yourself, then answer with your standard status only.'
 $NoteLine = 'Note: your log watcher (watch-log.py) is retired. Events now arrive as messages from the server watcher, like this one, so do not arm it again.'
 
@@ -1314,6 +1326,69 @@ function Invoke-LimitForecast {
     $script:wakeDirty = $true
 }
 
+# The names of the leads that get a limit notice now: a lead of the list with a Path that is live and passes the gate of
+# the lead events (Test-WakeLead).
+function Get-NoticeLeads($Targets) {
+    $names = @()
+    foreach ($s in $servers) {
+        if (-not $s.Lead -or -not $s.Path -or -not (Test-Path -LiteralPath $s.Path)) { continue }
+        $t = $Targets[$s.Session]
+        if ($t -and $t.Live -and (Test-WakeLead $s.Session $t.Agent.pid)) { $names += [string]$s.Session }
+    }
+    return $names
+}
+
+# The limit notices (see the header): one `usage_forecast.py notices` call when the usage log changed or $LimitNoticeSec s
+# passed since the last call (the `back` lines are time based). A `notice` line goes to every live lead (wake line of kind
+# limitnote, no `sessions.py mark`), the names are kept in wake-state.json LimitNotified under <limit>|<reset epoch>; a
+# `back` line goes to the leads kept under its key that are live now, then the key is removed. The thresholds and the
+# once-per-window marks are the script's own. Keys more than 8 days past their reset are dropped.
+function Invoke-LimitNotices($Targets) {
+    $usageLog = if ($env:DEV_KIT_USAGE_LOG) { Join-Path $env:DEV_KIT_USAGE_LOG 'usage-log.jsonl' }
+        else { Join-Path $env:USERPROFILE '.claude\spend-kit\usage-log.jsonl' }
+    $f = Get-Item -LiteralPath $usageLog -ErrorAction SilentlyContinue
+    if (-not $f) { return }
+    $written = [string]$f.LastWriteTimeUtc.Ticks
+    if ($written -ceq $script:lastNoticeWrite -and (Get-Age $script:lastNoticeCall) -lt $LimitNoticeSec) { return }
+    $script:lastNoticeWrite = $written
+    $script:lastNoticeCall = Get-Now
+    $py = Join-Path $SpendKitDir 'scripts\usage_forecast.py'
+    $r = Invoke-Python @($py, 'notices', '--mark', (Join-Path $StateDir 'limit-notices.json'), '--log', $usageLog) -NoStderr
+    if ($r.Code -ne 0) { Write-WarnOnce 'notices' ("limit notices failed (exit {0}): {1}" -f $r.Code, ($r.Out -replace '\s+', ' ')); return }
+    $warnedOnce.Remove('notices')
+    $leads = $null
+    $changed = $false
+    foreach ($line in ($r.Out -split "`r?`n")) {
+        $p = @($line -split ' \| ' | ForEach-Object { $_.Trim() })
+        if ($p[0] -ceq 'notice' -and $p.Count -ge 6) {
+            $limit = $p[1]; $key = "$limit|$($p[4])"
+            if ($null -eq $leads) { $leads = @(Get-NoticeLeads $Targets) }
+            $text = $p[5..($p.Count - 1)] -join ' | '
+            foreach ($name in $leads) { Add-WakeLine $name 'lead' $text 'limitnote' "limitnote|$key|$($p[2])|$name" $null }
+            $known = @(@($wakeState.LimitNotified[$key]) | Where-Object { $_ })  # @(...) twice: never a lone $null element
+            $wakeState.LimitNotified[$key] = @($known) + @($leads | Where-Object { $known -cnotcontains $_ })
+            if (-not $wakeState.LimitNotified[$key].Count) { $wakeState.LimitNotified.Remove($key) }
+            $changed = $true
+            Write-Log ("LIMIT-NOTICE {0} {1} {2} leads={3}" -f $limit, $p[2], $p[3], $(if ($leads.Count) { $leads -join ',' } else { 'none' }))
+        } elseif ($p[0] -ceq 'back' -and $p.Count -ge 4) {
+            $limit = $p[1]; $key = "$limit|$($p[2])"
+            if ($null -eq $leads) { $leads = @(Get-NoticeLeads $Targets) }
+            $text = $p[3..($p.Count - 1)] -join ' | '
+            $send = @($leads | Where-Object { @($wakeState.LimitNotified[$key]) -ccontains $_ })
+            foreach ($name in $send) { Add-WakeLine $name 'lead' $text 'limitnote' "limitnote|$key|back|$name" $null }
+            $wakeState.LimitNotified.Remove($key)
+            $changed = $true
+            Write-Log ("LIMIT-BACK {0} leads={1}" -f $limit, $(if ($send.Count) { $send -join ',' } else { 'none' }))
+        }
+    }
+    $cutoff = (Get-Now) - 8 * 86400
+    foreach ($key in @($wakeState.LimitNotified.Keys)) {
+        $reset = 0L
+        if (-not [int64]::TryParse(($key -split '\|')[-1], [ref]$reset) -or $reset -lt $cutoff) { $wakeState.LimitNotified.Remove($key); $changed = $true }
+    }
+    if ($changed) { Save-WakeState }
+}
+
 # A folder path as one comparable string: resolved, no trailing slash, lower case. '' when it is empty or unreadable.
 function Get-FolderKey($Path) {
     if (-not [string]$Path) { return '' }
@@ -1432,6 +1507,7 @@ function Invoke-WakePass {
         }
         try { Invoke-SizeCheck $targets } catch { Write-Log "WARN size check failed: $_" }
         try { Invoke-LimitForecast } catch { Write-Log "WARN limit forecast failed: $_" }
+        try { Invoke-LimitNotices $targets } catch { Write-Log "WARN limit notices failed: $_" }
     }
 
     # Sends: one sender at a time; per target only its oldest message, at most one per round. The pass stops after
@@ -1732,7 +1808,10 @@ $wakePendingFile = Join-Path $StateDir 'wake-pending.json'
 $wakeStateFile = Join-Path $StateDir 'wake-state.json'
 $wakePending = New-Object System.Collections.ArrayList  # messages not delivered yet (New-WakeItem)
 $lastUsageWrite = $null  # the usage log's last write time at the last forecast look (Invoke-LimitForecast)
-$wakeState = @{ PultNote = $false; SizePushed = @{}; LastWake = @{} }  # SizePushed: session id -> tokens; LastWake: target -> epoch
+$lastNoticeWrite = $null  # the usage log's last write time at the last limit notices call (Invoke-LimitNotices)
+$lastNoticeCall = 0.0     # epoch of that call
+# SizePushed: session id -> tokens; LastWake: target -> epoch; LimitNotified: "<week|five>|<reset epoch>" -> lead names told
+$wakeState = @{ PultNote = $false; SizePushed = @{}; LastWake = @{}; LimitNotified = @{} }
 try {
     if (Test-Path -LiteralPath $wakePendingFile) {
         $saved = Get-Content -Raw -Encoding UTF8 -LiteralPath $wakePendingFile -ErrorAction Stop | ConvertFrom-Json
@@ -1745,6 +1824,11 @@ try {
         $wakeState.PultNote = [bool]$saved.PultNote
         foreach ($k in 'SizePushed', 'LastWake') {
             if ($saved.$k) { foreach ($q in $saved.$k.PSObject.Properties) { $wakeState[$k][$q.Name] = [double]$q.Value } }
+        }
+        if ($saved.LimitNotified) {
+            foreach ($q in $saved.LimitNotified.PSObject.Properties) {
+                $wakeState.LimitNotified[$q.Name] = @(@($q.Value) | Where-Object { $null -ne $_ } | ForEach-Object { [string]$_ })
+            }
         }
     }
 } catch { Write-Log "WARN cannot read $wakeStateFile : $_" }

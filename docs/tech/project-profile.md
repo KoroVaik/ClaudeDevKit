@@ -15,7 +15,8 @@ project facts. Code: `plugins/dev-kit` (the profile is read by its skills, agent
 - `## project-lead` - optional table `| Path | How |`: the git-ignored paths a fresh worktree needs, each
   `copy` or `link` (a junction to the main checkout's folder). A `| Setting | Value |` table there holds
   `migrations applied`: the last entry of `plugins/dev-kit/migrations.md` the project has applied (written
-  by `dev-kit-migrations record`).
+  by `dev-kit-migrations record`). Free text there may add the project's own signs for stopping a session near a
+  usage limit (`dev-kit:project-lead`, "Wake-up", the `ЛІМІТ:` lines).
 - `## long commands` - optional table `| Pattern | Why |`: Python regexes of the project's long commands, refused in
   the foreground ([feature](../features/run-long-commands-in-the-background.md)).
 - `## documentation` - table `| Setting | Value |` for the docs check (code folders, scanned folders, size

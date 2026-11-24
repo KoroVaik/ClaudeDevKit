@@ -31,7 +31,7 @@ When, at the pace of the last 6 hours, the weekly limit runs out more than 6 hou
 sessions of the leads are still open, one push comes to your phone: «Тижневий ліміт: витрачено 49%, за темпом скінчиться пт
 20:00, скидання пн 10:00.» (local time). At most one per weekly window, even if the pace gets worse; after it
 nothing is paused or asked. The pace needs two readings of the weekly per cent at least an hour apart in those
-6 hours; there is no warning about the 5-hour limit. Why: owner, 2026-11-23 (`plans/limit-tracking.md`): warn
+6 hours; this push has no 5-hour part (the leads get their own notices: [wind down near a usage limit](wind-down-at-weekly-limit.md)). Why: owner, 2026-11-23 (`plans/limit-tracking.md`): warn
 only when the work will surely stand for long, no spam.
 
 ### A lead on an old version is restarted when the update allows

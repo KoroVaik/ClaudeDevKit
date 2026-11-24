@@ -624,6 +624,113 @@ class WatchServersWakeTest(unittest.TestCase):
         self.assertEqual([f"LIMIT-RESUME-FAILED C: task {TASK} You've hit your limit"], failed)
         self.assertFalse([line for line in log if "GIVEUP" in line], log)
 
+    # ---- limit notices (usage_forecast.py notices is stubbed: the script owns thresholds and marks) ----
+
+    def stub_notices(self, fail=False):
+        """Replaces the copied usage_forecast.py: `check` prints nothing, `notices` prints notices.txt once (and logs the
+        call), or fails when told to."""
+        (self.plugins / "spend-kit" / "scripts" / "usage_forecast.py").write_text(
+            "import json, os, sys\nfrom pathlib import Path\nd = Path(os.environ['TEST_DIR'])\n"
+            "with open(d / 'forecast-calls.txt', 'a', encoding='utf-8') as f:\n    f.write(json.dumps(sys.argv[1:]) + '\\n')\n"
+            "sys.stdout.reconfigure(encoding='utf-8')\n"
+            "if sys.argv[1] == 'notices':\n"
+            f"    if {fail!r}:\n        print('boom')\n        sys.exit(2)\n"
+            "    n = d / 'notices.txt'\n    if n.exists():\n        print(n.read_text(encoding='utf-8').strip())\n"
+            "        n.unlink()\n", encoding="utf-8")
+        self.usage_log([(1, 10)])
+
+    def notices(self, *lines):
+        (self.bin / "notices.txt").write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+    def notices_calls(self):
+        f = self.bin / "forecast-calls.txt"
+        calls = [json.loads(line) for line in f.read_text(encoding="utf-8").splitlines()] if f.exists() else []
+        return [c for c in calls if c[0] == "notices"]
+
+    def two_leads(self, second_live):
+        """A second lead 'P: Second' on the same project; listed live (like the first) or not."""
+        second, sid = "P: Second", "44444444-aaaa-bbbb-cccc-000000000004"
+        transcript = self.projects / f"{sid}.jsonl"
+        transcript.write_text(self.lead_transcript.read_text(encoding="utf-8"), encoding="utf-8")
+        self.config_file.write_text("@{ Servers = @( @{ Session = '%s'; Lead = $true; Path = '%s' }, "
+                                    "@{ Session = '%s'; Lead = $true; Path = '%s' } ) }\n" % (LEAD, self.project, second, self.project),
+                                    encoding="utf-8-sig")
+        records = json.loads((self.pult / "lead-versions.json").read_text(encoding="utf-8"))
+        records[second] = dict(records[LEAD])
+        (self.pult / "lead-versions.json").write_text(json.dumps(records), encoding="utf-8")
+        items = json.loads((self.bin / "agents.json").read_text(encoding="utf-8"))
+        if second_live:
+            items.append(dict(items[0], name=second, sessionId=sid, id=sid[:8]))
+        (self.bin / "agents.json").write_text(json.dumps(items), encoding="utf-8")
+        plan = json.loads((self.bin / "wake-plan.json").read_text(encoding="utf-8"))
+        plan["transcripts"][second] = str(transcript)
+        (self.bin / "wake-plan.json").write_text(json.dumps(plan), encoding="utf-8")
+        return second
+
+    def limit_texts(self):
+        """target -> the limit lines of the messages sent to it."""
+        out = {}
+        for w in self.wakes():
+            out.setdefault(self.to(w), []).extend(
+                line for line in self.message(w).split("\n") if line.startswith("LIMITTEXT"))
+        return out
+
+    # protects: Flow
+    def test_limit_notice_goes_to_every_live_lead_and_back_only_to_those_told(self):
+        self.stub_notices()
+        second = self.two_leads(second_live=False)
+        resets = int(time.time()) + 3 * 24 * 3600
+        self.notices(f"notice | week | 80 | 83 | {resets} | LIMITTEXT slow down | wind down")
+        log = self.run_watch(2)
+        self.assertEqual({LEAD: ["LIMITTEXT slow down | wind down"]}, self.limit_texts(), log)  # the dead lead gets none
+        self.assertIn("LIMIT-NOTICE week 80 83 leads=P: Lead", log)
+        self.assertEqual([LEAD], json.loads((self.pult / "wake-state.json").read_text(encoding="utf-8"))["LimitNotified"][f"week|{resets}"])
+        self.assertEqual([], self.marks(), "a limit line needs no sessions.py mark")
+        self.assertEqual(1, len(self.notices_calls()), "a second round with an unchanged usage log makes no call")
+        (self.bin / "wakes.jsonl").unlink()
+        self.two_leads(second_live=True)  # the second lead is live at the reset, but was not told of the limit
+        self.notices(f"back | week | {resets} | LIMITTEXT limit is back")
+        log = self.run_watch(2)
+        self.assertEqual({LEAD: ["LIMITTEXT limit is back"]}, self.limit_texts(), log)
+        self.assertNotIn(second, self.limit_texts())
+        self.assertIn("LIMIT-BACK week leads=P: Lead", log)
+        self.assertEqual({}, json.loads((self.pult / "wake-state.json").read_text(encoding="utf-8"))["LimitNotified"])
+
+    # protects: Flow
+    def test_limit_notice_reaches_all_live_leads(self):
+        self.stub_notices()
+        second = self.two_leads(second_live=True)
+        resets = int(time.time()) + 3 * 24 * 3600
+        self.notices(f"notice | five | 90 | 91 | {resets} | LIMITTEXT five-hour limit")
+        log = self.run_watch(2)
+        self.assertEqual({LEAD: ["LIMITTEXT five-hour limit"], second: ["LIMITTEXT five-hour limit"]}, self.limit_texts(), log)
+        self.assertIn(f"LIMIT-NOTICE five 90 91 leads={LEAD},{second}", log)
+
+    # protects: Edge
+    def test_limit_notices_script_printing_nothing_sends_nothing(self):
+        self.stub_notices()
+        log = self.run_watch(3)
+        self.assertEqual([], self.wakes())
+        self.assertFalse([line for line in log if line.startswith("LIMIT-NOTICE") or line.startswith("LIMIT-BACK")], log)
+        self.assertEqual(1, len(self.notices_calls()))
+
+    # protects: Edge
+    def test_limit_notice_key_more_than_8_days_old_is_dropped(self):
+        self.stub_notices()
+        old, fresh = int(time.time()) - 9 * 24 * 3600, int(time.time()) + 3600
+        self.wake_state(PultNote=True, LimitNotified={f"week|{old}": [LEAD], f"five|{fresh}": [LEAD]})
+        self.run_watch(1)
+        kept = json.loads((self.pult / "wake-state.json").read_text(encoding="utf-8"))["LimitNotified"]
+        self.assertEqual({f"five|{fresh}": [LEAD]}, kept)
+
+    # protects: Bug
+    def test_failing_limit_notices_script_warns_once_and_sends_nothing(self):
+        self.stub_notices(fail=True)
+        self.notices(f"notice | week | 80 | 83 | {int(time.time()) + 3600} | LIMITTEXT never")
+        log = self.run_watch(3)
+        self.assertEqual(["WARN limit notices failed (exit 2): boom"], [line.strip() for line in log if "limit notices failed" in line], log)
+        self.assertEqual([], self.wakes())
+
 
 if __name__ == "__main__":
     unittest.main()

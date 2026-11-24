@@ -778,6 +778,19 @@ class SessionsTestCase(unittest.TestCase):
         self.transcript("s1", [old])
         self.assertEqual(("lim-1", None), sessions.usage_limit(path))
 
+    # protects: Bug
+    def test_usage_limit_ignores_helper_reports_that_arrive_after_the_notice(self):
+        path = self.projects / "p1" / "s1.jsonl"
+        report = {"type": "user", "uuid": "rep-1", "isSidechain": False,
+                  "origin": {"kind": "task-notification", "producer": "session-task"},
+                  "message": {"role": "user", "content": "<task-notification>\n<task-id>a1</task-id>\n</task-notification>"}}
+        self.transcript("s1", [self.limit_notice(), report, dict(report, uuid="rep-2")])
+        self.assertEqual(("lim-1", 1795014000), sessions.usage_limit(path))
+        self.transcript("s1", [self.limit_notice(), report, self.reply("Back to work.")])
+        self.assertIsNone(sessions.usage_limit(path))
+        self.transcript("s1", [self.limit_notice(), report, self.human("продовж")])
+        self.assertIsNone(sessions.usage_limit(path))
+
     # protects: Flow
     def test_state_shows_a_session_stopped_on_the_limit_as_limited(self):
         self.add("c1-session", name="C: lim")

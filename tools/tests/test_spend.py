@@ -623,6 +623,21 @@ class StatuslineTestCase(unittest.TestCase):
         self.assertEqual([(row["week_pct"], row["week_resets"]) for row in self.entries()],
                          [(30, week), (31, week + 20), (5, week + 604800)])
 
+    # protects: Flow
+    def test_a_high_five_hour_reading_is_logged_alone_once_per_rise_or_window(self):
+        week = 10_000_000
+        five = lambda pct, resets: {"rate_limits": {"seven_day": {"used_percentage": 40, "resets_at": week},  # noqa: E731
+                                                    "five_hour": {"used_percentage": pct, "resets_at": resets}}}
+        self.run_line(five(50, 5000))  # the first line of the log: a normal one
+        self.run_line(five(79, 5000))  # below FIVE_LOG_FROM: not logged
+        self.run_line(five(85, 5000))  # logged alone
+        self.run_line(five(85, 5010))  # no rise in the same 5-hour window
+        self.run_line(five(84, 5000 + 18000))  # a new 5-hour window, still high
+        self.run_line(five(90, 5000 - 18000))  # an older window: a stale reading
+        rows = self.entries()
+        self.assertEqual([(row["five_hour_pct"], row["five_hour_resets"], row.get("five_only", False)) for row in rows],
+                         [(50, 5000, False), (85, 5000, True), (84, 5000 + 18000, True)])
+
     # protects: Edge
     def test_the_last_line_is_found_in_a_log_longer_than_the_tail(self):
         self.folder.mkdir(parents=True)

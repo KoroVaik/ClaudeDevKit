@@ -15,13 +15,13 @@ skills' rule (`dev-kit:project-lead`, `dev-kit:manager`); this file only sets th
 | `ПРОДОВЖУЮ` | a C | it goes on after a `ЧЕКАЮ` | shows it as `працює` again |
 | `ВЛАСНИК ВІДПОВІВ` | a session the owner talks with; a C the owner wrote to in its chat (`dev-kit:manager`, "A task from the project lead") | the owner answered or decided there something its lead may ask or show (a question the lead put to the owner, a change of scope; the closing «так» is `ЗАКРИТО` instead); the owner's words verbatim | drops the matching queue item, never asks the owner again |
 | `ВІДПОВІДЬ` | the session that was asked | the answer to a `ПИТАННЯ` (the owner's words verbatim, or the lead's own decision) or a `ВКАЗІВКА`'s reply | goes on |
-| `ВКАЗІВКА` | P to its sessions | an order that answers nothing: refresh an overfull context, a branch sent back | does it |
+| `ВКАЗІВКА` | P to its sessions | an order that answers nothing: refresh an overfull context, a branch sent back, stop at a safe point near a usage limit or go on after its reset | does it |
 
 - One kind per message. A message that needs two kinds (a result and a question) is sent as two.
 - In an English project the same capital words are used: they are fixed markers, not chat text.
 - A message with no kind word (a session started before this rule) is read as before, by its text.
-- Not covered: the Pult watcher's event messages (`gone:`, `finished:` and the rest, `dev-kit:project-lead`
-  "Wake-up"), which are machine lines, the Pult hub's own messages, and a session's first prompt.
+- Not covered: the Pult watcher's event messages (`gone:`, `finished:`, the usage limit notice `ЛІМІТ:` and the
+  rest, `dev-kit:project-lead` "Wake-up"), which are machine lines, the Pult hub's own messages, and a session's first prompt.
 
 Why: on 2026-11-21 the owner said «Так» inside «Обговорення: Повідомлення між сесіями» after its last report;
 nothing told P, and P asked him again. The owner agreed the same day on a short fixed list of kinds, so

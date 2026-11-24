@@ -1,6 +1,6 @@
 # Wind down work when the weekly limit runs out
 
-Status: approved, next: build (owner «так» to the short plan, 2026-11-25, «Обговорення: Плавна зупинка при вичерпанні ліміту»).
+Status: built 2026-11-25 (owner «так» to the short plan, 2026-11-25, «Обговорення: Плавна зупинка при вичерпанні ліміту»).
 
 Owner's words, 2026-11-24, P: ClaudeDevKit chat: «потрібно подумать над тим як плавно зупинять роботу менеджерів у яких ще доволі великий скоуп робіт, а тижневий ліміт уже перескочив 95% і навіть за кращого прогнозу не встигне до ресета. Обговорення. Приклад сесія менеджера ядра в жратві».
 
@@ -55,3 +55,37 @@ no rule tells a lead or a C what to do near a limit; `messages.md` has no kind f
 
 Docs to bring up to date in the build: `plans/limit-tracking.md:27` still says the scripts are in dev-kit (they
 moved to spend-kit); `plugins/pult/README.md`; the feature file above.
+
+## Build steps
+
+Status: built 2026-11-25, all steps done. Spend: ~0.6% of the weekly limit, estimate; API: 0 USD.
+
+Known gap (reviewer doubt, not fixed): a notice that finds no live lead (all restarting) is used up; the next
+threshold or window still notifies, but no lead gets the `back` line for it.
+
+How the parts fit (fixed before the parallel work):
+- Data: the status line logs a line also when `five_hour_pct` rises in the same 5-hour window or a new 5-hour window
+  starts, and writes `five_hour_resets` (epoch). The weekly forecast reads only lines whose weekly % rose, so its
+  pace is unchanged.
+- `usage_forecast.py notices --mark <StateDir>\limit-notices.json [--log F] [--now E]` (spend-kit) owns the
+  thresholds and the once-per-window marks. It prints zero or more lines:
+  `notice | week|five | <threshold> | <pct> | <reset epoch> | <text>` and, once the reset time of a window it gave a
+  notice for has passed, `back | week|five | <reset epoch> | <text>`. Exit 0; 2 on bad arguments.
+- The watcher (`Invoke-LimitNotices`, pult) calls it when the usage log changed or every 5 minutes, sends each
+  `notice` text as a wake line to every live lead (same version gate as lead events), remembers per window which
+  leads got one (wake-state.json `LimitNotified`), and sends each `back` text only to those leads. Logged:
+  LIMIT-NOTICE <limit> <threshold> <pct> leads=<names>, LIMIT-BACK <limit> leads=<names>.
+- Line text the lead gets (kind word `ЛІМІТ`, `plugins/dev-kit/messages.md`):
+  `ЛІМІТ: тижневий 95%, оновиться пн 10:00` / `ЛІМІТ: 5-годинний 90%, оновиться 14:00` /
+  `ЛІМІТ: тижневий ліміт оновився, можна будити призупинені сесії`.
+
+Steps:
+1. Status line logs the 5-hour window; forecast reads only weekly rises; `notices` subcommand with tests
+   (manager). 
+2. Watcher `Invoke-LimitNotices` with tests and header doc (dev-kit:coder, sonnet).
+3. `usage_limit` fix: confirm the cause on the cut transcript copy, fix, test (dev-kit:coder, sonnet).
+4. Rules: `ЛІМІТ` kind in `messages.md`; lead's base stop rules in `project-lead/SKILL.md` (manager,
+   rules-kit:edit-rules).
+5. Docs and versions: feature acceptance criteria and status, `plans/limit-tracking.md:27`, `plugins/pult/README.md`,
+   version bumps with release marks (manager).
+6. Independent review of the whole diff (dev-kit:reviewer, sonnet); fix confident problems; full tests and lint.

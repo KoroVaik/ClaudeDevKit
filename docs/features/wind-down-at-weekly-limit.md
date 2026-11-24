@@ -2,7 +2,7 @@
 
 Epic: [Work through a project lead](../epics/work-through-a-project-lead.md)
 
-Status: approved, not built. Plan: [plans/limit-wind-down.md](../../plans/limit-wind-down.md).
+Status: built 2026-11-25. Plan: [plans/limit-wind-down.md](../../plans/limit-wind-down.md).
 
 ## Purpose
 When the weekly or the 5-hour usage limit is close, work stops at safe points chosen by each project lead,
@@ -45,4 +45,21 @@ Accepted product rule (owner «так», 2026-11-24): the weekly limit forecast 
 as it is.
 
 ## Acceptance criteria
-- To be set once the thresholds and the base stop rules are agreed.
+- When the weekly limit reaches 90%, every live project lead gets one notice with the per cent and the reset
+  time; at 95% one more; never again in that week. A jump straight past 95% gives one notice.
+- When the 5-hour limit reaches 90%, every live lead gets one notice, once per 5-hour window.
+- After a limit resets, the leads that got a notice for it are told once that it is back; a lead that got no
+  notice is told nothing.
+- A lead lets its sessions run to the limit unless it sees helpers running or a large change half done; then
+  it stops that session at a safe point with its resume steps written and its work saved, and wakes it after
+  the reset.
+- A session cut by the limit whose helpers report after the limit notice is still seen as stopped by Pult and
+  woken after the reset.
+- The weekly forecast push to the owner's phone comes as before.
+
+## Built in
+- Thresholds and once-per-window marks: `plugins/spend-kit/scripts/usage_forecast.py` (`notices`); the 5-hour
+  readings it needs: `plugins/spend-kit/scripts/statusline.py`.
+- Sending to the leads: `plugins/pult/scripts/watch-servers.ps1` (`Invoke-LimitNotices`).
+- What a lead does: `plugins/dev-kit/skills/project-lead/SKILL.md`, "Wake-up", the `ЛІМІТ:` lines.
+- The missed stop: `plugins/dev-kit/scripts/sessions.py` (`usage_limit`).

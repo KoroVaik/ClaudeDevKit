@@ -10,7 +10,13 @@ window of the last log line (reset times under SAME_WINDOW_S apart) or a newer w
 same window, and a window older than the last line's by SAME_WINDOW_S or more (a stale reading from an idle parallel
 session), are not logged:
 
-    {"ts": "<UTC ISO>", "week_pct": 23.0, "week_resets": <as given>, "five_hour_pct": 41.0 or null}
+    {"ts": "<UTC ISO>", "week_pct": 23.0, "week_resets": <as given>, "five_hour_pct": 41.0 or null,
+     "five_hour_resets": <as given or null>}
+
+The 5-hour reading is also logged on its own, with `"five_only": true`, when it is FIVE_LOG_FROM per cent or more and
+it rose within the 5-hour window of the last line or a newer 5-hour window began (same rules as the weekly one); the
+Pult watcher's limit notices read it (`usage_forecast.py notices`, docs/features/wind-down-at-weekly-limit.md). A
+reader of the weekly pace (the forecast, the limit fit) skips `five_only` lines: their weekly per cent did not rise.
 
 Log folder: env DEV_KIT_USAGE_LOG, else the spend-kit data folder `~/.claude/spend-kit` (`spend_dir.py`; a log still in
 `~/.claude/dev-kit` is copied there once, when the new one is missing). Parallel sessions may
@@ -30,7 +36,8 @@ import spend_dir  # noqa: E402
 USAGE_ENV = "DEV_KIT_USAGE_LOG"  # an override of the log folder, kept under its old name for the tests and old setups
 LOG_NAME = "usage-log.jsonl"
 SAME_WINDOW_S = 3600  # reset times under this far apart are one weekly window
-TAIL_BYTES = 4096  # a log line is about 100 bytes; this holds the last few
+TAIL_BYTES = 4096  # a log line is about 130 bytes; this holds the last few
+FIVE_LOG_FROM = 80  # a 5-hour reading alone is logged only from this per cent (the notices start at 90)
 
 
 def log_file():
@@ -78,6 +85,19 @@ def worth_logging(before, pct, resets):
     return resets > last_resets  # a new window starts; an older one is a stale reading of an idle session
 
 
+def five_worth_logging(before, pct, resets):
+    """Whether a 5-hour reading is worth a `five_only` line when the weekly one is not (see the module doc)."""
+    if number(pct) is None or pct < FIVE_LOG_FROM or number(resets) is None:
+        return False
+    last_pct = number(before.get("five_hour_pct")) if before else None
+    last_resets = number(before.get("five_hour_resets")) if before else None
+    if last_resets is None or last_pct is None:
+        return True
+    if abs(resets - last_resets) < SAME_WINDOW_S:
+        return pct > last_pct
+    return resets > last_resets
+
+
 def record(data):
     """Log the weekly reading of one status line JSON when it changed; return the weekly per cent or None."""
     limits = data.get("rate_limits") if isinstance(data, dict) else None
@@ -88,12 +108,17 @@ def record(data):
     resets = week.get("resets_at")
     five = limits.get("five_hour")
     five_pct = number(five.get("used_percentage")) if isinstance(five, dict) else None
+    five_resets = five.get("resets_at") if isinstance(five, dict) else None
     path = log_file()
-    if not worth_logging(last_reading(path), pct, resets):
-        return pct
+    before = last_reading(path)
+    row = {"ts": None, "week_pct": pct, "week_resets": resets, "five_hour_pct": five_pct, "five_hour_resets": five_resets}
+    if not worth_logging(before, pct, resets):
+        if not five_worth_logging(before, five_pct, five_resets):
+            return pct
+        row["five_only"] = True
     path.parent.mkdir(parents=True, exist_ok=True)
-    stamp = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
-    line = json.dumps({"ts": stamp, "week_pct": pct, "week_resets": resets, "five_hour_pct": five_pct}) + "\n"
+    row["ts"] = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    line = json.dumps(row) + "\n"
     with open(path, "ab") as handle:
         handle.write(line.encode("utf-8"))
     return pct
