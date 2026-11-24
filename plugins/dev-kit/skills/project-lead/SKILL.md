@@ -445,7 +445,7 @@ proposed, not opened, because «краще перепитать, бо я мож�
   A C shows in the Claude app with no push: it gets Remote Control from the owner's `remoteControlAtStartup`
   setting, and only the `--remote-control` flag pushes «Remote control enabled» (`plugins/dev-kit/claude-facts.md`,
   "The «Remote control enabled» push comes with the `--remote-control` flag, not with Remote Control itself"), so a C
-  gets no such flag (an «Обговорення:» session does, see below). The owner may write in a C's chat; the C then
+  gets no such flag (an «Обговорення:» session gets none either, see below). The owner may write in a C's chat; the C then
   follows `dev-kit:manager`, "A task from the project lead". Why: owner, 2026-11-24 («Обговорення: Видимість
   сесій C», `plans/c-session-visibility.md` of the plugin repo): he wants to see every C, with no push noise.
   A C never pushes; P relays what the owner must see (a push test: "Push test with the owner").
@@ -561,8 +561,10 @@ each lead applies it under its own project's rules, with no agent editing other 
 For a task of branch 4 in "Before a task: triage", after the owner's «так» to the proposal. Start it as a C (overlap check, worktree, folder
 setup, registration) with these differences:
 
-- Name `Обговорення: <feature>` (no guillemets in the name) (in the command of "Start a C", unlike a C, add
-  `--remote-control "Обговорення: <feature>"` plus `--name`: the owner opens it, so its one push stays), `--permission-mode bypassPermissions` ("Permission mode"), `--model opus --effort medium` (the owner
+- Name `Обговорення: <feature>` (no guillemets in the name) (in the command of "Start a C", use `--name` only, no
+  `--remote-control`, like a C: the session still shows in the Claude apps through the owner's `remoteControlAtStartup`
+  setting, and with no flag it sends no «Remote control enabled» push; P's one line below tells the owner to open it).
+  Why: owner, 2026-11-25, a phone screenshot of two such pushes at night: «Чому ці сесії надіслали пуш?». Also `--permission-mode bypassPermissions` ("Permission mode"), `--model opus --effort medium` (the owner
   talks with it). Why: its done report to a P in another mode may be held for the owner's approval
   (`plugins/dev-kit/claude-facts.md`, "A message between sessions in different permission modes may be held"); the owner does not want to relay between sessions. It may message other sessions
   (a C only its own P, see "Start a C"); a message to a session the owner started stays banned (see

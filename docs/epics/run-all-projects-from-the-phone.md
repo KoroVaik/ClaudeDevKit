@@ -25,7 +25,7 @@ The lead's rules (queue, task sessions, merge) are in the epic
 3. P starts a C named "C: <task>". It shows in the Claude app (phone and desktop) with no push
    ([Claude facts](../../plugins/dev-kit/claude-facts.md), "The «Remote control enabled» push comes with the `--remote-control` flag, not with Remote Control itself").
    You may open it and write to it: it follows your words and tells P at once. It reports to P when it is done, stuck, waits over a minute or needs your decision, and P tells you. For a
-   talk about the details P proposes an "Обговорення:" session, made for talking with you (it sends one push so you open it).
+   talk about the details P proposes an "Обговорення:" session, made for talking with you (it sends no push; P tells you in one line to open it).
 4. P checks the finished work, merges it into main, removes the C and tells you the result.
 5. Ask the "Pult" session for "статус": it also sends you the status page, one HTML file with every
    project's sessions (free, busy or ended) and the open questions from its PROGRESS.md. The page is a
