@@ -27,6 +27,8 @@
 
 - C sessions shown in the app with no push (owner «+», 2026-11-24, «Обговорення: Видимість сесій C»): a C starts with no `--settings` file and no `--remote-control`; the owner may write in a C, it relays his words to P. Next: build. Plan: [plans/c-session-visibility.md](plans/c-session-visibility.md) «Owner's approval».
 
+- Retro becomes rules-kit, Claude spend moves to spend-kit (owner «Так» to the plan, 2026-11-24, «Обговорення» on retro automation): rules checked per subscribed rule set, no owner questions, independent agent checks instead; dev-kit keeps only the development process. Next: build, large, in steps. Plan: [plans/retro-auto-rules-check.md](plans/retro-auto-rules-check.md) «Owner's approval», map [plans/retro-auto-plugin-split-map.md](plans/retro-auto-plugin-split-map.md).
+
 Open work of the features: `dev-kit-check-docs --open`.
 
 ## Open questions

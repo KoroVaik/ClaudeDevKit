@@ -8,7 +8,16 @@ P's note: whether a rule is worth keeping shows only in how it worked in session
 
 Success criterion: the owner's «так» to the short plan; the agreed points written in «Owner's approval» here or in the feature file.
 
-## Agreed so far (discussion, not the approval)
+## Owner's approval
+
+2026-11-24, «Обговорення» session, owner «Так» to the short plan «Плагіни rules-kit і spend-kit»:
+1. The retro becomes the plugin rules-kit, responsible for everything about rules: how to write them and how to improve them. dev-kit, web-kit, unity-kit, pult, the owner's global rules and each project's own rules subscribe to it.
+2. rules-kit splits sessions into parts, finds the rule line behind a problem and checks each rule type its own way; subscriptions add signs themselves when they miss a problem.
+3. The owner is asked nothing: an independent agent approves every change, it is replayed on past sessions, a failed change is reverted by the retro itself, and everything done is a list in Pult's «статус».
+4. The new plugin spend-kit takes everything about Claude spend: weekly limit, per-session spend, API money and all their clients; other plugins only read its files.
+5. dev-kit stays the development-process plugin, and no plugin imports another's code.
+
+The points below are the agreed detail for the builders; a later line wins over an earlier one where they differ (e.g. token counting moves to spend-kit, not dev-kit). The BACKLOG entry «Retro: one-off items expire» is covered by the 2-week expiry below and is removed when built; «Retro: decision items reused across projects» stays an idea.
 
 - 2026-11-24, owner «Звучить ок» to: retro items are kept in one folder per rule set, not per project (web-kit has one folder although it runs in three projects); Claude app facts stay in dev-kit, the retro only passes findings there.
 - 2026-11-24, owner «Ну окей»: each set's subscription names the project that reviews it, the one where its files are edited; today ClaudeDevKit reviews all four plugins and the owner's global rules.
