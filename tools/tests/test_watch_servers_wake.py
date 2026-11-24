@@ -109,6 +109,8 @@ class WatchServersWakeTest(unittest.TestCase):
                         ignore=shutil.ignore_patterns("__pycache__"))
         shutil.copytree(PLUGINS / "dev-kit" / "scripts", self.plugins / "dev-kit" / "scripts",
                         ignore=shutil.ignore_patterns("__pycache__"))
+        shutil.copytree(PLUGINS / "spend-kit" / "scripts", self.plugins / "spend-kit" / "scripts",
+                        ignore=shutil.ignore_patterns("__pycache__"))  # the forecast block runs its usage_forecast.py
         self.scripts = self.plugins / "pult" / "scripts"
         (self.scripts / "restart-leads.ps1").write_text(STUB_RESTART, encoding="ascii")
         self.set_version("pult", "1.0.0")

@@ -5,7 +5,7 @@ here=$(dirname "$(readlink -f "$0" 2>/dev/null || echo "$0")")
 command -v cygpath >/dev/null 2>&1 && here=$(cygpath -m "$here")
 exec python "$here/../scripts/statusline.py" "$@"
 """
-# Python part: `python dev-kit-statusline` runs the script directly.
+# Python part: `python spend-kit-statusline` runs the script directly.
 import os
 import runpy
 

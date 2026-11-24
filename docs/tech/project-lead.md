@@ -51,6 +51,6 @@ recurring gaps itself, sends urgent items to P and leaves the rest for P's weekl
 week, after the retro's branch is merged (or on its own in a week with no retro), the same hook launches a background
 «Документація: <project>» session (`dev-kit:maintain-project-docs`, "Weekly background run"): it fixes trivial docs
 problems, writes the rest as local docs items and ends; the items for the owner join the same weekly question. The
-critical token problems (`dev-kit-retro critical`) also show in Pult's «статус». `dev-kit-retro session` gives one session's
-units as a share of the weekly limit; the limit is refitted by `scan` and `calibrate` from the log that the status
-line script `dev-kit-statusline` keeps (`usage-log.jsonl` in the dev-kit folder of the user's .claude folder).
+critical token problems (`spend-kit critical`) also show in Pult's «статус». `spend-kit session` gives one session's
+units as a share of the weekly limit; the limit is refitted by `spend-kit scan` and `calibrate` from the log that the status
+line script `spend-kit-statusline` keeps (`usage-log.jsonl` in the spend-kit folder of the user's .claude folder); the retro takes the token findings by running `spend-kit findings`.

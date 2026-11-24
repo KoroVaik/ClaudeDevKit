@@ -496,7 +496,7 @@ One entry per behaviour. A newer direct observation replaces an older one; the o
 
 ### A headless `claude -p` bills `ANTHROPIC_API_KEY` if it is set
 - What happens: A headless `claude -p` bills the key in `ANTHROPIC_API_KEY` if it is set, with no log line. Without it, `claude -p` runs on the subscription.
-- Workaround: leave `ANTHROPIC_API_KEY` unset in the environment of the `claude` process; a key for our own API calls goes under another name (`DEV_KIT_API_KEY`, read by `dev-kit-api`).
+- Workaround: leave `ANTHROPIC_API_KEY` unset in the environment of the `claude` process; a key for our own API calls goes under another name (`DEV_KIT_API_KEY`, read by `spend-kit-api`).
 - App: headless `claude -p` | Claude Code: unknown
 - Seen: 2026-11-21 | owner's statement, not re-seen | ClaudeDevKit, API spend log
 - Re-check: none cheap (a paid call) | owner-only
@@ -588,8 +588,8 @@ One entry per behaviour. A newer direct observation replaces an older one; the o
 - What happens: For subscribers the status line JSON holds `rate_limits.seven_day.used_percentage` and `resets_at` (and `five_hour`). Claude Code runs the status line script on each turn. Without `rate_limits` (API login, old version) nothing is given.
 - Workaround: none.
 - App: status line | Claude Code: 2.1.331
-- Seen: date not stated | read in the Claude Code 2.1.330 bundle; re-check 2026-11-24 (2.1.331): `usage-log.jsonl` still gets new lines with `week_pct`, `week_resets` and `five_hour_pct` | ClaudeDevKit, `plugins/dev-kit/scripts/statusline.py`
-- Re-check: pipe a sample JSON to `dev-kit-statusline`, or read `~/.claude/dev-kit/usage-log.jsonl` | safe
+- Seen: date not stated | read in the Claude Code 2.1.330 bundle; re-check 2026-11-24 (2.1.331): `usage-log.jsonl` still gets new lines with `week_pct`, `week_resets` and `five_hour_pct` | ClaudeDevKit, `plugins/spend-kit/scripts/statusline.py`
+- Re-check: pipe a sample JSON to `spend-kit-statusline`, or read `~/.claude/spend-kit/usage-log.jsonl` | safe
 - Status: checked
 
 ## Subagents and models

@@ -117,9 +117,9 @@
 #     PUSH-SIZE; all the sessions that pass it in one round share one push. Every $SizeLogMin minutes the call takes `--wakes <StateDir>\size-state.json` and each session
 #     is logged: SIZE <name> <session id> <tokens> owner=N peer=N notify=N units=U.
 #   - Weekly limit forecast (plans/limit-tracking.md): when the usage log of the status line (usage-log.jsonl in the
-#     folder of env DEV_KIT_USAGE_LOG, else ~\.claude\dev-kit) changed since the last look, or task sessions opened or
+#     folder of env DEV_KIT_USAGE_LOG, else ~\.claude\spend-kit) changed since the last look, or task sessions opened or
 #     all closed (first look at start; the last look is kept in memory only, the mark stops a second push), one
-#     `usage_forecast.py check --open <live task sessions of the leads' registries> --mark <StateDir>\limit-forecast.json`
+#     `<SpendKitDir>\scripts\usage_forecast.py check --open <live task sessions of the leads' registries> --mark <StateDir>\limit-forecast.json`
 #     call (the forecast, the "open tasks" test and the once-per-weekly-window mark are its own; see its doc). On `push`
 #     it logs LIMIT-FORECAST runout=<local time> resets=<local time> pct=<last %> pace=<%/h> and queues one phone push
 #     (cause limit) with its text, delivered like a size push. After it nothing is paused or asked.
@@ -231,11 +231,13 @@
 # the minute); -LimitRetrySec: the wait after a resume send the sender could not make (default 900; both for tests).
 # -DevKitDir: the dev-kit plugin folder (default: ..\..\dev-kit next to this plugin); it holds
 # .claude-plugin\plugin.json (the installed version) and scripts\sessions.py.
+# -SpendKitDir: the spend-kit plugin folder (default: ..\..\spend-kit next to this plugin); it holds
+# scripts\usage_forecast.py, which the weekly limit forecast runs.
 # Keep this file saved as UTF-8 with BOM (plugins/dev-kit/claude-facts.md, "Windows PowerShell 5.1 misreads
 # Cyrillic in a script saved without a BOM").
 param([int]$IntervalSec = 60, [switch]$Once, [int]$Rounds = 0, [int]$MaxHeals = 3,
     [string]$ConfigFile, [string]$StateDir, [string]$DevKitStateDir, [string]$DaemonLog, [string]$DevKitDir,
-    [string]$RestartExe = 'powershell.exe', [string]$WakeExe, [string]$SessionsPy,
+    [string]$SpendKitDir, [string]$RestartExe = 'powershell.exe', [string]$WakeExe, [string]$SessionsPy,
     [int]$WakeConfirmSec = 120, [int]$WakeCooldownSec = 120, [int]$WakeDownSec = 600, [int]$HandoffStopWaitSec = 60,
     [int]$ReadyWarnSec = 30, [int]$HandoffClearWaitSec = 120, [int]$HealWaitSec = 300, [int]$LeadRestartWaitSec = 600,
     [int]$HandoffMoveWaitSec = 600, [int]$LimitGraceSec = 180, [int]$LimitRetrySec = 900)
@@ -248,6 +250,8 @@ $CodeFiles = @($PSCommandPath, (Join-Path $PSScriptRoot 'plugin-versions.ps1'), 
 if (-not $DaemonLog) { $DaemonLog = Join-Path $env:USERPROFILE '.claude\daemon.log' }
 if (-not $DevKitDir) { $DevKitDir = Join-Path $PSScriptRoot '..\..\dev-kit' }
 $DevKitDir = [IO.Path]::GetFullPath($DevKitDir)
+if (-not $SpendKitDir) { $SpendKitDir = Join-Path $PSScriptRoot '..\..\spend-kit' }
+$SpendKitDir = [IO.Path]::GetFullPath($SpendKitDir)
 if (-not $SessionsPy) { $SessionsPy = Join-Path $DevKitDir 'scripts\sessions.py' }
 if (-not $WakeExe) {  # an Application: claude.exe or claude.cmd, never the npm claude.ps1 that Start-Process cannot run
     $WakeExe = [string](Get-Command claude -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1).Source
@@ -1289,13 +1293,13 @@ function Invoke-SizeCheck($Targets) {
 # a LIMIT-FORECAST line and one phone push. The forecast, the open-task test and the once-per-window mark are its own.
 function Invoke-LimitForecast {
     $usageLog = if ($env:DEV_KIT_USAGE_LOG) { Join-Path $env:DEV_KIT_USAGE_LOG 'usage-log.jsonl' }
-        else { Join-Path $env:USERPROFILE '.claude\dev-kit\usage-log.jsonl' }
+        else { Join-Path $env:USERPROFILE '.claude\spend-kit\usage-log.jsonl' }
     $f = Get-Item -LiteralPath $usageLog -ErrorAction SilentlyContinue
     if (-not $f) { return }
     $written = "$($f.LastWriteTimeUtc.Ticks) $($liveTasks.Count -gt 0)"  # a look again when task sessions open or close
     if ($written -ceq $script:lastUsageWrite) { return }
     $script:lastUsageWrite = $written
-    $py = Join-Path $DevKitDir 'scripts\usage_forecast.py'
+    $py = Join-Path $SpendKitDir 'scripts\usage_forecast.py'
     $r = Invoke-Python @($py, 'check', '--open', [string]$liveTasks.Count, '--mark', (Join-Path $StateDir 'limit-forecast.json'), '--log', $usageLog) -NoStderr
     if ($r.Code -ne 0) { Write-WarnOnce 'forecast' ("limit forecast failed (exit {0}): {1}" -f $r.Code, ($r.Out -replace '\s+', ' ')); return }
     $warnedOnce.Remove('forecast')

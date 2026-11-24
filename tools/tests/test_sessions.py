@@ -987,7 +987,8 @@ class SessionsTestCase(unittest.TestCase):
 
     # protects: Flow
     def test_size_prints_the_context_and_counts_turn_starts_and_units_since_the_last_call(self):
-        import retro
+        sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent / "plugins" / "spend-kit" / "scripts"))
+        import spend  # the test reads the expected units from spend-kit; sessions.py itself runs the `spend-kit` command
         path = self.projects / "p1" / "s1.jsonl"
         state = self.tmp / "wakes.json"
         first = self.assistant(100, 0, 5000)
@@ -1010,7 +1011,7 @@ class SessionsTestCase(unittest.TestCase):
                    second, second, dict(self.assistant(0, 0, 9000), isSidechain=True)]
         with open(path, "a", encoding="utf-8") as handle:
             handle.write("\n".join(json.dumps(entry) for entry in entries) + "\n")
-        units = round(retro.units_of(second["message"]["usage"], second["message"]["model"]))  # the twin counts once
+        units = round(spend.units_of(second["message"]["usage"], second["message"]["model"]))  # the twin counts once
         code, out = self.run_main("size", "--id", "s1", "--wakes", str(state))
         self.assertEqual((0, f"s1 | 6010 | 200000 | claude-haiku-4-5-20251001 | owner=1 peer=1 notify=2 | units={units}\n"),
                          (code, out))

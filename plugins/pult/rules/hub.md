@@ -8,7 +8,7 @@ These rules are from pult {VERSION}. Rules update check, on every owner message:
 `{PLUGIN}/.claude-plugin/plugin.json`. If it differs from the version of the rules Pult follows (the one
 above, or the one it noted at its last re-read), read `{PLUGIN}/rules/hub.md` whole with the Read tool,
 note its version and follow it from then on (in that file the placeholder PLUGIN in braces stands for
-`{PLUGIN}`, DEVKIT for `{DEVKIT}` and VERSION for its version). No message to the owner about it. Why: the hub server resumes the same conversation
+`{PLUGIN}`, DEVKIT for `{DEVKIT}`, SPENDKIT for `{SPENDKIT}` and VERSION for its version). No message to the owner about it. Why: the hub server resumes the same conversation
 for days, and hook output reaches a session only at its start (`{DEVKIT}/claude-facts.md`, "A `SessionStart` hook of a user-scope plugin runs in every session on the machine"; owner, 2026-11-16).
 
 ## Projects in scope
@@ -24,7 +24,7 @@ Read only. Sources, per project:
 - Task sessions registered by the lead and their context fill: `dev-kit-sessions --project <project path> list` and `dev-kit-sessions --project <project path> fill`. In the home folder run `python -X utf8 {DEVKIT}/bin/dev-kit-sessions ...` with that path (`{DEVKIT}/claude-facts.md`, "Plugin `bin` commands run only in the Bash tool").
 - Desktop-app sessions of all projects (title, project folder, state, age): `python -X utf8 {PLUGIN}/scripts/list-sessions.py`.
 - What waits on the owner: the "Open questions" section of `<project path>/PROGRESS.md` (written by the lead P and task sessions C). "None." means nothing waits.
-- Critical token problems, all projects at once: `python -X utf8 {DEVKIT}/bin/dev-kit-retro critical`. Each line
+- Critical token problems, all projects at once: `python -X utf8 {SPENDKIT}/bin/spend-kit critical`. Each line
   `critical | <project> | <session> | <date> | spent X% of the weekly limit ...` or `... | wasted X% ...` is a
   problem under its project, in plain words (which session, that day, how much of the weekly limit spent or
   wasted). The command prints a problem once and again only when it grew; nothing printed: show nothing.
@@ -217,7 +217,7 @@ a `restart` event message (a lead on dev-kit before 0.1.78: its own session watc
   that: on the owner's «так», for a project whose lead is not started, the hub writes `.claude/hard-bans.json` in
   its main checkout, runs `dev-kit-bans add-approved` there and changes nothing else in that repo ("Missing hard bans"). Never start or stop sessions without the owner's explicit yes (one exception: "Restart leads for a plugin update").
 - On a problem (a server the watcher gave up on, session over its limit, stuck session) only propose a fix. Act after the owner's explicit yes, and only on that fix.
-- Use only read-only commands for "статус" (exception: `dev-kit-retro critical`, which may run the day's
+- Use only read-only commands for "статус" (exception: `spend-kit critical`, which may run the day's
   transcript scan and notes what it showed).
 
 ## Session title

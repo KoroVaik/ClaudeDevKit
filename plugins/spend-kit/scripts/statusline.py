@@ -1,6 +1,6 @@
-"""The dev-kit status line: shows the weekly subscription use and logs it for `dev-kit-retro` to fit the weekly limit.
+"""The spend-kit status line: shows the weekly subscription use and logs it for `spend-kit` to fit the weekly limit.
 
-    dev-kit-statusline        reads the status line JSON from stdin (Claude Code runs it on each turn)
+    spend-kit-statusline      reads the status line JSON from stdin (Claude Code runs it on each turn)
 
 For subscribers the JSON holds `rate_limits.seven_day.used_percentage` (0-100) and `rate_limits.seven_day.resets_at`
 (Unix epoch seconds), and the same two for `five_hour` (plugins/dev-kit/claude-facts.md, "The status line JSON holds
@@ -12,7 +12,8 @@ session), are not logged:
 
     {"ts": "<UTC ISO>", "week_pct": 23.0, "week_resets": <as given>, "five_hour_pct": 41.0 or null}
 
-Log folder: env DEV_KIT_USAGE_LOG, else `~/.claude/dev-kit` (local, outside any repository). Parallel sessions may
+Log folder: env DEV_KIT_USAGE_LOG, else the spend-kit data folder `~/.claude/spend-kit` (`spend_dir.py`; a log still in
+`~/.claude/dev-kit` is copied there once, when the new one is missing). Parallel sessions may
 write at once: the last line is read from the end of the file and a new line is appended in one write. Without
 `rate_limits` it prints an empty line and writes nothing. It never raises: any error gives an
 empty line and exit 0. It reads no transcript, so it stays fast.
@@ -23,15 +24,21 @@ import os
 import sys
 from pathlib import Path
 
-USAGE_ENV = "DEV_KIT_USAGE_LOG"
+sys.path.insert(0, str(Path(__file__).resolve().parent))  # run as a file: its folder is on the path, this makes it sure
+import spend_dir  # noqa: E402
+
+USAGE_ENV = "DEV_KIT_USAGE_LOG"  # an override of the log folder, kept under its old name for the tests and old setups
 LOG_NAME = "usage-log.jsonl"
 SAME_WINDOW_S = 3600  # reset times under this far apart are one weekly window
 TAIL_BYTES = 4096  # a log line is about 100 bytes; this holds the last few
 
 
 def log_file():
-    folder = Path(os.environ[USAGE_ENV]) if os.environ.get(USAGE_ENV) else Path.home() / ".claude" / "dev-kit"
-    return folder / LOG_NAME
+    if os.environ.get(USAGE_ENV):
+        return Path(os.environ[USAGE_ENV]) / LOG_NAME
+    path = spend_dir.data_dir() / LOG_NAME
+    spend_dir.migrate_file(LOG_NAME, path)
+    return path
 
 
 def number(value):

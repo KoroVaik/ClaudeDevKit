@@ -36,3 +36,95 @@ The points below are the agreed detail for the builders; a later line wins over 
 - 2026-11-24, owner «Давай так» (replaces «token counting stays in dev-kit» above): the weekly limit (status line, usage log, forecast) and per-session token spend move into a separate plugin for Claude spend; the Claude API money client (`dev-kit-api`, its spend log, prices) moves there too; dev-kit, pult and the rules plugin only read its data files. Project rules (a project's CLAUDE.md and its agent docs) are a set of their own, reviewed by that project.
 - Placement by the principle (both reviewers agree, 2026-11-24): the rules plugin owns its checker agents and calls no dev-kit agents; each subscription says how a change lands in its set (who merges, version bump, release mark, a special editor agent such as facts-keeper), so the dependency runs one way, dev-kit to rules. Spend findings (long session, opus coder) are rule findings in the rules plugin; the spend plugin only counts. Claude app facts and facts-keeper stay in dev-kit; BACKLOG intake and process-mistake flow stay in dev-kit and call the rules plugin's edit-rules; the weekly docs upkeep stays in dev-kit with its own start hook and state. No plugin imports another's code: a per-session spend file written by the spend plugin replaces `sessions.py` and `owner-session-note.py` imports of `retro`; `owner-session-note` splits in two; each plugin has its own `releases.json`; the rules plugin is enabled at user scope and finds projects by subscriptions, not by `.claude/dev-kit.md`; Pult's usage-log path follows the spend plugin. Full map (first agent; the placement line above wins where they differ): plans/retro-auto-plugin-split-map.md.
 - 2026-11-24, owner «Так»: names spend-kit (Claude spend: weekly limit, per-session spend, API money, every client and price table of it) and rules-kit (writing and improving rules, the retro). «Нехай переїдуть туди всякі клієнти, короче все що цього стосується»: anything about Claude spend found in any plugin moves to spend-kit.
+
+## Build steps
+
+Builder: C «rules-spend-kit» (branch `c/rules-spend-kit`). Each step is one or more commits that leave lint and
+tests green; doers are `dev-kit:coder` (sonnet; opus for step 4-5 engine) with the manager checking the diff and
+rerunning the checks. Rule text goes through `dev-kit:edit-rules` (step 3 of that skill: the owner's approval above
+covers the behaviour lines; anything beyond it goes to P).
+
+Spend: ~0% of the weekly limit, estimate; API: 0 USD (updated at each step).
+
+Design choices (manager, within the approval):
+- Folders `plugins/spend-kit`, `plugins/rules-kit`, each with its own manifest, `releases.json`, `bin/`, hooks and
+  tests; both enabled at user scope (bins on PATH in every project). Data folders `~/.claude/spend-kit/` and
+  `~/.claude/rules-kit/`; each moves its old files out of `~/.claude/dev-kit/` once, on first run.
+- Commands: `spend-kit` (session, critical, calibrate, forecast, per-session spend file), `spend-kit-api` (was
+  `dev-kit-api`, same subcommands and log line), `spend-kit-statusline`; `rules-kit` (was `dev-kit-retro`: scan,
+  items, done, add, list for Pult, revert bookkeeping).
+- No code import across plugins: other plugins read spend-kit's per-session spend file
+  (`~/.claude/spend-kit/sessions/<session id>.json`) or run its command; rules-kit keeps its own copies of the
+  state-folder naming, `find_claude` and `no-remote-control.json`.
+- Subscription file `rules-subscription.md` at the root of each set: each plugin folder, the owner's global folder
+  (`C:/Users/korov/.claude/`, a local git repo, so a revert is `git revert` there too) and, optionally, a project's
+  `.claude/` (a project with a dev-kit profile and no file gets the default project set: `CLAUDE.md`, `.claude/`
+  rule files, its agent docs).
+- The weekly «Документація:» start and state move to a dev-kit hook; it waits for the retro by reading rules-kit's
+  run file, not its code. The `retro: N due` line of the lead's prompt hook goes away (no owner asks).
+- After merge, P runs `python -X utf8 tools/enable-rules-spend-kit.py` once (enables both plugins at user scope,
+  points the status line at spend-kit); the status line and the retro stop until it runs, so it is part of the
+  merge.
+
+1. spend-kit: plugin skeleton; move `statusline.py`, `usage_forecast.py`, `api_client.py`, `api-prices.json`, their
+   bins, docs and tests; move token units, waste, session spend, `critical`, weekly-limit fit and calibrate out of
+   `retro.py`; write the per-session spend file; `sessions.py size`, `retro.py` and Pult (watcher forecast, hub
+   `critical`, usage-log path) read spend-kit; rename `dev-kit-api` / `dev-kit-retro session|critical` in all text.
+2. rules-kit move: plugin skeleton; move the retro (script minus spend, skill, start/end hooks, feature doc) and
+   `edit-rules`; own checker agents (reviewer sonnet, approver opus, part reader haiku); docs-session start to
+   dev-kit; rename `dev-kit:edit-rules` to `rules-kit:edit-rules` everywhere; fix the `retro.py:798` defect.
+3. Subscriptions and per-set items: file format and parser; files for dev-kit, web-kit, unity-kit, pult,
+   rules-kit, spend-kit, global rules, default project set; items in one folder per set; old items migrated by the
+   set of the files they name, else the project's set.
+4. Session parts and rule-type checks: split a transcript by skill, agent, hook (slash-command skills included);
+   talk rules checked by script on every reply to the owner; technical rules by tool traces; process rules by the
+   part reader on parts with a sign; a missed problem laid to a set adds a sign to its subscription.
+5. The autonomous fix loop: approver on another model, replay on past problem and good sessions, one commit per
+   fix, revert by `git revert` when later sessions show it failed, a second try by other means, then parked;
+   2-week expiry of one-offs; spend cap per run; done list for Pult «статус»; lead and Pult rules lose every
+   retro ask.
+6. Wiring: marketplace, README, map and feature docs, version bumps with release marks, the enable script,
+   BACKLOG «Retro: one-off items expire» removed, pull main, final review.
+
+### Subscription file format (step 3)
+
+`rules-subscription.md` at a set's root, Markdown the script parses (tables only; prose is for readers):
+
+    # Rules subscription: <set name>
+
+    | Setting | Value |
+    |---|---|
+    | set | dev-kit |
+    | reviewed by | ClaudeDevKit |
+    | lands by | branch merged by P: ClaudeDevKit; bump plugins/dev-kit version with a release mark |
+    | special editor | plugins/dev-kit/claude-facts.md: dev-kit:facts-keeper (the retro passes findings, never edits) |
+
+    ## Files
+
+    | Path (glob, relative to the set root) | Type | Part kinds |
+    |---|---|---|
+    | skills/project-lead/SKILL.md | process | skill dev-kit:project-lead |
+    | hooks/*.py | technical | hook dev-kit |
+
+    ## Signs
+
+    | Sign | Kind | Pattern |
+    |---|---|---|
+    | owner corrects | talk | owner message matches «не так|я ж казав|\?\?\?» |
+
+    ## May change itself
+
+    | Path | Changes |
+    |---|---|
+    | skills/** | word, sentence, new sign |
+
+Types: `talk` (how sessions talk to the owner; script checks every reply), `technical` (tool traces: calls,
+failures, repeats), `process` (part reader on parts with a sign). Part kinds name the skill, agent or hook whose
+part of a session makes the set a candidate. The general signs (owner correction, failed command, repeat) live in
+rules-kit itself and apply to every set; a set's own signs add to them. The global set's root is
+`C:/Users/korov/.claude/` (`CLAUDE.md`, `docs/*.md`); a project's root is its repo (`CLAUDE.md`, `.claude/**/*.md`).
+
+### Progress
+
+- Step 1 built (spend-kit). Left for step 6: `api-calls.jsonl` and `credits.md` still live in `~/.claude/dev-kit/`
+  (other projects' programs append to that log by path); move them with a read of both paths during the switch.

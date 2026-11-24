@@ -1,10 +1,10 @@
 """The shared Claude API client: call the Messages API, write one spend line per call, report and reconcile spend.
 
-    dev-kit-api call --model <id> --key-name <console key name> [--project <name>] [--max-tokens N] [--effort L]
-                     [--system TEXT] [--prompt TEXT | --prompt-file FILE | --request FILE] [--json]
-    dev-kit-api report [--days N | --since YYYY-MM-DD] [--by key|project|model|day]
-    dev-kit-api reconcile [--days N] --console "<key name>=<USD>" [--console ...]
-    dev-kit-api prices
+    spend-kit-api call --model <id> --key-name <console key name> [--project <name>] [--max-tokens N] [--effort L]
+                       [--system TEXT] [--prompt TEXT | --prompt-file FILE | --request FILE] [--json]
+    spend-kit-api report [--days N | --since YYYY-MM-DD] [--by key|project|model|day]
+    spend-kit-api reconcile [--days N] --console "<key name>=<USD>" [--console ...]
+    spend-kit-api prices
 
 Agents call the Claude API only through this client (rule: `dev-kit:manager`, "Claude API calls"), so every paid
 call leaves a line in one local log. Other programs that call the API from their own single call point (Zhratva's
@@ -18,7 +18,7 @@ rewritten) by one write of the whole line:
 
     {"v": 1, "ts": "2026-11-21T14:03:05Z", "project": "Zhratva", "key": "Zhratva test",
      "model": "claude-sonnet-5-5", "batch": false, "input": 1234, "output": 567, "cache_write_5m": 0,
-     "cache_write_1h": 0, "cache_read": 0, "cost_usd": 0.008137, "source": "dev-kit-api", "request_id": "msg_..."}
+     "cache_write_1h": 0, "cache_read": 0, "cost_usd": 0.008137, "source": "spend-kit-api", "request_id": "msg_..."}
 
 - `ts` UTC time of the call, `YYYY-MM-DDTHH:MM:SSZ` (readers also take fractional seconds or an offset) (for a batch: when its results were collected). `project` the repository name.
   `key` the API key's name as the Console shows it (Settings, API keys), the unit the weekly check reconciles by.
@@ -247,11 +247,11 @@ def call(body, project, key_name, api_key=None, opener=urllib.request.urlopen, s
     response = post(body, api_key, opener=opener, sleep=sleep)
     if "usage" in response:
         line = make_line(project, key_name, response.get("model") or body.get("model"), response["usage"],
-                         source="dev-kit-api", request_id=response.get("id"))
+                         source="spend-kit-api", request_id=response.get("id"))
         try:
             append_line(line, log)
         except OSError as e:
-            print(f"dev-kit-api: spend line not written ({e}); line: {json.dumps(line)}", file=sys.stderr)
+            print(f"spend-kit-api: spend line not written ({e}); line: {json.dumps(line)}", file=sys.stderr)
     return response
 
 
@@ -417,15 +417,15 @@ def cmd_call(args, out):
         text = "".join(b.get("text", "") for b in response.get("content", []) if b.get("type") == "text")
         print(text, file=out)
     if response.get("stop_reason") == "refusal":
-        print(f"dev-kit-api: the model refused ({response.get('stop_details')})", file=sys.stderr)
+        print(f"spend-kit-api: the model refused ({response.get('stop_details')})", file=sys.stderr)
         return 3
     if response.get("stop_reason") == "max_tokens":
-        print("dev-kit-api: the answer was cut at max_tokens", file=sys.stderr)
+        print("spend-kit-api: the answer was cut at max_tokens", file=sys.stderr)
     return 0
 
 
 def parser():
-    p = argparse.ArgumentParser(prog="dev-kit-api", description="Shared Claude API client with spend logging.")
+    p = argparse.ArgumentParser(prog="spend-kit-api", description="Shared Claude API client with spend logging.")
     sub = p.add_subparsers(dest="cmd", required=True)
     c = sub.add_parser("call", help="call the Messages API and write the spend line")
     c.add_argument("--model")
@@ -460,10 +460,10 @@ def main(argv=None, out=None):
     try:
         return handlers[args.cmd](args, out)
     except UsageError as e:
-        print(f"dev-kit-api: {e}", file=sys.stderr)
+        print(f"spend-kit-api: {e}", file=sys.stderr)
         return 2
     except ApiError as e:
-        print(f"dev-kit-api: {e}", file=sys.stderr)
+        print(f"spend-kit-api: {e}", file=sys.stderr)
         return 1
 
 

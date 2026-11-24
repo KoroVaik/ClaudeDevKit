@@ -21,7 +21,7 @@ The weights are in `plugins/dev-kit/scripts/retro.py` (`WEIGHTS`, `MODEL_WEIGHTS
   1.2-1.8. Weight 5 puts the two windows 16% apart, weight 3 10% apart, weight 1.5 agrees. A cross-check from the
   API-equivalent split of one session (Opus 94% of 11.54 USD) gives about 2-2.3, also far below 5.
 - Consequence: `MODEL_WEIGHTS` has Opus 1.5; the weekly limit is about 690M units (about 8 five-hour limits of
-  87M), uncertain by about 30%. A status line log of the weekly per cent (`dev-kit-statusline`) refits the limit
+  87M), uncertain by about 30%. A status line log of the weekly per cent (`spend-kit-statusline`) refits the limit
   from the next days on, replacing the hand fit.
 - Weak spots: the first window is short (1.6 hours, 14M units); the weights per kind (cache read 0.1, writes
   1.25 and 2) are assumed, not checked, and a different meter weighting would shift the fit; Haiku 1/3 and other

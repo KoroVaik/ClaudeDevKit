@@ -11,7 +11,7 @@ from contextlib import redirect_stderr
 from pathlib import Path
 from unittest import mock
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent / "plugins" / "dev-kit" / "scripts"))
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent / "plugins" / "spend-kit" / "scripts"))
 import api_client  # noqa: E402
 
 PRICES = api_client.load_prices()

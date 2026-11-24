@@ -89,7 +89,7 @@ one project, remove its row from the project list.
 - `tools/tests/test_watch_servers_handoff.py`
 - `tools/tests/test_watch_servers_heal.py`
 - `tools/tests/test_start_servers_handoff.py`
-- `plugins/dev-kit/scripts/usage_forecast.py`
+- `plugins/spend-kit/scripts/usage_forecast.py`
 - `tools/tests/test_usage_forecast.py`
 - `tools/tests/test_watch_servers_wake.py`
 

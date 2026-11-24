@@ -15,31 +15,31 @@ third) is carried by the word «оцінка», not by a number. Claude Code's o
 Why: owner, 2026-11-21: the retro counts tokens closely enough to state cost in per cent of the subscription.
 
 ### Real money stays in dollars, apart
-Calls through `dev-kit-api` keep their dollar figures ([Log and reconcile API spend](log-and-reconcile-api-spend.md)).
+Calls through `spend-kit-api` keep their dollar figures ([Log and reconcile API spend](log-and-reconcile-api-spend.md)).
 A report with both writes them apart: «~1% тижневого ліміту, оцінка; API: 0.40 USD». P's question about spend over
 $1 per task counts only the API money; subscription use never asks you.
 
 ### The figure comes from a command
-`dev-kit-retro session` gives the share for the session that runs it and its subagents (`--id` or `--path` for
+`spend-kit session` gives the share for the session that runs it and its subagents (`--id` or `--path` for
 another), with the same unit weights and limit as the retro scan.
 
 ### The limit is refitted from the status line
-The status line script `dev-kit-statusline` shows «тиждень: N%» and logs the weekly per cent (account-wide, all
-parallel sessions) when it rises. The retro refits the weekly limit in units from windows of the last 28 days with
+The status line script `spend-kit-statusline` shows «тиждень: N%» and logs the weekly per cent (account-wide, all
+parallel sessions) when it rises. `spend-kit` refits the weekly limit in units from windows of the last 28 days with
 at least 10 points; with fewer it keeps the last value. Manual `/usage` readings are no longer needed.
 Why: owner, 2026-11-21: «треба подумать як краще відкалібрувать витрати»; the status line JSON carries the weekly
 per cent ([Claude facts](../../plugins/dev-kit/claude-facts.md), "The status line JSON holds the subscription limits"), so no typing of `/usage`.
 
 ## Acceptance criteria
 - An agent reports its task: the report says «~N% тижневого ліміту, оцінка», no dollar figure of `/cost`.
-- A task also made `dev-kit-api` calls: the report shows the share and the API dollars apart.
-- `dev-kit-retro session` prints the share of the session that runs it.
+- A task also made `spend-kit-api` calls: the report shows the share and the API dollars apart.
+- `spend-kit session` prints the share of the session that runs it.
 - The status line is set: after a turn, `usage-log.jsonl` has the weekly per cent.
 
 ## Built in
-- `plugins/dev-kit/scripts/retro.py`
-- `plugins/dev-kit/scripts/statusline.py`
-- `plugins/dev-kit/bin/dev-kit-statusline`
-- `plugins/dev-kit/bin/dev-kit-retro`
+- `plugins/spend-kit/scripts/spend.py`
+- `plugins/spend-kit/scripts/statusline.py`
+- `plugins/spend-kit/bin/spend-kit`
+- `plugins/spend-kit/bin/spend-kit-statusline`
 - `plugins/dev-kit/skills/manager/SKILL.md`
-- `tools/tests/test_retro.py`
+- `tools/tests/test_spend.py`

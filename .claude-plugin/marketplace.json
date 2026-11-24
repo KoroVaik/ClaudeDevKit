@@ -24,6 +24,11 @@
       "name": "pult",
       "source": "./plugins/pult",
       "description": "Hub across projects: starts the project leads, brings back a dead lead or server, runs a Remote Control server in the home folder and reports read-only status"
+    },
+    {
+      "name": "spend-kit",
+      "source": "./plugins/spend-kit",
+      "description": "Claude spend: weekly limit, per-session spend and API money"
     }
   ]
 }

@@ -121,7 +121,7 @@ tokens as `fill`; 0 and the default window when it has no usage), no registry an
 <state file>` (json id -> byte offset in the transcript) it reads each transcript from the stored offset and appends
 ` | owner=N peer=N notify=N | units=U`: the turn starts since (owner: a user entry with text and no `origin`, or a
 human one; peer: `origin.kind` peer; notify: any other user entry with text, a task notification or a meta note) and the
-units (`retro.units_of`, each message id once) of the new assistant entries; the offsets are saved to the file, and the
+units (`spend-kit units`, run as a command, each message id once; 0 when spend-kit is missing) of the new assistant entries; the offsets are saved to the file, and the
 first call for an id stores the end and counts nothing.
 
 `limited` prints `<id> | <resets> | <key>` for each `--id` (a full session id) whose transcript ends with the
@@ -191,6 +191,7 @@ from pathlib import Path
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import dev_kit_state  # noqa: E402
+import spend_client  # noqa: E402
 
 REGISTRY = "sessions.json"
 RESTART = "restart.json"
@@ -1447,30 +1448,47 @@ def turn_kind(entry):
     return "owner"
 
 
+def read_new_lines(path, offset):
+    """The complete lines appended after `offset`, and the offset after the last complete line."""
+    try:
+        with open(path, "rb") as handle:
+            handle.seek(offset)
+            data = handle.read()
+    except OSError:
+        return [], offset
+    end = data.rfind(b"\n")
+    if end < 0:
+        return [], offset
+    return data[:end + 1].splitlines(), offset + end + 1
+
+
+def spend_units(path, start, end):
+    """The units of the assistant messages on the transcript lines in the byte range [start, end), counted by the
+    command `spend-kit units` (a process: dev-kit holds no copy of its weights and imports none of its code). 0 when
+    spend-kit is not installed or fails."""
+    if end <= start:
+        return 0.0
+    done = spend_client.run(["units", "--path", str(path), "--from", str(start), "--to", str(end)], 10)
+    try:
+        return float(done.stdout.strip()) if done and done.returncode == 0 else 0.0
+    except ValueError:
+        return 0.0
+
+
 def count_wakes(path, offset):
     """(counts, units, new offset) of the transcript lines after `offset`: turn starts by kind (see turn_kind) and the
-    units (retro.units_of) of the assistant messages, each message id once."""
-    import retro
-    lines, end = retro.read_new_lines(path, offset)
-    counts, units, seen = {"owner": 0, "peer": 0, "notify": 0}, 0.0, set()
+    units (`spend-kit units`) of the assistant messages, each message id once."""
+    lines, end = read_new_lines(path, offset)
+    counts = {"owner": 0, "peer": 0, "notify": 0}
     for raw in lines:
         try:
             entry = json.loads(raw)
         except ValueError:
             continue
-        if not isinstance(entry, dict):
-            continue
-        kind = turn_kind(entry)
+        kind = turn_kind(entry) if isinstance(entry, dict) else None
         if kind:
             counts[kind] += 1
-        message = entry.get("message") or {}
-        usage, model, mid = message.get("usage"), message.get("model"), message.get("id")
-        if (entry.get("type") == "assistant" and not entry.get("isSidechain") and isinstance(usage, dict)
-                and model != "<synthetic>" and mid not in seen):
-            if mid:
-                seen.add(mid)
-            units += retro.units_of(usage, model)
-    return counts, units, end
+    return counts, spend_units(path, offset, end), end
 
 
 def cmd_size(args, path, records):

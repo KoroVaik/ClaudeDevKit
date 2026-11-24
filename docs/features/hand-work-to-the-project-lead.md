@@ -84,7 +84,7 @@ starts over with a new push. Several pushes in one test come at least 3 seconds 
 ### What P decides alone
 P decides alone within the approved acceptance criteria. An item reaches your queue only when it leaves
 those criteria (a product choice), what you get is not agreed yet (see "P sorts each task"), the step is
-hard to undo, or API spend (real money through `dev-kit-api`) would pass 1 USD in total per task. Smaller
+hard to undo, or API spend (real money through `spend-kit-api`) would pass 1 USD in total per task. Smaller
 API spend and subscription use (sessions, subagents, `claude -p`) never ask you. The C keeps the task's
 spend line in its task file and asks P before a paid call that would pass the limit. The weekly retro ask
 and an offer to take over a session you started

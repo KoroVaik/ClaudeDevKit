@@ -52,6 +52,13 @@ lead, print nothing and always exit 0, so a failure never blocks a session. Any 
 
 What retro finds and does with it: [project lead](project-lead.md), section "Retro".
 
+## Session spend file (spend-kit, SessionEnd)
+
+`plugins/spend-kit/hooks/session-end.py` calls `spend.hook_main()` in `plugins/spend-kit/scripts/spend.py`: it
+starts a detached `spend.py write-session --path <transcript>` and returns at once (the hook's limit is 10
+seconds), so the ended session's file `sessions/<session id>.json` in the spend-kit data folder appears a moment
+later. It runs in every project, prints nothing and always exits 0.
+
 ## Hub rules (pult, SessionStart)
 
 `plugins/pult/hooks/hub-rules.py` adds the hub rules to a session whose cwd is exactly the home folder and

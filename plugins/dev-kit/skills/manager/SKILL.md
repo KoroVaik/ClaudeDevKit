@@ -36,7 +36,7 @@ nothing: the merge is P's step, so the owner sees in this chat why the session c
   the ask-P list below still waits for P's yes. Why: owner, 2026-11-24 («Обговорення: Видимість сесій
   C», `plans/c-session-visibility.md` of the plugin repo).
 - It asks P first before: starting the owner's app in the main checkout, loosening a validation or
-  safety guard, deleting tracked files, a paid API call (`dev-kit-api`) that would take the task's API
+  safety guard, deleting tracked files, a paid API call (`spend-kit-api`) that would take the task's API
   total past 1 USD (P also lists these in the first prompt). The C keeps the task's spend line in its
   task file (see "Stating the cost of work"); API spend below 1 USD and subscription use are never asked.
 - Within the approved acceptance criteria it decides alone. Before handing in, it checks the result
@@ -310,10 +310,10 @@ finds the entries itself, and a session messages only its own P (owner, 2026-11-
 
 ## Claude API calls
 
-An agent (main session or subagent) calls the paid Claude API only through `dev-kit-api call`, never by
+An agent (main session or subagent) calls the paid Claude API only through `spend-kit-api call`, never by
 `curl`, a fetch tool or its own script, so each call leaves a spend line in the one local log
-(`dev-kit-api report` sums it). A project's own program that calls the API from its single call point
-appends the same line itself (format: the docstring of `scripts/api_client.py` in this plugin; rules: `docs/features/log-and-reconcile-api-spend.md` in the plugin repo).
+(`spend-kit-api report` sums it). A project's own program that calls the API from its single call point
+appends the same line itself (format: the docstring of `scripts/api_client.py` in the spend-kit plugin; rules: `docs/features/log-and-reconcile-api-spend.md` in the plugin repo).
 The call needs the project's own API key in env `DEV_KIT_API_KEY` and its Console name (`--key-name` or env
 `DEV_KIT_API_KEY_NAME`). Never set `ANTHROPIC_API_KEY` in an agent's environment: a headless `claude -p` would
 then bill that key with no log line (`plugins/dev-kit/claude-facts.md`, "A headless `claude -p` bills
@@ -326,10 +326,10 @@ repo): the API credit was spent unseen by one project's keys; every call is to b
 Work on the owner's subscription (sessions, subagents, `claude -p` on the subscription login) is not billed
 in money: a report or plan states its cost as a share of the owner's weekly subscription limit, marked as an
 estimate, never in USD: «~2% тижневого ліміту, оцінка» (in English «~2% of the weekly limit, estimate»). The
-figure comes from `dev-kit-retro session` (the session that runs it and its subagents; `--id` or `--path` for
+figure comes from `spend-kit session` (the session that runs it and its subagents; `--id` or `--path` for
 another). Its uncertainty, about a third, is carried by the word «оцінка», not by a number. Claude Code's own
 USD figure (`/cost`, `costUSD` in session records) is never quoted, labelled or
-not (`plugins/dev-kit/claude-facts.md`, "Claude Code's own USD figure prices tokens at API rates"). Real money, calls through `dev-kit-api`, stays in USD; a report with both writes them apart: «~1%
+not (`plugins/dev-kit/claude-facts.md`, "Claude Code's own USD figure prices tokens at API rates"). Real money, calls through `spend-kit-api`, stays in USD; a report with both writes them apart: «~1%
 тижневого ліміту, оцінка; API: 0.40 USD». A task file's spend line takes the same form: `Spend: ~N% of the
 weekly limit, estimate; API: N USD`. Finished plans keep their old lines.
 

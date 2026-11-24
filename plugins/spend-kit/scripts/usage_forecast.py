@@ -3,7 +3,7 @@
     python usage_forecast.py check --open N --mark FILE [--log FILE] [--now EPOCH]
 
 The Pult watcher (plugins/pult/scripts/watch-servers.ps1) runs it when the usage log got new lines. The log is the one
-`statusline.py` writes (`{ts, week_pct, week_resets, five_hour_pct}`, env DEV_KIT_USAGE_LOG or `~/.claude/dev-kit`):
+`statusline.py` writes (`{ts, week_pct, week_resets, five_hour_pct}`, env DEV_KIT_USAGE_LOG or `~/.claude/spend-kit`):
 the real account per cent, so no retro estimate is used here (plans/limit-tracking.md, "Owner's approval").
 
 Forecast: the readings of the current weekly window (the last line's `week_resets`, reset times under SAME_WINDOW_S

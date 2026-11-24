@@ -1,4 +1,4 @@
-"""The weekly limit forecast (plugins/dev-kit/scripts/usage_forecast.py) the Pult watcher runs for one phone push."""
+"""The weekly limit forecast (plugins/spend-kit/scripts/usage_forecast.py) the Pult watcher runs for one phone push."""
 import datetime
 import json
 import shutil
@@ -7,7 +7,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-PLUGIN = Path(__file__).resolve().parent.parent.parent / "plugins" / "dev-kit"
+PLUGIN = Path(__file__).resolve().parent.parent.parent / "plugins" / "spend-kit"
 sys.path.insert(0, str(PLUGIN / "scripts"))
 import usage_forecast  # noqa: E402
 
