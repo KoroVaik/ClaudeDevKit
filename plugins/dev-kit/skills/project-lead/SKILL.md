@@ -573,7 +573,7 @@ setup, registration) with these differences:
   write the «Approved design» section in the feature file (`dev-kit:documentation`, "Feature file"),
   or for a discussion with no screen the «Owner's approval» section in the task file, with every
   agreed point in the detail the builders need, and a next-step line in PROGRESS.md; once the owner
-  says the talk is done, or where you would ask him whether it is, show the short plan (`dev-kit:project-lead`, "Start an «Обговорення:» session", "Short plan") and send P
+  says the talk is done, or where you would ask him whether it is and nothing waits (see "Short plan"), show the short plan (`dev-kit:project-lead`, "Start an «Обговорення:» session", "Short plan") and send P
   your done report, a `ЗАКРИТО` message (`${CLAUDE_PLUGIN_ROOT}/messages.md`), by SendMessage
   only after the owner's «так» to that plan, and only if no owner message came after that «так»; without that section and that «так» you may not report
   done. When the owner answers here something P may ask him (a question P put to him, a change
@@ -589,8 +589,13 @@ setup, registration) with these differences:
 
 Short plan: the discussion session's last message before the done report, in the owner's chat. It is
 shown when the owner says in his own words that the talk is done, or in place of asking him whether it
-is: the plan's question is the one closing question, and the session never asks a separate
-«Закриваємо розмову?» before it. A title line «План «<topic>»:», then 3-5 numbered points, each one plain sentence on what the owner
+is, once every agreed point is decided and nothing waits on a build or a decision outside the talk (for
+example another project's agent that must be built first) or on the owner's «почекаєм», «поки ...»: the
+plan's question is the one closing question, and the session never asks a separate
+«Закриваємо розмову?» before it. While a point waits, the session shows no plan, never asks whether to
+close, never offers closing as an option of a question and never decides by itself that the talk is done:
+it answers, records the point in the written section and ends with the talk's own next step. The owner's
+own words that the talk is done always bring the plan. A title line «План «<topic>»:», then 3-5 numbered points, each one plain sentence on what the owner
 gets (build work only, never a check of the idea: `dev-kit:discovery-round`, step 1), then the question «Погоджуєш план і закриваємо обговорення?». The details
 stay in the written section for the builders. The question is always alone in its message: never an
 item of a batch or of a numbered list, never repeated in the replies after the plan message. A named
@@ -603,7 +608,9 @@ question: a named exception to the owner's global rule to end every reply with a
 closes the session right after and an answer there is lost. Why: owner, 2026-11-21: «обговорення пише
 питання після того як я підтверджую завершення. Я відповідаю, а сесія тим часом завершується». Why the
 plan replaces a closing question: owner, 2026-11-23: «Чому двічі доводиться підтверджувать закриття
-розмови?», «Закрити значить закрити». Example:
+розмови?», «Закрити значить закрити». Why the wait: owner, 2026-11-24 (Zhratva «Обговорення: Інженер ядра
+аналізу», 2026-11-23): the talk waited on outside work, yet the plan was shown twice and closing was
+offered as an option («та куди ти спішиш???»). Example:
 
 ```
 План «Повідомлення керівника»:
@@ -906,7 +913,7 @@ and archived a session while he was typing).
 
 After a merge, without asking the owner, run `dev-kit-sessions end --id <id>` (the short id works),
 `dev-kit-app stop --project <that C's worktree>` (releases the app lock if C left the app running),
-`claude rm <id>` (the session's job state), then removes each `link` row's junction without following
+`claude rm <short id>` (the session's job state; the 8-hex `id` of its `claude agents --json` entry, not the full sessionId; any output that does not say the session was removed, such as «No session matching ...», is a failed step: P runs `claude stop <short id>`, retries `claude rm <short id>`, then reads `claude agents --json`, and does not count the session as closed while it is still listed), then removes each `link` row's junction without following
 it (`cmd /c rmdir "<worktree>\<path>"`, PowerShell tool, no `/s`; never `Remove-Item`, `rm -r` or
 `--force` while a junction is there: `plugins/dev-kit/claude-facts.md`, "Removing a folder with a junction may
 delete the target's data"), then, from the main
@@ -916,6 +923,7 @@ or the folder stays behind locked), `git worktree remove <worktree>` and
 remove` refuses over untracked files, P looks at them: nothing from the task, `--force`; otherwise it
 asks the owner. A C that ended without a merge gets `dev-kit-sessions end --id <id> --status stopped`,
 then `claude stop <id>` (in this order, so no `gone` event reports it), and its worktree and branch stay.
+Why: 2026-11-24, P: Zhratva: «No session matching '<full id>'» was ignored, and the closed discussion stayed in the owner's app list («вона висить»).
 
 A taken-over owner session working on main (no worktree) commits its own work to main after each
 finished step. P does not merge it and removes no worktree for it. When it finishes P follows
