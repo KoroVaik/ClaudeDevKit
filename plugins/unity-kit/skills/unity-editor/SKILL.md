@@ -53,6 +53,12 @@ the defaults here. Without that section, tell the owner which facts are missing;
 - The editor does not answer, or a compile, build or launch fails: stop and tell the owner. No workaround.
 - Never restart, close or kill Unity. No batchmode or command-line Unity without the owner's separate
   request: the open editor holds the project.
+- Exception to the two bullets above, only when the profile allows it: if the editor is closed, the
+  wrapper may open it with the bridge's own launch (`uloop launch <project>`, never `--restart` or
+  `--quit`) and wait once until the bridge answers, at most the time the profile names. An open editor
+  is still never restarted, closed or killed, and an editor that runs but does not answer is still
+  "stop and tell". No other command-line Unity. Why: owner, 2026-11-23 (Prishch): tasks stood because
+  the editor was closed and the owner had to start it on the PC.
 - `Editor.log` (on Windows `%LOCALAPPDATA%/Unity/Editor/Editor.log`) is a read-only error source.
 
 ## Devices

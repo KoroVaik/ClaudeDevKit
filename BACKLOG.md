@@ -42,13 +42,6 @@ What: in `plugins/dev-kit/skills/project-lead/SKILL.md`, "Start an «Обгов�
 Why: owner, 2026-11-23, Zhratva «Обговорення: Інженер ядра аналізу»: the talk's decisions waited on dev-kit's base engineer, yet the session showed the closing plan twice and then offered closing as option 2; owner: «та куди ти спішиш??????? будуть нові вхідні параметри а обговорення вде закінчене, який сенс закінчувать якщо потім знову треба обговорбвать?». Cause: the short plan's second trigger ("in place of asking whether it is done") leaves the judgement to the session, and no rule covers a talk that waits on outside work.
 Cheapest test: in a throwaway discussion say «почекаєм поки зробиться X»; the session shows no plan and no closing question.
 
-## unity-kit: a profile may allow opening a closed editor
-
-What: `plugins/unity-kit/skills/unity-editor/SKILL.md`, "Order of a run": the ban "No batchmode or command-line Unity" and "The editor does not answer ... stop and tell the owner" get a named exception: a profile may allow the wrapper to open a closed editor with the bridge's own launch (`uloop launch <project>`, never `--restart` or `--quit`) and wait until the bridge answers; an open editor is still never restarted, closed or killed.
-Why: owner, 2026-11-23, Prishch «Обговорення: phone stand-in» (`plans/phone-emulator.md`): tasks stood because the editor was closed and the owner had to start it on the PC; Prishch's profile now allows it as an exception to the skill.
-Cheapest test: with the project's editor closed, run the wrapper's state command; the editor opens and the command answers.
-Verdict (2026-11-23): yes as a small rule edit in unity-editor «Order of a run»: one exception bullet, only when the profile allows it, with a wait limit the profile names; a running but silent editor still stops. Waits for the owner.
-
 ## project-lead: `claude rm` with the short id, a «No session matching» output is a failure
 
 What: in `plugins/dev-kit/skills/project-lead/SKILL.md`, "Acceptance and merge" (and "Idle session" and the C end steps): the session is removed with `claude rm` given the 8-hex short id (the form `claude stop` and `dev-kit-sessions end` also take), and an output «No session matching ...» counts as a failed step to fix (retry with the short id, then check the session list), never as done.
