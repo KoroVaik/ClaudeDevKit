@@ -1,3 +1,4 @@
 {
-  "0.1.0": {"kind": "routine", "date": "2026-11-24", "reason": "first release: weekly limit, per-session spend and API money moved here from dev-kit"}
+  "0.1.0": {"kind": "routine", "date": "2026-11-24", "reason": "first release: weekly limit, per-session spend and API money moved here from dev-kit"},
+  "0.1.1": {"kind": "routine", "date": "2026-11-25", "reason": "the status line logs high 5-hour readings; usage_forecast notices gives the limit notices for the leads"}
 }
