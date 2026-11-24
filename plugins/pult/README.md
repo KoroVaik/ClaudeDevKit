@@ -18,7 +18,7 @@ problem it proposes a fix and acts after an explicit yes.
   lead is not started (log NO-BANS), Pult tells you which project lacks them and asks your «так» to the exact
   lines; on it the hub writes `.claude/hard-bans.json` in the project and adds them itself with
   `dev-kit-bans add-approved` (one commit on main, adding only). No agent runs `dev-kit-bans add` or `undo`, and
-  no agent removes or edits a ban; `undo` (the latest add only) you type yourself.
+  no agent removes or edits a ban; `undo` (the latest add only) you run yourself, from a `.cmd` file the hub puts in the folder `Claude` on your desktop.
 - Logs: `~/.claude/pult/logs/servers.log` (written by `start-servers.ps1` and `watch-servers.ps1`; nothing is
   written inside the plugin folder).
 - The watcher (`scripts/watch-servers.ps1`, started at logon) checks every minute. The rules of what it

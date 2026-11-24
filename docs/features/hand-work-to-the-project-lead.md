@@ -119,7 +119,7 @@ Every session a project starts, P included, runs with no permission prompts, so 
 sessions is never held for your approval. A project whose committed main has no hard-ban deny rules (push
 to main where it deploys, deleting data, and the like) starts no sessions. P shows you the exact lines
 and, on your «так», writes them to `.claude/hard-bans.json` and adds them on main itself; you cannot
-decline them and type nothing. Removing a ban stays yours: you type the undo (`! dev-kit-bans undo`, only
+decline them and type nothing. Removing a ban stays yours: you run the undo from a file the lead puts in the folder `Claude` on your desktop (only
 the latest addition), and only you remove an older ban. You accept the Claude
 Code disclaimer once per machine. The Pult hub and the sessions Pult starts run the same way; a session you
 start by hand from the app keeps your own mode. ClaudeDevKit's own bans are `rm -rf` lines only (no push ban,

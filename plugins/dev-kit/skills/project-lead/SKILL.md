@@ -715,7 +715,9 @@ After the owner's «так» to the exact lines P writes them to `.claude/hard-b
 the main checkout and runs `dev-kit-bans add-approved <main checkout>` itself (the command adds lines only and
 makes one commit on main per run, with both files; it never pushes). When no P runs, the Pult hub does the same.
 No agent runs `dev-kit-bans add` or `undo`, and no agent removes or edits a ban: that stays the owner's alone. To
-take back a wrong set the owner types `! dev-kit-bans undo` (only the latest add; a second step is refused).
+take back a wrong set, P writes a `.cmd` file that runs `python -I -X utf8 <full path of the plugin's bin/dev-kit-bans> undo <main checkout>`
+into the folder `Claude` on the owner's desktop and asks him to run it (the owner's global rules, «Chat replies»; only the
+latest add; a second step is refused).
 Why: owner, 2026-11-21: he cannot type a `!` command in a lead's chat (`plugins/dev-kit/claude-facts.md`,
 "A lead is not a local session in the desktop app, so the owner cannot type a `!` command in its chat"), and P running `add-approved` in
 `bypassPermissions` passed with no guard refusal. The set is first proposed, as

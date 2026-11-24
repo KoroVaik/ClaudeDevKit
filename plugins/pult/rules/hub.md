@@ -154,8 +154,9 @@ prepares the set and, on the owner's «так», adds it:
   `python -X utf8 {DEVKIT}/bin/dev-kit-bans add-approved <project path>` itself. The watcher starts the lead on its
   next look (within 10 minutes); the hub starts nothing itself.
 - The hub never runs `dev-kit-bans add` or `undo`, and never removes or edits bans. A wrong set:
-  the owner types `! python -X utf8 {DEVKIT}/bin/dev-kit-bans undo <project path>` (reverts only the latest ban-adding
-  commit); older bans only the owner removes by hand.
+  the hub writes a `.cmd` file that runs `python -I -X utf8 {DEVKIT}/bin/dev-kit-bans undo <project path>` into the
+  folder `Claude` on the owner's desktop and asks him to run it (reverts only the latest ban-adding commit); older bans
+  only the owner removes by hand.
 Why: owner, 2026-11-21: he cannot type a `!` command in a lead's or the hub's chat (`{DEVKIT}/claude-facts.md`, "A lead is not a local session
 in the desktop app, so the owner cannot type a `!` command in its chat"); an agent running `add-approved` in `bypassPermissions` passed with no guard refusal.
 
