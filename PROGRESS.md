@@ -23,7 +23,7 @@
 
 - Weekly limit forecast push (owner «+», 2026-11-23, «Обговорення: Відстеження лімітів»): one phone push per week when, at the current pace, the weekly limit runs out over 6 hours before its reset and tasks are open. Built and merged (dev-kit 0.1.112, pult 0.1.30); phone check open. Plan: [plans/limit-tracking.md](plans/limit-tracking.md) «Owner's approval».
 
-- Push test flow with the owner (owner «так» to the plan, 2026-11-24, «Обговорення: Як тестувати пуші на телефоні»): one readiness step, one push 5 s after «+» with text starting «Тест», one result question, no re-asks after 10 min, pushes 3 s apart; new push facts to the facts file. Next: a C builds it. Plan: [plans/push-test-flow.md](plans/push-test-flow.md) «Owner's approval».
+- Push test flow with the owner (owner «так» to the plan, 2026-11-24, «Обговорення: Як тестувати пуші на телефоні»): one readiness step, one push 5 s after «+» with text starting «Тест», one result question, no re-asks after 10 min, pushes 3 s apart; new push facts to the facts file. Built (dev-kit 0.1.115); its first phone run is open. Plan: [plans/push-test-flow.md](plans/push-test-flow.md) «Owner's approval».
 
 Open work of the features: `dev-kit-check-docs --open`.
 

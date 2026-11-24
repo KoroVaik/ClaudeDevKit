@@ -94,8 +94,8 @@ one project, remove its row from the project list.
 - `tools/tests/test_watch_servers_wake.py`
 
 ## Open
-- [ ] Check on the phone that a push asked of a live lead arrives with the Claude app fully closed (the tool answers "Mobile push requested"; on 2026-11-23 one with the app open did not show, one with it closed got no answer; see `plans/wake-check.md`)
+- [ ] Check on the phone that a push asked of a live lead arrives with the Claude app fully closed (the tool answers "Mobile push requested"; on 2026-11-23 one with the app open did not show, one with it closed got no answer; see `plans/wake-check.md`); run it as a push test (`dev-kit:project-lead`, "Push test with the owner")
 - [ ] Check in the Pult chat that a watcher message now arrives (sent in default mode to the hub's system name; on 2026-11-23 a default-mode test message was taken, bypass ones were held)
 - [ ] Find a quiet day of a lead in the watcher log and confirm it shows no wake (every lead wake seen so far had an event or a keep-warm cause)
 - [ ] Check the exact wording of the session list in the phone app
-- [ ] Check on the phone that the weekly limit forecast push arrives once, with the run-out and reset times (`plans/limit-tracking.md`)
+- [ ] Check on the phone that the weekly limit forecast push arrives once, with the run-out and reset times (`plans/limit-tracking.md`); run it as a push test (`dev-kit:project-lead`, "Push test with the owner")

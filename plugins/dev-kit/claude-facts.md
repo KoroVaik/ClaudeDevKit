@@ -95,10 +95,10 @@ One entry per behaviour. A newer direct observation replaces an older one; the o
 - Status: doubtful
 
 ### A push from a fresh session is refused
-- What happens: A `PushNotification` from a fresh session (a `-p` one-shot, a background session, one with Remote Control) is refused with "Not sent - this terminal is active". A push from a session the owner is attached to (Pult, a live lead) goes through.
+- What happens: A `PushNotification` from a fresh session (a `-p` one-shot, a background session, one with Remote Control) was refused with "Not sent - this terminal is active" on 2026-11-20. A push from a session the owner is attached to (Pult, a live lead) goes through. One observation, 2026-11-24 (2.1.330): a push from the discussion session the owner was talking in (a background `cli` session with Remote Control) arrived; whether it counts as fresh is not known.
 - Workaround: a session the owner is attached to (Pult, a live lead) calls `PushNotification`; the Pult watcher asks it by message (see `plugins/pult/rules/hub.md`, "Phone push").
 - App: phone app, `PushNotification` tool | Claude Code: unknown
-- Seen: 2026-11-20 | live test, error text | ClaudeDevKit, `docs/findings/idle-wake-cost.md`
+- Seen: 2026-11-20 | live test, error text | ClaudeDevKit, `docs/findings/idle-wake-cost.md`; 2026-11-24 | live test, a push from the discussion session the owner was talking in arrived | ClaudeDevKit, `plans/push-test-flow.md`
 - Re-check: call `PushNotification` from a throwaway `claude -p` session | owner-only
 - Status: checked
 
@@ -119,11 +119,36 @@ One entry per behaviour. A newer direct observation replaces an older one; the o
 - Status: doubtful
 
 ### A `PushNotification` answer of "Mobile push requested" does not show the phone got the push
-- What happens: The answer "Mobile push requested" only means the request was handed to the server. On 2026-11-23 a push from a background lead with Remote Control did not show while the owner had the Claude app open on the phone (see "No push shows while the Claude app is open on the phone").
+- What happens: The answer "Mobile push requested." only means the request was handed to the server. It is the same answer whether the push reaches the phone or not (live: pushes that arrived and pushes that did not, see "Pushes sent at the same moment collapse into the last one on the phone" and "Some single pushes did not reach the phone, cause unknown").
 - Workaround: none; the answer does not prove the phone showed the push.
 - App: phone app, `PushNotification` tool | Claude Code: 2.1.330
-- Seen: 2026-11-23 | sighting (the push did not show), not re-run | ClaudeDevKit, background lead with Remote Control
-- Re-check: call `PushNotification` from an attached session with the app open, then closed, and watch the phone | owner-only
+- Seen: 2026-11-24 | live test, the owner watched the phone with the Claude app closed | ClaudeDevKit, «Обговорення: Як тестувати пуші на телефоні», `plans/push-test-flow.md`
+- Re-check: call `PushNotification` from an attached session with the app closed and watch the phone | owner-only
+- Status: checked
+- History: 2026-11-23, one sighting (a push from a background lead did not show while the app was open), status `doubtful`.
+
+### Pushes sent at the same moment collapse into the last one on the phone
+- What happens: Pushes sent at the same moment (parallel tool calls) show on the phone as the last one only: of «4 с», «5 с», «6 с», «7 с» only «7 с» arrived (00:48); of «Тест 8» and «Тест 9» only «9» was seen.
+- Workaround: send pushes one after another, about 3-5 s apart: all of them arrive (see the next entry).
+- App: phone app, `PushNotification` tool | Claude Code: 2.1.330
+- Seen: 2026-11-24 | live test, the owner watched the phone with the Claude app closed | ClaudeDevKit, `plans/push-test-flow.md`
+- Re-check: send three pushes in parallel with the app closed, count the arrivals | owner-only
+- Status: checked
+
+### Pushes sent one after another about 3-5 s apart all arrive
+- What happens: Pushes sent one after another about 3-5 s apart all arrive: «3 с», «6 с», «9 с», «12 с» all arrived (00:51-00:52), the first about 3 s after the owner's «+» (the app was closed right then). So a short delay after the owner leaves the app is not by itself the cause of a lost push.
+- Workaround: none needed.
+- App: phone app, `PushNotification` tool | Claude Code: 2.1.330
+- Seen: 2026-11-24 | live test, the owner watched the phone with the Claude app closed | ClaudeDevKit, `plans/push-test-flow.md`
+- Re-check: send four pushes 3 s apart with the app closed, count the arrivals | owner-only
+- Status: checked
+
+### Some single pushes did not reach the phone, cause unknown
+- What happens: Open, not explained, no rule: single pushes «Тест 4» (2026-11-23 23:47, 5 s after the owner's «+»), three pushes at 20:56 and the Pult hub's «Тест Pult» (21:08, 14 s after the owner's message in the Pult chat) did not arrive, while the tool answered "Mobile push requested." Not the delay (see "Pushes sent one after another about 3-5 s apart all arrive") and not a break in 2.1.330: tool pushes arrived on 2.1.330 on 2026-11-24, and the last confirmed tool push before was 2026-11-20 22:27Z from the Pult hub on 2.1.329.
+- Workaround: none known.
+- App: phone app, `PushNotification` tool | Claude Code: 2.1.330
+- Seen: 2026-11-24 | owner's report of pushes that did not arrive, cause not found | ClaudeDevKit, `plans/push-test-flow.md`
+- Re-check: send a single push 5 s after the owner leaves the app and watch the phone | owner-only
 - Status: doubtful
 
 ### The phone app's session list does not group by project or show what waits on the owner

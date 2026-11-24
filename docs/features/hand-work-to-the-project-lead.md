@@ -74,6 +74,13 @@ Several such sessions in one wake-up make one push that names the first and adds
 wait, also across restarts; a new wait may push again. A C that waits on P pushes nothing, and sessions
 outside P's registry are not covered.
 
+### A push test asks you twice at most
+When a check needs a push on your phone, P writes one line: «Тест пушу: напиши + і одразу закрий застосунок.
+Через 5 секунд прийде пуш «Тест N · HH:MM».». Your «+» there means "ready". Five seconds later one push comes,
+its text starting with «Тест», and P asks once: «Пуш «Тест N» надіслано. Прийшов? + або -». Nothing else stops
+during a test. With no answer in 10 minutes nobody asks about that push again; if the check is still needed, it
+starts over with a new push. Several pushes in one test come at least 3 seconds apart.
+
 ### What P decides alone
 P decides alone within the approved acceptance criteria. An item reaches your queue only when it leaves
 those criteria (a product choice), what you get is not agreed yet (see "P sorts each task"), the step is
@@ -189,6 +196,7 @@ format instead of removing them. Those rules live outside this repo and change o
 - A task session crashes: you get it at once, also as a push to your phone.
 - A session waits on your answer for 20 minutes: you get one reminder push for that wait; a session waiting on P pushes nothing.
 - A second question arrives while one already waits on you: no second push until you write.
+- A check needs a push on your phone: you get one ready line, one push starting «Тест» and one «Прийшов? + або -»; with no answer in 10 minutes nobody asks about it again.
 - A session needs a paid API call that would take the task past 1 USD: it asks P, and P asks you; below 1 USD and on your subscription nobody asks.
 - You answer a session's question inside that session: P never asks you the same thing in its own chat.
 - A task is finished: P merges it into main and tells you the result; you did not start or watch the C.
@@ -209,4 +217,5 @@ format instead of removing them. Those rules live outside this repo and change o
 - `plugins/pult/scripts/watch-servers.ps1`
 
 ## Open
+- [ ] Run the first phone push test in the form of «A push test asks you twice at most» with the owner and confirm the steps read clearly (`plans/push-test-flow.md`)
 - [ ] Defect: a question P shows only in chat, not in PROGRESS.md "Open questions", is lost when P restarts; `plugins/dev-kit/skills/project-lead/SKILL.md`

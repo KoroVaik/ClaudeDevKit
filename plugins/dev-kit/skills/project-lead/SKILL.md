@@ -7,7 +7,7 @@ description: Use when the owner makes this session the lead of a project ("ти 
 
 One P per project. P starts task sessions (C), keeps the overview of what runs and what waits on the
 owner, and merges light finished work. P does no task work itself (one exception: "Small rule edit")
-and is not a relay. The owner is
+and is not a relay (one exception: "Push test with the owner"). The owner is
 the CEO: P decides everything within the approved criteria, and the owner gets only the items in
 "Owner queue and critical items". A C never asks the owner; it asks P. Only an «Обговорення:»
 session talks with the owner directly. The owner's open items go to PROGRESS.md "Open questions", the
@@ -93,7 +93,8 @@ these messages follow this form; P's other replies keep the global caps.
 - Every event that needs the owner (an overlap, a blocked merge, a failed step) becomes a status line
   or P's own question; P never writes a free-text note beside the blocks.
 - Exceptions: the one line after P starts an «Обговорення:» session (see "Start an «Обговорення:»
-  session"), the full question list below, and the start proposal of "The project state".
+  session"), the full question list below, the start proposal of "The project state", and the steps
+  of a push test ("Push test with the owner").
 
 «Питання без відповіді»: the open questions of PROGRESS.md "Open questions", by kind:
 
@@ -443,7 +444,7 @@ proposed, not opened, because «краще перепитать, бо я мож�
   session, with or without `--remote-control` (`plugins/dev-kit/claude-facts.md`, "The phone gets one push when a
   brand-new session first gets Remote Control" and "`remoteControlAtStartup: true` gives every new session Remote
   Control, with or without `--remote-control`"); the owner does not talk with a C (owner, 2026-11-20 and 2026-11-23,
-  `plans/push-noise.md` of the plugin repo). A C never pushes; P relays what the owner must see.
+  `plans/push-noise.md` of the plugin repo). A C never pushes; P relays what the owner must see (a push test: "Push test with the owner").
   The `Pop-Location` returns P's shell to the main checkout: a shell left inside the worktree locks the
   folder (`plugins/dev-kit/claude-facts.md`, "The PowerShell tool keeps its folder between calls").
   Never `claude -w` (`plugins/dev-kit/claude-facts.md`, "`claude -w` cuts the worktree from the remote's default branch").
@@ -645,6 +646,35 @@ run one after another; nothing unfinished is merged.
 
 Why: the owner wants the design flow to go one step after another, with nothing lost (owner,
 2026-11-18).
+
+## Push test with the owner
+
+A check that a push reaches the owner's phone runs in the chat the owner talks in: P's chat for a C's
+test, its own chat for a session the owner talks with; the session that runs the steps sends the push.
+A C sends P a `ПИТАННЯ` with what is checked and
+the push text; P runs the steps below, sends the push itself (never through a message to the Pult hub:
+`plugins/dev-kit/claude-facts.md`, "A bypassPermissions sender's message to a Remote Control server's
+session is held; a default-mode sender's is taken") and returns the owner's «+» or «-» to the C as `ВІДПОВІДЬ`. Each step is its own message, sent
+at once and not inside the blocks of "Message templates". It is not an owner-queue item: no count line,
+no hand-step reminder and no reminder push ("Owner queue and critical items"), and the test push is
+not a critical-item push.
+
+1. One readiness step: «Тест пушу: напиши + і одразу закрий застосунок. Через 5 секунд прийде пуш «Тест
+   N · HH:MM».». It does not end with «+ або -»: this «+» means ready. On it the sender waits 5 seconds
+   (a short `sleep 5` is fine) and sends exactly one push, then one line: «Пуш «Тест N» надіслано.
+   Прийшов? + або -». This result question is asked once: never again, never by a second relay.
+2. Every test push text starts with «Тест», with its number and time («Тест 3 · 21:40»). Nothing else
+   is held during a test: other messages and real pushes go as usual.
+3. No answer to the result question within 10 minutes: the test counts as not done. Nobody asks about
+   that push later; when the check is still needed, it runs again from step 1 with a new push.
+4. Several pushes in one test go one after another, at least 3 seconds apart, never as parallel tool
+   calls: pushes sent at the same moment collapse on the phone into the last one
+   (`plugins/dev-kit/claude-facts.md`, "Pushes sent at the same moment collapse into the last one on the
+   phone").
+
+Why: owner, 2026-11-24 (`plans/push-test-flow.md` of the plugin repo): on 2026-11-23 a readiness step
+ended with «+ або -», result questions went twice and hours late, and a test push went while the owner
+was in the app; owner: «ти спамиш якусь фігню постійно».
 
 ## Ask-P list
 

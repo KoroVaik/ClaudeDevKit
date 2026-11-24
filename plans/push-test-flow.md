@@ -1,6 +1,6 @@
 # A clear flow for testing phone pushes with the owner
 
-Status: discussion done, owner «так» to the plan (2026-11-24); next: a C builds it.
+Status: built (dev-kit 0.1.115); open: the first phone push test in this form, run by P with the owner.
 
 ## Owner's words
 
@@ -85,3 +85,10 @@ All on Claude Code 2.1.330, Windows, phone app fully closed after the owner's «
 
 The project-lead section, the global rule line and the facts entries exist; a reviewer reads the
 three texts against points 1-4; dev-kit version bumped as usual.
+
+## Build (2026-11-24)
+
+- Built: project-lead section «Push test with the owner»; global rule line on notification tests; discovery-round reading of a readiness «+»; feature doc section and criterion; wake-check and feature open items point to the section; facts entries via the facts keeper; dev-kit 0.1.115 (routine mark).
+- Open: the first phone push test in this form (needs the owner; not run by the C).
+
+Spend: ~0.2% of the weekly limit, estimate; API: 0 USD

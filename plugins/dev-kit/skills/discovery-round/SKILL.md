@@ -41,7 +41,8 @@ The owner answers by number, sometimes with **their own numbering** that differs
 questions asked (e.g. answers "42-44" to questions "38-40"). Match by meaning, not by digit.
 If an answer is genuinely ambiguous, ask, do not guess. In a live test with the owner (the phone, the
 screen), no conclusion is drawn until every step has a clear answer. A «+» or «-» is clear only after a
-step that ended with «+ або -» («мінус значить ні», owner); a bare sign after any other question, or an
+step that ended with «+ або -» («мінус значить ні», owner), and a «+» after the readiness step of a
+push test means "ready" (`dev-kit:project-lead`, "Push test with the owner"; a «-» there gets the step again); a bare sign after any other question, or an
 unclear answer, gets the same step again in one line, asking exactly what was or was not seen. Why: ClaudeDevKit,
 2026-11-23: a session read an unclear «-» as a test result; the owner: «тестував незрозуміло що ... і
 вже зробив висновки».
