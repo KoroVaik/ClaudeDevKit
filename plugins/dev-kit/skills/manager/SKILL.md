@@ -226,8 +226,13 @@ check that confirms or disproves it, and only after it the fix.
 The plugin's main goal is autonomous development: the owner's involvement shrinks step by step.
 Decisions on what the owner gets, API money (over 1 USD per task) and hard-to-undo steps stay with the owner. Checks, hand
 actions and small questions move to the agents: before asking the owner to check or do something,
-look for a way an agent can do it (a test, a headless or emulator run, a script). Where none exists
-yet, do the step with the owner and name the missing tool as a follow-up item in the project's plans.
+look for a way an agent can do it (a test, a headless or emulator run, a script). When the owner
+handed the session the task, data work is not his: labelling, spot-checking rows or settling disputes
+over data goes to independent agents (a second labeller on another model, an arbiter); what they leave
+open the session decides, and a C sends it to P. Only a label that is really a product choice goes to
+the owner as a question. Where no agent way exists yet for another step, do it with the owner and name the missing tool
+as a follow-up item in the project's plans. Why: owner, 2026-11-24 (Zhratva, «C: Переробка ядра
+аналізу»): a design had the owner check 60 random labels; «Які нафіг 60?! Мені зайнятись нічим?!».
 
 ## Long-term quality over speed
 
