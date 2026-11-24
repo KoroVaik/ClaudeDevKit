@@ -29,6 +29,8 @@
 
 - Retro becomes rules-kit, Claude spend moves to spend-kit (owner «Так» to the plan, 2026-11-24, «Обговорення» on retro automation): rules checked per subscribed rule set, no owner questions, independent agent checks instead; dev-kit keeps only the development process. Next: build, large, in steps. Plan: [plans/retro-auto-rules-check.md](plans/retro-auto-rules-check.md) «Owner's approval», map [plans/retro-auto-plugin-split-map.md](plans/retro-auto-plugin-split-map.md).
 
+- Pult stays part of dev-kit (owner «Так», 2026-11-24, «Обговорення: Відокремлення пульта від dev-kit»): no split, nothing to build; the unseen C sessions are covered by [plans/c-session-visibility.md](plans/c-session-visibility.md). Plan: [plans/pult-split-from-dev-kit.md](plans/pult-split-from-dev-kit.md) «Owner's approval».
+
 Open work of the features: `dev-kit-check-docs --open`.
 
 ## Open questions
