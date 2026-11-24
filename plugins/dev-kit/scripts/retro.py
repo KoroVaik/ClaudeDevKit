@@ -104,7 +104,7 @@ lead's session id, and when `new/` has files, `last_review` is older than REVIEW
 `retro_started` older than START_GUARD_HOURS (or missing) and no docs session may still run (`docs_started` younger
 than START_GUARD_HOURS and newer than `docs_done`), it stamps `retro_started` and starts a background
 `Ретро: <repo folder>` session running `/dev-kit:retro` (env DEV_KIT_RETRO_NO_START=1 skips that start, not the
-stamp). Both sessions start with the `--settings` file NO_REMOTE_CONTROL (no Remote Control, so no phone push).
+stamp). Both sessions start with the `--settings` file NO_REMOTE_CONTROL (no Remote Control, so they stay out of the app).
 When it starts no retro session, it starts the weekly docs session `Документація: <repo folder>` running
 `/dev-kit:maintain-project-docs weekly` (same env switch) when all hold: `docs_done` is older than DOCS_DAYS (or
 missing); `docs_started` is older than DOCS_GUARD_HOURS (or missing), so a run that ended with no `docs-done` is
@@ -1622,9 +1622,9 @@ def retro_start_command(project, folder, state):
             "--model", "opus", "--effort", "medium", "--permission-mode", "bypassPermissions", "--", "/dev-kit:retro"]
 
 
-# A background session the owner need not open starts with no Remote Control: the owner's
-# `remoteControlAtStartup` would give it one and a phone push (plugins/dev-kit/claude-facts.md, "The phone gets one
-# push when a brand-new session first gets Remote Control"; project-lead skill, "Start a C").
+# A background session the owner need not open starts with no Remote Control, so it stays out of the app: the
+# owner's `remoteControlAtStartup` would give it one (plugins/dev-kit/claude-facts.md, "`remoteControlAtStartup: true`
+# gives every new session Remote Control, with or without `--remote-control`"). A C, unlike these, keeps the link.
 NO_REMOTE_CONTROL = Path(__file__).resolve().parent.parent / "no-remote-control.json"
 
 

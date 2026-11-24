@@ -28,6 +28,13 @@ nothing: the merge is P's step, so the owner sees in this chat why the session c
   `check-ui`, `check-usability`, `check-look`, the do-it-now yes/no for new work, and the same steps in
   `fix-bug`, `test-change` and the extension plugins (`web-kit`, `unity-kit`). P decides or asks the
   owner. A screen's approved mockup already gives the consent for its checks (`dev-kit:test-change`).
+- The owner sees every C in the Claude app and may write in its chat. A message there that is not from
+  another session (not a cross-session message, not a subagent or tool notice) is the owner's: the C
+  follows it as an instruction for its task, as it would P's `ВКАЗІВКА`, and at once sends P a
+  `ВЛАСНИК ВІДПОВІВ` message with the owner's words verbatim. It answers the owner in its chat in short,
+  under the owner's chat rules, and still asks him nothing: a question goes to P as above, and a step on
+  the ask-P list below still waits for P's yes. Why: owner, 2026-11-24 («Обговорення: Видимість сесій
+  C», `plans/c-session-visibility.md` of the plugin repo).
 - It asks P first before: starting the owner's app in the main checkout, loosening a validation or
   safety guard, deleting tracked files, a paid API call (`dev-kit-api`) that would take the task's API
   total past 1 USD (P also lists these in the first prompt). The C keeps the task's spend line in its
@@ -43,7 +50,7 @@ nothing: the merge is P's step, so the owner sees in this chat why the session c
 - It sends a message only to its own P (this limits messages to sessions, not to its own subagents). Another session
   only when its first prompt names it in a line «May message: <sessions>».
 - Every message to P starts with its kind word (`ГОТОВО`, `ПИТАННЯ`, `ЗАСТРЯГ`, `ЧЕКАЮ`, `ПРОДОВЖУЮ`,
-  `ВІДПОВІДЬ`), as `${CLAUDE_PLUGIN_ROOT}/messages.md` sets.
+  `ВІДПОВІДЬ`, `ВЛАСНИК ВІДПОВІВ`), as `${CLAUDE_PLUGIN_ROOT}/messages.md` sets.
 - A wait of more than 1 minute on something other than P or the owner (low memory, a retry timer, a
   store cool-off, another session, the app queue), with the C itself idle (not its own build, test run or
   subagent), is not "stuck": once it sees such a wait the C sends P `ЧЕКАЮ` with

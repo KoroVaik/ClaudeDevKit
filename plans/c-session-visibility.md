@@ -53,3 +53,14 @@ Success check for the builder: a C started by the changed rule has a `bridgeSess
 and shows in the app; one owner phone check (via P, "Push test with the owner") that it gave no push.
 
 Side note for P (not in this build): «P: Prishch» runs dev-kit 0.1.105 since 2026-11-23 (`~/.claude/pult/lead-versions.json`), older than the C-without-link rule.
+
+## Build (C: c-visible-build, 2026-11-24)
+
+- Done in dev-kit 0.1.117: project-lead "Start a C" starts a C with no `--settings` and no `--remote-control`;
+  the owner-message rule lives with the C's other rules in `dev-kit:manager`, "A task from the project lead"
+  (the C reads it there; project-lead points to it and lists `ВЛАСНИК ВІДПОВІВ` in the first prompt's report rule);
+  `messages.md`, `claude-facts.md` (facts-keeper), the epic, `docs/features/hand-work-to-the-project-lead.md`,
+  `plans/push-noise.md` and the `retro.py` comments updated. Retro and docs sessions keep the `--settings` file.
+- Not checked by the builder: a live C started by the new rule (a C starts no sessions). The next C P starts is
+  the check: `bridgeSessionId` in its job `state.json`, it shows in the app, and the owner saw no push (via P).
+- Spend: ~0.2% of the weekly limit, estimate; API: 0 USD

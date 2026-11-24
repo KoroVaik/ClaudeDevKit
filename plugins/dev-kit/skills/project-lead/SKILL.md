@@ -432,19 +432,19 @@ proposed, not opened, because «краще перепитать, бо я мож�
   anyway («<item>» overlaps «<session>»: <same task / same files>), with a recommendation. If P's session lacks that agent type (it started before the plugin update),
   follow `dev-kit:manager`, "Which subagent type", for the stand-in.
 - Name: in the owner's language, short, saying what the task is. Prefix by purpose, fixed at launch:
-  `C:` for a session that works alone and reports to P (the owner need not open it); `Обговорення:`
+  `C:` for a session that works alone and reports to P (the owner may open it and write to it, but is asked nothing there); `Обговорення:`
   (or `Discussion:` in English) for a session made to talk with the owner. The launch, the
   registry and every message use the same name.
 - Make the worktree yourself from the local main, then start C inside it:
   `git worktree add .claude/worktrees/<slug> -b c/<slug> main`, then in one PowerShell call
-  `Push-Location <worktree>; claude --bg --name "C: <feature>" --settings "${CLAUDE_PLUGIN_ROOT}/no-remote-control.json" --permission-mode bypassPermissions --model <model> --effort <level> -- "<first prompt>"; Pop-Location`.
-  A C gets no Remote Control (an «Обговорення:» session does, see below): the `--settings` file turns off the
-  owner's `remoteControlAtStartup` for this session only. Why: a brand-new session pushes «Remote control enabled»
-  to the owner's phone once, when it first gets Remote Control, and the owner's setting gives it to every new
-  session, with or without `--remote-control` (`plugins/dev-kit/claude-facts.md`, "The phone gets one push when a
-  brand-new session first gets Remote Control" and "`remoteControlAtStartup: true` gives every new session Remote
-  Control, with or without `--remote-control`"); the owner does not talk with a C (owner, 2026-11-20 and 2026-11-23,
-  `plans/push-noise.md` of the plugin repo). A C never pushes; P relays what the owner must see (a push test: "Push test with the owner").
+  `Push-Location <worktree>; claude --bg --name "C: <feature>" --permission-mode bypassPermissions --model <model> --effort <level> -- "<first prompt>"; Pop-Location`.
+  A C shows in the Claude app with no push: it gets Remote Control from the owner's `remoteControlAtStartup`
+  setting, and only the `--remote-control` flag pushes «Remote control enabled» (`plugins/dev-kit/claude-facts.md`,
+  "The «Remote control enabled» push comes with the `--remote-control` flag, not with Remote Control itself"), so a C
+  gets no such flag (an «Обговорення:» session does, see below). The owner may write in a C's chat; the C then
+  follows `dev-kit:manager`, "A task from the project lead". Why: owner, 2026-11-24 («Обговорення: Видимість
+  сесій C», `plans/c-session-visibility.md` of the plugin repo): he wants to see every C, with no push noise.
+  A C never pushes; P relays what the owner must see (a push test: "Push test with the owner").
   The `Pop-Location` returns P's shell to the main checkout: a shell left inside the worktree locks the
   folder (`plugins/dev-kit/claude-facts.md`, "The PowerShell tool keeps its folder between calls").
   Never `claude -w` (`plugins/dev-kit/claude-facts.md`, "`claude -w` cuts the worktree from the remote's default branch").
@@ -501,8 +501,9 @@ it on `c/<slug>`, so the merge and the worktree removal see no stray file. C kee
   «Обговорення:» session wrote its «Approved design»; see "Build a designed screen"); the main checkout
   path; "run the dev-kit manager skill; P ran the overlap check"; the report rule (C messages P only
   on done, decision needed, stuck, a wait over 1 minute and its end - 3 lines: state, result, what is
-  needed; details in the task file; each message starts with its kind word `ГОТОВО`, `ПИТАННЯ`,
-  `ЗАСТРЯГ`, `ЧЕКАЮ`, `ПРОДОВЖУЮ` or `ВІДПОВІДЬ`, see
+  needed; details in the task file; and at once when the owner wrote in its chat, with his words verbatim;
+  each message starts with its kind word `ГОТОВО`, `ПИТАННЯ`,
+  `ЗАСТРЯГ`, `ЧЕКАЮ`, `ПРОДОВЖУЮ`, `ВІДПОВІДЬ` or `ВЛАСНИК ВІДПОВІВ`, see
   `${CLAUDE_PLUGIN_ROOT}/messages.md`); "before handing in, pull main and resolve conflicts yourself". The report rule names the
   channel: "send each report with the SendMessage tool to `<P's own session name>`; text in your own
   chat never reaches P" (`plugins/dev-kit/claude-facts.md`, "A C's text in its own chat never reaches the
@@ -556,8 +557,8 @@ each lead applies it under its own project's rules, with no agent editing other 
 For a task of branch 4 in "Before a task: triage", after the owner's «так» to the proposal. Start it as a C (overlap check, worktree, folder
 setup, registration) with these differences:
 
-- Name `Обговорення: <feature>` (no guillemets in the name) (in the command of "Start a C", unlike a C, drop the `--settings` file
-  and add `--remote-control "Обговорення: <feature>"` plus `--name`: the owner opens it, so its one push stays), `--permission-mode bypassPermissions` ("Permission mode"), `--model opus --effort medium` (the owner
+- Name `Обговорення: <feature>` (no guillemets in the name) (in the command of "Start a C", unlike a C, add
+  `--remote-control "Обговорення: <feature>"` plus `--name`: the owner opens it, so its one push stays), `--permission-mode bypassPermissions` ("Permission mode"), `--model opus --effort medium` (the owner
   talks with it). Why: its done report to a P in another mode may be held for the owner's approval
   (`plugins/dev-kit/claude-facts.md`, "A message between sessions in different permission modes may be held"); the owner does not want to relay between sessions. It may message other sessions
   (a C only its own P, see "Start a C"); a message to a session the owner started stays banned (see
@@ -871,7 +872,7 @@ line marked OVER, refresh that C.
 1. Message C (a `ВКАЗІВКА`, `${CLAUDE_PLUGIN_ROOT}/messages.md`): reach the nearest checkpoint between steps (never mid-step), run
    `continue-work-in-another-context save`, reply with the handoff file name.
 2. Start a fresh C from inside the SAME worktree folder (no `-w`), same name, model, effort and
-   permission mode, with the `--settings` file of "Start a C" (no Remote Control for a C); first prompt: `/continue-work-in-another-context load <file>`, then "once loaded,
+   permission mode, with the command of "Start a C"; first prompt: `/continue-work-in-another-context load <file>`, then "once loaded,
    send P «ВІДПОВІДЬ - picked up» by SendMessage".
 3. Only after the new C's «picked up» reaches P, register it with `dev-kit-sessions add ...
    --predecessor <old id>` (this ends the old record as `replaced`), then run `claude stop <old id>`.

@@ -108,7 +108,8 @@ Then P starts a C that builds the screen and shows you its shots next to the moc
 Each question there names the screen it is about in its own words, with no block of facts before it.
 
 ### A C asks only P
-A C never asks you in its own chat; it asks P, and it messages no other session unless P's brief for it
+A C never asks you in its own chat; it asks P. Every C shows in the Claude app with no push, and you may
+write in its chat: it follows your words, answers you in short and tells P at once with your words. It messages no other session unless P's brief for it
 names one (sessions, not its own subagents). Only P and an «Обговорення:» session message other sessions
 freely; none of them messages a session you started yourself. Nothing blocks the tool: it is a rule of the skills.
 Why: owner, 2026-11-21 (his «так»): only leads and discussion sessions message other sessions freely.
@@ -199,7 +200,8 @@ format instead of removing them. Those rules live outside this repo and change o
 - A check needs a push on your phone: you get one ready line, one push starting «Тест» and one «Прийшов? + або -»; with no answer in 10 minutes nobody asks about it again.
 - A session needs a paid API call that would take the task past 1 USD: it asks P, and P asks you; below 1 USD and on your subscription nobody asks.
 - You answer a session's question inside that session: P never asks you the same thing in its own chat.
-- A task is finished: P merges it into main and tells you the result; you did not start or watch the C.
+- A task is finished: P merges it into main and tells you the result; you need not start or watch the C.
+- You write in a C's chat: it follows your words and P is told at once; it asks you nothing there.
 - A second session already works on the same task: P does not start another one.
 
 ## Built in

@@ -12,5 +12,6 @@
   "0.1.113": {"kind": "routine", "date": "2026-11-23", "reason": "the weekly limit forecast push shows the current percent"},
   "0.1.114": {"kind": "routine", "date": "2026-11-23", "reason": "a shared core engineer agent on Fable, with helpers that pass their answers as file paths"},
   "0.1.115": {"kind": "routine", "date": "2026-11-24", "reason": "a phone push test with the owner: one readiness step, one push, one result question; live push facts"},
-  "0.1.116": {"kind": "routine", "date": "2026-11-24", "reason": "project-lead: a waiting discussion stays open; claude rm by short id with a failure check"}
+  "0.1.116": {"kind": "routine", "date": "2026-11-24", "reason": "project-lead: a waiting discussion stays open; claude rm by short id with a failure check"},
+  "0.1.117": {"kind": "routine", "date": "2026-11-24", "reason": "task sessions show in the Claude app with no push; the owner may write to one and it tells its lead"}
 }

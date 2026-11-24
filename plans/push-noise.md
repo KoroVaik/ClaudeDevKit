@@ -20,6 +20,10 @@ The owner no longer gets a "session started" push when an existing session is on
 
 ## Facts checked live (2026-11-23, owner watched the phone with the Claude app closed)
 
+Corrected on 2026-11-24 (`plans/c-session-visibility.md`, "Facts checked live"): the push comes with the
+`--remote-control` flag, not with Remote Control itself; a session with the link and no flag gives no push. So point 3 of «Owner's approval» below (a C with no link)
+is superseded: a C now has the link and shows in the app.
+
 - The push comes once, when a brand-new session first gets Remote Control (RC). `remoteControlAtStartup: true`
   in the owner's `~/.claude/settings.json` gives RC to every new session, with or without `--remote-control`,
   so a C gets RC and pushes today; the "no --remote-control for a C" rule in project-lead "Start a C" saves nothing.
