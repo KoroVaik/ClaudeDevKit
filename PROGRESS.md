@@ -35,7 +35,6 @@ Open work of the features: `dev-kit-check-docs --open`.
 
 ## Open questions
 
-- 2026-11-24 · «C: Перевірка пробуджень» · ❗: у списку сесій Claude на телефоні є сесія з назвою точно «P: ClaudeDevKit»? (відкрий Claude на телефоні, список сесій) Рекомендую: так - назва ставиться при запуску.
 
 
 
