@@ -1,11 +1,13 @@
 """Lint the ClaudeDevKit marketplace: manifests, hooks, the migrations list, skills, agents, slot tables and project
 profiles (including the `## documentation` settings table)."""
+import importlib.util
 import json
 import re
 import sys
 from pathlib import Path
 
 CORE_PLUGIN = "dev-kit"
+RULES_PLUGIN = "rules-kit"  # its `scripts/subscriptions.py` reads the rule sets' subscription files
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "plugins" / CORE_PLUGIN / "scripts"))
 import check_docs  # noqa: E402  the documentation settings are validated by the code that reads them
 import migrations  # noqa: E402  the migrations list is validated by the code that reads it
@@ -302,6 +304,52 @@ def check_migrations(root, findings):
         findings.error(where, str(exc))
 
 
+def load_subscriptions(root):
+    """The rules-kit parser of subscription files, loaded by path (no plugin is on the import path), or None when
+    the marketplace has no rules-kit scripts."""
+    path = root / "plugins" / RULES_PLUGIN / "scripts" / "subscriptions.py"
+    if not path.is_file():
+        return None
+    spec = importlib.util.spec_from_file_location("rules_kit_subscriptions", path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def check_subscriptions(root, plugins, findings):
+    """Every plugin folder has a valid `rules-subscription.md` (the parser of rules-kit says what valid is), named for
+    its folder, whose Files rows match files of the plugin and whose part kinds name skills, agents and plugins that
+    exist."""
+    parser = load_subscriptions(root)
+    if parser is None:
+        return
+    for folder in plugin_dirs(root):
+        path = folder / parser.FILE_NAME
+        where = rel(root, path)
+        if not path.is_file():
+            findings.error(rel(root, folder), f"{parser.FILE_NAME} not found")
+            continue
+        try:
+            subscription = parser.load(path, folder)
+        except parser.Problem as exc:
+            findings.error(where, str(exc))
+            continue
+        if subscription.name != folder.name:
+            findings.error(where, f"set name '{subscription.name}' differs from folder '{folder.name}'")
+        files = [file.relative_to(folder).as_posix() for file in folder.rglob("*") if file.is_file()]
+        for rule in subscription.files:
+            if not any(subscription.glob(rule.pattern).match(file) for file in files):
+                findings.error(where, f"Files row '{rule.pattern}' matches no file of the plugin")
+            for kind, name in rule.kinds:
+                plugin, _, short = name.partition(":")
+                if plugin not in plugins:
+                    findings.error(where, f"part kind '{kind} {name}': '{plugin}' is not a marketplace plugin")
+                elif kind == "skill" and short not in skill_names(root, plugin):
+                    findings.error(where, f"part kind 'skill {name}': no such skill")
+                elif kind == "agent" and short not in agent_names(root, plugin):
+                    findings.error(where, f"part kind 'agent {name}': no such agent")
+
+
 def check_hooks(root, findings):
     for path in sorted(root.glob("plugins/*/hooks/hooks.json")):
         read_json(root, path, findings)
@@ -499,6 +547,7 @@ def lint(root, projects=None):
         projects = load_projects(root, findings)
     plugins = check_marketplace(root, findings)
     check_hooks(root, findings)
+    check_subscriptions(root, plugins, findings)
     check_migrations(root, findings)
     check_skills(root, findings)
     check_agents(root, findings)

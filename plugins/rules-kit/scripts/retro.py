@@ -1,14 +1,23 @@
-"""Find problems in the sessions' transcripts with no model, sort them into one folder per project, and serve the
+"""Find problems in the sessions' transcripts with no model, sort them into one folder per rule set, and serve the
 retro session and the lead of each project. A model reads the findings; this script uses none.
+
+A rule set is a group of rule files with one subscription file (`scripts/subscriptions.py`: the plugins, the owner's
+global rules and each project's own rules). Findings and items live per set, in `<retro folder>/sets/<set>/`. A
+project's retro handles only the sets its project reviews (`reviewed by` in the subscription; a project's own set, the
+default one when it has no file, is reviewed by that project).
 
     rules-kit scan [--force] [--days N]           the full scan of every transcript (once a day without --force)
     rules-kit scan --transcript PATH              only that transcript and its subagents
-    rules-kit items [--project DIR]               the new findings and the items of the project, see below
+    rules-kit items [--project DIR]               the new findings and the items of the sets the project reviews
     rules-kit done [--branch NAME] [--project DIR]
                                                   move the findings the last `items` showed to `seen/`; NAME: the
                                                   branch the retro session left for its lead to merge
-    rules-kit add --text LINE [--from NAME] [--project DIR]
-                                                  add a finding to the project's `new/` (any session, any project)
+    rules-kit add --text LINE [--from NAME] [--project DIR | --set NAME]
+                                                  add a finding to a set's `new/` (any session, any project); with
+                                                  --project, to the sets that project reviews which the text names (a
+                                                  file, or a skill or agent `plugin:name`; a line that starts
+                                                  `claude app` or `owner check`: FACTS_SET), else to its own set
+    rules-kit sets                                the sets found, their reviewers, and subscription files that fail
     rules-kit due [--session ID] [--project DIR]  one line when the lead has retro items to act on, else nothing
     rules-kit asked --answer yes|no [--project DIR]
                                                   stamp the weekly question to the owner and the answer
@@ -28,14 +37,16 @@ instead); when the project's `state.json` stays locked (see Lock), `items`, `don
 nothing.
 
 Retro projects: a project counts when its main checkout (the parent of the git common dir) has `.claude/dev-kit.md`
-with a line `## project-lead`. A transcript belongs to the project of the `cwd` of its lines (git, cached per cwd; when
-git fails, a deleted worktree, the path is cut at `/.claude/worktrees/` and the part before it is the checkout).
-Only the findings of retro projects are routed: the findings of other projects (the home folder, Pult, a project with
-no lead) stay in `scan-<date>.md` only. A token finding from spend-kit names the `cwd` of its session and is routed
-by it the same way. One exception: the `claude app` findings (see Kinds) of every transcript, a
-project with no lead, Pult and the home folder included, go to the retro project named `ClaudeDevKit` (found by its
-repository folder name among the known retro projects and this scan's projects, never by the place of this script) and
-not to the project of their transcript; with no such project they stay in the log. The findings of a session whose title starts with `Ретро:` (a retro session)
+with a line `## project-lead`, or its own `.claude/rules-subscription.md`. A transcript belongs to the project of the
+`cwd` of its lines (git, cached per cwd; when git fails, a deleted worktree, the path is cut at `/.claude/worktrees/`
+and the part before it is the checkout). Only the findings of retro projects are routed, to the project's own set
+(until the scan lays a problem to the set of a file, which a later step adds): the findings of other projects (the home
+folder, Pult, a project with no lead) stay in `scan-<date>.md` only. A token finding from spend-kit names the `cwd` of
+its session and is routed by it the same way. One exception: the `claude app` findings (see Kinds) of every transcript,
+a project with no lead, Pult and the home folder included, go to the set FACTS_SET (`dev-kit`, the owner of the Claude
+app facts) when it is known, else to the own set of the retro project named `ClaudeDevKit` (found by its repository
+folder name among the known retro projects and this scan's projects, never by the place of this script), and not to
+the set of their transcript's project; with no such project they stay in the log. The findings of a session whose title starts with `Ретро:` (a retro session)
 or `Документація:` (the weekly docs session) and of its subagents are dropped everywhere (log included), so the retro
 never feeds on these hook-started sessions; their token spend still counts in spend-kit.
 
@@ -45,23 +56,31 @@ is). It holds the global `state.json` (byte offsets, `claude_version`: the
 highest Claude Code version seen in the transcripts, a string like `2.1.330`; `facts_recheck`: the day of the
 last weekly facts re-check line; the token keys an older version kept there, `daily`, `fit` and the like, are
 left alone: spend-kit copied them once), `scan.lock`, the human
-log `scan-<date>.md` (all findings of a full scan and the `## Spend` tables) and the owner's `notes.md`. Each project
-has `<retro folder>/<repo-folder-name>-<10 hex>/` (`folder_naming.folder_name`, the name of its state folder) with:
+log `scan-<date>.md` (all findings of a full scan and the `## Spend` tables) and the owner's `notes.md`. Each rule set
+has `<retro folder>/sets/<set name>/` with:
 - `new/`: findings no review has seen, one file per writer and run, never shared: `scan-<date>-<HHMMSS>.md` (full
   scan), `<date>-<session id8>-<HHMMSS>.md` (one transcript), `notes-<date>-<HHMMSS>.md` (owner notes), `add-...md`
   (`add`); each finding is a line starting `- `;
 - `seen/`: files moved there by `done`, deleted after SEEN_DAYS days;
 - `items/<cause-key>.md`: one file per item, written by the retro session; lines `- status: <status>`, `- kind:
-  <kind>`, one `- seen: ...` line per sighting and `- fix: <YYYY-MM-DD> | <what> | trivial` per trivial fix;
-- `state.json`: `root` (the main checkout), `last_review`, `retro_started`, `retro_branch`, `lead_session`,
-  `asked_at`, `answer`, `shown` (the `new/` files the last `items` showed). Written atomically (temp file and replace).
+  <kind>`, one `- seen: ...` line per sighting and `- fix: <YYYY-MM-DD> | <what> | trivial` per trivial fix.
+Each retro project has `<retro folder>/<repo-folder-name>-<10 hex>/` (`folder_naming.folder_name`, the name of its
+state folder) with `state.json`: `root` (the main checkout), `last_review`, `retro_started`, `retro_branch`,
+`lead_session`, `asked_at`, `answer`, `shown` (the `<set>/<file>` entries of `new/` the last `items` showed). Written
+atomically (temp file and replace). The state folders of older versions also hold `new/`, `seen/` and `items/` of the
+time before sets: on the first run the retro copies them into the set folders (`migrate_items`: an item goes to the set
+of the files its `fix:` lines or text name, else to the project's own set; the old files stay where they are;
+`sets/migrated.json` lists the folders done; what moved is printed).
+The global subscription `~/.claude/rules-subscription.md` (env RULES_KIT_GLOBAL_DIR) is written from the plugin's
+template on the first run when it is missing, and committed in that folder's git repository.
 Transcripts: every `*.jsonl` under env DEV_KIT_PROJECTS_DIR, else `~/.claude/projects`, subagent ones in
 `<session>/subagents/` included.
 
 Run file: `<retro folder>/runs/<project folder name>.json`, written (atomically, under the project lock) at each
 `hook-start` of the project and by `done`: `{"root": <main checkout>, "retro_started": <ISO time or null>,
 "last_review": <ISO time or null>, "retro_branch": <branch the retro left for its lead to merge or null>, "retro_due":
-<true when findings wait in `new/` and the last review is REVIEW_HOURS old or missing>}`. dev-kit's weekly docs session
+<true when findings wait in the `new/` of a set the project reviews and the last review is REVIEW_HOURS old or
+missing>}`. dev-kit's weekly docs session
 start reads it as a file (never an import) to wait for the retro and for the merge of its branch; whether the branch
 is merged it asks git itself. The other way, `hook-start` reads dev-kit's `<state root>/<project folder name>/docs.json`
 (`docs_started`, `docs_done`; env DEV_KIT_STATE_DIR, else `~/.claude/dev-kit`) as a file to start no retro session
@@ -79,27 +98,29 @@ nothing, so two sessions starting at once never both start a retro session.
 file, up to the last complete line). On the first full scan (no full scan yet) a file last changed before `--days`
 days ago (default 1) that has no offset is skipped and its offset set to its size, so it does not read the whole
 history. A full scan writes `scan-<YYYY-MM-DD>.md` (local date; a second scan the same day with `--force` appends to
-it), one line per finding, and each line also goes to the `new/` of its project (token lines from spend-kit too):
+it), one line per finding, and each line also goes to the `new/` of the own set of its project (token lines from
+spend-kit too):
 
     - <project folder> | <session title (first 8 of its id)> or <session id>[ / subagent <type>] | <kind> | <detail>
 
 A full scan also reads the new lines of `<retro folder>/notes.md` (offset kept in the global state) and puts each into
-the `new/` of the retro project whose repository folder name equals the line's project field, ignoring case; other
-lines are dropped. `script candidate` lines go to the project when all their sessions are of one project, else to the
-project of the repository that holds this plugin (when it is a retro project).
+the `new/` of the own set of the retro project whose repository folder name equals the line's project field, ignoring
+case; other lines are dropped. `script candidate` lines go to the own set of the project when all their sessions are of
+one project, else to the own set of the project of the repository that holds this plugin (when it is a retro project).
 `scan --transcript PATH` is for the SessionEnd hook: only that transcript and its `<id>/subagents/*.jsonl`, the same
 per-transcript kinds (and spend-kit's token findings of that transcript), no cross-transcript kinds, no
 priority lines, no notes; its findings go to one `new/<date>-<id8>-<HHMMSS>.md` and are appended to `scan-<date>.md`;
 nothing found, no file.
 
-`items` prints: the folder path; `last review: <local date and time of last_review, or never>`; `claude code:
-<claude_version>` when the global state has it; the new findings of
-`new/` (token problems first, under "Priority"); one line per
-`items/*.md` file `<cause-key> | <status> | <kind> | sightings <N>` (N = the lines starting `- seen:`); and `trivial
-fixes in the last 7 days: <N> of FIXES_PER_WEEK` (the `- fix:` lines marked trivial and dated in the last 7 days, today
-included). It records the `new/` file names it showed;
-`done` moves exactly those to `seen/`, sets `last_review`, records `retro_branch` (`--branch`, else none) and deletes
-what is older than SEEN_DAYS in `seen/`. Findings that came after `items` stay new.
+`items` prints: the sets folder path; `sets: <the sets the project reviews>`; `last review: <local date and time of
+last_review, or never>`; `claude code: <claude_version>` when the global state has it; the new findings of the `new/`
+of those sets (token problems first, under "Priority"; each set under a `### <set>` heading); for each set under
+`### <set> (<its items folder>)` one line per `items/*.md` file `<cause-key> | <status> | <kind> | sightings <N>` (N =
+the lines starting `- seen:`); and per set `trivial fixes in the last 7 days (<set>): <N> of FIXES_PER_WEEK` (the
+`- fix:` lines marked trivial and dated in the last 7 days, today included). It records the `new/` file names it
+showed (`<set>/<file>`); `done` moves exactly those to `seen/` of their set, sets `last_review`, records `retro_branch`
+(`--branch`, else none) and deletes what is older than SEEN_DAYS in `seen/`. Findings that came after `items` stay
+new. `items`, `add` and `done` print the work of the first run (the migration) on stderr.
 `due` prints nothing unless the session (when `--session` is given) is the lead recorded by `hook-start`; then
 `retro: <N> items due (<U> urgent)` when an item has status `urgent`, or when items with status `disputed` or
 `trivial-fixed` exist and the last weekly ask is 7+ days old or missing, or 1+ day old after the answer `no` (N counts
@@ -107,7 +128,7 @@ the urgent items, and the others when the weekly ask is due).
 `hook-start` (never fails, exit 0): in a retro project, a session titled `Ретро:` or `Документація:` does nothing; a
 full scan is spawned
 (detached) when none ran today and the scan lock is free; then, under the project lock, a title `P: ` records the
-lead's session id, and when `new/` has files, `last_review` is older than REVIEW_HOURS (or missing),
+lead's session id, and when the `new/` of a set the project reviews has files, `last_review` is older than REVIEW_HOURS (or missing),
 `retro_started` older than START_GUARD_HOURS (or missing) and no docs session may still run (see "Run file"), it
 stamps `retro_started` and starts a background `Ретро: <repo folder>` session running `/rules-kit:retro` (env RULES_KIT_NO_START=1 skips that
 start, not the stamp). The session starts with the `--settings` file NO_REMOTE_CONTROL (no Remote Control, so it stays
@@ -175,8 +196,12 @@ import claude_path  # noqa: E402  the `claude` command (a copy of dev-kit's, no 
 import folder_naming  # noqa: E402  the project's folder name and main checkout (a copy of dev-kit's `dev_kit_state`)
 import rules_dir  # noqa: E402  the data folder and the one-time copy from dev-kit's retro folder
 import spend_client  # noqa: E402  runs the `spend-kit` command (token spend), no import of its code
+import subscriptions  # noqa: E402  the rule sets, their subscription files and who owns a file
 
 RETRO_ENV = rules_dir.DIR_ENV
+SETS_FOLDER = "sets"  # in the retro folder: one folder per rule set (`new/`, `seen/`, `items/`)
+MIGRATED_FILE = "migrated.json"  # in the sets folder: the per-project folders whose items were taken over once
+FACTS_SET = "dev-kit"  # the set that owns the Claude app facts: the `claude app` lines go to it (else to ClaudeDevKit's set)
 PROJECTS_ENV = "DEV_KIT_PROJECTS_DIR"
 NO_START_ENV = "RULES_KIT_NO_START"  # 1: the SessionStart hook does not start the retro session (tests)
 STATE_ENV = "DEV_KIT_STATE_DIR"  # dev-kit's state root (the same env as its `dev_kit_state.py`), read for `docs.json`
@@ -357,7 +382,10 @@ def remember_root(project):
 
 
 def is_retro_project(root):
-    """Whether the checkout `root` has a `## project-lead` line in `.claude/dev-kit.md`."""
+    """Whether the checkout `root` has a `## project-lead` line in `.claude/dev-kit.md`, or its own subscription file
+    `.claude/rules-subscription.md`."""
+    if (Path(root) / ".claude" / subscriptions.FILE_NAME).is_file():
+        return True
     try:
         text = (Path(root) / ".claude" / "dev-kit.md").read_text(encoding="utf-8-sig", errors="replace")
     except OSError:
@@ -442,16 +470,177 @@ def known_roots():
     return found
 
 
-def known_projects():
-    """Retro projects with an item folder: lower-case repository folder name -> item folder name."""
-    return {name: folder for name, (folder, _) in known_roots().items()}
+def known_root_paths():
+    """The main checkouts recorded in the project folders' `state.json` (any name, a root listed once)."""
+    roots = {}
+    for state in sorted(retro_dir(create=False).glob("*/state.json")):
+        root = load_project(state.parent).get("root")
+        if isinstance(root, str) and root:
+            roots.setdefault(subscriptions.fold(subscriptions.canon(root)), Path(root))
+    return list(roots.values())
 
 
-def write_new(folder_name, name, lines):
-    """Write `lines` to a new file of the project's `new/` folder, never over another file; None for no lines."""
+def set_dir(name):
+    """The folder of one rule set: `new/`, `seen/` and `items/` of its findings (see the module doc)."""
+    return retro_dir() / SETS_FOLDER / name
+
+
+def load_registry(mapper=None, roots=()):
+    """The rule sets (`subscriptions.discover`): the plugins next to this one, the global folder and every project
+    known to the retro (recorded roots, this scan's projects, `roots`) that is a retro project."""
+    found = {}
+    candidates = known_root_paths() + [owner.root for owner in (mapper.projects.values() if mapper else ()) if owner]
+    for root in list(candidates) + [Path(root) for root in roots]:
+        found.setdefault(subscriptions.fold(subscriptions.canon(root)), Path(root))
+    return subscriptions.discover(project_roots=[root for root in found.values()
+                                                 if root.is_dir() and is_retro_project(root)])
+
+
+def prepare(mapper=None, out=None, roots=()):
+    """The registry for a command, after the first-run work: the global subscription is written from its template
+    when missing, and the items of the old per-project folders are taken over once (`migrate_items`)."""
+    retro_dir()
+    subscriptions.ensure_global()
+    registry = load_registry(mapper, roots)
+    migrate_items(registry, out or sys.stdout)
+    return registry
+
+
+def set_name_of_root(registry, root):
+    """The name of a project's own set: the set at its root, else the default one of that folder."""
+    found = registry.set_at(root)
+    return found.name if found else subscriptions.default_project(root).name
+
+
+def project_set_name(registry, project):
+    return set_name_of_root(registry, project.root)
+
+
+def reviewed_sets(registry, project):
+    """The names of the sets this project's retro handles: the sets whose subscription names it as reviewer, and its
+    own set when that set is not known at all (a file that does not parse)."""
+    names = [found.name for found in registry.reviewed_by(project.name)]
+    if registry.set_at(project.root) is None:
+        names.insert(0, project_set_name(registry, project))
+    return names
+
+
+def project_sets(registry, mapper, plugin=None):
+    """Retro projects by lower-case repository folder name -> the name of their own set: the known ones, the ones this
+    scan's transcripts belong to and `plugin` (the project that holds this plugin, when given)."""
+    found = {}
+    for root in known_root_paths():
+        found.setdefault(root.name.lower(), set_name_of_root(registry, root))
+    for owner in mapper.projects.values():
+        if owner:
+            found.setdefault(owner.name.lower(), set_name_of_root(registry, owner.root))
+    if plugin:
+        found.setdefault(plugin.name.lower(), set_name_of_root(registry, plugin.root))
+    return found
+
+
+FACT_LINE = re.compile(r"\s*(claude app|owner check)\b", re.IGNORECASE)  # an added line about a Claude app fact
+PATH_TOKEN = re.compile(r"[^\s|`\"'()<>,;«»]+")
+PART_REF = re.compile(r"(?<![\w:/.-])([a-z][\w-]*):([a-z][\w-]*)(?![\w:/-])")
+FILE_ENDINGS = (".md", ".py", ".json", ".ps1", ".psd1", ".mjs", ".cs", ".sh", ".yml", ".css", ".html")
+
+
+def sets_of_text(text, registry, roots):
+    """The sets a text names, the most named first: by the files it names (a path, absolute or relative to one of
+    `roots`, which the registry says a set owns), else by the skills and agents it names (`plugin:name`)."""
+    counts = {}
+    order = []
+    for token in PATH_TOKEN.findall(text):
+        token = re.sub(r":\d+(-\d+)?$", "", token.rstrip(".:"))
+        if not ("/" in token or "\\" in token or token.endswith(FILE_ENDINGS)):
+            continue
+        token = str(Path(token).expanduser()) if token.startswith("~") else token
+        absolute = token.startswith("/") or re.match(r"^[A-Za-z]:", token)
+        for path in ([Path(token)] if absolute else [Path(root) / token for root in roots]):
+            owner = registry.owner(path)
+            if owner:
+                counts[owner.set.name] = counts.get(owner.set.name, 0) + 1
+                order.append(owner.set.name)
+                break
+    if not counts:
+        for kind_ref in PART_REF.finditer(text):
+            reference = kind_ref.group(0)
+            for kind in ("skill", "agent"):
+                for found in registry.candidates(kind, reference):
+                    counts[found.name] = counts.get(found.name, 0) + 1
+                    order.append(found.name)
+    return sorted(counts, key=lambda name: (-counts[name], order.index(name)))
+
+
+def text_roots(root):
+    """The folders a relative path in a finding or an item may be written against: the project, the repository that
+    holds this plugin and the owner's global folder."""
+    return [Path(root), subscriptions.plugins_dir().parent, subscriptions.global_dir()]
+
+
+def migrate_items(registry, out):
+    """Take over the item and new-finding files of the old per-project folders once, into the set folders: an item goes
+    to the set of the files its `fix:` lines name, else of the files its text names, else the project's own set; a
+    finding file goes to the project's own set. Copies, never over a file (a file that differs keeps both under
+    another name); the old folders stay as they are. A folder with no recorded root waits for a later run. What moved is
+    printed, once; `sets/migrated.json` lists the folders done."""
+    sets = retro_dir() / SETS_FOLDER
+    marker = sets / MIGRATED_FILE
+    try:
+        done_folders = json.loads(marker.read_text(encoding="utf-8")).get("folders", {})
+    except (OSError, ValueError, AttributeError):
+        done_folders = {}
+    if not isinstance(done_folders, dict):
+        done_folders = {}
+    changed = False
+    for state in sorted(retro_dir().glob("*/state.json")):
+        old = state.parent
+        root = load_project(old).get("root")
+        if old.name == SETS_FOLDER or old.name in done_folders or not isinstance(root, str) or not root:
+            continue
+        own = set_name_of_root(registry, root)
+        moved = []
+        for path in sorted((old / "items").glob("*.md")) if (old / "items").is_dir() else []:
+            text = path.read_text(encoding="utf-8-sig", errors="replace")
+            fixes = "\n".join(line for line in text.splitlines() if line.startswith("- fix:"))
+            named = sets_of_text(fixes, registry, text_roots(root)) or sets_of_text(text, registry, text_roots(root))
+            target = named[0] if named else own
+            moved += copy_file(path, set_dir(target) / "items", f"{path.stem}-{Path(root).name.lower()}{path.suffix}",
+                               f"{old.name}/items/{path.name} -> {SETS_FOLDER}/{target}/items/")
+        for path in sorted((old / "new").glob("*.md")) if (old / "new").is_dir() else []:
+            moved += copy_file(path, set_dir(own) / "new", None, f"{old.name}/new/{path.name} -> {SETS_FOLDER}/{own}/new/")
+        done_folders[old.name] = {"set": own, "moved": len(moved)}
+        changed = True
+        for line in moved:
+            print("moved " + line, file=out)
+    if changed:
+        write_json(marker, {"folders": done_folders})
+
+
+def copy_file(source, folder, alternative, label):
+    """Copy `source` into `folder` under its own name; when that name holds other bytes, under `alternative` (or a
+    numbered name when there is none). `[label]` when something was copied, [] for an identical file already there."""
+    data = source.read_bytes()
+    folder.mkdir(parents=True, exist_ok=True)
+    names = [source.name] + ([alternative] if alternative else []) + [f"{source.stem}-{n}{source.suffix}" for n in range(1, 100)]
+    for name in names:
+        target = folder / name
+        if not target.exists():
+            target.write_bytes(data)
+            return [label]
+        try:
+            if target.read_bytes() == data:
+                return []
+        except OSError:
+            continue
+    return []
+
+
+def write_new(set_name, name, lines):
+    """Write `lines` to a new file of the set's `new/` folder, never over another file; None for no lines."""
     if not lines:
         return None
-    new = retro_dir() / folder_name / "new"
+    new = set_dir(set_name) / "new"
     new.mkdir(parents=True, exist_ok=True)
     stem = name[:-len(".md")]
     for number in range(1000):
@@ -749,8 +938,13 @@ def scan_locked(folder, days, force, out, transcript):
     titles = {(project, session): known[f"{project}/{session}"] for project, session, _, _ in windows
               if known.get(f"{project}/{session}")}
     out_lines = []
-    routed = defaultdict(list)  # item folder name -> its finding lines
+    routed = defaultdict(list)  # set name -> its finding lines
     commands = defaultdict(set)
+    registry = prepare(mapper, out)
+
+    def own_set(project):
+        """The set of a session's own project: a finding that names no other set is the project's own."""
+        return project_set_name(registry, project)
 
     def retro_session(project, session):
         """A retro session's own findings never feed the retro again (its token statistics still count)."""
@@ -760,12 +954,15 @@ def scan_locked(folder, days, force, out, transcript):
         """A finding line to the scan log, and to the project of its session when that is a retro project."""
         out_lines.append(line)
         if homes[(project, session)]:
-            routed[homes[(project, session)].folder].append(line)
+            routed[own_set(homes[(project, session)])].append(line)
 
-    devkit = project_folders(mapper).get(DEVKIT_NAME)  # None: ClaudeDevKit is not a known project, the log only
+    devkit = project_sets(registry, mapper).get(DEVKIT_NAME)  # None: ClaudeDevKit is not a known project, the log only
+    if devkit and FACTS_SET in registry.sets:
+        devkit = FACTS_SET  # the facts file is the dev-kit set's: its keeper takes the `claude app` lines
 
     def route_app(line):
-        """A `claude app` line to the scan log and to ClaudeDevKit, whatever project its transcript belongs to."""
+        """A `claude app` line to the scan log and to the set of the Claude app facts, whatever project its
+        transcript belongs to."""
         out_lines.append(line)
         if devkit:
             routed[devkit].append(line)
@@ -791,11 +988,11 @@ def scan_locked(folder, days, force, out, transcript):
                 line = (f"- {len({p for p, _ in sessions})} project(s) | {len(sessions)} sessions | "
                         f"script candidate | {short(command)}")
                 out_lines.append(line)
-                owners = {homes[pair].folder for pair in sessions if homes[pair]}
+                owners = {own_set(homes[pair]) for pair in sessions if homes[pair]}
                 if len(owners) == 1 and all(homes[pair] for pair in sessions):
                     routed[next(iter(owners))].append(line)
                 elif plugin and owners:  # spread over several projects, one of them a retro project
-                    routed[plugin.folder].append(line)
+                    routed[own_set(plugin)].append(line)
     spend_lines, table = spend_kit_findings(transcript)
     for entry in spend_lines:  # the token findings (long session, opus coder, token spend and waste), see spend-kit
         if str(entry.get("title") or "").strip().startswith((RETRO_TITLE, DOCS_TITLE)):
@@ -803,7 +1000,7 @@ def scan_locked(folder, days, force, out, transcript):
         out_lines.append(entry["line"])
         owner = mapper.project_of_cwd(entry.get("cwd"))
         if owner:
-            routed[owner.folder].append(entry["line"])
+            routed[own_set(owner)].append(entry["line"])
     if not transcript:
         newest = max(filter(None, (result["version"] for result in windows.values())), default=None)
         if newest:
@@ -816,7 +1013,7 @@ def scan_locked(folder, days, force, out, transcript):
         if devkit and (not last or (datetime.date.fromisoformat(day) - datetime.date.fromisoformat(last)).days >= 7):
             state["facts_recheck"] = day
             route_app(f"- ClaudeDevKit | - | {CLAUDE_APP_KIND} | weekly re-check due")
-        sort_notes(state, folder, mapper, plugin, routed)
+        sort_notes(state, folder, registry, mapper, plugin, routed)
     for owner in {owner.folder: owner for owner in mapper.projects.values() if owner}.values():
         remember_root(owner)  # also without findings: the notes are sorted by the repository name of these roots
     clock = datetime.datetime.now().strftime("%H%M%S")
@@ -839,22 +1036,10 @@ def scan_locked(folder, days, force, out, transcript):
     return 0
 
 
-def project_folders(mapper, plugin=None):
-    """Retro projects by lower-case repository folder name -> item folder name: the known ones, the ones this scan's
-    transcripts belong to and `plugin` (the project that holds this plugin, when given)."""
-    projects = known_projects()
-    for owner in mapper.projects.values():
-        if owner:
-            projects.setdefault(owner.name.lower(), owner.folder)
-    if plugin:
-        projects.setdefault(plugin.name.lower(), plugin.folder)
-    return projects
-
-
 def write_new_all(routed, make_name):
-    """One new file per project in `routed` (item folder name -> lines)."""
-    for folder_name, lines in routed.items():
-        write_new(folder_name, make_name(), lines)
+    """One new file per set in `routed` (set name -> lines)."""
+    for set_name, lines in routed.items():
+        write_new(set_name, make_name(), lines)
 
 
 def notes_offset(state, path):
@@ -879,8 +1064,9 @@ def notes_offset(state, path):
     return offset
 
 
-def sort_notes(state, folder, mapper, plugin, routed):
-    """Put the new lines of `notes.md` into the project named in each line (a retro project; others dropped)."""
+def sort_notes(state, folder, registry, mapper, plugin, routed):
+    """Put the new lines of `notes.md` into the own set of the project named in each line (a retro project; others
+    dropped)."""
     path = folder / "notes.md"
     offset = notes_offset(state, path)
     try:
@@ -892,7 +1078,7 @@ def sort_notes(state, folder, mapper, plugin, routed):
     lines, state["notes_offset"] = read_new_lines(path, offset)
     if not lines:
         return
-    projects = project_folders(mapper, plugin)
+    projects = project_sets(registry, mapper, plugin)
     for raw in lines:
         line = raw.decode("utf-8-sig", errors="replace").strip()
         fields = [field.strip() for field in line.split("|")]
@@ -929,7 +1115,7 @@ def project_folder(project):
 
 def no_project(directory, err=None):
     print(f"no retro project at {Path(directory or Path.cwd()).resolve()}: its main checkout needs a "
-          f"`{PROFILE_LINE}` line in .claude/dev-kit.md", file=err or sys.stderr)
+          f"`{PROFILE_LINE}` line in .claude/dev-kit.md or a .claude/{subscriptions.FILE_NAME}", file=err or sys.stderr)
     return 2
 
 
@@ -974,36 +1160,59 @@ def items(directory=None, out=None):
     project = project_for(directory)
     if not project:
         return no_project(directory)
+    names = reviewed_sets(prepare(roots=[project.root], out=sys.stderr), project)
     folder = project_folder(project)
     with project_lock(folder) as held:
         if not held:
             return state_busy()
-        files = sorted((folder / "new").glob("*.md")) if (folder / "new").is_dir() else []
-        lines = [line for path in files for line in read_lines(path)]
+        lines = {}  # set name -> its new findings
+        shown = []
+        for name in names:
+            new = set_dir(name) / "new"
+            files = sorted(new.glob("*.md")) if new.is_dir() else []
+            lines[name] = [line for path in files for line in read_lines(path)]
+            shown += [f"{name}/{path.name}" for path in files]
         state = load_project(folder)
-        state["shown"] = [path.name for path in files]
+        state["shown"] = shown
         save_project(folder, state)
-    urgent = [line for line in lines if URGENT_LINE.search(line)]
-    print(folder, file=out)
+    print(retro_dir(create=False) / SETS_FOLDER, file=out)
+    print("sets: " + ", ".join(names), file=out)
     reviewed = parse_time(state.get("last_review", ""))
     print("last review: " + (reviewed.astimezone().strftime("%Y-%m-%d %H:%M") if reviewed else "never"), file=out)
     version = load_state(retro_dir(create=False)).get("claude_version")  # the global state, read only
     if version:
         print(f"claude code: {version}", file=out)
     print("\n## Priority: token problems (read first; the retro asks them before the rest)", file=out)
-    print("\n".join(urgent) or "(none)", file=out)
+    print_by_set(lines, out, lambda line: URGENT_LINE.search(line))
     print("\n## New findings", file=out)
-    print("\n".join(line for line in lines if line not in urgent) or "(none)", file=out)
+    print_by_set(lines, out, lambda line: not URGENT_LINE.search(line))
     print("\n## Items", file=out)
-    fixes = []
-    rows = []
-    for path in sorted((folder / "items").glob("*.md")) if (folder / "items").is_dir() else []:
-        status, kind, sightings, found = read_item(path)
-        fixes += found
-        rows.append(f"{path.stem} | {status} | {kind} | sightings {sightings}")
-    print("\n".join(rows) or "(none)", file=out)
-    print(f"\ntrivial fixes in the last 7 days: {trivial_fixes(fixes)} of {FIXES_PER_WEEK}", file=out)
+    counts = []
+    for name in names:
+        fixes = []
+        rows = []
+        folder_items = set_dir(name) / "items"
+        for path in sorted(folder_items.glob("*.md")) if folder_items.is_dir() else []:
+            status, kind, sightings, found = read_item(path)
+            fixes += found
+            rows.append(f"{path.stem} | {status} | {kind} | sightings {sightings}")
+        print(f"### {name} ({folder_items})", file=out)
+        print("\n".join(rows) or "(none)", file=out)
+        counts.append(f"trivial fixes in the last 7 days ({name}): {trivial_fixes(fixes)} of {FIXES_PER_WEEK}")
+    print("\n" + "\n".join(counts), file=out)
     return 0
+
+
+def print_by_set(lines, out, keep):
+    """The lines of each set that `keep` accepts under a `### <set>` heading; `(none)` when no set has one."""
+    shown = False
+    for name, found in lines.items():
+        chosen = [line for line in found if keep(line)]
+        if chosen:
+            print(f"### {name}\n" + "\n".join(chosen), file=out)
+            shown = True
+    if not shown:
+        print("(none)", file=out)
 
 
 def done(directory=None, out=None, branch=None):
@@ -1013,17 +1222,19 @@ def done(directory=None, out=None, branch=None):
     project = project_for(directory)
     if not project:
         return no_project(directory)
+    names = reviewed_sets(prepare(roots=[project.root], out=sys.stderr), project)
     folder = project_folder(project)
-    seen = folder / "seen"
     moved = 0
     with project_lock(folder) as held:
         if not held:
             return state_busy()
         state = load_project(folder)
-        for name in state.pop("shown", None) or []:
-            source = folder / "new" / Path(str(name)).name
-            if not source.is_file():
+        for entry in state.pop("shown", None) or []:
+            name, _, file_name = str(entry).partition("/")  # `<set>/<file>`; an older entry with no set is dropped
+            source = set_dir(name) / "new" / Path(file_name).name
+            if name not in names or not file_name or not source.is_file():
                 continue
+            seen = set_dir(name) / "seen"
             seen.mkdir(parents=True, exist_ok=True)
             target = seen / source.name
             while target.exists():
@@ -1037,12 +1248,14 @@ def done(directory=None, out=None, branch=None):
         else:
             state.pop("retro_branch", None)
         save_project(folder, state)
-        write_run_file(project, state)
+        write_run_file(project, state, names)
     limit = time.time() - SEEN_DAYS * 86400
-    for old in seen.iterdir() if seen.is_dir() else []:
-        with contextlib.suppress(OSError):
-            if old.is_file() and old.stat().st_mtime < limit:
-                old.unlink()
+    for name in names:
+        seen = set_dir(name) / "seen"
+        for old in seen.iterdir() if seen.is_dir() else []:
+            with contextlib.suppress(OSError):
+                if old.is_file() and old.stat().st_mtime < limit:
+                    old.unlink()
     print(f"marked reviewed: {moved} file(s) moved to seen", file=out)
     return 0
 
@@ -1053,18 +1266,19 @@ def older(state, key, hours):
     return not stamp or now_utc() - stamp >= datetime.timedelta(hours=hours)
 
 
-def retro_due(folder, state):
-    """Whether findings wait in `new/` and the last review is at least REVIEW_HOURS old (or none): a retro session is due."""
-    new = folder / "new"
-    return new.is_dir() and any(new.iterdir()) and older(state, "last_review", REVIEW_HOURS)
+def retro_due(names, state):
+    """Whether findings wait in `new/` of one of the sets (`names`) the project reviews and the last review is at least
+    REVIEW_HOURS old (or none): a retro session is due."""
+    waiting = any((set_dir(name) / "new").is_dir() and any((set_dir(name) / "new").iterdir()) for name in names)
+    return waiting and older(state, "last_review", REVIEW_HOURS)
 
 
-def write_run_file(project, state):
-    """Write the project's run file from its state (see "Run file" in the module doc); the caller holds the project
-    lock. A write failure is ignored: the next start or review writes it again."""
+def write_run_file(project, state, names):
+    """Write the project's run file from its state (see "Run file" in the module doc); `names`: the sets the project
+    reviews. The caller holds the project lock. A write failure is ignored: the next start or review writes it again."""
     data = {"root": state.get("root"), "retro_started": state.get("retro_started"),
             "last_review": state.get("last_review"), "retro_branch": state.get("retro_branch"),
-            "retro_due": retro_due(project_folder(project), state)}
+            "retro_due": retro_due(names, state)}
     with contextlib.suppress(OSError):
         write_json(retro_dir() / RUNS_FOLDER / f"{project.folder}.json", data)
 
@@ -1084,20 +1298,36 @@ def docs_may_run(project):
     return bool(started and not older(docs, "docs_started", START_GUARD_HOURS) and (not finished or started > finished))
 
 
-def add(text, sender=None, directory=None, out=None):
-    """Add one finding line to the project's `new/` as a file of its own."""
+def add(text, sender=None, directory=None, out=None, set_name=None):
+    """Add one finding line to the `new/` of a set, as a file of its own. `set_name` names the set; otherwise the
+    project (`--project`, see `project_for`) is the alias for the sets it reviews that the text names (a file or a
+    skill or agent of that set), else for its own set."""
     out = out or sys.stdout
-    project = project_for(directory)
-    if not project:
-        return no_project(directory)
+    registry = None
+    if set_name:
+        registry = prepare(out=sys.stderr)
+        if set_name not in registry.sets:
+            print(f"no rule set named {set_name} (known: {', '.join(registry.sets) or 'none'})", file=sys.stderr)
+            return 2
+        names = [set_name]
+    else:
+        project = project_for(directory)
+        if not project:
+            return no_project(directory)
+        registry = prepare(roots=[project.root], out=sys.stderr)
+        reviewed = reviewed_sets(registry, project)
+        named = [name for name in sets_of_text(str(text), registry, text_roots(project.root)) if name in reviewed]
+        if FACT_LINE.match(str(text)) and FACTS_SET in reviewed:  # the scan routes its `claude app` lines the same way
+            named = [FACTS_SET]
+        names = named or [project_set_name(registry, project)]
     if not sender:
         origin = Mapper().root_of(str(Path.cwd().resolve()))
         sender = origin.name
     stamp = datetime.datetime.now()
     line = f"- {stamp.date().isoformat()} | from {sender} | {' '.join(str(text).split())}"
-    name = f"add-{stamp.date().isoformat()}-{stamp.strftime('%H%M%S')}-{secrets.token_hex(3)}.md"
-    path = write_new(project.folder, name, [line])
-    print(f"added to {path}", file=out)
+    for name in names:
+        file_name = f"add-{stamp.date().isoformat()}-{stamp.strftime('%H%M%S')}-{secrets.token_hex(3)}.md"
+        print(f"added to {write_new(name, file_name, [line])}", file=out)
     return 0
 
 
@@ -1111,10 +1341,12 @@ def due_line(directory=None, session_id=None):
     if session_id is not None and (not session_id or state.get("lead_session") != session_id):
         return ""
     urgent = other = 0
-    for path in sorted((folder / "items").glob("*.md")) if (folder / "items").is_dir() else []:
-        status = read_item(path)[0].lower()
-        urgent += status == "urgent"
-        other += status in ("disputed", "trivial-fixed")
+    for name in reviewed_sets(load_registry(roots=[project.root]), project):
+        items_folder = retro_dir(create=False) / SETS_FOLDER / name / "items"
+        for path in sorted(items_folder.glob("*.md")) if items_folder.is_dir() else []:
+            status = read_item(path)[0].lower()
+            urgent += status == "urgent"
+            other += status in ("disputed", "trivial-fixed")
     last_ask = parse_time(state.get("asked_at", ""))
     waited = (now_utc() - last_ask) if last_ask else None
     weekly = bool(other) and (waited is None or waited >= datetime.timedelta(days=7)
@@ -1198,16 +1430,18 @@ def hook_start(payload):
         if title.startswith("P: ") and isinstance(session_id, str) and session_id:
             state["lead_session"] = session_id
         save_project(folder, state)
-        command = retro_start_command(project, folder, state)
-        write_run_file(project, state)  # after the stamp: dev-kit's docs session start reads it
+        names = reviewed_sets(load_registry(roots=[project.root]), project)
+        command = retro_start_command(project, folder, state, names)
+        write_run_file(project, state, names)  # after the stamp: dev-kit's docs session start reads it
     if command:
         spawn(command, cwd=str(project.root))
 
 
-def retro_start_command(project, folder, state):
-    """The command that starts the retro session when findings wait, the review is old and no start is recent; it
-    stamps `retro_started` (the caller holds the project lock). None otherwise, and with env RULES_KIT_NO_START=1."""
-    if not retro_due(folder, state) or not older(state, "retro_started", START_GUARD_HOURS):
+def retro_start_command(project, folder, state, names):
+    """The command that starts the retro session when findings wait in the sets `names`, the review is old and no
+    start is recent; it stamps `retro_started` (the caller holds the project lock). None otherwise, and with env
+    RULES_KIT_NO_START=1."""
+    if not retro_due(names, state) or not older(state, "retro_started", START_GUARD_HOURS):
         return None
     if docs_may_run(project):
         return None  # dev-kit's docs session may still run: never both at once
@@ -1261,6 +1495,8 @@ def main(argv=None):
         if name == "add":
             command.add_argument("--text", required=True)
             command.add_argument("--from", dest="sender")
+            command.add_argument("--set", dest="set_name", help="the rule set that gets the finding (instead of --project)")
+    sub.add_parser("sets")
     sub.add_parser("hook-start")
     sub.add_parser("hook-end")
     args = parser.parse_args(argv)
@@ -1275,8 +1511,21 @@ def main(argv=None):
     if args.command == "asked":
         return asked(args.answer, args.project)
     if args.command == "add":
-        return add(args.text, args.sender, args.project)
+        return add(args.text, args.sender, args.project, set_name=args.set_name)
+    if args.command == "sets":
+        return list_sets()
     return done(args.project, branch=args.branch)
+
+
+def list_sets(out=None):
+    """Print every rule set found: name, reviewer, root, and the subscription files that did not parse."""
+    out = out or sys.stdout
+    registry = prepare(out=sys.stderr)
+    for found in registry.sets.values():
+        print(f"{found.name} | reviewed by {found.reviewer} | {found.root} | {len(found.files)} file rows", file=out)
+    for message in registry.errors:
+        print(f"error: {message}", file=out)
+    return 0
 
 
 if __name__ == "__main__":

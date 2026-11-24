@@ -1,7 +1,7 @@
 """The data folder of rules-kit and the one-time copy of what the retro kept in dev-kit's folder.
 
 Folder: env RULES_KIT_DIR, else `~/.claude/rules-kit` (local, outside any repository). It holds the retro's global
-`state.json`, `notes.md`, the scan logs, one item folder per project (`<repo-folder-name>-<10 hex>/`, see
+`state.json`, `notes.md`, the scan logs, one folder per rule set (`sets/<set>/`) and one state folder per project (`<repo-folder-name>-<10 hex>/`, see
 `retro.py`) and `runs/<project folder>.json`, the file the retro writes for the plugins that wait for its run (dev-kit's
 weekly docs session reads it; see `retro.py`, "Run file").
 

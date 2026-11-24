@@ -746,6 +746,69 @@ class ParsingTests(unittest.TestCase):
         self.assertEqual("text", lint.section(text, "Slots").strip())
 
 
+def subscription_text(name, *rows):
+    return (f"# Rules subscription: {name}\n\n| Setting | Value |\n|---|---|\n| set | {name} |\n| reviewed by | Demo |\n"
+            "| lands by | merged |\n\n## Files\n\n| Path | Type | Part kinds |\n|---|---|---|\n" + "".join(row + "\n" for row in rows))
+
+
+class SubscriptionTests(LintTestCase):
+    """The `rules-subscription.md` of every plugin, read by the parser of rules-kit (loaded by path)."""
+
+    def build_repo(self):
+        super().build_repo()
+        self.register_plugin("rules-kit")
+        scripts = self.root / "plugins" / "rules-kit" / "scripts"
+        scripts.mkdir(parents=True)
+        shutil.copy(Path(lint.__file__).resolve().parent.parent / "plugins" / "rules-kit" / "scripts" / "subscriptions.py",
+                    scripts / "subscriptions.py")
+        self.write_valid()
+
+    def write_valid(self):
+        write(self.root / "plugins" / "dev-kit" / "rules-subscription.md",
+              subscription_text("dev-kit", "| skills/manager/SKILL.md | process | skill dev-kit:manager |",
+                                "| agents/*.md | process | agent dev-kit:coder |", "| slots.md | process | |"))
+        write(self.root / "plugins" / "web-kit" / "rules-subscription.md",
+              subscription_text("web-kit", "| skills/*/SKILL.md | process | skill web-kit:e2e-check, hook web-kit |"))
+        write(self.root / "plugins" / "rules-kit" / "rules-subscription.md",
+              subscription_text("rules-kit", "| scripts/*.py | technical | |"))
+
+    def test_valid_subscriptions_pass(self):
+        self.assertClean(self.run_lint(self.add_profile()))
+
+    def test_a_plugin_folder_without_a_subscription_file_fails(self):
+        (self.root / "plugins" / "web-kit" / "rules-subscription.md").unlink()
+        self.assertErrorContains(self.run_lint(), "plugins/web-kit: rules-subscription.md not found")
+
+    def test_an_invalid_subscription_reports_the_parser_error(self):
+        write(self.root / "plugins" / "web-kit" / "rules-subscription.md",
+              subscription_text("web-kit", "| skills/*/SKILL.md | chatty | |"))
+        self.assertErrorContains(self.run_lint(), "plugins/web-kit/rules-subscription.md: ")
+        self.assertErrorContains(self.run_lint(), "unknown type 'chatty'")
+
+    def test_a_set_named_for_another_folder_fails(self):
+        write(self.root / "plugins" / "web-kit" / "rules-subscription.md",
+              subscription_text("other", "| skills/*/SKILL.md | process | |"))
+        self.assertErrorContains(self.run_lint(), "set name 'other' differs from folder 'web-kit'")
+
+    def test_a_files_row_that_matches_nothing_fails(self):
+        write(self.root / "plugins" / "web-kit" / "rules-subscription.md",
+              subscription_text("web-kit", "| skills/*/SKILL.md | process | |", "| agents/gone.md | process | |"))
+        self.assertErrorContains(self.run_lint(), "Files row 'agents/gone.md' matches no file")
+
+    def test_a_part_kind_that_names_nothing_real_fails(self):
+        write(self.root / "plugins" / "web-kit" / "rules-subscription.md",
+              subscription_text("web-kit", "| skills/*/SKILL.md | process | skill web-kit:missing, agent web-kit:ghost, skill nope:x |"))
+        findings = self.run_lint()
+        self.assertErrorContains(findings, "'skill web-kit:missing': no such skill")
+        self.assertErrorContains(findings, "'agent web-kit:ghost': no such agent")
+        self.assertErrorContains(findings, "'nope' is not a marketplace plugin")
+
+    def test_a_marketplace_without_the_rules_plugin_is_not_checked(self):
+        shutil.rmtree(self.root / "plugins" / "rules-kit" / "scripts")
+        (self.root / "plugins" / "web-kit" / "rules-subscription.md").unlink()
+        self.assertClean(self.run_lint(self.add_profile()))
+
+
 class CommandLineTests(LintTestCase):
     def test_non_ascii_output_survives_a_legacy_console_encoding(self):
         tools = self.root / "tools"

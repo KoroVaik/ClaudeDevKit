@@ -20,12 +20,16 @@ Why: owner, 2026-11-21 and 2026-11-22: the retro stays in dev-kit (no separate p
 projects, not only of the plugin; it does not run on sessions with no dev-kit, since they would give little (the
 scans of 2026-11-19..21 named only dev-kit projects).
 
-### Items are local files, one per cause, one folder per project
-Each finding becomes an item file in a local folder of the project (outside any repository, under the retro folder
-of the user's `.claude`). Any session may add an item to any project's folder, marked with its source; a lead's
-retro may pass an item to another project (rare).
+### Items are local files, one per cause, one folder per rule set
+Each finding becomes an item file in a local folder of the rule set it concerns (a plugin, your global rules or a
+project's own rules; outside any repository, under the retro folder of the user's `.claude`). The set's subscription
+file names the project whose retro handles it, the one where its files are edited (today ClaudeDevKit for the plugins
+and your global rules); a run in a project handles only the sets that project reviews. Any session may add an item to
+any set's folder, marked with its source; a retro may pass an item to the set's reviewer (rare).
 Why: writes into a project's main checkout are blocked for P, items on unmerged branches would be lost, the scan
 from ClaudeDevKit would write into other repositories, and two sessions writing one shared file overwrite each other.
+One folder per set and not per project: owner, 2026-11-24 («Звучить ок»): web-kit has one folder although it runs in
+three projects.
 
 ### Collected and started by hooks, no model and no scheduler
 A SessionEnd hook scans the ending session's transcript; a SessionStart hook runs the full scan once a day (it
@@ -68,7 +72,7 @@ Known limits: items that happen once are kept and not yet expired; decision item
 reuse are not built (`BACKLOG.md`).
 
 ## Acceptance criteria
-- A session of a project with a lead ends: its problems reach that project's item folder; one of another folder does not.
+- A session of a project with a lead ends: its problems reach that project's own rule set folder; one of another folder does not.
 - A cause seen in one session waits; seen in a second session, a trivial fix is applied and shows in the weekly list.
 - A code bug found in a session is handed to the project as a defect and gets no rule fix.
 - A cause in your global rules is handled only in ClaudeDevKit, not asked twice.
@@ -77,6 +81,8 @@ reuse are not built (`BACKLOG.md`).
 
 ## Built in
 - `plugins/rules-kit/scripts/retro.py`
+- `plugins/rules-kit/scripts/subscriptions.py`
+- `plugins/rules-kit/templates/global-rules-subscription.md`
 - `plugins/rules-kit/bin/rules-kit`
 - `plugins/rules-kit/hooks/retro-start.py`
 - `plugins/rules-kit/hooks/retro-end.py`
@@ -85,3 +91,4 @@ reuse are not built (`BACKLOG.md`).
 - `plugins/rules-kit/agents/rule-reviewer.md`
 - `plugins/dev-kit/skills/project-lead/SKILL.md`
 - `tools/tests/test_retro.py`
+- `tools/tests/test_subscriptions.py`

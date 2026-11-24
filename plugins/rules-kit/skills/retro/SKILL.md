@@ -9,8 +9,9 @@ The session runs in the background with no owner, in the main checkout of one pr
 profile `.claude/dev-kit.md` has a `## project-lead` section). It never asks the owner and never uses
 `AskUserQuestion`; it talks only to its lead, `P: <project>` (the repo folder name), by SendMessage that starts with one
 kind word: `ГОТОВО` (done) and, while it still asks, `ПИТАННЯ` (an urgent item); dev-kit's `messages.md` defines the
-kinds. Its input is `rules-kit items`: the project's new
-findings (token problems first) and its item files. Every `rules-kit` command runs in the Bash tool (in
+kinds. Its input is `rules-kit items`: the new
+findings (token problems first) and the item files of the rule sets the project reviews (`rules-kit sets` lists
+every set and its reviewer). Every `rules-kit` command runs in the Bash tool (in
 PowerShell it prints nothing); where Bash cannot run it, use `python -X utf8 <this plugin>/scripts/retro.py`
 with the same arguments. The folder, the commands and the hooks that fill it: the docstring of `scripts/retro.py`.
 
@@ -22,11 +23,11 @@ The retro catches every problem of agent work in this project, and only that:
   agent work: the retro fixes it here.
 - A bug in the project's code (a flaky test, a crash) is not: it is recorded as a defect where the project's
   `dev-kit:documentation` says ("Where things go"), the item gets `status: handed`, and the retro stops there.
-- A cause in a dev-kit plugin's rules, or in the owner's global rules (`C:/Users/korov/.claude/`, chat style
-  included), is handled only by the ClaudeDevKit retro, so two projects never ask the owner the same thing: in
-  any other project the item is moved there with `rules-kit add --project ClaudeDevKit
-  --text "<item line>" --from <project>` and gets `status: handed`.
-- A cause in another project's own rules goes to that project the same way (rare).
+- A cause in a file of a rule set this project does not review (a plugin's rules, the owner's global rules
+  `C:/Users/korov/.claude/` with chat style, another project's own rules) is handled by the retro of the project
+  that reviews that set (`reviewed by` in the set's `rules-subscription.md`), so two projects never handle the
+  same set: the item is moved there with `rules-kit add --set <set> --text "<item line>" --from <project>` and
+  gets `status: handed`.
 
 Spend findings (`long session`, `opus coder`, token spend and waste) are ordinary items, with the spend numbers as
 their evidence.
@@ -63,7 +64,8 @@ A line it marks unsure goes to a second reviewer before it counts.
 
 ## 2. Write the items
 
-One file per cause in `items/<cause key>.md` of the project's folder (the path `items` prints); a finding with an
+One file per cause in `items/<cause key>.md` of the set that owns the file at fault (the path `items` prints in
+that set's heading; a cause that names no file of a set goes to the project's own set); a finding with an
 existing key adds a sighting to that file instead of a new one. The file:
 
     # <plain name of the problem, at most 6 words>
@@ -84,7 +86,7 @@ A recurrence counts separate sessions or days: a lead and its own subagents are 
 - `code bug`, `dev-kit rule`, `global rule`, `other project`: as "Scope" says.
 - `one-off`, or a first sighting that is not urgent: `status: waiting`. A fix needs the same cause in a second
   session or on a second day.
-- `no rule` seen again, trivial, and fewer than 5 trivial fixes in the last 7 days (`items` prints the count): fix
+- `no rule` seen again, trivial, and fewer than 5 trivial fixes in the last 7 days (`items` prints the count per set): fix
   it now (step 4), `status: trivial-fixed`. Over the cap it waits for next week.
 - `ignored rule`, a fix that is not trivial, or anything about how sessions talk to the owner: `status: disputed`.
 - Urgent: `status: urgent`, and send P at once one `ПИТАННЯ` per urgent item (the Було / Виправлення lines and the

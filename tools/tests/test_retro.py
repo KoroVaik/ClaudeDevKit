@@ -18,6 +18,7 @@ import claude_path  # noqa: E402
 import folder_naming  # noqa: E402
 import retro  # noqa: E402
 import rules_dir  # noqa: E402
+import subscriptions  # noqa: E402
 
 SPEND_DIR_ENV = "SPEND_KIT_DIR"  # spend-kit's data folder: the retro runs its command, so the tests point it at a temp folder
 
@@ -93,9 +94,12 @@ class RetroFixture(unittest.TestCase):
         self.projects = tmp / "projects"
         (self.projects / "proj").mkdir(parents=True)
         self.repo = make_repo(tmp / "repo")
-        self.folder = self.retro / folder_naming.folder_name(self.repo)  # the item folder of the retro project
+        self.pfolder = self.retro / folder_naming.folder_name(self.repo)  # the state folder of the retro project
+        self.folder = self.set_folder("repo")  # the own set of the retro project: its findings and items
         patcher = mock.patch.dict(os.environ, {retro.RETRO_ENV: str(self.retro),
                                                retro.PROJECTS_ENV: str(self.projects),
+                                               subscriptions.PLUGINS_ENV: str(tmp / "plugins"),  # no plugin sets
+                                               subscriptions.GLOBAL_ENV: str(tmp / "global"),  # never the real `~/.claude`
                                                retro.NO_START_ENV: "1",
                                                SPEND_DIR_ENV: str(tmp / "spend"),
                                                "DEV_KIT_USAGE_LOG": str(tmp / "usage")})
@@ -104,6 +108,17 @@ class RetroFixture(unittest.TestCase):
         os.environ.pop(rules_dir.OLD_ENV, None)  # the same for the retro folder of dev-kit
         os.environ.pop("CLAUDE_CODE_SESSION_ID", None)
         self.addCleanup(patcher.stop)
+
+    def set_folder(self, name):
+        """The folder of the rule set `name` (a project's own set is named by its repository folder)."""
+        return self.retro / retro.SETS_FOLDER / name
+
+    def devkit_project(self):
+        """The retro project named ClaudeDevKit, with its state folder `state.json` (what makes it a known project);
+        returns it and its own set's folder."""
+        path = make_repo(self.tmp / "ClaudeDevKit")
+        retro.write_json(self.retro / folder_naming.folder_name(path) / "state.json", {"root": str(path)})
+        return path, self.set_folder("ClaudeDevKit")
 
     def write(self, rel, entries, mode="w", cwd=None):
         """A transcript file; every line gets the `cwd` that maps it to a project (default: the retro project)."""
@@ -216,10 +231,11 @@ class RetroTestCase(RetroFixture):
         self.write("proj2/s2.jsonl", [call("b", "Bash", command, "2026-11-19T10:00:00Z")], cwd=other)
         self.write("proj2/s3.jsonl", [call("b", "Bash", command, "2026-11-19T10:00:00Z")], cwd=other)
         self.run_cmd("scan")
-        plugin = self.retro / folder_naming.folder_name(Path(retro.__file__).resolve().parents[3])
+        root = folder_naming.main_checkout(Path(retro.__file__).resolve().parents[3])
+        plugin = self.set_folder(subscriptions.default_project(root).name)
         self.assertIn("2 project(s) | 3 sessions | script candidate", self.new_text(plugin))
         self.assertNotIn("script candidate", self.new_text())
-        self.assertNotIn("script candidate", self.new_text(self.retro / folder_naming.folder_name(other)))
+        self.assertNotIn("script candidate", self.new_text(self.set_folder("other")))
 
     # protects: Rule
     def test_owner_notes_are_sorted_by_their_project_field_once(self):
@@ -234,8 +250,8 @@ class RetroTestCase(RetroFixture):
         self.run_cmd("scan")
         self.assertIn("for repo", self.new_text())
         self.assertNotIn("for other", self.new_text())
-        self.assertIn("for other, case ignored", self.new_text(self.retro / folder_naming.folder_name(other)))
-        self.assertNotIn("no such project", self.new_text() + self.new_text(self.retro / folder_naming.folder_name(other)))
+        self.assertIn("for other, case ignored", self.new_text(self.set_folder("Other")))
+        self.assertNotIn("no such project", self.new_text() + self.new_text(self.set_folder("Other")))
         with open(notes, "a", encoding="utf-8") as handle:
             handle.write("- 2026-11-20 | repo | C: X | correction | later line\n")
         self.run_cmd("scan", "--force")
@@ -318,13 +334,6 @@ class RetroTestCase(RetroFixture):
         self.write("proj/abcdef01.jsonl", self.session(), mode="a", cwd=plain)
         self.run_cmd("scan", "--force")
         self.assertEqual(self.new_text(), text)
-
-    def devkit_project(self):
-        """The retro project named ClaudeDevKit, with its item folder `state.json` (what makes it a known project)."""
-        path = make_repo(self.tmp / "ClaudeDevKit")
-        folder = self.retro / folder_naming.folder_name(path)
-        retro.write_json(folder / "state.json", {"root": str(path)})
-        return path, folder
 
     # protects: Flow
     def test_claude_app_failures_of_any_transcript_go_to_claudedevkit_not_to_their_own_project(self):
@@ -452,7 +461,7 @@ class RetroTestCase(RetroFixture):
         self.write("proj/abcdef01.jsonl", self.session())
         self.write("proj2/12345678.jsonl", self.session(), cwd=other)
         self.run_cmd("scan")
-        mine, theirs = self.new_files(), self.new_files(self.retro / folder_naming.folder_name(other))
+        mine, theirs = self.new_files(), self.new_files(self.set_folder("other"))
         self.assertEqual((len(mine), len(theirs)), (1, 1))
         self.assertIn("(abcdef01)", mine[0].read_text(encoding="utf-8"))
         self.assertNotIn("(12345678)", mine[0].read_text(encoding="utf-8"))
@@ -460,7 +469,7 @@ class RetroTestCase(RetroFixture):
         everything = (self.retro / f"scan-{retro.today()}.md").read_text(encoding="utf-8")
         self.assertIn("(abcdef01)", everything)  # the human log keeps all lines
         self.assertIn("(12345678)", everything)
-        self.assertEqual(json.loads((self.folder / "state.json").read_text(encoding="utf-8"))["root"], str(self.repo))
+        self.assertEqual(json.loads((self.pfolder / "state.json").read_text(encoding="utf-8"))["root"], str(self.repo))
 
     # protects: Flow
     def test_a_transcript_scan_reads_only_that_session_into_its_own_file(self):
@@ -516,13 +525,14 @@ class RetroCommandsTestCase(RetroFixture):
     """`items`, `done`, `add`, `due`, `asked` and the two hooks, on item folders written by hand."""
 
     def put(self, rel, text):
-        path = self.folder / rel
+        """A file of the project's own set (`new/...`, `items/...`), or of its state folder (`state.*`)."""
+        path = (self.pfolder if rel.startswith("state.") else self.folder) / rel
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(text, encoding="utf-8")
         return path
 
     def project_state(self):
-        return json.loads((self.folder / "state.json").read_text(encoding="utf-8"))
+        return json.loads((self.pfolder / "state.json").read_text(encoding="utf-8"))
 
     def exit_code(self, *args):
         err = io.StringIO()
@@ -542,13 +552,14 @@ class RetroCommandsTestCase(RetroFixture):
                                        f"- fix: {day} | big change | high-impact\n")
         self.put("items/other.md", "- status: open\n")
         out = self.project_cmd("items")
-        self.assertEqual(out.splitlines()[:2], [str(self.folder), "last review: never"])
+        self.assertEqual(out.splitlines()[:3], [str(self.retro / retro.SETS_FOLDER), "sets: repo", "last review: never"])
         self.assertLess(out.index("token spend"), out.index("## New findings"))
         self.assertLess(out.index("## New findings"), out.index("repeated call"))
         self.assertIn("\nstale-doc | disputed | rule gap | sightings 2\n", out)
         self.assertIn("\nother | open | ? | sightings 0\n", out)
-        self.assertTrue(out.rstrip().endswith(f"trivial fixes in the last 7 days: 2 of {retro.FIXES_PER_WEEK}"), out)
-        self.assertEqual(self.project_state()["shown"], ["scan-a.md"])
+        self.assertTrue(out.rstrip().endswith(f"trivial fixes in the last 7 days (repo): 2 of {retro.FIXES_PER_WEEK}"), out)
+        self.assertIn(f"### repo ({self.folder / 'items'})\n", out)
+        self.assertEqual(self.project_state()["shown"], ["repo/scan-a.md"])
 
     # protects: Rule
     def test_a_folder_of_another_project_gets_exit_code_2(self):
@@ -580,7 +591,7 @@ class RetroCommandsTestCase(RetroFixture):
         self.assertIsNotNone(retro.parse_time(state["last_review"]))
         self.assertIn("0 file(s)", self.project_cmd("done"))  # nothing shown since: b.md stays new
         self.assertEqual([path.name for path in self.new_files()], ["b.md"])
-        self.assertRegex(self.project_cmd("items").splitlines()[1], r"^last review: \d{4}-\d\d-\d\d \d\d:\d\d$")
+        self.assertRegex(self.project_cmd("items").splitlines()[2], r"^last review: \d{4}-\d\d-\d\d \d\d:\d\d$")
 
     # protects: Flow
     def test_add_writes_a_file_of_its_own_marked_with_the_sender(self):
@@ -599,13 +610,13 @@ class RetroCommandsTestCase(RetroFixture):
 
     # protects: Flow
     def test_project_accepts_the_repository_folder_name_of_a_known_project_in_any_case(self):
-        retro.save_project(self.folder, {"root": str(self.repo)})  # recorded by the scan or a session start
+        retro.save_project(self.pfolder, {"root": str(self.repo)})  # recorded by the scan or a session start
         start = Path.cwd()
         self.addCleanup(os.chdir, start)
         os.chdir(make_repo(self.tmp / "Prishch", retro_project=False))  # another project's session
         self.run_cmd("add", "--text", "agents open the wrong file", "--project", "REPO", "--from", "Prishch")
         self.assertIn("from Prishch | agents open the wrong file", self.new_text())
-        self.assertEqual(self.run_cmd("items", "--project", "Repo").splitlines()[0], str(self.folder))
+        self.assertEqual(self.run_cmd("items", "--project", "Repo").splitlines()[1], "sets: repo")
         code, err = self.exit_code("add", "--text", "x", "--project", "stranger")  # no such name: a folder, not a project
         self.assertEqual(code, 2)
         self.assertIn("no retro project", err)
@@ -621,7 +632,7 @@ class RetroCommandsTestCase(RetroFixture):
                 self.assertEqual(code, 1, command)
                 self.assertIn("locked", err)
             self.assertEqual(self.start(), [])  # hook-start cannot stamp: it starts nothing
-        self.assertFalse((self.folder / "state.json").exists())
+        self.assertFalse((self.pfolder / "state.json").exists())
         old = time.time() - retro.PROJECT_LOCK_STALE_S - 5
         os.utime(lock, (old, old))
         self.assertEqual(len(self.start()), 1)  # a stale lock is taken: the retro session starts
@@ -688,7 +699,7 @@ class RetroCommandsTestCase(RetroFixture):
         self.assertEqual(due(hours=1), "retro: 1 items due (1 urgent)\n")  # urgent: asked at once, the others wait
 
     def retro_state(self, **values):
-        retro.save_project(self.folder, {"root": str(self.repo), **values})
+        retro.save_project(self.pfolder, {"root": str(self.repo), **values})
 
     def start(self, title="C: task", cwd=None, session_id="s-1", claude="fake-claude"):
         """hook_start with the spawn recorded; returns the recorded commands."""
@@ -708,7 +719,7 @@ class RetroCommandsTestCase(RetroFixture):
     def test_a_retro_session_start_does_nothing_so_the_retro_never_starts_itself(self):
         self.put("new/a.md", "- finding\n")
         self.assertEqual(self.start(title="Ретро: repo", session_id="retro-1"), [])
-        self.assertFalse((self.folder / "state.json").exists())  # not even a lead record
+        self.assertFalse((self.pfolder / "state.json").exists())  # not even a lead record
 
     # protects: Rule
     def test_only_a_lead_title_records_the_lead_session(self):
@@ -874,6 +885,242 @@ class RetroCommandsTestCase(RetroFixture):
         state = self.project_state()
         self.assertEqual(state["lead_session"], "lead-9")
         self.assertIn("retro_started", state)  # RULES_KIT_NO_START=1: stamped, no session started
+
+
+SUBSCRIPTION = """# Rules subscription: {name}
+
+| Setting | Value |
+|---|---|
+| set | {name} |
+| reviewed by | {reviewer} |
+| lands by | merged |
+
+## Files
+
+| Path | Type | Part kinds |
+|---|---|---|
+| skills/*/SKILL.md | process | skill {name}:x |
+"""
+
+
+class RetroSetsTestCase(RetroFixture):
+    """Rule sets: findings and items per set, the sets a project's retro handles, the first-run work."""
+
+    def plugin_set(self, name, reviewer="repo"):
+        path = self.tmp / "plugins" / name / subscriptions.FILE_NAME
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(SUBSCRIPTION.format(name=name, reviewer=reviewer), encoding="utf-8")
+
+    def put(self, folder, rel, text):
+        path = folder / rel
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(text, encoding="utf-8")
+        return path
+
+    def files(self, folder, kind):
+        return sorted(path.name for path in (folder / kind).glob("*.md")) if (folder / kind).is_dir() else []
+
+    # protects: Rule
+    def test_a_project_retro_handles_only_the_sets_that_name_it_as_reviewer(self):
+        self.plugin_set("alpha", reviewer="REPO")
+        self.plugin_set("beta", reviewer="somebody")
+        mine, theirs = self.set_folder("alpha"), self.set_folder("beta")
+        self.put(mine, "new/a.md", "- in alpha\n")
+        self.put(theirs, "new/b.md", "- in beta\n")
+        self.put(self.folder, "new/c.md", "- in the project\n")
+        self.put(mine, "items/key.md", "- status: waiting\n")
+        self.put(theirs, "items/other.md", "- status: urgent\n")
+        listing = self.project_cmd("items")
+        self.assertIn("sets: alpha, repo\n", listing)
+        self.assertIn("### alpha\n- in alpha", listing)
+        self.assertIn("- in the project", listing)
+        self.assertNotIn("in beta", listing)
+        self.assertIn("key | waiting |", listing)
+        self.assertNotIn("other | urgent", listing)
+        self.assertEqual(sorted(retro.load_project(self.pfolder)["shown"]), ["alpha/a.md", "repo/c.md"])
+        self.project_cmd("done")
+        self.assertEqual((self.files(mine, "new"), self.files(mine, "seen"), self.files(theirs, "new")), ([], ["a.md"], ["b.md"]))
+        self.put(self.pfolder, "state.json", json.dumps({"lead_session": "lead-1"}))
+        self.assertEqual(self.project_cmd("due", "--session", "lead-1"), "")  # beta's urgent item is not this project's
+
+    # protects: Rule
+    def test_findings_in_a_set_of_another_project_do_not_start_this_retro_nor_make_it_due(self):
+        self.plugin_set("beta", reviewer="somebody")
+        self.put(self.set_folder("beta"), "new/b.md", "- in beta\n")
+        self.retro.mkdir(parents=True, exist_ok=True)
+        (self.retro / "state.json").write_text(json.dumps({"offsets": {}, "last_scan": retro.today()}), encoding="utf-8")
+        with mock.patch.object(retro, "spawn") as spawn, mock.patch.object(claude_path, "find_claude", return_value="c"):
+            retro.hook_start({"cwd": str(self.repo), "session_id": "s", "session_title": "C: x"})
+        spawn.assert_not_called()
+        run = json.loads((self.retro / retro.RUNS_FOLDER / f"{folder_naming.folder_name(self.repo)}.json").read_text(encoding="utf-8"))
+        self.assertFalse(run["retro_due"])
+        self.put(self.folder, "new/a.md", "- in the project\n")
+        retro.hook_start({"cwd": str(self.repo), "session_id": "s", "session_title": "C: x"})
+        run = json.loads((self.retro / retro.RUNS_FOLDER / f"{folder_naming.folder_name(self.repo)}.json").read_text(encoding="utf-8"))
+        self.assertTrue(run["retro_due"])
+
+    # protects: Flow
+    def test_add_with_a_project_goes_to_the_sets_it_reviews_that_the_text_names_else_to_its_own_set(self):
+        self.plugin_set("alpha")
+        self.plugin_set("gamma", reviewer="somebody")
+        mine = self.set_folder("alpha")
+        self.project_cmd("add", "--text", "plugins/alpha/skills/x/SKILL.md:12 is unclear", "--from", "Zhratva")
+        self.project_cmd("add", "--text", "the skill alpha:x sends agents to a missing file", "--from", "Zhratva")
+        self.project_cmd("add", "--text", "agents do something odd", "--from", "Zhratva")
+        self.project_cmd("add", "--text", "plugins/gamma/skills/x/SKILL.md names a gone file", "--from", "Zhratva")  # not reviewed here
+        self.assertEqual(len(self.files(mine, "new")), 2)
+        self.assertIn("SKILL.md:12 is unclear", "".join(path.read_text(encoding="utf-8") for path in (mine / "new").glob("*.md")))
+        self.assertEqual(len(self.files(self.folder, "new")), 2)  # the plain one and the one for a set it does not review
+        self.assertEqual(self.files(self.set_folder("gamma"), "new"), [])
+
+    # protects: Rule
+    def test_an_added_line_about_a_claude_app_fact_goes_to_the_facts_set_when_the_project_reviews_it(self):
+        self.plugin_set("dev-kit")
+        self.project_cmd("add", "--text", "claude app: SendMessage fails to a background session", "--from", "Zhratva")
+        self.project_cmd("add", "--text", "Owner check 2026-11-24: does the push show", "--from", "Zhratva")
+        self.assertEqual(len(self.files(self.set_folder("dev-kit"), "new")), 2)
+        self.assertEqual(self.files(self.folder, "new"), [])
+
+    # protects: Flow
+    def test_add_with_a_set_name_goes_to_that_set_and_an_unknown_set_is_refused(self):
+        self.plugin_set("alpha", reviewer="somebody")
+        self.run_cmd("add", "--set", "alpha", "--text", "finding", "--from", "Zhratva")
+        self.assertEqual(len(self.files(self.set_folder("alpha"), "new")), 1)
+        err = io.StringIO()
+        with mock.patch("sys.stdout", io.StringIO()), mock.patch("sys.stderr", err):
+            self.assertEqual(retro.main(["add", "--set", "nope", "--text", "x"]), 2)
+        self.assertIn("no rule set named nope (known: alpha", err.getvalue())
+
+    # protects: Rule
+    def test_claude_app_findings_go_to_the_facts_set_when_it_is_known(self):
+        self.plugin_set("dev-kit", reviewer="ClaudeDevKit")
+        _, own = self.devkit_project()
+        stamp = "2026-11-19T10:00:00Z"
+        self.write("proj/lead1234.jsonl", [call("s", "SendMessage", {"to": "x"}, stamp), send_result("s", stamp, False, "gone")])
+        self.run_cmd("scan")
+        self.assertIn("claude app | SendMessage: gone", self.new_text(self.set_folder("dev-kit")))
+        self.assertEqual(self.new_files(own), [])
+
+    # protects: Flow
+    def test_the_first_run_writes_the_global_subscription_from_the_template(self):
+        global_file = self.tmp / "global" / subscriptions.FILE_NAME
+        self.assertFalse(global_file.exists())
+        self.assertIn("global | reviewed by ClaudeDevKit | ", self.run_cmd("sets"))
+        self.assertEqual(global_file.read_text(encoding="utf-8"), subscriptions.TEMPLATE.read_text(encoding="utf-8"))
+        global_file.write_text(global_file.read_text(encoding="utf-8") + "\n<!-- edited -->\n", encoding="utf-8")
+        self.run_cmd("sets")
+        self.assertIn("<!-- edited -->", global_file.read_text(encoding="utf-8"))  # never written over
+
+    # protects: Flow
+    def test_a_project_with_its_own_subscription_file_and_no_dev_kit_profile_is_a_retro_project(self):
+        plain = make_repo(self.tmp / "plain", retro_project=False)
+        self.assertFalse(retro.is_retro_project(plain))
+        (plain / ".claude").mkdir()
+        (plain / ".claude" / subscriptions.FILE_NAME).write_text(SUBSCRIPTION.format(name="plain-rules", reviewer="plain"),
+                                                                 encoding="utf-8")
+        self.assertTrue(retro.is_retro_project(plain))
+        self.assertIn("sets: plain-rules\n", self.project_cmd("items", project=plain))
+
+    # protects: Rule
+    def test_the_sets_command_lists_every_set_and_the_files_that_fail(self):
+        self.plugin_set("alpha")
+        bad = self.tmp / "plugins" / "bad" / subscriptions.FILE_NAME
+        bad.parent.mkdir(parents=True)
+        bad.write_text("# nope\n", encoding="utf-8")
+        retro.write_json(self.pfolder / "state.json", {"root": str(self.repo)})
+        listing = self.run_cmd("sets")
+        self.assertIn("alpha | reviewed by repo | ", listing)
+        self.assertIn("repo | reviewed by repo | ", listing)
+        self.assertIn("error: ", listing)
+        self.assertIn("Files table is missing", listing)
+
+    # protects: Rule
+    def test_the_sets_a_text_names_come_from_its_files_first_then_from_its_skills_and_agents(self):
+        self.plugin_set("alpha")
+        self.plugin_set("beta")
+        registry = retro.prepare(out=io.StringIO())
+        roots = retro.text_roots(self.repo)
+        alpha = "plugins/alpha/skills/x/SKILL.md"
+        beta = str(self.tmp / "plugins" / "beta" / "skills" / "x" / "SKILL.md").replace("\\", "/")
+        self.assertEqual(retro.sets_of_text(f"{alpha}:12 and {alpha}, also {beta}", registry, roots), ["alpha", "beta"])
+        self.assertEqual(retro.sets_of_text(f"{alpha} then {beta}, {beta}.", registry, roots), ["beta", "alpha"])
+        self.assertEqual(retro.sets_of_text("see beta:x and alpha:x", registry, roots), ["beta", "alpha"])
+        self.assertEqual(retro.sets_of_text("a file plugins/alpha/skills/x/SKILL.md and the skill beta:x", registry, roots), ["alpha"])
+        self.assertEqual(retro.sets_of_text("nothing here, 12:30 or src/main.py", registry, roots), [])
+
+    def old_item(self, folder, key, text):
+        return self.put(folder, f"items/{key}.md", text)
+
+    # protects: Flow
+    def test_old_items_move_once_to_the_set_of_the_files_they_name_else_to_the_project_set_and_the_old_files_stay(self):
+        self.plugin_set("alpha", reviewer="ClaudeDevKit")
+        other = make_repo(self.tmp / "other")
+        old, old_other = self.pfolder, self.retro / folder_naming.folder_name(other)
+        retro.write_json(old / "state.json", {"root": str(self.repo)})
+        retro.write_json(old_other / "state.json", {"root": str(other)})
+        gdoc = str(self.tmp / "global" / "docs" / "a.md")
+        self.old_item(old, "by-fix", "# t\n- status: waiting\n- seen: 2026-11-20 | s | plugins/beta/skills/x/SKILL.md\n"
+                                     "- fix: 2026-11-21 | plugins/alpha/skills/x/SKILL.md | trivial\n")
+        self.old_item(old, "by-text", "# t\n- status: waiting\n- seen: 2026-11-20 | s | agents ignore alpha:x\n")
+        self.old_item(old, "by-global", f"# t\n- status: fixed\n- fix: 2026-11-21 | {gdoc} | trivial\n")
+        self.old_item(old, "plain", "# t\n- status: waiting\n- seen: 2026-11-20 | s | nothing named\n")
+        self.old_item(old_other, "plain", "# other project\n- status: waiting\n")
+        self.old_item(old_other, "by-fix", "# t\n- fix: 2026-11-21 | plugins/alpha/skills/x/SKILL.md | trivial\n")
+        self.put(old, "new/f.md", "- a finding nobody reviewed\n")
+        self.put(old, "seen/s.md", "- reviewed already\n")
+        out = io.StringIO()
+        retro.prepare(out=out)
+        sets = lambda name: self.set_folder(name)  # noqa: E731
+        self.assertEqual(self.files(sets("alpha"), "items"), ["by-fix-repo.md", "by-fix.md", "by-text.md"])  # a name clash keeps both
+        self.assertEqual(self.files(sets("global"), "items"), ["by-global.md"])
+        self.assertEqual(self.files(sets("repo"), "items"), ["plain.md"])
+        self.assertEqual(self.files(sets("other"), "items"), ["plain.md"])
+        self.assertEqual(self.files(sets("repo"), "new"), ["f.md"])
+        self.assertEqual(self.files(sets("repo"), "seen"), [])  # a reviewed finding is not carried over
+        self.assertEqual(sorted(self.files(old, "items")), ["by-fix.md", "by-global.md", "by-text.md", "plain.md"])  # old files stay
+        self.assertEqual(self.files(old, "seen"), ["s.md"])
+        for line in (f"moved {old.name}/items/by-fix.md -> sets/alpha/items/", f"moved {old.name}/items/by-global.md -> sets/global/items/",
+                     f"moved {old.name}/new/f.md -> sets/repo/new/"):
+            self.assertIn(line, out.getvalue())
+        marker = json.loads((self.retro / retro.SETS_FOLDER / retro.MIGRATED_FILE).read_text(encoding="utf-8"))
+        self.assertEqual(sorted(marker["folders"]), sorted([old.name, old_other.name]))
+        again = io.StringIO()
+        (sets("alpha") / "items" / "by-text.md").write_text("# edited since\n", encoding="utf-8")
+        retro.prepare(out=again)
+        self.assertEqual(again.getvalue(), "")  # once
+        self.assertEqual((sets("alpha") / "items" / "by-text.md").read_text(encoding="utf-8"), "# edited since\n")
+
+    # protects: Edge
+    def test_an_old_folder_with_no_recorded_root_waits_and_a_copy_that_already_exists_is_not_repeated(self):
+        old = self.pfolder
+        self.old_item(old, "k", "# t\n- status: waiting\n")
+        retro.prepare(out=io.StringIO())
+        self.assertEqual(self.files(self.folder, "items"), [])  # no `root` in its state yet: no way to tell its project
+        retro.write_json(old / "state.json", {"root": str(self.repo)})
+        out = io.StringIO()
+        retro.prepare(out=out)
+        self.assertEqual(self.files(self.folder, "items"), ["k.md"])
+        marker = self.retro / retro.SETS_FOLDER / retro.MIGRATED_FILE
+        marker.unlink()  # a lost marker: the same files are found again and not copied twice
+        again = io.StringIO()
+        retro.prepare(out=again)
+        self.assertEqual((self.files(self.folder, "items"), again.getvalue()), (["k.md"], ""))
+
+    # protects: Flow
+    def test_a_scan_takes_over_the_old_items_and_routes_its_findings_to_the_set(self):
+        retro.write_json(self.pfolder / "state.json", {"root": str(self.repo)})
+        self.old_item(self.pfolder, "old-key", "# t\n- status: waiting\n")
+        failures = [{"type": "custom-title", "customTitle": "C: Task"}]
+        for n in range(3):
+            failures += [call(f"r{n}", "Read", {"file_path": "a.py"}, f"2026-11-19T10:0{n}:00Z"),
+                         result(f"r{n}", f"2026-11-19T10:0{n}:10Z", error=True)]
+        self.write("proj/abcdef1234.jsonl", failures)
+        out = self.run_cmd("scan")
+        self.assertIn("moved " + self.pfolder.name + "/items/old-key.md -> sets/repo/items/", out)
+        self.assertEqual(self.files(self.folder, "items"), ["old-key.md"])
+        self.assertEqual(len(self.new_files()), 1)
+        self.assertEqual(self.new_files()[0].parent.parent, self.folder)
+        self.assertIn("old-key | waiting |", self.project_cmd("items"))
 
 
 if __name__ == "__main__":
