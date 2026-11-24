@@ -35,3 +35,9 @@ What: an item whose cause was seen once and not urgent expires after about 2 wee
 Why: first sightings stay as `waiting` items with no end today; the 2-week expiry of one-off causes had no explicit yes (owner, 2026-11-21).
 Cheapest test: count the `waiting` items older than 14 days in the three projects' item folders and see how many the expiry would drop.
 Verdict (2026-11-22): keep as an idea; moved from the finished retro plan, the owner has not agreed it; no case yet shows it missing. Owner: yes (2026-11-23).
+
+## project-lead and manager: no hand data work for the owner when he handed the whole task to a session
+
+What: when the owner's task gives a session the work («цій сесії майже вся роботу - аналіз, ідея, імплементація, тестування»), a C must not plan owner labour (labelling, spot-checking rows, answering data disputes) and P must not relay such an ask; the C replaces it with independent agents (another labeller on a different model tier, an arbiter) and sends what stays open to P, who decides it. The owner is asked only product choices, money over the threshold or hard-to-undo steps. Likely places: `project-lead/SKILL.md` "Owner queue and critical items" (what enters the queue) and `manager/SKILL.md` "A task from the project lead"; possibly `dev-kit:discovery` or `test-change` where owner labelling is suggested.
+Why: 2026-11-24, P: Zhratva, task «C: Переробка ядра аналізу». The C's design listed «the owner checks 60 random agreed labels and answers label disputes»; P put it to the owner as a queue question. Owner: «Які нафіг 60?! Мені зайнятись нічим?!», then «так» to a rule so sessions do not ask him for hand data checks. Owner approved the idea; the wording is for the reviewer.
+Cheapest test: a C brief that needs gold labels; check that the C plans agent labellers and that P's queue gets no labelling question.
