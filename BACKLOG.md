@@ -28,10 +28,3 @@ What: every retro decision (a "no, the rule is not to blame" too) becomes a loca
 Why: owner, 2026-11-21: reuse of experience between projects; today each project's retro starts from its own items only.
 Cheapest test: replay one real case, e.g. a decision of the Zhratva retro, and see whether the ClaudeDevKit retro would have found it by its cause key.
 Verdict (2026-11-22): keep as an idea; moved from the finished retro plan, the owner has not agreed it; no case yet shows it missing. Owner: yes (2026-11-23).
-
-## Retro: one-off items expire
-
-What: an item whose cause was seen once and not urgent expires after about 2 weeks if it does not recur (lost work is fixed at once, never waits).
-Why: first sightings stay as `waiting` items with no end today; the 2-week expiry of one-off causes had no explicit yes (owner, 2026-11-21).
-Cheapest test: count the `waiting` items older than 14 days in the three projects' item folders and see how many the expiry would drop.
-Verdict (2026-11-22): keep as an idea; moved from the finished retro plan, the owner has not agreed it; no case yet shows it missing. Owner: yes (2026-11-23).

@@ -200,6 +200,70 @@ class ReportTest(LogTestCase):
             self.assertEqual(api_client.main(["reconcile", "--console", "A"], out=io.StringIO()), 2)
 
 
+class OldFolderTest(unittest.TestCase):
+    """The log moved from ~/.claude/dev-kit to ~/.claude/spend-kit; other projects' programs still append to the old one."""
+
+    def setUp(self):
+        self.dir = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, self.dir, True)
+        self.new, self.old = self.dir / "spend-kit", self.dir / "dev-kit"
+        self.old.mkdir()
+        patcher = mock.patch.dict(os.environ, {"SPEND_KIT_DIR": str(self.new), "SPEND_KIT_OLD_DIR": str(self.old)})
+        patcher.start()
+        self.addCleanup(patcher.stop)
+        os.environ.pop("DEV_KIT_API_LOG", None)  # restored with the patch
+
+    def old_call(self, key, days_ago=1):
+        """A line a program of another project appends to the old log by its own code."""
+        ts = datetime.datetime.now(UTC) - datetime.timedelta(days=days_ago)
+        line = api_client.make_line("Other", key, "claude-sonnet-5-5", {"input_tokens": 10**6}, prices=PRICES, ts=ts)
+        api_client.append_line(line, self.old / "api-calls.jsonl")
+
+    def report(self):
+        out = io.StringIO()
+        self.assertEqual(api_client.main(["report", "--days", "30"], out=out), 0)
+        return out.getvalue()
+
+    # protects: Flow
+    def test_first_use_copies_the_log_and_the_credit_log_once_and_keeps_the_old_files(self):
+        self.old_call("A")
+        (self.old / "credits.md").write_text("- 2026-11-17 | balance $10\n", encoding="utf-8")
+        self.assertEqual(self.new / "api-calls.jsonl", api_client.log_path())
+        self.assertEqual(self.old.joinpath("api-calls.jsonl").read_bytes(), (self.new / "api-calls.jsonl").read_bytes())
+        self.assertEqual("- 2026-11-17 | balance $10\n", (self.new / "credits.md").read_text(encoding="utf-8"))
+        (self.new / "credits.md").write_text("- 2026-11-24 | balance $9\n", encoding="utf-8")
+        api_client.log_path()
+        self.assertEqual("- 2026-11-24 | balance $9\n", (self.new / "credits.md").read_text(encoding="utf-8"),
+                         "a second use must not overwrite the new file")
+        self.assertTrue((self.old / "api-calls.jsonl").exists() and (self.old / "credits.md").exists())
+
+    # protects: Bug
+    def test_report_counts_a_copied_line_once_and_a_line_added_to_the_old_log_later(self):
+        self.old_call("A")
+        self.old_call("A")  # an identical-looking second call: two lines, both copied
+        api_client.log_path()  # the copy
+        self.old_call("B")  # another project's program appends to the old path after the copy
+        api_client.append_line(api_client.make_line("P", "C", "claude-sonnet-5-5", {"input_tokens": 10**6},
+                                                    prices=PRICES), api_client.log_path())
+        text = self.report()
+        self.assertRegex(text, r"A\s+4\.00 USD  2 calls")
+        self.assertRegex(text, r"B\s+2\.00 USD  1 calls")
+        self.assertRegex(text, r"C\s+2.00 USD  1 calls")
+        self.assertIn("and the old log", text)
+        out = io.StringIO()
+        api_client.main(["reconcile", "--console", "B=2"], out=out)
+        self.assertIn("B: Console $2.00, log $2.00: ok", out.getvalue())
+
+    # protects: Edge
+    def test_report_reads_the_new_log_alone_when_the_old_folder_is_gone(self):
+        self.old_call("A")
+        api_client.log_path()  # the copy
+        shutil.rmtree(self.old)
+        text = self.report()
+        self.assertRegex(text, r"A\s+2\.00 USD  1 calls")
+        self.assertNotIn("and the old log", text)
+
+
 class RobustnessTest(LogTestCase):
     def test_bad_since_is_usage_error(self):
         with redirect_stderr(io.StringIO()):

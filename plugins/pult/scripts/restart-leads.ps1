@@ -10,7 +10,8 @@
 # `dev-kit-sessions restart request --version V` (V from <DevKitDir>\.claude-plugin\plugin.json) and prints
 # `Asked: <name>`; watch-servers.ps1 sends it to the lead as a `restart` event message (an older lead's own
 # session watcher reads it), and restarts that lead when it marks itself ready.
-# -Ask also counts the extension plugins a project uses (web-kit, unity-kit; see plugin-versions.ps1): a lead
+# -Ask also counts the other plugins a lead loads (rules-kit, spend-kit and the ones its project enables: web-kit,
+# unity-kit; see plugin-versions.ps1): a lead
 # stale only in an extension is restarted now when idle, and a busy one is not asked (the watcher restarts it
 # when it is idle: `Not asked, busy and only an extension changed: <name>`).
 # A lead whose project has no hard-ban lines on main is not stopped: `NO-BANS <name> (<reason>): not restarted`

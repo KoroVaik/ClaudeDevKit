@@ -1,6 +1,6 @@
 # ClaudeDevKit
 
-Four plugins for [Claude Code](https://claude.com/claude-code) that give AI coding agents a fixed
+Six plugins for [Claude Code](https://claude.com/claude-code) that give AI coding agents a fixed
 development process: plan, code, review, test, update the docs. It is a personal tool for solo
 developers who let agents write most of the code and want to stay in charge of the decisions.
 
@@ -40,3 +40,10 @@ enforced by Python code (see [the map](tech/map.md)).
   Control server in the home folder for the phone and shows read-only status. It acts only in a session
   whose cwd is exactly the home folder.
   Epic: [Run all projects from the phone](epics/run-all-projects-from-the-phone.md).
+- `rules-kit` - everything about rules (enable at user scope): how to write them (`edit-rules`) and how to improve
+  them (the retro that checks each plugin's, the owner's global and each project's rules against past sessions and
+  fixes them itself). The plugins and projects subscribe with a `rules-subscription.md`.
+  Feature: [Fix agent problems in the retro](features/fix-agent-problems-in-the-retro.md).
+- `spend-kit` - everything about Claude spend (enable at user scope): the weekly limit and the status line,
+  per-session spend and the API money client. Other plugins only read its data files.
+  Feature: [Log and reconcile API spend](features/log-and-reconcile-api-spend.md).

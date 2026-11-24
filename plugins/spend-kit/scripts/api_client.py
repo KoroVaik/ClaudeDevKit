@@ -12,9 +12,13 @@ AiProviderClient and tools/ai-api) append the same line themselves; the format i
 `docs/tech/api-spend.md` of the plugin repo links here). `call` uses only the Messages API: it writes no line for
 Message Batches.
 
-The log: one file, `~/.claude/dev-kit/api-calls.jsonl` (next to the weekly credit-check log `credits.md`), or the
-path in env `DEV_KIT_API_LOG`. One JSON object per line, UTF-8 without BOM, `\\n` at the end, appended (never
-rewritten) by one write of the whole line:
+The log: one file, `~/.claude/spend-kit/api-calls.jsonl` (next to the weekly credit-check log `credits.md`), or the
+path in env `DEV_KIT_API_LOG`. Both files used to live in `~/.claude/dev-kit/`: the first run copies them to the new
+folder once. Programs of other projects still append to the OLD path `~/.claude/dev-kit/api-calls.jsonl` (they name
+it in their own code), so `report` and `reconcile` read both files and count a line copied to the new one once; the
+old path stays valid for those writers and for no one else (this client writes only the new file; with env
+`DEV_KIT_API_LOG` only that file is read). One JSON object per line, UTF-8 without BOM, `\\n` at the end, appended
+(never rewritten) by one write of the whole line:
 
     {"v": 1, "ts": "2026-11-21T14:03:05Z", "project": "Zhratva", "key": "Zhratva test",
      "model": "claude-sonnet-5-5", "batch": false, "input": 1234, "output": 567, "cache_write_5m": 0,
@@ -48,8 +52,11 @@ import sys
 import time
 import urllib.error
 import urllib.request
-from collections import defaultdict
+from collections import Counter, defaultdict
 from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))  # the launcher runs this file with runpy, which adds nothing
+import spend_dir  # noqa: E402  the data folder and the one-time move from dev-kit
 
 API_URL = "https://api.anthropic.com/v1/messages"
 API_VERSION = "2026-10-21"
@@ -72,8 +79,19 @@ class ApiError(Exception):
 
 
 def log_path():
+    """The log this client writes: env DEV_KIT_API_LOG, else `api-calls.jsonl` in the spend-kit data folder (the old
+    files are copied there first, once)."""
     env = os.environ.get("DEV_KIT_API_LOG")
-    return Path(env) if env else Path.home() / ".claude" / "dev-kit" / "api-calls.jsonl"
+    if env:
+        return Path(env)
+    spend_dir.migrate_api_files()
+    return spend_dir.data_dir() / spend_dir.API_LOG
+
+
+def old_log_path():
+    """The old log that other projects' programs still append to, read besides the new one; None when env
+    DEV_KIT_API_LOG names the only file or there is no old folder."""
+    return None if os.environ.get("DEV_KIT_API_LOG") else spend_dir.old_api_log()
 
 
 def load_prices(path=PRICES):
@@ -175,6 +193,25 @@ def read_lines(path=None):
                 continue
             lines.append(item)
     return lines, broken
+
+
+def read_all_lines():
+    """The lines of the log and of the old log (see `old_log_path`) and the broken count. A line copied to the new log
+    is in both files: each line of the old file that has a twin in the new one (the same content, once per twin)
+    is not counted again."""
+    lines, broken = read_lines(log_path())
+    old = old_log_path()
+    if old is None or not old.exists():
+        return lines, broken
+    twins = Counter(json.dumps(item, sort_keys=True) for item in lines)
+    old_lines, old_broken = read_lines(old)
+    for item in old_lines:
+        key = json.dumps(item, sort_keys=True)
+        if twins[key] > 0:
+            twins[key] -= 1
+        else:
+            lines.append(item)
+    return lines, max(broken, old_broken)  # a broken line copied over is in both counts
 
 
 def parse_ts(text):
@@ -288,10 +325,12 @@ def summarize(lines, prices, start, end, by="key"):
 
 def cmd_report(args, out):
     prices = load_prices()
-    lines, broken = read_lines()
+    lines, broken = read_all_lines()
     start, end = window(args.days, args.since)
     groups, unpriced = summarize(lines, prices, start, end, args.by)
-    print(f"API spend from the log {log_path()}, {start:%Y-%m-%d}..{end:%Y-%m-%d} by {args.by}, "
+    old = old_log_path()
+    also = f" and the old log {old}" if old is not None and old.exists() else ""
+    print(f"API spend from the log {log_path()}{also}, {start:%Y-%m-%d}..{end:%Y-%m-%d} by {args.by}, "
           f"prices as of {prices['as_of']}", file=out)
     width = max([len(k) for k in groups] + [5])
     for name in sorted(groups):
@@ -341,7 +380,7 @@ def reconcile(console, logged, unpriced=None):
 def cmd_reconcile(args, out):
     console = parse_console(args.console)
     prices = load_prices()
-    lines, broken = read_lines()
+    lines, broken = read_all_lines()
     start, end = window(args.days)
     groups, unpriced = summarize(lines, prices, start, end, "key")
     logged = {k: v[0] for k, v in groups.items()}

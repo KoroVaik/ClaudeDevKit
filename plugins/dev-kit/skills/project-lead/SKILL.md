@@ -1099,7 +1099,7 @@ passive list in Pult. The weekly docs session: owner, 2026-11-22 (`docs/features
 ## API credit check (plugin repo only)
 
 Chrome use: yes. Once a week, at the first start status or owner message at least 7 days after the
-last line of the local log `C:/Users/korov/.claude/dev-kit/credits.md`, P opens in the owner's Chrome (a new
+last line of the local log `C:/Users/korov/.claude/spend-kit/credits.md` (copied once from the old `dev-kit` folder by spend-kit), P opens in the owner's Chrome (a new
 tab, closed after) the Console pages Billing (`https://platform.claude.com/settings/billing`) and Cost
 (Spending & usage, «Cost», Group by «API key», last 30 days). It reads only: the credit balance, each
 credit's remaining sum and expiry date, and which API keys spent in the last 30 days and about how much.

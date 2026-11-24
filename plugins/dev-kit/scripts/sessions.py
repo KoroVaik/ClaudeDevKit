@@ -154,8 +154,9 @@ quiet) sets `asked` and prints `handoff asked: NAME`, or `handoff already asked:
 when nothing is saved); `status` prints `none`, `saved NAME <seconds>` (since the save) or `go NAME <seconds>` (since
 `go_at`, else since the save); `clear` removes the file (fine when absent).
 
-`release` tells the Pult watcher whether a lead that runs an older dev-kit must restart the same day. The release
-marks are `releases.json` in the dev-kit plugin folder (`--file` for another): a JSON object, version -> `{"kind":
+`release` tells the Pult watcher whether a lead that runs an older plugin must restart the same day. The release
+marks are `releases.json` in the dev-kit plugin folder; `--file` names another plugin's own file (the watcher asks
+once per changed plugin: dev-kit, rules-kit, spend-kit, web-kit, unity-kit): a JSON object, version -> `{"kind":
 "critical"|"routine", "date": "YYYY-MM-DD" (local date of the release), "reason": one line}`; the agent that bumps the
 version adds its entry in the same commit. It prints `critical <version>: <reason>` for the newest critical entry
 with `--from` < version <= `--to` (versions compared as dotted numbers), else `routine`. `--from older` (or any
@@ -1774,10 +1775,10 @@ def main(argv=None):
     handoff_save.add_argument("--go", action="store_true", help="move now: skip the quiet wait")
     for action in ("go", "request", "status", "clear"):
         handoff_sub.add_parser(action)
-    release = sub.add_parser("release", help="whether the dev-kit releases a lead lacks hold a critical one")
+    release = sub.add_parser("release", help="whether the releases of a plugin a lead lacks hold a critical one")
     release.add_argument("--from", dest="from_version", required=True,
                          help="the dev-kit version the lead process started on, or older when unknown")
-    release.add_argument("--to", required=True, help="the installed dev-kit version")
+    release.add_argument("--to", required=True, help="the installed version of the plugin")
     release.add_argument("--started", default="", help="the start time of the lead process (ISO), for --from older")
     release.add_argument("--file", default="", help="the release marks file (default: releases.json of dev-kit)")
     quiet = sub.add_parser("quiet", help="whether a lead's chat is quiet: no recent owner message, no open question")

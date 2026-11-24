@@ -1,1 +1,3 @@
-{}
+{
+  "0.1.0": {"kind": "routine", "date": "2026-11-24", "reason": "first release: the retro and edit-rules moved here, rule subscriptions, rule checks by type, the retro fixes rules itself"}
+}

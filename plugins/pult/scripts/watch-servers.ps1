@@ -52,10 +52,11 @@
 #   new watcher run sends the message again.
 # - A dev-kit lock file whose owner is gone is removed: UNLOCK (see Clear-StaleLocks).
 # - A lead that runs on an older dev-kit version than the one installed (<DevKitDir>\.claude-plugin\plugin.json)
-#   is restarted so it loads the new skills. The same for an extension plugin the lead's project uses
-#   (plugin-versions.ps1: the <name>@korov-dev keys, except dev-kit and pult, that are true in
-#   <project Path>\.claude\settings.json enabledPlugins; version from plugins\<name>\.claude-plugin\plugin.json
-#   next to dev-kit): web-kit, unity-kit. The versions each lead process started on are kept by pid and
+#   is restarted so it loads the new skills. The same for the other plugins the lead loads (plugin-versions.ps1: the
+#   user-scope plugins rules-kit and spend-kit, and the <name>@korov-dev keys, except dev-kit and pult, that are true
+#   in <project Path>\.claude\settings.json enabledPlugins; version from plugins\<name>\.claude-plugin\plugin.json
+#   next to dev-kit): web-kit, unity-kit. Below "extension" means any of them. The versions each lead process
+#   started on are kept by pid and
 #   process start time in <StateDir>\lead-versions.json: "version" is the dev-kit one, "ext" holds name ->
 #   version of the extensions (LEAD-VERSION on a new entry; a process that started after a plugin.json was
 #   last written gets the installed version, else "older"). An old entry with no "ext" adopts the installed
@@ -64,15 +65,17 @@
 #   "idle" below also needs no task session of its registry live and busy (a restart would lose that session's
 #   reports; Get-BusyTask). Restarts go through restart-leads.ps1 (-Name, or -Ready for a ready mark): RESTART-LEAD
 #   <name> (<changed plugins>, <how>).
-#   Stale only in an extension: an idle lead (status idle) is restarted at once (how: idle). A busy one is never
-#   woken (the skill knows only dev-kit versions, a wake-up is a paid turn, and -Ask writes no request for it): it
-#   is restarted when it is idle, or when `restart status` says `ready V <seconds>` with V the installed dev-kit and
+#   An extension is never asked of a lead (the skill knows only dev-kit versions, a wake-up is a paid turn, and -Ask
+#   writes no request for it): a lead stale only in extensions is restarted by the release rules below, a busy one
+#   also when `restart status` says `ready V <seconds>` with V the installed dev-kit and
 #   less than 10 minutes (how: ready; a ready mark older or for another version is cleared: READY-EXPIRED).
-#   Stale in dev-kit (owner's rules, plans/update-timing.md): each dev-kit release is marked critical or routine in
-#   <DevKitDir>\releases.json (the agent that bumps the version adds it; missing counts as routine). Per lead, pid
-#   and installed version the watcher asks `sessions.py release --from <started version> --to V --started <process
-#   start>` once (RELEASE-KIND <name> (dev-kit X -> V): critical <version>: <reason> | routine). The entry keeps
-#   "staleSince", the local date this watcher first saw that pid stale in dev-kit (a new pid starts fresh).
+#   Stale in any plugin (owner's rules, plans/update-timing.md): each release is marked critical or routine in the
+#   plugin's own releases.json (<DevKitDir>\releases.json, plugins\<name>\releases.json; the agent that bumps the
+#   version adds it; missing counts as routine). Per lead, pid and installed versions the watcher asks, for each
+#   changed plugin, `sessions.py release --from <started version> --to <installed> --file <its releases.json>
+#   --started <process start>` once (RELEASE-KIND <name> (dev-kit X -> V; web-kit X -> Y): critical <version>:
+#   <reason> | routine); one critical mark makes the change critical. The entry keeps
+#   "staleSince", the local date this watcher first saw that pid stale in any plugin (a new pid starts fresh).
 #   - A `ready V <seconds>` mark for the installed V (the lead itself, or restart-leads.ps1 -Ask) is honoured
 #     whatever the kind, with less than 10 minutes: the lead wrote its 30-second warning into its chat just before
 #     it marked itself ready, so a mark younger than $ReadyWarnSec s is waited out inside the round first; then
@@ -89,8 +92,8 @@
 #     wakes then reaches it): it finishes its step, writes the 30-second warning into its chat and marks itself
 #     ready, which the ready mark above handles. An older lead (below $WakeMinDevKit; its own session watcher
 #     exits 7 on a request of -Ask) is restarted only when quiet.
-#   - Stale in dev-kit and in an extension: when the dev-kit rules say wait, an idle lead is still restarted for
-#     the extension (how: idle); any restart takes the pending dev-kit versions with it.
+#   - A critical release with an extension changed too, or in an extension only (never asked): a lead that is not
+#     quiet but idle is restarted at once (how: idle); any restart takes the pending versions of every plugin with it.
 #   restart.json is cleared after a restart and after a failure, and a lead already on the installed versions has a
 #   left-over one cleared (RESTART-CLEARED; checked once per pid). One try per lead per combined version (dev-kit
 #   plus extensions); a failure is logged as RESTART-LEAD-FAILED (RESTART-LEAD-TIMEOUT for a run cut at its bound, see
@@ -748,26 +751,35 @@ function Invoke-LeadRestart([string]$LeadName, [switch]$IsReady) {
     return 'failed'
 }
 
-# critical or routine: the kind of the dev-kit releases a lead process ($St, its lead-versions.json entry) lacks up to
-# the installed version $V (`sessions.py release` against <DevKitDir>\releases.json, see the header). Asked once per
-# lead, pid and $V: RELEASE-KIND <name> (dev-kit X -> V): <answer>. A failed call counts as routine (WARN once) and is
-# asked again next round.
-function Get-ReleaseKind([string]$Name, $St, [string]$V) {
-    $key = "$Name|$($St.Pid)|$V"
+# critical or routine: the kind of the releases a lead process ($St, its lead-versions.json entry) lacks. $Items: one
+# @{ Plugin; From; To; File } per changed plugin (dev-kit up to the installed version, an extension up to its own);
+# each is asked with `sessions.py release` against that plugin's own releases.json (see the header), and one critical
+# one makes the whole change critical. Asked once per lead, pid and $Key (the installed versions): RELEASE-KIND <name>
+# (<changes>): <answer>. A failed call counts as routine (WARN once) and is asked again next round.
+function Get-ReleaseKind([string]$Name, $St, [string]$Key, $Items) {
+    $key = "$Name|$($St.Pid)|$Key"
     if ($releaseKinds.ContainsKey($key)) { return $releaseKinds[$key] }
-    $words = @('release', '--from', [string]$St.Version, '--to', $V, '--file', (Join-Path $DevKitDir 'releases.json'))
-    if ($St.Started) { $words += @('--started', [string]$St.Started) }  # an empty argument would be dropped
-    $r = Invoke-Sessions $words
-    $lines = @($r.Out -split "`r?`n" | ForEach-Object { $_.Trim() } | Where-Object { $_ })
-    foreach ($w in @($lines | Where-Object { $_ -clike 'dev-kit-sessions:*' })) { Write-WarnOnce "release $w" $w }
-    $verdict = @($lines | Where-Object { $_ -cmatch '^(critical .+|routine)$' }) | Select-Object -First 1
-    if ($r.Code -ne 0 -or -not $verdict) {
-        Write-WarnOnce "release $Name" "cannot read the release kind for $Name, counted as routine: $($r.Out -replace '\s+', ' ')"
-        return 'routine'
+    $label = (@($Items | ForEach-Object { "$($_.Plugin) $($_.From) -> $($_.To)" })) -join '; '
+    $verdict = 'routine'
+    $failed = $false
+    foreach ($item in @($Items)) {
+        $words = @('release', '--from', [string]$item.From, '--to', [string]$item.To, '--file', [string]$item.File)
+        if ($St.Started) { $words += @('--started', [string]$St.Started) }  # an empty argument would be dropped
+        $r = Invoke-Sessions $words
+        $lines = @($r.Out -split "`r?`n" | ForEach-Object { $_.Trim() } | Where-Object { $_ })
+        foreach ($w in @($lines | Where-Object { $_ -clike 'dev-kit-sessions:*' })) { Write-WarnOnce "release $w" $w }
+        $one = @($lines | Where-Object { $_ -cmatch '^(critical .+|routine)$' }) | Select-Object -First 1
+        if ($r.Code -ne 0 -or -not $one) {
+            Write-WarnOnce "release $Name $($item.Plugin)" "cannot read the release kind of $($item.Plugin) for $Name, counted as routine: $($r.Out -replace '\s+', ' ')"
+            $failed = $true
+            continue
+        }
+        if ($one -clike 'critical *' -and $verdict -ceq 'routine') { $verdict = $one }
     }
     $kind = if ($verdict -clike 'critical *') { 'critical' } else { 'routine' }
+    if ($failed -and $kind -ceq 'routine') { return 'routine' }  # asked again next round
     $releaseKinds[$key] = $kind
-    Write-Log "RELEASE-KIND $Name (dev-kit $($St.Version) -> $V): $verdict"
+    Write-Log "RELEASE-KIND $Name ($label): $verdict"
     return $kind
 }
 
@@ -789,13 +801,15 @@ function Get-LeadActivity($Entry, [string]$BusyTask) {
     return 'unknown'
 }
 
-# What the dev-kit rules (see the header) say for a lead stale in dev-kit ($s, $m as below, $St its lead-versions.json
-# entry, $V the installed version). Returns @{ How; Stop; Ask; Defer; Said }: How 'ready', 'quiet' or 'critical,
-# quiet' to restart now, '' to wait; Stop when a ready mark expired (READY-EXPIRED, nothing else this round); Ask the
-# reason a lead is not quiet for a critical release; Defer for a routine release on the day the lead turned stale;
-# Said the lead's `restart status`.
-function Get-DevKitRestartPlan($s, $m, $St, [string]$V, [string]$BusyTask) {
-    $plan = @{ How = ''; Stop = $false; Ask = ''; Defer = $false; Said = '' }
+# What the release rules (see the header) say for a lead stale in any plugin ($s, $m as below, $St its lead-versions.json
+# entry, $V the installed dev-kit version, $Key and $Items as in Get-ReleaseKind, $CanAsk whether dev-kit is among the
+# changes: the lead's handshake knows only dev-kit versions, so only then it may be asked again). Returns @{ How;
+# Stop; Ask; Defer; Kind; Said }: How 'ready', 'quiet' or 'critical, quiet' to restart now, '' to wait; Stop when a
+# ready mark expired (READY-EXPIRED, nothing else this round); Ask the reason a lead is not quiet for a critical
+# release; Defer for a routine release on the day the lead turned stale; Kind 'critical' or 'routine' (empty before
+# it was asked); Said the lead's `restart status`.
+function Get-RestartPlan($s, $m, $St, [string]$V, [string]$BusyTask, [string]$Key, $Items, [bool]$CanAsk) {
+    $plan = @{ How = ''; Stop = $false; Ask = ''; Defer = $false; Kind = ''; Said = '' }
     $said = Invoke-LeadRestartFile $s.Path @('status')
     $plan.Said = $said
     if ($said -match '^ready (\S+) (\d+)$') {
@@ -811,12 +825,13 @@ function Get-DevKitRestartPlan($s, $m, $St, [string]$V, [string]$BusyTask) {
         # A ready mark for this version that went stale (a long hold): the lead already noted the version, so ask
         # once more; its session watcher wakes it once (exit 7), or a wake message does.
         $again = ''
-        if ($readyFor -ceq $V) { $null = Invoke-LeadRestartFile $s.Path @('request', '--version', $V); $again = '; asked again' }
+        if ($readyFor -ceq $V -and $CanAsk) { $null = Invoke-LeadRestartFile $s.Path @('request', '--version', $V); $again = '; asked again' }
         Write-Log "READY-EXPIRED $($s.Session) ($($said -replace '\s+', ' '), installed $V$again)"
         $plan.Stop = $true
         return $plan
     }
-    if ((Get-ReleaseKind $s.Session $St $V) -ceq 'routine') {
+    $plan.Kind = Get-ReleaseKind $s.Session $St $Key $Items
+    if ($plan.Kind -ceq 'routine') {
         $today = (Get-Date).ToString('yyyy-MM-dd', [Globalization.CultureInfo]::InvariantCulture)
         if ($St.StaleSince -ceq $today) { $plan.Defer = $true }
         elseif (-not (Get-LeadActivity $m $BusyTask)) { $plan.How = 'quiet' }
@@ -871,14 +886,16 @@ function Invoke-LeadVersionCheck($s, $m, [string]$V) {
     }
     if ($adopted) { try { Save-LeadVersions } catch { Write-Log "WARN cannot save $versionFile : $_" } }
     $devStale = $st.Version -cne $V
-    # The day this watcher first saw the process stale in dev-kit: a routine release waits until a later day.
-    $staleDay = if ($devStale) { (Get-Date).ToString('yyyy-MM-dd', [Globalization.CultureInfo]::InvariantCulture) } else { $null }
-    if (($devStale -and -not $st.StaleSince) -or (-not $devStale -and $st.StaleSince)) {
+    $extList = @(Get-ExtChangeList $st.Ext $ext)
+    $extChanges = @($extList | ForEach-Object { "$($_.Name) $($_.From) -> $($_.To)" })
+    $anyStale = $devStale -or $extList.Count -gt 0
+    # The day this watcher first saw the process stale in any plugin: a routine release waits until a later day.
+    $staleDay = if ($anyStale) { (Get-Date).ToString('yyyy-MM-dd', [Globalization.CultureInfo]::InvariantCulture) } else { $null }
+    if (($anyStale -and -not $st.StaleSince) -or (-not $anyStale -and $st.StaleSince)) {
         $st.StaleSince = $staleDay
         try { Save-LeadVersions } catch { Write-Log "WARN cannot save $versionFile : $_" }
     }
-    $extChanges = @(Get-ExtChanges $st.Ext $ext)
-    if (-not $devStale -and -not $extChanges) {
+    if (-not $anyStale) {
         # On the installed versions: a restart.json left by a HEAL, a crash or a manual restart is stale. Looked at once
         # per pid, right after the version is known, not every round.
         if ($firstLook) {
@@ -905,42 +922,29 @@ function Invoke-LeadVersionCheck($s, $m, [string]$V) {
     $busyTask = $null
     if ($wokenByMessage -and $m.status -eq 'idle') { $busyTask = Get-BusyTask $s.Path }
     $idleFree = $m.status -eq 'idle' -and -not $busyTask
-    if ($devStale) {
-        $plan = Get-DevKitRestartPlan $s $m $st $V $busyTask
-        if ($plan.Stop) { return }  # a ready mark that expired (READY-EXPIRED)
-        $how = $plan.How
-        # The dev-kit rules say wait: an extension change still restarts an idle lead (the restart takes the
-        # pending dev-kit versions with it).
-        if (-not $how -and $extChanges -and $idleFree) { $how = 'idle' }
-        if (-not $how) {
-            # A critical release and a lead that is not quiet: a lead woken by message is asked (it warns the owner
-            # in its chat, marks itself ready, and the ready path above restarts it); an older one waits for quiet.
-            $said = $plan.Said
-            if ($plan.Ask -and $wokenByMessage -and ($said -ceq 'none' -or ($said -match '^asked (\S+) ' -and $Matches[1] -cne $V))) {
-                $null = Invoke-LeadRestartFile $s.Path @('request', '--version', $V)
-                Write-Log "RESTART-ASKED $name (dev-kit $($st.Version) -> $V, critical, $($plan.Ask))"
-            } elseif ($plan.Defer -and $deferLogged[$name] -cne "$procId|$V") {
-                $deferLogged[$name] = "$procId|$V"
-                Write-Log "RESTART-DEFERRED $name (dev-kit $($st.Version) -> $V, routine, until a later day)"
-            }
-            return
+    # Each changed plugin is judged by its own releases.json (Get-ReleaseKind); one critical mark makes the change critical.
+    $items = @()
+    if ($devStale) { $items += @{ Plugin = 'dev-kit'; From = [string]$st.Version; To = $V; File = (Join-Path $DevKitDir 'releases.json') } }
+    foreach ($c in $extList) { $items += @{ Plugin = $c.Name; From = $c.From; To = $c.To; File = (Join-Path $ext[$c.Name].Dir 'releases.json') } }
+    $plan = Get-RestartPlan $s $m $st $V $busyTask $tryKey $items $devStale
+    if ($plan.Stop) { return }  # a ready mark that expired (READY-EXPIRED)
+    $how = $plan.How
+    # A critical release that is not quiet while another plugin changed too, or one with no dev-kit change (no ask
+    # possible): an idle lead is restarted at once.
+    if (-not $how -and $plan.Kind -ceq 'critical' -and $extList.Count -gt 0 -and $idleFree) { $how = 'idle' }
+    if (-not $how) {
+        # A critical dev-kit release and a lead that is not quiet: a lead woken by message is asked (it warns the owner
+        # in its chat, marks itself ready, and the ready path above restarts it); an older one waits for quiet. Any
+        # other change is never asked (the handshake knows only dev-kit versions, and an ask wakes a paid turn).
+        $said = $plan.Said
+        if ($plan.Ask -and $devStale -and $wokenByMessage -and ($said -ceq 'none' -or ($said -match '^asked (\S+) ' -and $Matches[1] -cne $V))) {
+            $null = Invoke-LeadRestartFile $s.Path @('request', '--version', $V)
+            Write-Log "RESTART-ASKED $name ($($changed -join '; '), critical, $($plan.Ask))"
+        } elseif ($plan.Defer -and $deferLogged[$name] -cne "$procId|$tryKey") {
+            $deferLogged[$name] = "$procId|$tryKey"
+            Write-Log "RESTART-DEFERRED $name ($($changed -join '; '), routine, until a later day)"
         }
-    } elseif ($idleFree) {
-        $how = 'idle'
-    } else {
-        # Stale only in an extension and busy: only a fresh `ready <V> <seconds>` of the lead itself (or of
-        # restart-leads.ps1 -Ask) counts; V is the dev-kit version, the only one the lead's handshake knows. Such a
-        # lead is never woken: no request (a paid turn), and it is restarted when it is idle.
-        $said = Invoke-LeadRestartFile $s.Path @('status')
-        if ($said -match '^ready (\S+) (\d+)$') {
-            if ($Matches[1] -ceq $V -and [int]$Matches[2] -lt $ReadyMaxAgeSec) {
-                $how = 'ready'
-            } else {
-                $null = Invoke-LeadRestartFile $s.Path @('clear')
-                Write-Log "READY-EXPIRED $name ($($said -replace '\s+', ' '), installed $V)"
-                return
-            }
-        } else { return }  # none, or asked and not ready yet
+        return
     }
     Write-Log "RESTART-LEAD $name ($($changed -join '; '), $how)"
     $result = Invoke-LeadRestart $name -IsReady:($how -eq 'ready')

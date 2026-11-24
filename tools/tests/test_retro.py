@@ -259,6 +259,30 @@ class RetroTestCase(RetroFixture):
         self.assertEqual(text.count("for repo"), 1)  # the first line is not sorted again
         self.assertIn("later line", text)
 
+    # protects: Bug
+    def test_notes_written_to_the_old_dev_kit_path_are_read_too_and_the_copied_ones_once(self):
+        # The owner's global docs still tell agents to write ~/.claude/dev-kit/retro/notes.md.
+        old = self.tmp / "old-retro"
+        old.mkdir()
+        self.write("proj/s1.jsonl", [call("a", "Read", {}, "2026-11-19T10:00:00Z")])
+        first = "- 2026-11-19 | repo | C: X | correction | before the copy\n"
+        (old / "notes.md").write_text(first, encoding="utf-8")
+        with mock.patch.dict(os.environ, {rules_dir.OLD_ENV: str(old)}):
+            self.run_cmd("scan")  # the first run copies the old folder: the line is in both files
+            self.assertEqual(self.new_text().count("before the copy"), 1, "a copied line is read once")
+            with open(old / "notes.md", "a", encoding="utf-8") as handle:
+                handle.write("- 2026-11-20 | repo | C: X | correction | from the old path\n")
+            with open(self.retro / "notes.md", "a", encoding="utf-8") as handle:
+                handle.write("- 2026-11-20 | repo | C: Y | correction | from the new path\n")
+            self.run_cmd("scan", "--force")
+            text = self.new_text()
+            self.assertEqual(text.count("from the old path"), 1)
+            self.assertEqual(text.count("from the new path"), 1)
+            self.assertLess(text.index("from the new path"), text.index("from the old path"), "the new file is read first")
+            self.assertEqual(text.count("before the copy"), 1)
+            self.run_cmd("scan", "--force")
+            self.assertEqual(self.new_text().count("from the old path"), 1, "the old line is not read again")
+
     # protects: Flow
     def test_token_findings_come_from_spend_kit_and_go_to_the_project_of_their_cwd(self):
         plain = make_repo(self.tmp / "plain", retro_project=False)

@@ -8,13 +8,19 @@ critical problems shown), `api-calls.jsonl` (the API client's spend log) and `se
 Move: spend-kit's files used to live in `~/.claude/dev-kit/`. When a file is missing in the new folder and the old
 one exists, `migrate_file` copies it once (the old file stays). The old folder is env SPEND_KIT_OLD_DIR, else
 `~/.claude/dev-kit`; when SPEND_KIT_DIR is set and SPEND_KIT_OLD_DIR is not, there is no old folder (tests and other
-throwaway runs never read the real `~/.claude`)."""
+throwaway runs never read the real `~/.claude`).
+
+The API spend log `api-calls.jsonl` and the weekly credit-check log `credits.md` are copied the same way
+(`migrate_api_files`). Programs of other projects append API spend lines to the old path by their own code, so the old
+`api-calls.jsonl` stays in use: `old_api_log` names it and the API client reads both (see `api_client.py`)."""
 import os
 import shutil
 from pathlib import Path
 
 DIR_ENV = "SPEND_KIT_DIR"
 OLD_ENV = "SPEND_KIT_OLD_DIR"
+API_LOG = "api-calls.jsonl"
+CREDITS = "credits.md"
 
 
 def data_dir():
@@ -40,3 +46,17 @@ def migrate_file(name, target, old_name=None):
             shutil.copyfile(source, target)
     except OSError:
         pass
+
+
+def migrate_api_files():
+    """Copy the API spend log and the credit-check log to the data folder once (each only when missing there)."""
+    folder = data_dir()
+    migrate_file(API_LOG, folder / API_LOG)
+    migrate_file(CREDITS, folder / CREDITS)
+
+
+def old_api_log():
+    """The API spend log in the old folder (other projects' programs still append there), or None when there is no
+    old folder."""
+    old = old_dir()
+    return None if old is None else old / API_LOG

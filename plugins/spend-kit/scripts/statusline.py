@@ -38,6 +38,7 @@ def log_file():
         return Path(os.environ[USAGE_ENV]) / LOG_NAME
     path = spend_dir.data_dir() / LOG_NAME
     spend_dir.migrate_file(LOG_NAME, path)
+    spend_dir.migrate_api_files()  # the API spend log and credits.md move on the first run of any spend-kit part
     return path
 
 

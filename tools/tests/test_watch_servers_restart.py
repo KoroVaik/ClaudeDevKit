@@ -190,9 +190,9 @@ class WatcherEnv:
                              env=self.env(), check=True, capture_output=True, text=True, timeout=240)
         return out.stdout.splitlines()
 
-    def releases(self, marks):
-        """plugins/dev-kit/releases.json of the temp dev-kit: version -> kind (dated today)."""
-        (self.plugins / "dev-kit" / "releases.json").write_text(json.dumps(
+    def releases(self, marks, plugin="dev-kit"):
+        """plugins/<plugin>/releases.json of the temp plugin: version -> kind (dated today)."""
+        (self.plugins / plugin / "releases.json").write_text(json.dumps(
             {v: {"kind": k, "date": day(0), "reason": "test"} for v, k in marks.items()}), encoding="utf-8")
 
     def lead_chat(self, *entries):
@@ -275,6 +275,7 @@ class WatchServersRestartTest(WatcherEnv, unittest.TestCase):
 
     # protects: Flow
     def test_idle_lead_is_restarted_when_an_extension_changed_version(self):
+        self.releases({"1.1.0": "critical"}, "web-kit")
         self.plan({2: [{"path": str(self.plugins / "web-kit" / ".claude-plugin" / "plugin.json"),
                         "write": plugin_json("1.1.0")}]})
         log = self.run_watch(3)
@@ -284,6 +285,7 @@ class WatchServersRestartTest(WatcherEnv, unittest.TestCase):
     # protects: Rule
     def test_lead_without_hard_bans_is_not_restarted_again_and_again_and_is_reported_once(self):
         (self.scripts / "restart-leads.ps1").write_text(STUB_RESTART_NO_BANS, encoding="ascii")
+        self.releases({"1.1.0": "critical"}, "web-kit")
         self.plan({2: [{"path": str(self.plugins / "web-kit" / ".claude-plugin" / "plugin.json"),
                         "write": plugin_json("1.1.0")}]})
         log = self.run_watch(6)
@@ -298,6 +300,7 @@ class WatchServersRestartTest(WatcherEnv, unittest.TestCase):
         (self.scripts / "restart-leads.ps1").write_text(
             STUB_RESTART + 'Write-Output "NO-BANS P: Other (no Bash and PowerShell hard-ban deny lines on main): not restarted"\n',
             encoding="ascii")
+        self.releases({"1.1.0": "critical"}, "web-kit")
         self.plan({2: [{"path": str(self.plugins / "web-kit" / ".claude-plugin" / "plugin.json"),
                         "write": plugin_json("1.1.0")}]})
         log = self.run_watch(4)
@@ -317,6 +320,7 @@ class WatchServersRestartTest(WatcherEnv, unittest.TestCase):
     # protects: Rule
     def test_busy_lead_is_not_woken_for_an_extension_and_restarts_when_idle(self):
         self.agents("busy")
+        self.releases({"1.1.0": "critical"}, "web-kit")
         self.plan({2: [{"path": str(self.plugins / "web-kit" / ".claude-plugin" / "plugin.json"),
                         "write": plugin_json("1.1.0")}]})
         self.run_watch(3)
@@ -415,6 +419,48 @@ class WatchServersRestartTest(WatcherEnv, unittest.TestCase):
         self.assertEqual(1, len(asked), log)
         self.assertTrue(asked[0].endswith(f"RESTART-ASKED {LEAD} (dev-kit 1.0.0 -> 1.1.0, critical, open question)"))
 
+    def user_scope_lead(self, plugin_versions, **record):
+        """rules-kit and spend-kit installed at the given versions; the lead started on 1.0.0 of them (the project
+        enables neither: they are user-scope plugins every lead loads)."""
+        for name, version in plugin_versions.items():
+            self.set_version(name, version, old=False)
+        self.lead_record("1.0.0", {"web-kit": "1.0.0", "rules-kit": "1.0.0", "spend-kit": "1.0.0"}, **record)
+        self.lead_chat(owner_said("go", 60), lead_said("Done."))
+
+    # protects: Flow
+    def test_routine_rules_kit_release_is_deferred_on_its_day_and_restarts_a_quiet_lead_later(self):
+        self.user_scope_lead({"rules-kit": "1.1.0", "spend-kit": "1.0.0"})  # no releases.json: routine
+        log = self.run_watch(3)
+        self.assertEqual([], self.restart_calls())
+        deferred = [line for line in log if " RESTART-DEFERRED " in line]
+        self.assertEqual(1, len(deferred), log)
+        self.assertTrue(deferred[0].endswith(f"RESTART-DEFERRED {LEAD} (rules-kit 1.0.0 -> 1.1.0, routine, until a later day)"))
+        self.assertIsNone(self.restart_file(), "a plugin other than dev-kit is never asked of the lead")
+        self.assertEqual(day(0), self.lead_versions()["staleSince"])
+        (self.bin / "count").unlink()  # a new run on a later day
+        self.user_scope_lead({"rules-kit": "1.1.0", "spend-kit": "1.0.0"}, stale_since=day(-1))
+        log = self.run_watch(2)
+        self.assertEqual([f"Name={LEAD} Ready= call=1"], self.restart_calls())
+        self.assertTrue(any(line.endswith(f"RESTART-LEAD {LEAD} (rules-kit 1.0.0 -> 1.1.0, quiet)") for line in log), log)
+
+    # protects: Rule
+    def test_critical_mark_in_the_plugins_own_releases_file_restarts_a_quiet_lead_at_once(self):
+        self.user_scope_lead({"rules-kit": "1.0.0", "spend-kit": "1.0.1"})
+        self.releases({"1.0.1": "critical"}, "spend-kit")  # dev-kit's file says nothing about spend-kit
+        log = self.run_watch(2)
+        self.assertEqual([f"Name={LEAD} Ready= call=1"], self.restart_calls())
+        self.assertTrue(any(line.endswith(f"RELEASE-KIND {LEAD} (spend-kit 1.0.0 -> 1.0.1): critical 1.0.1: test")
+                            for line in log), log)
+        self.assertTrue(any(line.endswith(f"RESTART-LEAD {LEAD} (spend-kit 1.0.0 -> 1.0.1, critical, quiet)")
+                            for line in log), log)
+
+    # protects: Rule
+    def test_user_scope_plugins_are_stored_for_a_lead_whose_project_enables_none_of_them(self):
+        self.set_version("rules-kit", "0.1.0")
+        self.set_version("spend-kit", "0.1.0")
+        self.run_watch(2)
+        self.assertEqual({"web-kit": "1.0.0", "rules-kit": "0.1.0", "spend-kit": "0.1.0"}, self.lead_versions()["ext"])
+
     # protects: Bug
     def test_new_copy_that_dies_at_start_keeps_the_old_watcher_running(self):
         self.plan({2: [self.append_to_watcher("\r\n# a merged change\r\n")]})
@@ -507,6 +553,17 @@ class RestartLeadsAskTest(WatcherEnv, unittest.TestCase):
         lines = self.run_ask()
         self.assertNotIn(f"Up to date: {LEAD}", lines)
         self.assertEqual([f"Restarted={LEAD}"], self.starts())
+
+    # protects: Rule
+    def test_lead_stale_only_in_a_user_scope_plugin_counts_like_an_extension(self):
+        self.set_version("rules-kit", "0.2.0")  # no project enables it; the lead started on 0.1.0
+        self.lead_record("1.0.0", {"web-kit": "1.0.0", "rules-kit": "0.1.0"})
+        self.agents("busy")
+        self.assertIn(f"Not asked, busy and only an extension changed: {LEAD}", self.run_ask())
+        self.agents("idle")
+        lines = self.run_ask()
+        self.assertNotIn(f"Up to date: {LEAD}", lines)
+        self.assertEqual(["Restarted=", f"Restarted={LEAD}"], self.starts())
 
     # protects: Rule
     def test_busy_lead_stale_only_in_an_extension_is_not_asked(self):

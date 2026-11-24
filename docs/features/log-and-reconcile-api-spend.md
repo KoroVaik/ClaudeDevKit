@@ -8,8 +8,10 @@ project and key spent without opening the Console, and the weekly Console check 
 
 ## Rules
 ### One log, one line per call
-The log is one file, `api-calls.jsonl` in the dev-kit folder of the user's `.claude` folder, next to the weekly
-credit-check log `credits.md` (env `DEV_KIT_API_LOG` points elsewhere, for tests or a container). Each call
+The log is one file, `api-calls.jsonl` in the spend-kit folder of the user's `.claude` folder, next to the weekly
+credit-check log `credits.md` (env `DEV_KIT_API_LOG` points elsewhere, for tests or a container). Both used to
+live in the dev-kit folder: they are copied to the new folder once, and other projects' programs still append to
+the old path, so the old path is still read and a report counts a line found in both files once. Each call
 appends one JSON object on one line, written by one append of the whole line; the file is never rewritten. A
 line holds the time, the project, the API key's Console name, the model, the token counts and the cost. The
 format and every field: [API spend](../tech/api-spend.md). Readers skip a line that is not valid JSON or has no

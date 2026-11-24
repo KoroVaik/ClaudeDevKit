@@ -17,9 +17,11 @@ project as a defect and the retro stops there. A cause in a dev-kit plugin's rul
 (`C:/Users/korov/.claude/`, chat style included) is handled only by the ClaudeDevKit retro, so two projects never
 fix the same thing. Projects with no lead (Pult, KnowledgeBase, a design sandbox) are not covered, except
 their Claude app errors, which go to ClaudeDevKit ([Keep Claude app facts](keep-claude-app-facts.md)).
-Why: owner, 2026-11-21 and 2026-11-22: the retro stays in dev-kit (no separate plugin) and fixes the problems of the
-projects, not only of the plugin; it does not run on sessions with no dev-kit, since they would give little (the
-scans of 2026-11-19..21 named only dev-kit projects).
+Why: owner, 2026-11-21 and 2026-11-22: the retro fixes the problems of the projects, not only of the plugin; it does
+not run on sessions with no dev-kit, since they would give little (the scans of 2026-11-19..21 named only dev-kit
+projects). Those two days it stayed in dev-kit (no separate plugin); owner, 2026-11-24: it is now its own plugin,
+`rules-kit` (the plugin about rules; dev-kit, web-kit, unity-kit, pult, the owner's global rules and each project's own
+rules subscribe to it), reviewed from ClaudeDevKit.
 
 ### Items are local files, one per cause, one folder per rule set
 Each finding becomes an item file in a local folder of the rule set it concerns (a plugin, your global rules or a

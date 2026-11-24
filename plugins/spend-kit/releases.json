@@ -1,1 +1,3 @@
-{}
+{
+  "0.1.0": {"kind": "routine", "date": "2026-11-24", "reason": "first release: weekly limit, per-session spend and API money moved here from dev-kit"}
+}

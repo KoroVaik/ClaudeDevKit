@@ -5,9 +5,14 @@ The rules the user sees: [Log and reconcile API spend](../features/log-and-recon
 
 ## The log
 
-One file, `~/.claude/dev-kit/api-calls.jsonl` (next to the weekly credit-check log `credits.md`), or the
+One file, `~/.claude/spend-kit/api-calls.jsonl` (next to the weekly credit-check log `credits.md`), or the
 path in env `DEV_KIT_API_LOG`. One JSON object per line, UTF-8 without BOM, `\n` at the end, appended (never
 rewritten) by one write of the whole line.
+
+Both files used to live in `~/.claude/dev-kit/`: `spend_dir.migrate_api_files` copies them to the new folder once
+(the old files stay). Other projects' programs still append to the OLD path by their own code, so the old path is
+still read: `spend-kit-api report` and `reconcile` read both files and count a line that exists in both once
+(`read_all_lines` in `api_client.py`). With env `DEV_KIT_API_LOG` only that file is read.
 
 ## The spend line
 

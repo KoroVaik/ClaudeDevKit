@@ -2,9 +2,12 @@
 
 [![CI](https://github.com/KoroVaik/ClaudeDevKit/actions/workflows/ci.yml/badge.svg)](https://github.com/KoroVaik/ClaudeDevKit/actions/workflows/ci.yml)
 
-Four plugins for [Claude Code](https://claude.com/claude-code) that give AI coding agents a fixed
+Six plugins for [Claude Code](https://claude.com/claude-code) that give AI coding agents a fixed
 development process: plan, code, review, test, update the docs. It is a personal tool for solo
 developers who let agents write most of the code and want to stay in charge of the decisions.
+The plugins: `dev-kit` (the core process), `web-kit` and `unity-kit` (stack extensions), `pult` (the hub
+across projects), `rules-kit` (writing and improving rules, the retro) and `spend-kit` (Claude spend: the
+weekly limit, per-session spend, API money).
 The problem, the purpose, the plugins and their epics: [the product overview](docs/product.md). All
 the docs: [the docs index](docs/README.md).
 
@@ -26,7 +29,9 @@ claude plugin marketplace add <path to this folder>
 claude plugin install dev-kit@korov-dev --scope project
 ```
 
-The marketplace is a local folder, so it is a working setup, not a packaged release.
+The marketplace is a local folder, so it is a working setup, not a packaged release. `rules-kit` and
+`spend-kit` are enabled at user scope (they work in every project): `claude plugin install rules-kit@korov-dev
+--scope user` and the same for `spend-kit`, or run `tools/enable-rules-spend-kit.py` (see "After enabling a plugin").
 
 ## Develop
 
@@ -45,6 +50,12 @@ profile a project keeps for the plugins: [project profile](docs/tech/project-pro
 standard: the `dev-kit:documentation` skill (`plugins/dev-kit/skills/documentation/SKILL.md`).
 
 ## After enabling a plugin
+
+`rules-kit` and `spend-kit` are enabled at user scope. After the merge that added them, run
+`python -X utf8 tools/enable-rules-spend-kit.py --dry-run` first (it prints what it would change in
+`~/.claude/settings.json` and writes nothing), then `python -X utf8 tools/enable-rules-spend-kit.py` once: it enables both
+plugins, points the status line at spend-kit and backs the settings file up first. Until it runs, the status line
+and the retro stop.
 
 Check that existing hook fields (e.g. `onFailure`) in `.claude/settings.json` survived the install
 (`plugins/dev-kit/claude-facts.md`, "Plugin install rewrites `.claude/settings.json`"). Projects load the

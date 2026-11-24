@@ -200,11 +200,13 @@ Write-Output "Resumed lead: $($Name -join ',')"
 
 @unittest.skipUnless(os.name == "nt" and POWERSHELL, "the Pult watcher runs on Windows PowerShell")
 class WatchServersRestartTimeoutTest(WatcherEnv, unittest.TestCase):
-    """An idle lead stale in an extension (web-kit 1.0.0 -> 1.1.0 in round 2) is restarted through the stub."""
+    """An idle lead stale in an extension (web-kit 1.0.0 -> 1.1.0, a critical release, in round 2) is restarted through
+    the stub."""
 
     def setUp(self):
         super().setUp()
         (self.scripts / "restart-leads.ps1").write_text(STUB_RESTART_HANG, encoding="ascii")
+        self.releases({"1.1.0": "critical"}, "web-kit")
         self.plan({2: [{"path": str(self.plugins / "web-kit" / ".claude-plugin" / "plugin.json"),
                         "write": plugin_json("1.1.0")}]})
         self.restart_sleep = 0

@@ -140,7 +140,9 @@ spend-kit too):
 
     - <project folder> | <session title (first 8 of its id)> or <session id>[ / subagent <type>] | <kind> | <detail>
 
-A full scan also reads the new lines of `<retro folder>/notes.md` (offset kept in the global state) and puts each into
+A full scan also reads the new lines of `<retro folder>/notes.md` (offset kept in the global state) and then those of
+the OLD notes file `~/.claude/dev-kit/retro/notes.md` (`old_notes_offset`; the owner's global docs still name that
+path; a line the first copy put into the new file counts once) and puts each into
 the `new/` of the own set of the retro project whose repository folder name equals the line's project field, ignoring
 case; other lines are dropped. `script candidate` lines go to the own set of the project when all their sessions are of
 one project, else to the own set of the project of the repository that holds this plugin (when it is a retro project).
@@ -1217,18 +1219,46 @@ def notes_offset(state, path):
     return offset
 
 
-def sort_notes(state, folder, registry, mapper, plugin, routed):
-    """Put the new lines of `notes.md` into the own set of the project named in each line (a retro project; others
-    dropped)."""
-    path = folder / "notes.md"
-    offset = notes_offset(state, path)
+def old_note_lines(state, new_path):
+    """The unread complete lines of the OLD notes file (`notes.md` in dev-kit's old retro folder): the owner's global
+    docs may still tell agents to write there. The offset is kept in the state (`old_notes_offset`). A line the
+    one-time copy already put into the new file is skipped."""
+    old = rules_dir.old_dir()
+    if old is None:
+        return []
+    path = old / "notes.md"
     try:
         size = path.stat().st_size
     except OSError:
-        return
+        return []
+    offset = state.get("old_notes_offset", 0)
     if offset > size:
         offset = 0
-    lines, state["notes_offset"] = read_new_lines(path, offset)
+    lines, state["old_notes_offset"] = read_new_lines(path, offset)
+    if not lines:
+        return []
+    try:
+        copied = {line.strip() for line in new_path.read_bytes().splitlines()}
+    except OSError:
+        copied = set()
+    return [line for line in lines if line.strip() not in copied]
+
+
+def sort_notes(state, folder, registry, mapper, plugin, routed):
+    """Put the new lines of `notes.md` of the retro folder, then those of the old notes file (`old_note_lines`), into
+    the own set of the project named in each line (a retro project; others dropped)."""
+    path = folder / "notes.md"
+    offset = notes_offset(state, path)
+    lines = []
+    try:
+        size = path.stat().st_size
+    except OSError:
+        size = None
+    if size is not None:
+        if offset > size:
+            offset = 0
+        lines, state["notes_offset"] = read_new_lines(path, offset)
+    lines = lines + old_note_lines(state, path)
     if not lines:
         return
     projects = project_sets(registry, mapper, plugin)

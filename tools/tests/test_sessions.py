@@ -1257,16 +1257,20 @@ def datetime_local(*parts):
 
 class ReleaseMarksRepoTest(unittest.TestCase):
     # protects: Rule
-    def test_installed_dev_kit_version_has_a_release_mark(self):
-        # The Pult watcher reads it to decide when the leads restart; a bump without a mark counts as routine.
-        dev_kit = Path(__file__).resolve().parent.parent.parent / "plugins" / "dev-kit"
-        version = json.loads((dev_kit / ".claude-plugin" / "plugin.json").read_text(encoding="utf-8"))["version"]
-        marks = json.loads((dev_kit / "releases.json").read_text(encoding="utf-8"))
-        self.assertIn(version, marks, "add the release mark of the new version to plugins/dev-kit/releases.json")
-        entries, warnings = sessions.read_releases(dev_kit / "releases.json")
-        self.assertEqual([], warnings)
-        self.assertIn(version, [entry[1] for entry in entries])
-        self.assertTrue(marks[version]["reason"].strip())
+    def test_installed_version_of_every_plugin_has_a_release_mark(self):
+        # The Pult watcher reads each plugin's own file to decide when the leads restart; a bump without a mark counts
+        # as routine.
+        plugins = Path(__file__).resolve().parent.parent.parent / "plugins"
+        for plugin in ("dev-kit", "pult", "rules-kit", "spend-kit", "unity-kit", "web-kit"):
+            with self.subTest(plugin=plugin):
+                folder = plugins / plugin
+                version = json.loads((folder / ".claude-plugin" / "plugin.json").read_text(encoding="utf-8"))["version"]
+                marks = json.loads((folder / "releases.json").read_text(encoding="utf-8"))
+                self.assertIn(version, marks, f"add the release mark of the new version to plugins/{plugin}/releases.json")
+                entries, warnings = sessions.read_releases(folder / "releases.json")
+                self.assertEqual([], warnings)
+                self.assertIn(version, [entry[1] for entry in entries])
+                self.assertTrue(marks[version]["reason"].strip())
 
 if __name__ == "__main__":
     unittest.main()
