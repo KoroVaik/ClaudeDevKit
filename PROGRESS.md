@@ -30,7 +30,7 @@
 
 - Pult stays part of dev-kit (owner «Так», 2026-11-24, «Обговорення: Відокремлення пульта від dev-kit»): no split, nothing to build; the unseen C sessions are covered by [plans/c-session-visibility.md](plans/c-session-visibility.md). Plan: [plans/pult-split-from-dev-kit.md](plans/pult-split-from-dev-kit.md) «Owner's approval».
 
-- Wind down near a usage limit (owner «так» to the plan, 2026-11-25, «Обговорення: Плавна зупинка при вичерпанні ліміту»): leads get notices at 90%/95% weekly and 90% 5-hour, stop only sessions with a listed sign, wake them after the reset; the watcher's missed limit stop gets fixed. Next: build. Plan: [plans/limit-wind-down.md](plans/limit-wind-down.md) «Owner's approval».
+- Wind down near a usage limit (owner «так» to the plan, 2026-11-25, «Обговорення: Плавна зупинка при вичерпанні ліміту»): leads get notices at 90%/95% weekly and 90% 5-hour, stop only sessions with a listed sign, wake them after the reset; the watcher's missed limit stop fixed. Built and merged (dev-kit 0.1.125, pult 0.1.34); gap: a notice is lost when no lead is alive. Plan: [plans/limit-wind-down.md](plans/limit-wind-down.md) «Owner's approval».
 
 Open work of the features: `dev-kit-check-docs --open`.
 
