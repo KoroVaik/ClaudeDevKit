@@ -95,7 +95,7 @@ one project, remove its row from the project list.
 
 ## Open
 - [x] Check on the phone that a push asked of a live lead arrives with the Claude app fully closed: passed 2026-11-24, «Тест 1» from P: ClaudeDevKit reached the phone
-- [ ] Check in the Pult chat that a watcher message now arrives (sent in default mode to the hub's system name; on 2026-11-23 a default-mode test message was taken, bypass ones were held)
-- [ ] Find a quiet day of a lead in the watcher log and confirm it shows no wake (every lead wake seen so far had an event or a keep-warm cause)
-- [ ] Check the exact wording of the session list in the phone app
+- [x] Check in the Pult chat that a watcher message now arrives: passed 2026-11-24, four phone-push requests (2026-11-23 21:02 to 2026-11-24 10:03) went in default mode, each became a turn in Pult's chat and Pult called the push
+- [x] Find a quiet stretch of a lead in the watcher log and confirm it shows no wake: passed 2026-11-24, P: ClaudeDevKit up 18 hours (2026-11-22 17:37 to 2026-11-23 11:52) and P: Zhratva 13 hours (2026-11-24 06:13 to 19:51) with no event and no wake; no full quiet day happened, every lead has work daily, and every wake had an event or keep-warm cause
+- [x] Check the exact wording of the session list in the phone app: passed 2026-11-24, the owner sees the lead listed as «P: ClaudeDevKit», the name the epic's steps use
 - [ ] Check on the phone that the weekly limit forecast push arrives once, with the run-out and reset times (`plans/limit-tracking.md`); run it as a push test (`dev-kit:project-lead`, "Push test with the owner")
