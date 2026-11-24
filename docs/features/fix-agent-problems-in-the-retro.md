@@ -82,6 +82,10 @@ reuse are not built (`BACKLOG.md`).
 ## Built in
 - `plugins/rules-kit/scripts/retro.py`
 - `plugins/rules-kit/scripts/subscriptions.py`
+- `plugins/rules-kit/scripts/parts.py`
+- `plugins/rules-kit/scripts/talk.py`
+- `plugins/rules-kit/scripts/packets.py`
+- `plugins/rules-kit/agents/part-reader.md`
 - `plugins/rules-kit/templates/global-rules-subscription.md`
 - `plugins/rules-kit/bin/rules-kit`
 - `plugins/rules-kit/hooks/retro-start.py`
@@ -92,3 +96,4 @@ reuse are not built (`BACKLOG.md`).
 - `plugins/dev-kit/skills/project-lead/SKILL.md`
 - `tools/tests/test_retro.py`
 - `tools/tests/test_subscriptions.py`
+- `tools/tests/test_parts.py`

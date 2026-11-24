@@ -12,11 +12,16 @@ default one when it has no file, is reviewed by that project).
     rules-kit done [--branch NAME] [--project DIR]
                                                   move the findings the last `items` showed to `seen/`; NAME: the
                                                   branch the retro session left for its lead to merge
-    rules-kit add --text LINE [--from NAME] [--project DIR | --set NAME]
+    rules-kit add --text LINE [--from NAME] [--project DIR | --set NAME] [--packet PATH]
                                                   add a finding to a set's `new/` (any session, any project); with
                                                   --project, to the sets that project reviews which the text names (a
                                                   file, or a skill or agent `plugin:name`; a line that starts
-                                                  `claude app` or `owner check`: FACTS_SET), else to its own set
+                                                  `claude app` or `owner check`: FACTS_SET), else to its own set; with
+                                                  --packet (the part reader's answer on that packet) also a `sign-gap`
+                                                  line when none of the set's own signs fired for the part
+    rules-kit parts [--session ID] [--since DATE] [--limit N]
+                                                  split the transcripts into parts and write a packet per part with a
+                                                  sign for the part reader (see "Parts")
     rules-kit sets                                the sets found, their reviewers, and subscription files that fail
     rules-kit due [--session ID] [--project DIR]  one line when the lead has retro items to act on, else nothing
     rules-kit asked --answer yes|no [--project DIR]
@@ -36,12 +41,25 @@ project is taken as a folder. A project that is not a retro project gets exit co
 instead); when the project's `state.json` stays locked (see Lock), `items`, `done` and `asked` exit 1 and change
 nothing.
 
+Parts (`scripts/parts.py`): each transcript window is split into parts by the skill, agent or hook at work. A
+`repeated call`, `failed calls` or `hook refusal` finding is laid to the part at work on its lines (for failed calls,
+the part with most of them) and goes to that part's set (`parts.target`: the set whose Files rows name the part's kind,
+a hook refusal the set of the hook's plugin; else the session's project set); its line ends `| part: <part> | sets:
+<candidate sets>`. The `talk <check>` findings (`scripts/talk.py`) go to the set that owns the talk rule. A finding laid
+to a plugin set or the owner's global set is routed from every project (the global rules are checked in the sessions
+of every project); one laid to a project's own set only from a retro project, as below. `rules-kit parts` reads whole
+transcripts (with --session, the main files whose id starts with ID and their subagents; else those changed since
+DATE, default yesterday; the newest first; «Ретро:» and «Документація:» sessions left out), marks the parts with a sign
+and writes their packets (`scripts/packets.py`) to `<retro folder>/packets/` (older than SEEN_DAYS days deleted), at
+most `--limit` (PACKETS_MAX); it prints one line per packet `<path> | <session> | <part> lines <a>-<b> | signs: ... |
+sets: ...` and then the parts counted by kind.
+
 Retro projects: a project counts when its main checkout (the parent of the git common dir) has `.claude/dev-kit.md`
 with a line `## project-lead`, or its own `.claude/rules-subscription.md`. A transcript belongs to the project of the
 `cwd` of its lines (git, cached per cwd; when git fails, a deleted worktree, the path is cut at `/.claude/worktrees/`
-and the part before it is the checkout). Only the findings of retro projects are routed, to the project's own set
-(until the scan lays a problem to the set of a file, which a later step adds): the findings of other projects (the home
-folder, Pult, a project with no lead) stay in `scan-<date>.md` only. A token finding from spend-kit names the `cwd` of
+and the part before it is the checkout). Only the findings of retro projects are routed to the project's own set: the
+findings of other projects (the home folder, Pult, a project with no lead) that no part lays to a plugin or the global
+set stay in `scan-<date>.md` only. A token finding from spend-kit names the `cwd` of
 its session and is routed by it the same way. One exception: the `claude app` findings (see Kinds) of every transcript,
 a project with no lead, Pult and the home folder included, go to the set FACTS_SET (`dev-kit`, the owner of the Claude
 app facts) when it is known, else to the own set of the retro project named `ClaudeDevKit` (found by its repository
@@ -95,7 +113,8 @@ stamps of `hook-start`, `items`, `done`, `asked` and the scan's `root` record. `
 nothing, so two sessions starting at once never both start a retro session.
 
 `scan` reads only what was appended to each transcript since the last scan (`state.json` keeps a byte offset per
-file, up to the last complete line). On the first full scan (no full scan yet) a file last changed before `--days`
+file, up to the last complete line, and in `lines` the number of lines before it, so the parts know their line
+numbers). On the first full scan (no full scan yet) a file last changed before `--days`
 days ago (default 1) that has no offset is skipped and its offset set to its size, so it does not read the whole
 history. A full scan writes `scan-<YYYY-MM-DD>.md` (local date; a second scan the same day with `--force` appends to
 it), one line per finding, and each line also goes to the `new/` of the own set of its project (token lines from
@@ -159,6 +178,10 @@ of its type; thresholds below):
   `- ClaudeDevKit | - | claude app | updated <old> -> <new>` (the first run stores it with no line);
   once in 7 days (global state `facts_recheck`, the day of the last one) it also adds
   `- ClaudeDevKit | - | claude app | weekly re-check due`, so the ClaudeDevKit retro starts and re-checks the facts;
+- `hook refusal`: one hook's reason HOOK_REFUSALS_MIN or more times (an error result `<Event>:<Tool> hook error:
+  <reason>`), detail `<event> x<N> (<plugin>): <reason>`;
+- `talk <check>` (not for a subagent's file; `scripts/talk.py`): the replies to the owner that break a talk rule, one
+  line per check and window, detail `<set>: <file>:<line> (<section>): x<N>; L<reply line>: <excerpt>`;
 and across transcripts:
 - `script candidate`: the same Bash command of SCRIPT_MIN_CHARS or more in SCRIPT_SESSIONS or more sessions (subagents
   count with their session).
@@ -194,9 +217,12 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))  # the launcher runs this file with runpy, which adds nothing
 import claude_path  # noqa: E402  the `claude` command (a copy of dev-kit's, no plugin imports another's code)
 import folder_naming  # noqa: E402  the project's folder name and main checkout (a copy of dev-kit's `dev_kit_state`)
+import packets  # noqa: E402  the parts with a sign and their packets for the part reader
+import parts  # noqa: E402  a transcript split into parts by the skill, agent or hook at work
 import rules_dir  # noqa: E402  the data folder and the one-time copy from dev-kit's retro folder
 import spend_client  # noqa: E402  runs the `spend-kit` command (token spend), no import of its code
 import subscriptions  # noqa: E402  the rule sets, their subscription files and who owns a file
+import talk  # noqa: E402  the talk rules checked on every reply to the owner
 
 RETRO_ENV = rules_dir.DIR_ENV
 SETS_FOLDER = "sets"  # in the retro folder: one folder per rule set (`new/`, `seen/`, `items/`)
@@ -235,6 +261,10 @@ MANY_CALLS = 150
 SLOW_CALL_MIN = 10
 SLOW_MODEL_MIN = 5
 SCRIPT_SESSIONS = 3
+HOOK_REFUSALS_MIN = 2  # one refusal is the hook doing its work; a second one of the same reason is a call repeated
+PART_FINDINGS = ("repeated call", "failed calls", "hook refusal")  # the technical findings laid to a part's set
+PACKETS_FOLDER = "packets"  # in the retro folder: the packets of `rules-kit parts`
+PACKETS_MAX = 20  # the packets one `parts` run writes at most (each costs one part reader)
 WAITING_TOOLS = {"AskUserQuestion"}
 OWN_COMMAND = ("dev-kit-", "rules-kit", "spend-kit")  # the plugins' own commands, run by rules at fixed moments (P's checks)
 SCRIPT_MIN_CHARS = 30  # shorter Bash commands (git status, ls) are not worth a script
@@ -740,15 +770,20 @@ def version_of(value):
         return None
 
 
-def analyse(lines, since=None):
+def analyse(lines, since=None, first_line=1, at_start=True, hooks=None):
     """Counters of one transcript window: calls, repeats, errors, slow calls, pauses, Bash commands, title,
     app failures (`app`) and the highest Claude Code version of its lines (`version`). Token units are not counted
-    here (spend-kit reads the transcripts for them); lines dated before `since` are not counted."""
+    here (spend-kit reads the transcripts for them); lines dated before `since` are not counted. Also the window's
+    parts (`parts.split`, the lines numbered from `first_line`), the lines of its errors, of each repeated call's first
+    use and of its hook refusals, and its talk hits (`talk.check_entries`; `at_start`: the window starts the file)."""
     calls = {}
     repeats = Counter()
     first_input = {}
+    first_line_of = {}  # repeat key -> the line of its first call
     errors = 0
     error_tools = Counter()
+    error_lines = []
+    refusals = []  # (line, event, reason, command)
     slow = []
     pauses = []
     bash = set()
@@ -756,11 +791,16 @@ def analyse(lines, since=None):
     version = None
     title = ""
     last_result_time = None
-    for raw in lines:
+    entries = []
+    for index, raw in enumerate(lines):
         try:
             entry = json.loads(raw)
         except ValueError:
             continue
+        if not isinstance(entry, dict):
+            continue
+        number = first_line + index
+        entries.append((number, entry))
         found_version = version_of(entry.get("version"))
         if found_version and (version is None or found_version > version):
             version = found_version  # the highest, never the last: a resumed session copies lines of older versions
@@ -792,6 +832,7 @@ def analyse(lines, since=None):
                     own_command in str(tool_input.get("command")) for own_command in OWN_COMMAND)
                 if not (isinstance(tool_input, dict) and tool_input.get("run_in_background")) and not own:
                     repeats[key] += 1  # an older lead's re-armed background watcher and the plugin's own checks are by design
+                    first_line_of.setdefault(key, number)
                 first_input.setdefault(key, (name, tool_input))
                 calls[block.get("id")] = (name, stamp)
                 if name == "Bash" and isinstance(tool_input, dict) and tool_input.get("command") and not own:
@@ -808,6 +849,10 @@ def analyse(lines, since=None):
                 if block.get("is_error"):
                     errors += 1
                     error_tools[name] += 1
+                    error_lines.append(number)
+                    refusal = parts.hook_refusal(result_text(block))
+                    if refusal:
+                        refusals.append((number,) + refusal)
                 text = app_error(name, block) if fresh else None  # a resumed session copies old lines: not again
                 if text:
                     app[(name, text)] += 1
@@ -819,6 +864,8 @@ def analyse(lines, since=None):
     return {
         "title": title, "calls": len(calls), "repeats": repeats, "first_input": first_input, "errors": errors,
         "error_tools": error_tools, "slow": slow, "pauses": pauses, "bash": bash, "app": app, "version": version,
+        "first_line_of": first_line_of, "error_lines": error_lines, "refusals": refusals,
+        "parts": parts.split(entries, hooks=hooks), "talk": talk.check_entries(entries, at_start),
     }
 
 
@@ -830,29 +877,40 @@ def merge(a, b):
         "error_tools": a["error_tools"] + b["error_tools"], "slow": a["slow"] + b["slow"],
         "pauses": a["pauses"] + b["pauses"], "bash": a["bash"] | b["bash"],
         "app": a["app"] + b["app"], "version": max(filter(None, (a["version"], b["version"])), default=None),
+        "first_line_of": {**b["first_line_of"], **a["first_line_of"]}, "error_lines": a["error_lines"] + b["error_lines"],
+        "refusals": a["refusals"] + b["refusals"], "parts": a["parts"] + b["parts"], "talk": a["talk"] + b["talk"],
     }
 
 
-def findings_of(result):
+def findings_of(result, with_lines=False):
+    """`(kind, detail)` of each finding of a window; with `with_lines`, `(kind, detail, lines)`: the lines that lay a
+    `repeated call`, `failed calls` or `hook refusal` to a part (empty for the other kinds)."""
     found = []
     for key, count in result["repeats"].most_common():
         if count < REPEAT_MIN:
             break
         name, tool_input = result["first_input"][key]
-        found.append(("repeated call", f"{name} x{count}: {short(json.dumps(tool_input, ensure_ascii=False))}"))
+        found.append(("repeated call", f"{name} x{count}: {short(json.dumps(tool_input, ensure_ascii=False))}",
+                      [result["first_line_of"][key]] if key in result.get("first_line_of", {}) else []))
     if result["errors"] >= ERRORS_MIN:
         tools = ", ".join(f"{name} x{count}" for name, count in result["error_tools"].most_common())
-        found.append(("failed calls", f"{result['errors']} ({tools})"))
+        found.append(("failed calls", f"{result['errors']} ({tools})", list(result.get("error_lines", []))))
+    by_reason = defaultdict(list)
+    for number, event, reason, _ in result.get("refusals", []):
+        by_reason[(event, " ".join(reason.split())[:DETAIL_CHARS])].append(number)
+    for (event, reason), numbers in by_reason.items():
+        if len(numbers) >= HOOK_REFUSALS_MIN:
+            found.append(("hook refusal", f"{event} x{len(numbers)}: {short(reason)}", numbers))
     if result["calls"] >= MANY_CALLS:
-        found.append(("many calls", f"{result['calls']} tool calls"))
+        found.append(("many calls", f"{result['calls']} tool calls", []))
     for name, minutes in result["slow"]:
-        found.append(("slow call", f"{name} took {minutes:.0f} min"))
+        found.append(("slow call", f"{name} took {minutes:.0f} min", []))
     if result["pauses"]:
         longest = max(result["pauses"])
-        found.append(("long pause", f"{len(result['pauses'])} pause(s) before the next reply, longest {longest:.0f} min"))
+        found.append(("long pause", f"{len(result['pauses'])} pause(s) before the next reply, longest {longest:.0f} min", []))
     for (name, text), count in result["app"].most_common():  # no threshold: one failure of the app is a fact
-        found.append((CLAUDE_APP_KIND, f"{name}{f' x{count}' if count > 1 else ''}: {text}"))
-    return found
+        found.append((CLAUDE_APP_KIND, f"{name}{f' x{count}' if count > 1 else ''}: {text}", []))
+    return found if with_lines else [entry[:2] for entry in found]
 
 
 def spend_kit_findings(transcript=None):
@@ -908,6 +966,8 @@ def scan_locked(folder, days, force, out, transcript):
     else:
         paths = sorted(root.rglob("*.jsonl")) if root.is_dir() else []
     index = {os.path.normcase(known_key): known_key for known_key in state["offsets"]}  # a hook's path may differ in case
+    line_counts = state.setdefault("lines", {})  # path -> the lines before its offset
+    hooks = parts.HookIndex()
     for path in paths:
         key = index.get(os.path.normcase(str(path)), str(path))
         try:
@@ -924,12 +984,20 @@ def scan_locked(folder, days, force, out, transcript):
         if offset == size:
             continue
         owner = mapper.project_of_transcript(path)  # None: not a retro project; its findings stay in the log only
+        base = line_counts.get(key) if offset else 0
+        if not isinstance(base, int):
+            base = lines_before(path, offset)
         lines, state["offsets"][key] = read_new_lines(path, offset)
         if not lines:
             continue
+        line_counts[key] = base + len(lines)
         project, session, sub = session_label(path, root)
         homes[(project, session)] = owner
-        result = analyse(lines, since)
+        result = analyse(lines, since, first_line=base + 1, at_start=offset == 0, hooks=hooks)
+        if sub and result["parts"]:  # a subagent's file is a part of that agent
+            agent = sub[len("subagent"):].strip() or "subagent"
+            result["parts"][0].kind, result["parts"][0].name = "agent", agent
+            result["parts"][0].plugin = parts.plugin_of(agent)
         if result["title"] and not sub:
             known[f"{project}/{session}"] = result["title"]
         window = (project, session, sub, path.stem if sub else "")  # the same file in a later scan is the same run
@@ -967,18 +1035,48 @@ def scan_locked(folder, days, force, out, transcript):
         if devkit:
             routed[devkit].append(line)
 
+    shared = shared_sets(registry)
+    refs = None
+
+    def route_to(project, session, line, target):
+        """A finding laid to a set: a plugin or the global set from any project, a project's own set as `route` does."""
+        if target in shared:
+            out_lines.append(line)
+            routed[target].append(line)
+        else:
+            route(project, session, line)
+
     for (project, session, sub, _), result in windows.items():
         if retro_session(project, session):
             continue
         label = f"{titles[(project, session)]} ({session[:8]})" if (project, session) in titles else session
         if sub:
             label += " / " + sub
-        for kind, detail in findings_of(result):
+        home = homes[(project, session)]
+        own = own_set(home) if home else None
+        for kind, detail, anchors in findings_of(result, with_lines=True):
             line = f"- {project} | {label} | {kind} | {detail}"
+            part = busiest(result["parts"], anchors) if kind in PART_FINDINGS else None
             if kind == CLAUDE_APP_KIND:
                 route_app(line)
-            else:
+            elif part is None:
                 route(project, session, line)
+            else:
+                unknown_hook = kind == "hook refusal" and part.kind == "hook" and not part.plugin
+                target = own if unknown_hook else parts.target(part, registry, own)
+                line += f" | part: {part.label()} | sets: {', '.join(parts.candidates(part, registry, own))}"
+                route_to(project, session, line, target)
+        hits = [hit for hit in result["talk"] if not (
+            hit["first_prompt"] and titles.get((project, session), "").startswith(talk.STARTED_BY_SESSION))]
+        if hits and not sub:
+            refs = refs or talk.rule_refs(registry)
+            for check in talk.CHECKS:
+                found = [hit for hit in hits if hit["check"] == check]
+                if found:
+                    ref = refs[check]
+                    line = (f"- {project} | {label} | talk {check} | {ref.set}: {talk.ref_text(ref)}: x{len(found)}; "
+                            f"L{found[0]['line']}: {short(found[0]['excerpt'])}")
+                    route_to(project, session, line, ref.set)
         for command in result["bash"]:
             commands[command].add((project, session))
     if not transcript:  # the same command in several sessions needs the sessions of all transcripts
@@ -1034,6 +1132,45 @@ def scan_locked(folder, days, force, out, transcript):
     save_state(folder, state)
     print(f"scanned {len(windows)} transcript(s), {len(out_lines)} finding(s)", file=out)
     return 0
+
+
+def lines_before(path, offset):
+    """The number of lines before a byte offset of a file (a state from before the line counts was kept)."""
+    count = 0
+    try:
+        with open(path, "rb") as handle:
+            left = offset
+            while left > 0:
+                chunk = handle.read(min(left, 1 << 20))
+                if not chunk:
+                    break
+                count += chunk.count(b"\n")
+                left -= len(chunk)
+    except OSError:
+        pass
+    return count
+
+
+def busiest(found, lines):
+    """The part at work on most of the lines (the first such on a tie), or None."""
+    counts = Counter()
+    order = []
+    for number in lines:
+        part = parts.innermost(found, number)
+        if part is not None:
+            counts[id(part)] += 1
+            if part not in order:
+                order.append(part)
+    return max(order, key=lambda part: counts[id(part)]) if order else None
+
+
+def shared_sets(registry):
+    """The names of the sets that are no project's own: the plugin sets and the owner's global set."""
+    plugins_root = subscriptions.fold(subscriptions.canon(subscriptions.plugins_dir()))
+    global_root = subscriptions.fold(subscriptions.canon(subscriptions.global_dir()))
+    return {found.name for found in registry.sets.values()
+            if subscriptions.fold(subscriptions.canon(found.root)) == global_root
+            or subscriptions.fold(subscriptions.canon(found.root.parent)) == plugins_root}
 
 
 def write_new_all(routed, make_name):
@@ -1298,12 +1435,19 @@ def docs_may_run(project):
     return bool(started and not older(docs, "docs_started", START_GUARD_HOURS) and (not finished or started > finished))
 
 
-def add(text, sender=None, directory=None, out=None, set_name=None):
+def add(text, sender=None, directory=None, out=None, set_name=None, packet=None):
     """Add one finding line to the `new/` of a set, as a file of its own. `set_name` names the set; otherwise the
     project (`--project`, see `project_for`) is the alias for the sets it reviews that the text names (a file or a
-    skill or agent of that set), else for its own set."""
+    skill or agent of that set), else for its own set. `packet`: the part reader's packet the finding came from; a set
+    none of whose own signs fired for that part also gets a `sign-gap` line in the same file (`packets.gap_line`)."""
     out = out or sys.stdout
     registry = None
+    data = None
+    if packet:
+        data = packets.load(packet)
+        if data is None:
+            print(f"no packet at {packet} (its .json beside it is missing or broken)", file=sys.stderr)
+            return 2
     if set_name:
         registry = prepare(out=sys.stderr)
         if set_name not in registry.sets:
@@ -1327,8 +1471,82 @@ def add(text, sender=None, directory=None, out=None, set_name=None):
     line = f"- {stamp.date().isoformat()} | from {sender} | {' '.join(str(text).split())}"
     for name in names:
         file_name = f"add-{stamp.date().isoformat()}-{stamp.strftime('%H%M%S')}-{secrets.token_hex(3)}.md"
-        print(f"added to {write_new(name, file_name, [line])}", file=out)
+        gap = packets.gap_line(data, name, stamp.date().isoformat()) if data else None
+        print(f"added to {write_new(name, file_name, [line] + ([gap] if gap else []))}", file=out)
+        if gap:
+            print(f"sign gap recorded for {name}", file=out)
     return 0
+
+
+def parts_command(session=None, since=None, limit=PACKETS_MAX, out=None):
+    """Split the chosen transcripts into parts, write a packet per part with a sign and list them (module doc,
+    "Parts")."""
+    out = out or sys.stdout
+    root = projects_dir()
+    if not session and not since:
+        since = (datetime.date.today() - datetime.timedelta(days=1)).isoformat()
+    try:
+        start = datetime.datetime.combine(datetime.date.fromisoformat(since), datetime.time()).timestamp() if since else None
+    except ValueError:
+        print(f"--since needs a date YYYY-MM-DD, not {since}", file=sys.stderr)
+        return 2
+    mains = []
+    for path in root.glob("*/*.jsonl") if root.is_dir() else []:
+        try:
+            mtime = path.stat().st_mtime
+        except OSError:
+            continue
+        if session and not path.stem.lower().startswith(session.lower()):
+            continue
+        if start is not None and mtime < start:
+            continue
+        mains.append((mtime, path))
+    mapper = Mapper()
+    registry = prepare(mapper, out=sys.stderr)
+    folder = retro_dir() / PACKETS_FOLDER
+    prune(folder, SEEN_DAYS)
+    hooks = parts.HookIndex()
+    kinds = Counter()
+    written = skipped = 0
+    for _, main in sorted(mains, reverse=True):
+        entries = parts.read_file(main)
+        title = parts.title_of(entries).strip()
+        if title.startswith((RETRO_TITLE, DOCS_TITLE)):
+            continue
+        project = mapper.project_of_transcript(main)
+        own = project_set_name(registry, project) if project else None
+        label = f"{title} ({main.stem[:8]})" if title else main.stem
+        files = [(main, entries, "session", title, label)]
+        for sub in sorted((main.with_suffix("") / "subagents").glob("*.jsonl")):
+            agent = parts.agent_type(sub)
+            files.append((sub, None, "agent", agent, f"{label} / subagent {agent}"))
+        for path, found_entries, kind, name, part_label in files:
+            found_entries = found_entries if found_entries is not None else parts.read_file(path)
+            found = parts.split(found_entries, kind, name if kind == "agent" else "", hooks)
+            kinds.update(part.kind for part in found)
+            skip_first = kind == "session" and title.startswith(talk.STARTED_BY_SESSION)
+            for marks in packets.mark(found_entries, found, registry, own, skip_first):
+                if written >= limit:
+                    skipped += 1
+                    continue
+                packet, data = packets.write(folder, path, part_label, found_entries, marks, registry, own)
+                written += 1
+                signs = [item["sign"] for item in data["general"]] + [
+                    f"{set_name}: {sign}" for set_name, names in data["own_signs"].items() for sign in names]
+                print(f"{packet} | {part_label} | {marks.part.label()} lines {marks.part.start}-{marks.part.end} | "
+                      f"signs: {', '.join(signs)} | sets: {', '.join(data['candidates'])}", file=out)
+    print("parts: " + (", ".join(f"{kind} {count}" for kind, count in sorted(kinds.items())) or "none")
+          + f"; packets: {written}" + (f" ({skipped} more over the limit of {limit})" if skipped else ""), file=out)
+    return 0
+
+
+def prune(folder, days):
+    """Delete the files of a folder older than `days` days."""
+    limit = time.time() - days * 86400
+    for old in folder.iterdir() if folder.is_dir() else []:
+        with contextlib.suppress(OSError):
+            if old.is_file() and old.stat().st_mtime < limit:
+                old.unlink()
 
 
 def due_line(directory=None, session_id=None):
@@ -1496,6 +1714,11 @@ def main(argv=None):
             command.add_argument("--text", required=True)
             command.add_argument("--from", dest="sender")
             command.add_argument("--set", dest="set_name", help="the rule set that gets the finding (instead of --project)")
+            command.add_argument("--packet", help="the part packet the finding came from (adds a sign-gap line)")
+    command = sub.add_parser("parts")
+    command.add_argument("--session", help="the start of a session id")
+    command.add_argument("--since", help="a date YYYY-MM-DD (default: yesterday)")
+    command.add_argument("--limit", type=int, default=PACKETS_MAX)
     sub.add_parser("sets")
     sub.add_parser("hook-start")
     sub.add_parser("hook-end")
@@ -1511,7 +1734,9 @@ def main(argv=None):
     if args.command == "asked":
         return asked(args.answer, args.project)
     if args.command == "add":
-        return add(args.text, args.sender, args.project, set_name=args.set_name)
+        return add(args.text, args.sender, args.project, set_name=args.set_name, packet=args.packet)
+    if args.command == "parts":
+        return parts_command(args.session, args.since, args.limit)
     if args.command == "sets":
         return list_sets()
     return done(args.project, branch=args.branch)

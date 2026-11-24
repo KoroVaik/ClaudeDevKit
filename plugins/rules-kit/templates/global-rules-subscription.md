@@ -16,6 +16,7 @@ push). Format: `plugins/rules-kit/scripts/subscriptions.py` in the rules-kit plu
 |---|---|---|---|
 | CLAUDE.md | talk | | Chat replies |
 | CLAUDE.md | talk | | Reply language |
+| CLAUDE.md | talk | | No em dash |
 | CLAUDE.md | process | | |
 | docs/jargon.md | talk | | |
 | docs/*.md | process | | |

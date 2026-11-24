@@ -17,6 +17,7 @@ serve them. It subscribes itself, reviewed by ClaudeDevKit. Format:
 | skills/retro/SKILL.md | process | skill rules-kit:retro | |
 | skills/edit-rules/SKILL.md | process | skill rules-kit:edit-rules | |
 | agents/rule-reviewer.md | process | agent rules-kit:rule-reviewer | |
+| agents/part-reader.md | process | agent rules-kit:part-reader | |
 | templates/global-rules-subscription.md | process | skill rules-kit:retro | |
 | hooks/hooks.json | technical | hook rules-kit | |
 | hooks/*.py | technical | hook rules-kit | |

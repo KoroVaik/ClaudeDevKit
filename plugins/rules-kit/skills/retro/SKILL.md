@@ -34,6 +34,12 @@ their evidence.
 
 ## 1. Check every finding
 
+First the parts with a sign: run `rules-kit parts` (the sessions since yesterday). For each packet
+path it prints, one `rules-kit:part-reader` (model haiku) gets that path as its whole brief. An answer
+`<set> | <file>:<line> | <why>` is recorded with `rules-kit add --set <set> --text "part reader: <file>:<line> |
+<why> | <session and part from the printed line>" --packet <packet path>` (it adds the `sign-gap` line itself);
+`not a rule` is dropped. Transcripts of parts with no packet are not read. Then run `items`.
+
 One `rules-kit:rule-reviewer` (model sonnet) checks the new findings (in ClaudeDevKit not the `claude app` lines and the
 added `claude app:` and `owner check` lines: step 4 hands them to the facts keeper); brief it to stop and report
 after 30 minutes. Give

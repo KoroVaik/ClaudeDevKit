@@ -133,3 +133,36 @@ rules-kit itself and apply to every set; a set's own signs add to them. The glob
   name `dev-kit:edit-rules`, `~/.claude/dev-kit/retro/notes.md` and `dev-kit:retro` (the notes path matters: the
   retro now reads `~/.claude/rules-kit/notes.md`). Step 5 removes the lead's retro ask text in `project-lead` and
   the feature doc.
+- Step 3 built (subscriptions, items per set). Step 4 built (parts, talk checks, packets, part reader). Found in
+  step 4: a hook's plugin is not in the transcript's hook command (shown as "command hook"); it is inferred from
+  the reason text. Short-plan items count under the 15-word item cap (the owner's global rule covers proposals).
+
+### The fix loop (step 5)
+
+One retro run, in the «Ретро: <project>» session of a project that reviews sets:
+1. Packets -> `rules-kit:part-reader` (haiku) -> findings; `items` -> `rules-kit:rule-reviewer` (sonnet) as today
+   (noise, cause key, kind, fix with `file:line`, what it removes or merges).
+2. Expiry by script: an item seen once, not urgent, with no new sighting in 14 days -> `expired`.
+3. A fix needs a repeat (2 sessions or days); lost work and critical token problems are fixed at once. At most 5
+   landed fixes per set a week. A `sign-gap` finding fixes by a new row in that set's Signs table.
+4. Each fix is written in the retro's worktree, then must pass both gates before its commit:
+   - approve: `rules-kit:approver` (opus, never the reviewer's model) reads the item, the diff, the set's
+     subscription and the read set; `approve` or `reject: <why>`; rule deletions and «May change itself» edits
+     included.
+   - replay: `rules-kit replay --item <key>` writes packets of the item's problem parts and of up to 5 good parts
+     (same skill, agent or file at work, no sign); `rules-kit:replayer` (sonnet) gets old and new rule text and
+     each packet: `covers` / `misses` for problem parts, `ok` / `breaks` for good ones. It lands only if it covers
+     every problem part and breaks none.
+   Then one commit per fix (`retro-fix: <set> <key>`), so a revert is one `git revert`; the set's `lands by`
+   decides the rest (P merges a plugin branch and the run bumps each changed plugin once with a routine release
+   mark; the global set commits in that folder's git repo; a project set by its lead's merge).
+5. Post-change check: only sessions started after the fix reached main (or the global repo) count. `did not work`
+   -> the retro reverts the fix commit itself, then one second try by other means: a rule-text means it may do
+   itself; a hook, script or check goes to P as a new task (`ПИТАННЯ` is not used; P starts a C). A second failed
+   try -> `parked`. New findings in a fixed file are linked to that fix as possible breakage.
+6. The done list: every action (fixed, reverted, second try, parked, expired, sign added) appends a line to
+   `~/.claude/rules-kit/done.jsonl` (date, set, key, one Ukrainian line); `rules-kit list [--days N]` prints it;
+   Pult's «статус» shows it, no question. The owner's «поверни <що>» to the hub or a lead -> `rules-kit revert-request
+   <key>`; the next run of the reviewing project reverts it.
+7. Spend cap: the run checks its own spend (`spend-kit session`) and stops at 2% of the weekly limit, leaving the
+   rest for the next run. The run sends P one `ГОТОВО` (branch to merge, or nothing), never a question.
