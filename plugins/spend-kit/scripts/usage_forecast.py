@@ -27,7 +27,7 @@ of the forecast: their weekly per cent did not rise.
 
 `notices` (docs/features/wind-down-at-weekly-limit.md, plans/limit-wind-down.md): the Pult watcher runs it when the
 usage log changed or every few minutes and sends each printed text to the project leads. Thresholds: WEEK_AT for the
-weekly limit (90, 95), FIVE_AT for the 5-hour one (90). The last log line with a reset time in the future gives the
+weekly limit (90, 95, 98), FIVE_AT for the 5-hour one (90). The last log line with a reset time in the future gives the
 per cent of each limit (a weekly reading from any line, a 5-hour one from a line with `five_hour_resets`). A notice is
 due for the highest threshold the per cent reached that this window has no notice for yet; every threshold up to it
 is then marked done, so a jump from 80 to 96 gives one notice, for 95. Once the reset time of a window that got a
@@ -53,7 +53,7 @@ SPAN_H = 6  # readings of the last this many hours give the pace
 MIN_GAP_S = 3600  # the first and the last reading of the span must be at least this far apart
 MARGIN_H = 6  # a push only when the limit runs out more than this many hours before the reset
 DAYS = ("пн", "вт", "ср", "чт", "пт", "сб", "нд")
-WEEK_AT = (90, 95)  # weekly notice thresholds, per cent
+WEEK_AT = (90, 95, 98)  # weekly notice thresholds, per cent; 98 is the reserve stop (plans/limit-reserve-98.md)
 FIVE_AT = (90,)  # 5-hour notice thresholds, per cent
 LIMIT_NAMES = {"week": "тижневий", "five": "5-годинний"}
 

@@ -34,6 +34,11 @@ is blocked, then P's one proposal of the next task («Запустити нов�
 or the proposal changed. The other questions stay counted, with no «Показати всі питання?»; an open
 critical question still comes last, and the proposal then stays counted. While a session works, the
 message has neither.
+A check at the end of each P turn keeps this form: when a session's message, an event or a finished
+helper woke P (not your own message, and not while P still owes you a reply), P's reply must be empty,
+one of the named one-line steps (a discussion start, a push test, a restart notice) or only the blocks.
+On free text before, between or after the blocks, P gets a note to write the next message in form; the
+message you saw is not sent again.
 
 ### How a question and a state are written
 The counts are three lines: «❗ термінові» (a session stands and cannot move without your answer; a session
@@ -203,6 +208,7 @@ format instead of removing them. Those rules live outside this repo and change o
 - A task is finished: P merges it into main and tells you the result; you need not start or watch the C.
 - You write in a C's chat: it follows your words and P is told at once; it asks you nothing there.
 - A second session already works on the same task: P does not start another one.
+- A session's message wakes P and P writes a note beside the blocks: P gets a reminder of the form and you do not get the message twice; P's answer to your own question is not checked.
 
 ## Built in
 - `plugins/dev-kit/skills/project-lead/SKILL.md`
@@ -217,6 +223,8 @@ format instead of removing them. Those rules live outside this repo and change o
 - `plugins/dev-kit/bin/dev-kit-bans`
 - `tools/tests/test_hard_bans.py`
 - `plugins/pult/scripts/watch-servers.ps1`
+- `plugins/dev-kit/hooks/lead-reply-form.py`
+- `tools/tests/test_lead_reply_form.py`
 
 ## Open
 - [ ] Run the first phone push test in the form of «A push test asks you twice at most» with the owner and confirm the steps read clearly (`plans/push-test-flow.md`)
