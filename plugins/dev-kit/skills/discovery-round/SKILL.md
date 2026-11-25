@@ -7,8 +7,8 @@ description: Use when the owner answers numbered questions, says "continue" ("п
 
 One round of product discovery: reflect the owner's answers, record accepted product decisions in the
 feature, epic, standard or `docs/product.md` they belong to and open questions in `PROGRESS.md`, then ask
-the next numbered questions with recommendations (a talk on an idea he is still weighing opens with an
-open question first, step 4). The owner shapes the idea deliberately before any
+the next numbered questions with recommendations (the first reply of an «Обговорення:» session, or a talk on an idea he is still
+weighing, opens with an open question first, step 4). The owner shapes the idea deliberately before any
 plan. Your job is to keep the thread, record every answer, and move one step forward per round. The
 project's `CLAUDE.md` sets the language rules. Read the profile section `## discovery-round` of
 `.claude/dev-kit.md` if it exists; it adds to these steps and overrides them.
@@ -69,13 +69,16 @@ not agreed go to `BACKLOG.md`. Use the existing headings, in the project's docum
 
 ## 4. Reply
 
-The first message of a talk about an idea the owner is still weighing (his own words doubt whether to do it, e.g.
-«думаю над тим, щоб...», «не знаю, чи...»; no question of yours open) is an open talk, not a round. A message that
-already names what to design and why (the goal plus a reason or an example, e.g. «подумать над тим, як X ... Приклад
-...») is not one: the first reply is a round of numbered questions with recommendations. Why: owner, 2026-11-24,
-ClaudeDevKit, «Обговорення: Плавна зупинка при вичерпанні ліміту»: an open question that made him restate his task
-got «якесь тупе питання ти задав». The open talk is at most 4 plain sentences on what he weighs and how
-it is now, then one open question on his reason or what bothers him. That question asks his view, not a
+The first reply of every «Обговорення:» session, and the first message of any talk about an idea the owner is still
+weighing (his own words doubt whether to do it, e.g. «думаю над тим, щоб...», «не знаю, чи...»; no question of yours
+open), is an open talk, not a round. This holds even when his words already name what to design and why (the goal plus
+a reason or an example). The question never asks him to restate what his message already says (goal, reason,
+example): it asks about what is still unknown. Why: owner, 2026-11-24, ClaudeDevKit, «Обговорення: Плавна зупинка
+при вичерпанні ліміту»: an open question that made him restate his task got «якесь тупе питання ти задав»; owner,
+2026-11-25, Zhratva, «Обговорення: Логіка з коментарів»: three numbered questions opened it, «ми обговрюєм!!!!!!!!!!
+нащо відразцу потік питань?!»; decision 2026-11-25: the first reply is the open talk with no restating. The open talk is
+at most 4 plain sentences on what he weighs and how it is now, then one open question on what is still unknown (his
+reason or what bothers him, if his message does not say it). That question asks his view, not a
 decision, so it has no «Рекомендую» (a named exception to the owner's global question format) and no
 numbered batch. Numbered questions with recommendations start once his answer makes the direction clear,
 or when he asks for them; until then each reply is one plain sentence on what he said plus one more
