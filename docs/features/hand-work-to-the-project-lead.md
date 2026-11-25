@@ -109,13 +109,14 @@ researches with a read-only subagent and never puts to you.
 ### A discussion ends in the feature file
 In an «Обговорення:» session you settle the meaning and the mockup with one agent, and the feature file
 ends with an «Approved design» section (acceptance criteria, the approved mockup, the user's situation).
-Then P starts a C that builds the screen and shows you its shots next to the mockup.
+Then P starts a C that builds the screen, and a new «Обговорення:» session shows you its shots next to the
+mockup and passes your remarks to that C.
 Each question there names the screen it is about in its own words, with no block of facts before it.
 
 ### A C asks only P
 A C never asks you in its own chat; it asks P. Every C shows in the Claude app with no push, and you may
 write in its chat: it follows your words, answers you in short and tells P at once with your words. It messages no other session unless P's brief for it
-names one (sessions, not its own subagents). Only P and an «Обговорення:» session message other sessions
+or a later P instruction names one (sessions, not its own subagents). Only P and an «Обговорення:» session message other sessions
 freely; none of them messages a session you started yourself. Nothing blocks the tool: it is a rule of the skills.
 Why: owner, 2026-11-21 (his «так»): only leads and discussion sessions message other sessions freely.
 

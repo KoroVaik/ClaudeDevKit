@@ -27,5 +27,6 @@
   "0.1.128": {"kind": "routine", "date": "2026-11-25", "reason": "a lead gets a note when its reply to a session or event message has free text beside the bold blocks"},
   "0.1.129": {"kind": "routine", "date": "2026-11-25", "reason": "the first reply of every «Обговорення:» session is an open talk with one question that never asks the owner to restate his words, even when they already name what to design and why"},
   "0.1.130": {"kind": "routine", "date": "2026-11-25", "reason": "a lead shows the spend statistics table when the owner asks for it"},
-  "0.1.131": {"kind": "routine", "date": "2026-11-25", "reason": "the lead's push request rule no longer names the weekly limit forecast push, which was removed"}
+  "0.1.131": {"kind": "routine", "date": "2026-11-25", "reason": "the lead's push request rule no longer names the weekly limit forecast push, which was removed"},
+  "0.1.132": {"kind": "routine", "date": "2026-11-25", "reason": "a built screen is reviewed in its own «Обговорення:» session that passes the owner's remarks to the C that built it"}
 }

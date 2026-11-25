@@ -220,7 +220,7 @@ and a line «ще N питань» for the rest before the closing line; the nex
 come right after the owner answers. «Приймаєш усі мої рекомендації?» and «так всім» cover only the shown
 questions. A critical question stays shown alone (case 2). Why: owner, 2026-11-23, P: Zhratva, after a
 list of 4 questions: «Щось ти багато написав, додай правило що коли більше 3 питань то ти задаєш по 2 питання
-за раз». A question about how a screen looks (the «так» / «є питання» check of "Build a designed screen") carries its shots next to the mockup
+за раз». A question about how a screen looks carries its shots next to the mockup
 every time it is written in full, here too, even if they were sent before (the owner's global rule on
 pictures wins over no-resend). Why: owner, Zhratva, 2026-11-20: «Чому сюди не продублювались фінальні фото?».
 
@@ -342,8 +342,8 @@ Stale items: at each start status and each wake-up, a question a C put to the ow
 before today, whose answer lies within P's own rights (an Ask-P list step, or a choice inside the
 approved criteria) is decided by its `Рекомендую:` line. P records the decision in the doc the item
 came from and removes the item; it just leaves the counts. Every other item waits for the owner: the
-four kinds below that must enter the queue, a takeover item, «Закрити ...?», the
-«так» / «є питання» check of a built screen and a stuck C. Why: the owner decided on 2026-11-19 that a
+four kinds below that must enter the queue, a takeover item, «Закрити ...?» and a
+stuck C. Why: the owner decided on 2026-11-19 that a
 question P may answer itself must not wait on the owner forever.
 
 Critical items: a session cannot go on without the owner (an urgent question or `чекає на тебе`), a
@@ -512,7 +512,8 @@ it on `c/<slug>`, so the merge and the worktree removal see no stray file. C kee
   channel: "send each report with the SendMessage tool to `<P's own session name>`; text in your own
   chat never reaches P" (`plugins/dev-kit/claude-facts.md`, "A C's text in its own chat never reaches the
   lead"). A C messages only its own P (sessions, not its subagents); it messages another
-  session only when the first prompt names it in a separate line «May message: <sessions>», not in
+  session only when the first prompt, or a later `ВКАЗІВКА` from P, names it in a separate line
+  «May message: <sessions>» (a review of a built screen, "Build a designed screen"), not in
   the ask-P list (that list holds actions needing P's yes). Why: only leads and «Обговорення:»
   sessions message other sessions freely (owner, 2026-11-21). Also in the prompt:
   - "You never ask the owner, not in your own chat either. Send every question, and every consent a
@@ -588,7 +589,8 @@ setup, registration) with these differences:
   message instead".
 - It ends with the owner's «так» to the short plan, when no owner message follows it. P merges and closes it only after
   that done report, as in "Acceptance and merge", but never a screen's branch whose feature file lacks
-  the «Approved design» section: P sends it back (a `ВКАЗІВКА`). Then P starts a C from that feature file (see "Build a designed screen").
+  the «Approved design» section: P sends it back (a `ВКАЗІВКА`). Then P starts a C from that feature file (see "Build a designed screen"); after a review
+  session of a built screen, step 4 there instead.
 - After the launch P writes exactly one line and nothing else: `Відкрий сесію «Обговорення:
   <feature>» - там обговориш усе по задачі.`, with the exact name from the launch. No question, no
   button, no status, no recommendation; the owner's global rules name this exception. When the owner
@@ -652,19 +654,33 @@ run one after another; nothing unfinished is merged.
    test-change order (`check-look`: in web-kit the designer compares headless shots with the mockup
    and layout-checker checks the widths; then `check-ui`, then `check-usability`); the done report
    carries shots of the built screen next to the mockup.
-2. On C's done report P puts a question of that session in the queue, with the choice «так» / «є
-   питання»; the full question list shows the shots next to the mockup.
-3. «так»: P merges as in "Acceptance and merge", then sets the section's state to `built` in the main
+2. On C's done report P neither merges nor stops the C, and puts no question or shots of the screen
+   in its own queue or chat. P starts a review session «Обговорення: <feature>» as in "Start an
+   «Обговорення:» session", and in its own chat writes only that section's one launch line. Its first
+   prompt replaces that section's one: the C's session name, which it may message; the task file and
+   feature file paths; where the C's shots and the mockup are; "show the owner each state's shot of the built screen
+   next to its mockup and ask «так» / «є питання»; pass each remark to the C (a `ВКАЗІВКА` with the
+   owner's words and what to change), show the new shots the C sends back, and repeat until the
+   owner's «так» to the result; then update the feature file's «Approved design» if a remark changed
+   it, show the short plan and send P `ЗАКРИТО` after its «так»". Then P sends the C a `ВКАЗІВКА`:
+   «May message: <the review session's name>»; wait for fixes from that session.
+3. The C fixes each remark on its own branch (the show-idea slot's polish stage; in web-kit,
+   `web-kit:design-screen` stage 2), checks the look as in step 1 and replies to the review session
+   (a `ВІДПОВІДЬ`) with the new shots next to the mockup. Until step 4 the C's `ГОТОВО` is no merge
+   signal: P shows it as `працює`, and a `gone:` line for it is a crash. When its context gets too
+   full, P refreshes it as in "Refresh an overfull C": after the new C's «picked up» P sends it the
+   same «May message» line (a `ВКАЗІВКА`) and sends the review session the new C's `[ref]`, since the
+   name stays the same.
+4. On the review session's `ЗАКРИТО` P merges the C's branch, then the review session's, as in
+   "Acceptance and merge" (a refused merge goes back to its session), closes both sessions once both
+   are merged, then sets the section's state to `built` in the main
    checkout and commits it.
-4. «є питання»: P stops the C (`dev-kit-sessions end --id <id> --status stopped`, then
-   `claude stop <id>`) and starts an «Обговорення: <feature>» session for the polish (the show-idea
-   slot's polish stage; in web-kit, `web-kit:design-screen` stage 2) on C's branch, in its worktree as
-   in "Refresh an overfull C"; if the session cannot continue that branch, on a branch made from it.
-   Its first prompt holds the owner's questions and the feature file path. It reports done to P after
-   the owner's «так» in it; then P does step 3.
 
 Why: the owner wants the design flow to go one step after another, with nothing lost (owner,
-2026-11-18).
+2026-11-18). Why the review session: owner, 2026-11-25 (`plans/screen-review.md` of the plugin repo):
+«Не дуже мені подобається те що через керівника я буду обговорювать мокап», then «Керівник дає дозвіл
+чайлд сесія спілкуваться»; accepted weak spots: a session for every built screen, even for a bare
+«так», and the C's context grows with each fix.
 
 ## Push test with the owner
 
@@ -823,7 +839,7 @@ every 2 hours only to arm it again, a paid turn each time.
 Event lines:
 
 - `gone: <name> | <id> | <state>`: that C ended. If it sent a "done" report, go on with the
-  merge. Otherwise it crashed or quit: run `dev-kit-sessions end --id <id> --status stopped`, tell the owner at once (`стоїть, сесія впала`
+  merge (a designed screen's C under review: not before the review's `ЗАКРИТО`, "Build a designed screen"). Otherwise it crashed or quit: run `dev-kit-sessions end --id <id> --status stopped`, tell the owner at once (`стоїть, сесія впала`
   and P's restart question, see "Message templates"). Recommend a fresh C in the same worktree,
   same name and flags, whose
   first prompt adds: "a previous C left unfinished work here; read `git status`, `git log main..` and
@@ -930,7 +946,8 @@ C owns all doc updates. On "done", P checks only the list of changed doc files (
 there are many). Then, in the main checkout: if it is not on `main` or `git status --porcelain` is not
 empty, P does not merge and adds its own question (merge after the owner tidies the main checkout). P commits its own edits in the main checkout (PROGRESS.md,
 BACKLOG.md `Verdict:` lines) right after making them, so a dirty checkout is never P's own (that is the owner's work in progress, not C's conflict).
-Otherwise `git merge --ff-only c/<slug>`. If it refuses (main moved since C pulled it), P sends it back
+Otherwise `git merge --ff-only c/<slug>`. A designed screen's C is merged only on its review
+session's `ЗАКРИТО` ("Build a designed screen"). If it refuses (main moved since C pulled it), P sends it back
 («ВКАЗІВКА - main moved, pull main») and does not resolve anything itself.
 
 When P edits a file in the main checkout from outside its own worktree (PROGRESS.md, a feature's

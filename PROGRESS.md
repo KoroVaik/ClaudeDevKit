@@ -33,7 +33,7 @@
 
 - Wind down near a usage limit (owner «так» to the plan, 2026-11-25, «Обговорення: Плавна зупинка при вичерпанні ліміту»): leads get notices at 90%/95% weekly and 90% 5-hour, stop only sessions with a listed sign, wake them after the reset; the watcher's missed limit stop fixed. Built and merged (dev-kit 0.1.125, pult 0.1.34); gap: a notice is lost when no lead is alive. Plan: [plans/limit-wind-down.md](plans/limit-wind-down.md) «Owner's approval».
 
-- Review of a built screen in its own discussion (owner «Так», 2026-11-25, «Обговорення: Перевірка зібраних екранів»): P only starts an «Обговорення:» session, which shows the shots and passes the owner's remarks to the C that built the screen. Next: build. Plan: [plans/screen-review.md](plans/screen-review.md) «Owner's approval».
+- Review of a built screen in its own discussion (owner «Так», 2026-11-25, «Обговорення: Перевірка зібраних екранів»): P only starts an «Обговорення:» session, which shows the shots and passes the owner's remarks to the C that built the screen. Built (dev-kit 0.1.132, web-kit 0.4.3); not yet run on a real screen. Plan: [plans/screen-review.md](plans/screen-review.md) «Owner's approval».
 
 Open work of the features: `dev-kit-check-docs --open`.
 

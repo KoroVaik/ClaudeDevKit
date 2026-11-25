@@ -48,7 +48,9 @@ nothing: the merge is P's step, so the owner sees in this chat why the session c
   a ban or `.claude/hard-bans.json`; P (or the Pult hub when no P runs) writes that file and adds it with
   `dev-kit-bans add-approved` on the owner's «так»; removing a ban stays the owner's.
 - It sends a message only to its own P (this limits messages to sessions, not to its own subagents). Another session
-  only when its first prompt names it in a line «May message: <sessions>».
+  only when its first prompt, or a later `ВКАЗІВКА` from P, names it in a line «May message: <sessions>». A
+  C so allowed to message a review session of its screen follows that session's `ВКАЗІВКА` as P's and
+  replies to it with a `ВІДПОВІДЬ` (`dev-kit:project-lead`, "Build a designed screen").
 - Every message to P starts with its kind word (`ГОТОВО`, `ПИТАННЯ`, `ЗАСТРЯГ`, `ЧЕКАЮ`, `ПРОДОВЖУЮ`,
   `ВІДПОВІДЬ`, `ВЛАСНИК ВІДПОВІВ`), as `${CLAUDE_PLUGIN_ROOT}/messages.md` sets.
 - A wait of more than 1 minute on something other than P or the owner (low memory, a retry timer, a

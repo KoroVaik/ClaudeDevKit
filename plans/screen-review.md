@@ -1,6 +1,8 @@
 # How the owner reviews a built screen
 
-Status: discussion (Обговорення: Перевірка зібраних екранів).
+Status: built (dev-kit 0.1.132, web-kit 0.4.3).
+
+Spend (build): ~0.3% of the weekly limit, estimate; API: 0 USD.
 
 Owner's words in P: Zhratva, relayed by P: Zhratva on 2026-11-25: «Не дуже мені подобається те що через керівника я буду обговорювать мокап.... давай обговорення як це краще вирішить». Owner «Так» in P: ClaudeDevKit to starting this talk.
 
