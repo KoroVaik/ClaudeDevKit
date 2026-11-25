@@ -63,7 +63,8 @@ always exits 0.
 `plugins/spend-kit/hooks/session-end.py` calls `spend.hook_main()` in `plugins/spend-kit/scripts/spend.py`: it
 starts a detached `spend.py write-session --path <transcript>` and returns at once (the hook's limit is 10
 seconds), so the ended session's file `sessions/<session id>.json` in the spend-kit data folder appears a moment
-later. It runs in every project, prints nothing and always exits 0.
+later. The same detached run (`--archive`) appends the last closed weekly limit window's totals to `weekly.jsonl`
+when it is not there yet (`spend-kit stats`). It runs in every project, prints nothing and always exits 0.
 
 ## Hub rules (pult, SessionStart)
 

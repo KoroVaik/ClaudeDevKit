@@ -380,7 +380,7 @@ class SessionTestCase(SpendFixture):
             transcript.write_text("{}\n", encoding="utf-8")
             spend.hook_end({"transcript_path": str(transcript)})
         self.assertEqual(spawned, [[sys.executable, "-X", "utf8", str(Path(spend.__file__).resolve()), "write-session",
-                                    "--path", str(transcript)]])
+                                    "--path", str(transcript), "--archive"]])
         for data in (b"not json", b"", b"[1]", b"\xff\xfe", b'{"transcript_path": 5}'):
             result = subprocess.run([sys.executable, str(PLUGIN / "hooks" / "session-end.py")], input=data,
                                     capture_output=True)

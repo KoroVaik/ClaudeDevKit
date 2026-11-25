@@ -3,8 +3,11 @@ problems. It reads the transcripts and uses no model.
 
     spend-kit session [--id SESSION_ID | --path TRANSCRIPT.jsonl] [--no-subagents]
                                                   the units of one session as a share of the weekly limit (see below)
-    spend-kit write-session [--id SESSION_ID | --path TRANSCRIPT.jsonl]
-                                                  write the session's spend file `sessions/<session id>.json` (see below)
+    spend-kit write-session [--id SESSION_ID | --path TRANSCRIPT.jsonl] [--archive]
+                                                  write the session's spend file `sessions/<session id>.json` (see below);
+                                                  --archive: then the weekly archive line, if missing (see Stats)
+    spend-kit stats [--detail projects|tasks|agents|skills] [--week -1]
+                                                  where the current weekly limit went, as a chat table (see Stats)
     spend-kit critical [--days N]                 scan if not yet scanned today, then print the critical token problems
     spend-kit calibrate                           refit the weekly limit from the status line log and print the result
     spend-kit scan [--force] [--days N]           the scan of every transcript (once a day without --force)
@@ -103,13 +106,34 @@ SESSIONS_KEPT_DAYS deleted. Other plugins read it, never import this script:
      "models": {"opus": 1000, "sonnet": 2000},
      "waste": {"units": 100, "share_pct": 0.01, "idle": 60, "cold": 30, "bloat": 10, "wakes": 2}}
 
-Exit codes: 0 done, 1 busy (calibrate), 2 bad arguments or no session.
+Stats (`stats`, docs/features/limit-usage-stats.md): a text table of where the current weekly limit went, for a project
+lead to paste in chat. The window is the newest status line reading's `week_resets` minus 7 days up to it (no reading:
+the last 7 days); the header's per cent is that reading's, the one the Claude app shows (none: units / the weekly
+limit). Every assistant message of ALL transcripts dated in the window counts (subagents included, a message id once,
+the scan's weights; files last changed before the window are skipped) and goes to a project (the repository of the
+main session's folder), a task (`project · session title`; a subagent counts to its parent session), an agent
+(`type · Model`, one run per subagent file) and, roughly, a skill (the units of the main messages from a Skill tool
+call or a `/command` launch to the next owner message). A share is the units over the window's units times the
+header's per cent, so each group adds up to the header. Groups: Проєкти, Задачі (top 5), Агенти (top 5), Скіли (приблизно, top 5);
+`--detail` prints one group in full, agents with runs and the usual (median) units per run. Each closed window is
+appended once to `<data folder>/weekly.jsonl`, never cut (Claude deletes transcripts after 30 days), by `stats` and by
+the detached run of the SessionEnd hook (`write-session --archive`), under `weekly.lock`:
+
+    {"v": 1, "start": "<UTC ISO>", "end": "<UTC ISO>", "pct": 95.0, "units": 549000000, "limit_units": 549000000,
+     "projects": {"ClaudeDevKit": 1000}, "tasks": {"ClaudeDevKit · title": 1000},
+     "agents": {"coder · Sonnet": {"units": 1000, "runs": 3, "usual": 300}}, "skills": {"fix-bug": 100}}
+
+`stats --week -1` prints the newest archived week in the same table, -2 the one before; exit code 2 when it is not
+there.
+
+Exit codes: 0 done, 1 busy (calibrate), 2 bad arguments, no session or no archived week.
 """
 import argparse
 import contextlib
 import datetime
 import json
 import os
+import re
 import subprocess
 import sys
 import time
@@ -157,6 +181,15 @@ WAKE_ORIGINS = {"task-notification", "agent-notification", "peer", "coordinator"
 BLOAT_CONTEXT = 300_000  # the cache read above this many tokens in one message counts as bloated context
 COLD_TTL_MIN = {"5m": 5, "1h": 60}  # the prompt cache lifetime by write kind
 DAILY_KEPT = 14  # days of per-session units kept in `state.json`
+WEEK = datetime.timedelta(days=7)
+WEEKLY_NAME = "weekly.jsonl"  # the never-cut archive of closed weekly windows (see the module doc, Stats)
+WEEKLY_LOCK = "weekly.lock"
+ARCHIVE_MAX_AGE_DAYS = 21  # a window that ended longer ago is not archived: its transcripts are partly deleted
+STATS_TOP = 5  # rows of the tasks and skills groups of `stats` without --detail
+MODEL_NAMES = ("opus", "sonnet", "haiku", "fable")  # the model families `stats` names
+COMMAND_NAME = re.compile(r"<command-name>/?([^<\s]+)</command-name>")
+BUILTIN_COMMANDS = {"compact", "clear", "model", "help", "exit", "resume", "config", "cost", "usage", "status",
+                    "context", "memory", "init", "login", "logout", "rewind", "agents", "mcp", "hooks", "doctor"}
 PENDING_KEPT = 300  # findings kept for a reader that does not come
 PENDING_DAYS = 14
 SESSIONS_KEPT_DAYS = 60  # per-session spend files older than this are deleted
@@ -1121,8 +1154,9 @@ def sessions_dir():
     return spend_dir.data_dir() / "sessions"
 
 
-def write_session(session_id=None, path=None, out=None, err=None):
-    """Write the session's spend file; exit code 2 when the session or its file is not found."""
+def write_session(session_id=None, path=None, out=None, err=None, archive=False):
+    """Write the session's spend file; exit code 2 when the session or its file is not found. `archive`: then also
+    write the weekly archive line of the previous window when it is missing (the SessionEnd run, never its own 10 s)."""
     out, err = out or sys.stdout, err or sys.stderr
     session_id = session_id or os.environ.get("CLAUDE_CODE_SESSION_ID")
     if path:
@@ -1144,6 +1178,9 @@ def write_session(session_id=None, path=None, out=None, err=None):
             if old != target and old.stat().st_mtime < limit:
                 old.unlink()
     print(f"wrote {target}", file=out)
+    if archive:
+        with contextlib.suppress(OSError):
+            archive_previous()
     return 0
 
 
@@ -1164,6 +1201,322 @@ def range_units(path, start, end):
                 seen.add(parsed[1])
             units += parsed[2]
     return units
+
+
+# ---------------------------------------------------------------- the weekly stats and the archive
+
+def stats_events(path, main):
+    """The events of one transcript, in file order, for `collect`: `("title", text)`, `("owner", command or None)` (a real
+    owner message, with the slash command it launched), `("skill", name)` (a Skill tool call), `("msg", time, id, units,
+    model)`. A main transcript only gives titles, owner messages and skills.
+
+    Lines that cannot be one of these are skipped before parsing, so a week of transcripts reads fast."""
+    try:
+        handle = open(path, "rb")
+    except OSError:
+        return
+    with handle:
+        for raw in handle:
+            has_usage = b'"usage"' in raw and b'"assistant"' in raw
+            if not has_usage and not (main and (b'"Skill"' in raw or b"custom-title" in raw or b'"user"' in raw)):
+                continue
+            if not has_usage and b'"tool_result"' in raw:
+                continue
+            try:
+                entry = json.loads(raw)
+            except ValueError:
+                continue
+            message = entry.get("message") if isinstance(entry, dict) else None
+            kind = entry.get("type") if isinstance(entry, dict) else None
+            if kind == "custom-title" and entry.get("customTitle"):
+                yield "title", str(entry["customTitle"])
+            elif kind == "user" and main and isinstance(message, dict) and not entry.get("isMeta"):
+                content = message.get("content")
+                origin = entry.get("origin")
+                text = content if isinstance(content, str) else " ".join(
+                    str(block.get("text") or "") for block in content or [] if isinstance(block, dict))
+                woken = (origin.get("kind") if isinstance(origin, dict) else None) in WAKE_ORIGINS
+                if woken or "<summary>Agent " in text or text.startswith("<task-notification"):
+                    continue  # a background task or a finished subagent: the same work goes on
+                found = COMMAND_NAME.search(text)
+                yield "owner", found.group(1) if found else None
+            elif kind == "assistant" and isinstance(message, dict):
+                usage, model = message.get("usage"), message.get("model")
+                if isinstance(usage, dict) and model != "<synthetic>":
+                    yield "msg", parse_time(entry.get("timestamp")), message.get("id"), units_of(usage, model), model
+                if main and isinstance(message.get("content"), list):
+                    for block in message["content"]:
+                        given = block.get("input") if isinstance(block, dict) else None
+                        if (isinstance(block, dict) and block.get("type") == "tool_use" and block.get("name") == "Skill"
+                                and isinstance(given, dict) and given.get("skill")):
+                            yield "skill", str(given["skill"])
+
+
+def skill_name(name):
+    """A skill as shown: no slash, no plugin prefix."""
+    return str(name).lstrip("/").rpartition(":")[2]
+
+
+def model_name(model):
+    model = str(model or "").lower()
+    return next((name.capitalize() for name in MODEL_NAMES if name in model), "Other")
+
+
+def repo_name(folder):
+    """The project of a project folder: a worktree counts to its repository, the throwaway job folders of Claude to
+    `claude-jobs`, the home folder to `~`."""
+    if "--claude-jobs-" in folder:
+        return "claude-jobs"
+    if re.fullmatch(r"[A-Za-z]--Users-[^-]+", folder):
+        return "~"
+    return project_name(folder).partition("/")[0] or "?"
+
+
+def collect(start, end, root=None):
+    """Where the units of the window [start, end) went, over ALL transcripts under `root` (subagents included, a message
+    id once, the scan's weights): `{"units", "projects", "tasks", "agents", "skills"}`.
+
+    projects/tasks/skills map a name to units; agents map `type · Model` to `{"units", "runs", "usual"}` (a run is one
+    subagent file with units in the window, usual the median units per run). A subagent's units go to its parent
+    session's task. See the module doc, Stats."""
+    root = root or projects_dir()
+    state_titles = load_state(spend_dir.data_dir()).get("titles", {})
+    first = start.timestamp()
+    seen = set()
+    projects, sessions, skills = Counter(), Counter(), Counter()  # sessions: (project folder, session) -> units
+    titles = {}
+    runs = defaultdict(list)  # (type, Model) -> units per run
+    for path, mtime in sorted(transcripts(root)):
+        if mtime < first:
+            continue
+        folder, session, sub = session_label(path, root)
+        total, models = 0.0, Counter()
+        skill = None
+        for event in stats_events(path, main=not sub):
+            if event[0] == "title":
+                titles[(folder, session)] = event[1]
+            elif event[0] == "owner":
+                skill = skill_name(event[1]) if event[1] and event[1].lstrip("/") not in BUILTIN_COMMANDS else None
+            elif event[0] == "skill":
+                skill = skill_name(event[1])
+            else:
+                _, stamp, mid, units, model = event
+                if stamp is None or not start <= stamp < end or (mid and mid in seen):
+                    continue
+                if mid:
+                    seen.add(mid)
+                total += units
+                models[model_name(model)] += units
+                if skill and not sub:
+                    skills[skill] += units
+        if total:
+            projects[repo_name(folder)] += total
+            sessions[(folder, session)] += total
+            if sub:
+                kind = sub[len("subagent "):].rpartition(":")[2] or "?"
+                runs[(kind, models.most_common(1)[0][0])].append(total)
+    tasks = Counter()
+    for (folder, session), units in sessions.items():
+        title = titles.get((folder, session)) or state_titles.get(f"{folder}/{session}") or session[:8]
+        tasks[f"{repo_name(folder)} · {title}"] += units
+    agents = {f"{kind} · {model}": {"units": sum(values), "runs": len(values), "usual": median(values)}
+              for (kind, model), values in runs.items()}
+    return {"units": sum(projects.values()), "projects": dict(projects), "tasks": dict(tasks), "agents": agents,
+            "skills": dict(skills)}
+
+
+def log_windows(readings):
+    """`(start, end, per cent)` of each weekly window of the log with a numeric reset time, oldest first: the end is the
+    reset time of its newest reading, the start a week before, the per cent that reading's. Reset times under
+    WINDOW_ROUND_S apart are one window."""
+    groups = []
+    for reading in sorted((r for r in readings if statusline.number(r["resets"]) is not None),
+                          key=lambda reading: reading["resets"]):
+        if groups and reading["resets"] - groups[-1][-1]["resets"] < WINDOW_ROUND_S:
+            groups[-1].append(reading)
+        else:
+            groups.append([reading])
+    found = []
+    for rows in groups:
+        last = max(rows, key=lambda reading: reading["ts"])
+        try:
+            end = datetime.datetime.fromtimestamp(last["resets"], datetime.timezone.utc)
+        except (OverflowError, OSError, ValueError):
+            continue
+        found.append((end - WEEK, end, last["pct"]))
+    return found
+
+
+def current_window(readings, now):
+    """`(start, end, per cent or None)` of the current weekly window: the newest reading with a numeric reset time gives
+    the end and the per cent. A window that ended since (no reading in the next one yet) is stepped on by whole weeks,
+    with no per cent. No such reading: the last 7 days."""
+    numbered = [reading for reading in readings if statusline.number(reading["resets"]) is not None]
+    if not numbered:
+        return now - WEEK, now + datetime.timedelta(seconds=1), None
+    try:
+        end = datetime.datetime.fromtimestamp(numbered[-1]["resets"], datetime.timezone.utc)
+    except (OverflowError, OSError, ValueError):
+        return now - WEEK, now + datetime.timedelta(seconds=1), None
+    pct = numbered[-1]["pct"]
+    while end <= now:
+        end += WEEK
+        pct = None
+    return end - WEEK, end, pct
+
+
+def weekly_path():
+    return spend_dir.data_dir() / WEEKLY_NAME
+
+
+def read_weekly():
+    """The archived weeks of `weekly.jsonl`, oldest first."""
+    weeks = []
+    try:
+        lines = weekly_path().read_text(encoding="utf-8").splitlines()
+    except OSError:
+        return weeks
+    for line in lines:
+        try:
+            entry = json.loads(line)
+        except ValueError:
+            continue
+        if isinstance(entry, dict) and parse_time(entry.get("end")):
+            weeks.append(entry)
+    return sorted(weeks, key=lambda entry: entry["end"])
+
+
+def stamp_text(moment):
+    return moment.astimezone(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+def previous_window(now):
+    """`(start, end, per cent)` of the newest weekly window of the log that has ended and is young enough for its
+    transcripts to be kept, or None."""
+    closed = [window for window in log_windows(read_log())
+              if window[1] <= now and window[1] >= now - datetime.timedelta(days=ARCHIVE_MAX_AGE_DAYS)]
+    return closed[-1] if closed else None
+
+
+def is_archived(window):
+    return any(abs((parse_time(entry["end"]) - window[1]).total_seconds()) < WINDOW_ROUND_S for entry in read_weekly())
+
+
+def archive_previous(now=None):
+    """Append the previous weekly window to `weekly.jsonl` when it is not in the file yet (never cut, one line per
+    window). True when a line was written. A lock file keeps two runs from appending the same window twice."""
+    now = now or now_utc()
+    window = previous_window(now)
+    if window is None or is_archived(window):
+        return False
+    with file_lock(spend_dir.data_dir() / WEEKLY_LOCK, LOCK_WAIT_FULL_S, LOCK_STALE_S) as held:
+        if not held or is_archived(window):  # the other run wrote it while this one waited
+            return False
+        start, end, pct = window
+        data = collect(start, end)
+        record = {"v": 1, "start": stamp_text(start), "end": stamp_text(end), "pct": pct, "units": round(data["units"]),
+                  "limit_units": round(weekly_limit()[0]),
+                  **{name: {key: round(value) for key, value in data[name].items()}
+                     for name in ("projects", "tasks", "skills")},
+                  "agents": {key: {field: round(value) for field, value in row.items()}
+                             for key, row in data["agents"].items()}}
+        weekly_path().parent.mkdir(parents=True, exist_ok=True)
+        with open(weekly_path(), "a", encoding="utf-8") as handle:
+            handle.write(json.dumps(record, ensure_ascii=False) + "\n")
+    return True
+
+
+def runs_text(count):
+    last, last_two = count % 10, count % 100
+    word = "запуск" if last == 1 and last_two != 11 else "запуски" if 2 <= last <= 4 and not 12 <= last_two <= 14 \
+        else "запусків"
+    return f"{count} {word}"
+
+
+def share_cell(share):
+    return "<1%" if share < 1 else f"{int(share + 0.5)}%"
+
+
+def group_lines(title, rows, share_of, agents=False, full=False):
+    """The lines of one group: a heading and `(name, units, agent row)` rows, largest first, as `name   share`; agents
+    add the runs (`full`: and the usual units per run on every row)."""
+    cells = [(name, share_cell(share_of(units)), row) for name, units, row in rows]
+    width = max(len(name) for name, _, _ in cells)
+    cell = max(len(text) for _, text, _ in cells)
+    lines = [title]
+    for index, (name, text, row) in enumerate(cells):
+        extra = ""
+        if agents:
+            if full:
+                extra = f"  ({runs_text(row['runs'])}, зазвичай {amount(row['usual'])} на запуск)"
+            else:
+                extra = f"  ({runs_text(row['runs']) if index == 0 else row['runs']})"
+        lines.append(f"  {name.ljust(width)}   {text.rjust(cell)}{extra}")
+    return lines
+
+
+def render_stats(data, start, end, pct, limit, detail=None):
+    """The stats table (see the module doc) of `collect` data: shares are units / the window's units * the header's per
+    cent, or units / the weekly limit without a per cent."""
+    total = data["units"]
+    shown = pct if pct else None
+    if shown is not None:
+        head = f"витрачено {shown:.0f}%"
+        def share_of(units):
+            return units * shown / total
+    else:
+        head = f"витрачено ~{percent(total, limit):.0f}% (обчислено з одиниць і ліміту)"
+        def share_of(units):
+            return percent(units, limit)
+    lines = [f"Тиждень ліміту: {start.astimezone():%d.%m} - {end.astimezone():%d.%m}, {head}"]
+    if not total:
+        return lines + ["", "Витрат у цьому тижні не знайдено."]
+
+    def ranked(name, top):
+        rows = sorted(((key, value, None) for key, value in data[name].items() if value > 0), key=lambda row: -row[1])
+        return rows if detail == name else rows[:top]
+
+    agent_rows = sorted(((key, row["units"], row) for key, row in data["agents"].items() if row["units"] > 0),
+                        key=lambda row: -row[1])
+    groups = [("projects", "Проєкти", ranked("projects", None), False),
+              ("tasks", "Задачі" if detail == "tasks" else f"Задачі (топ-{STATS_TOP})", ranked("tasks", STATS_TOP), False),
+              ("agents", "Агенти", agent_rows if detail == "agents" else agent_rows[:STATS_TOP], True),
+              ("skills", "Скіли (приблизно)", ranked("skills", STATS_TOP), False)]
+    for name, title, rows, agents in groups:
+        if rows and detail in (None, name):
+            lines += [""] + group_lines(title, rows, share_of, agents, full=detail == "agents")
+    return lines
+
+
+def stats(detail=None, week=0, out=None, err=None):
+    """Print where the weekly limit went (the current window, or an archived one with `week` -1, -2, ...); first writes
+    the archive line of the previous window when it is missing. Exit code 2 when the archived week is not there."""
+    out, err = out or sys.stdout, err or sys.stderr
+    folder = spend_dir.data_dir()
+    migrate_state(folder)
+    now = now_utc()
+    try:
+        archive_previous(now)
+    except OSError as problem:
+        print(f"the weekly archive was not written: {problem}", file=err)
+    limit = weekly_limit()[0]
+    if week < 0:
+        weeks = read_weekly()
+        if -week > len(weeks):
+            print(f"no archived week {week}: weekly.jsonl has {len(weeks)} week(s)", file=err)
+            return 2
+        entry = weeks[week]
+        data = {"units": number(entry.get("units")), "projects": entry.get("projects") or {},
+                "tasks": entry.get("tasks") or {}, "skills": entry.get("skills") or {},
+                "agents": {key: {"units": number(row.get("units")), "runs": number(row.get("runs")),
+                                 "usual": number(row.get("usual"))}
+                           for key, row in (entry.get("agents") or {}).items() if isinstance(row, dict)}}
+        print("\n".join(render_stats(data, parse_time(entry["start"]), parse_time(entry["end"]), number(entry.get("pct")),
+                                     number(entry.get("limit_units")) or limit, detail)), file=out)
+        return 0
+    start, end, pct = current_window(read_log(), now)
+    print("\n".join(render_stats(collect(start, end), start, end, pct, limit, detail)), file=out)
+    return 0
 
 
 # ---------------------------------------------------------------- the SessionEnd hook
@@ -1188,7 +1541,8 @@ def hook_end(payload):
     """SessionEnd: start the writing of the ending session's spend file, detached, and return at once."""
     transcript = payload.get("transcript_path")
     if isinstance(transcript, str) and transcript and Path(transcript).is_file():
-        spawn([sys.executable, "-X", "utf8", str(Path(__file__).resolve()), "write-session", "--path", transcript])
+        spawn([sys.executable, "-X", "utf8", str(Path(__file__).resolve()), "write-session", "--path", transcript,
+               "--archive"])
 
 
 def hook_main():
@@ -1224,6 +1578,11 @@ def main(argv=None):
         which.add_argument("--path")
         if name == "session":
             one.add_argument("--no-subagents", action="store_true")
+        else:
+            one.add_argument("--archive", action="store_true")
+    shown = sub.add_parser("stats")
+    shown.add_argument("--detail", choices=("projects", "tasks", "agents", "skills"))
+    shown.add_argument("--week", type=int, default=0)
     units = sub.add_parser("units")
     units.add_argument("--path", required=True)
     units.add_argument("--from", dest="start", type=int, required=True)
@@ -1236,7 +1595,11 @@ def main(argv=None):
     if args.command == "session":
         return session(args.id, args.path, not args.no_subagents)
     if args.command == "write-session":
-        return write_session(args.id, args.path)
+        return write_session(args.id, args.path, archive=args.archive)
+    if args.command == "stats":
+        if args.week > 0:
+            parser.error("--week is 0 (this week) or negative: -1 is the last archived week")
+        return stats(args.detail, args.week)
     if args.command == "critical":
         return critical(days=args.days)
     if args.command == "findings":

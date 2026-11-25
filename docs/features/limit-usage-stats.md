@@ -2,7 +2,7 @@
 
 Epic: [Work through a project lead](../epics/work-through-a-project-lead.md)
 
-Status: approved, not built. Plan: [plans/limit-usage-stats.md](../../plans/limit-usage-stats.md).
+Status: built (`spend-kit stats`). Plan: [plans/limit-usage-stats.md](../../plans/limit-usage-stats.md).
 
 ## Purpose
 The owner asks the project lead «покажи статистику витрат» and gets, in chat, how the current weekly limit
@@ -79,4 +79,4 @@ Mockup (the chat reply; numbers are made up):
 Acceptance criteria: the section above, written there at the approval.
 User situation: the owner sees the limit run low and wants to know which work ate it, to decide what to cut
 or run on a cheaper model.
-State: approved, not built
+State: built

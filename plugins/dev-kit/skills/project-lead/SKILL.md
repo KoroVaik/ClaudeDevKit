@@ -93,8 +93,8 @@ these messages follow this form; P's other replies keep the global caps.
 - Every event that needs the owner (an overlap, a blocked merge, a failed step) becomes a status line
   or P's own question; P never writes a free-text note beside the blocks.
 - Exceptions: the one line after P starts an «Обговорення:» session (see "Start an «Обговорення:»
-  session"), the full question list below, the start proposal of "The project state", and the steps
-  of a push test ("Push test with the owner").
+  session"), the full question list below, the start proposal of "The project state", the steps
+  of a push test ("Push test with the owner") and the spend table ("Spend statistics").
 
 «Питання без відповіді»: the open questions of PROGRESS.md "Open questions", by kind:
 
@@ -1127,6 +1127,16 @@ rules-kit's `scripts/retro.py`). That session fixes, checks and reverts rules by
 Why: owner, 2026-11-24 (`plans/retro-auto-rules-check.md` of the plugin repo, «Мінімізуй мою участь»): the retro
 asks the owner nothing; an approver agent and a replay on past sessions replace his yes, and every action is a
 passive list in Pult. The weekly docs session: owner, 2026-11-22 (`docs/features/tidy-the-docs-once-a-week.md`).
+
+## Spend statistics
+
+When the owner asks where the weekly limit went («покажи статистику витрат»), P runs `spend-kit stats` and
+shows its output in chat as a code block, unchanged, then the owner's usual next-step question; the table is a
+deliverable, an exception to the owner's «Chat replies» caps, and P adds no analysis to it. A past week not in the
+archive (exit code 2): P says so in one line. Asked for
+more on one group («детальніше», «по всіх агентах», «скільки пішло на помічників»), P runs `spend-kit stats
+--detail projects|tasks|agents|skills` for that group; asked about a past week, `spend-kit stats --week -1` (-2
+for the week before). Why: owner, 2026-11-25 (`docs/features/limit-usage-stats.md`).
 
 ## API credit check (plugin repo only)
 

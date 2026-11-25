@@ -1,6 +1,6 @@
 {
   "name": "spend-kit",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "Claude spend: weekly limit, per-session spend and API money",
   "author": { "name": "KoroVaik" }
 }

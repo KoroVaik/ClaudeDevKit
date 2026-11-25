@@ -1,6 +1,8 @@
 # Statistics: where the weekly limit goes
 
-Status: discussion (Обговорення: Статистика витрат ліміту).
+Status: built (C: Статистика витрат ліміту), 2026-11-25.
+
+Spend: ~0.3% of the weekly limit, estimate; API: 0 USD.
 
 Owner's words, 2026-11-25, P: ClaudeDevKit chat: «У нас десь ведеться облік того на які задачі, агенти, скіли і тд. було потрачено відсотків ліміту? Цікаво бачити жесь подібну статистику. Давай обговорення».
 
@@ -17,3 +19,12 @@ Success criterion: the owner's «так» to the short plan, with the agreed poi
 - Period: the current weekly limit window, shares as % of the weekly limit.
 - Owner: «логувати треба все що тіки можна»: weekly totals kept forever; skills counted roughly. Design approved: see the feature file.
 - Detailed report on request (full lists, e.g. every agent type); the retro week-over-week jump finding dropped. All points: docs/features/limit-usage-stats.md.
+
+## Build (2026-11-25)
+
+- `spend-kit stats` (`--detail projects|tasks|agents|skills`, `--week -1`): the chat table; each group top 5 except projects, `--detail` shows one group in full.
+- Shares are scaled to the status line's weekly per cent, so groups add up to the header.
+- `weekly.jsonl` in the spend-kit data folder: the last closed window's totals, appended once by `stats` or the SessionEnd detached run, never cut.
+- Project rows merge worktrees into their repo; skills end at the next real owner message.
+- P: section «Spend statistics» of the project-lead skill.
+- Known: the week 18.11-25.11 in the archive has a per cent from a log that began 21.11, so its units-to-per-cent ratio is not comparable.

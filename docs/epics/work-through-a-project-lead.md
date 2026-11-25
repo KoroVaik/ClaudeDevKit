@@ -22,6 +22,7 @@ all your sessions belong to [Run all projects from the phone](run-all-projects-f
 - [State cost as a share of the weekly limit](../features/state-cost-as-a-share-of-the-weekly-limit.md)
 - [Fix agent problems in the retro](../features/fix-agent-problems-in-the-retro.md)
 - [Keep Claude app facts](../features/keep-claude-app-facts.md)
+- [Show where the weekly limit went](../features/limit-usage-stats.md)
 
 ## Not written yet
 
