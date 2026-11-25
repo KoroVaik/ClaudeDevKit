@@ -76,7 +76,7 @@ problem it proposes a fix and acts after an explicit yes.
   target's transcript; until then it is sent again, then pushed to your phone (for Pult: «Pult не піднявся -
   запусти його на комп'ютері»). A push also goes once per session when a conversation passes 0.7 of its
   window, and once per weekly window when, at the pace of the last 6 hours, the weekly limit runs out over 6 hours
-  before its reset while task sessions are open (log LIMIT-FORECAST; mark `limit-forecast.json`). Every live lead gets a `ЛІМІТ:` line when the weekly limit reaches 90% and 95% or the 5-hour one 90%, once per window, and the leads told get one more when that limit resets (log LIMIT-NOTICE, LIMIT-BACK; mark `limit-notices.json`; `docs/features/wind-down-at-weekly-limit.md`). The watcher cannot push by itself (a fresh session's push is refused: `plugins/dev-kit/claude-facts.md`,
+  before its reset while task sessions are open (log LIMIT-FORECAST; mark `limit-forecast.json`). Every live lead gets a `ЛІМІТ:` line when the weekly limit reaches 90%, 95% and 98% or the 5-hour one 90%, once per window, and the leads told get one more when that limit resets (log LIMIT-NOTICE, LIMIT-BACK; mark `limit-notices.json`; `docs/features/wind-down-at-weekly-limit.md`). The watcher cannot push by itself (a fresh session's push is refused: `plugins/dev-kit/claude-facts.md`,
   "A push from a fresh session is refused"), so every push is a message asking a relay session to push it: Pult when it is live, else a
   live lead. Pult's own session is listed by `claude agents` under a system name, not "Pult", so the
   watcher finds it as the session in the home folder (of several, the one the Pult server started) and sends to that name. Its

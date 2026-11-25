@@ -148,7 +148,7 @@ class LimitNoticesTest(unittest.TestCase):
         return usage_forecast.notices(self.log, self.mark, now)
 
     # protects: Flow
-    def test_weekly_notices_at_90_and_95_once_each_then_back_after_the_reset(self):
+    def test_weekly_notices_at_90_95_and_98_once_each_then_back_after_the_reset(self):
         week = NOW + 48 * H
         self.add(85, week)
         self.assertEqual(self.run_at(), [])
@@ -161,6 +161,8 @@ class LimitNoticesTest(unittest.TestCase):
         self.assertEqual(self.run_at(), [])
         self.add(95, week + 30)
         self.assertTrue(self.run_at()[0].startswith(f"notice | week | 95 | 95 | {int(week)} | "))  # the window's first reset time
+        self.add(98, week)
+        self.assertTrue(self.run_at()[0].startswith(f"notice | week | 98 | 98 | {int(week)} | ЛІМІТ: тижневий 98%, оновиться "))
         self.add(99, week)
         self.assertEqual(self.run_at(), [])
         self.assertEqual(self.run_at(week + 10), [f"back | week | {int(week)} | ЛІМІТ: тижневий ліміт оновився, "
@@ -173,6 +175,16 @@ class LimitNoticesTest(unittest.TestCase):
         self.add(96, week)
         lines = self.run_at()
         self.assertEqual([line.split(" | ")[:3] for line in lines], [["notice", "week", "95"]])
+        self.assertEqual(self.run_at(), [])
+
+    # protects: Rule
+    def test_a_jump_past_98_gives_one_reserve_notice_with_the_reset_time(self):
+        week = NOW + 48 * H
+        self.add(99, week)
+        lines = self.run_at()
+        self.assertEqual(len(lines), 1)
+        self.assertRegex(lines[0], rf"^notice \| week \| 98 \| 99 \| {int(week)} \| ЛІМІТ: тижневий 98%, оновиться "
+                                   r"(пн|вт|ср|чт|пт|сб|нд) \d\d:\d\d$")
         self.assertEqual(self.run_at(), [])
 
     # protects: Flow
