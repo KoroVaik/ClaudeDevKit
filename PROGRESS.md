@@ -35,6 +35,8 @@
 
 - Review of a built screen in its own discussion (owner «Так», 2026-11-25, «Обговорення: Перевірка зібраних екранів»): P only starts an «Обговорення:» session, which shows the shots and passes the owner's remarks to the C that built the screen. Built (dev-kit 0.1.132, web-kit 0.4.3); not yet run on a real screen. Plan: [plans/screen-review.md](plans/screen-review.md) «Owner's approval».
 
+- Clearer session role names (owner «Так» to the plan, 2026-11-25, «Обговорення: Назви ролей сесій»): lead `L: <project>` («Lead»), task session `M: <task>` («Manager»), `Discuss:`, `Retro:`, `Docs:`; subagents «помічник». Next: build, medium (code, Pult, rules, switch-over of running leads). Plan: [plans/role-names.md](plans/role-names.md) «Owner's approval».
+
 Open work of the features: `dev-kit-check-docs --open`.
 
 ## Open questions
