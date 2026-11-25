@@ -2,5 +2,6 @@
   "0.1.0": {"kind": "routine", "date": "2026-11-24", "reason": "first release: weekly limit, per-session spend and API money moved here from dev-kit"},
   "0.1.1": {"kind": "routine", "date": "2026-11-25", "reason": "the status line logs high 5-hour readings; usage_forecast notices gives the limit notices for the leads"},
   "0.1.2": {"kind": "routine", "date": "2026-11-25", "reason": "a third weekly limit notice at 98%"},
-  "0.1.3": {"kind": "routine", "date": "2026-11-25", "reason": "spend-kit stats: where the weekly limit went by project, task, agent and skill; weekly totals kept forever"}
+  "0.1.3": {"kind": "routine", "date": "2026-11-25", "reason": "spend-kit stats: where the weekly limit went by project, task, agent and skill; weekly totals kept forever"},
+  "0.1.4": {"kind": "routine", "date": "2026-11-25", "reason": "the weekly limit forecast is removed; usage_forecast.py is now limit_notices.py, the limit notices only"}
 }

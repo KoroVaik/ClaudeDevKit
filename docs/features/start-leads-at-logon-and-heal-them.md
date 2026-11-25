@@ -26,14 +26,6 @@ hears of the stop only when that message was not taken after 3 tries; then the l
 `стоїть, скінчився ліміт`. Why: owner, 2026-11-23 (`plans/limit-resume.md`): sessions waited after the reset
 until he wrote to them.
 
-### One early push when the weekly limit will run out long before its reset
-When, at the pace of the last 6 hours, the weekly limit runs out more than 6 hours before it resets and task
-sessions of the leads are still open, one push comes to your phone: «Тижневий ліміт: витрачено 49%, за темпом скінчиться пт
-20:00, скидання пн 10:00.» (local time). At most one per weekly window, even if the pace gets worse; after it
-nothing is paused or asked. The pace needs two readings of the weekly per cent at least an hour apart in those
-6 hours; this push has no 5-hour part (the leads get their own notices: [wind down near a usage limit](wind-down-at-weekly-limit.md)). Why: owner, 2026-11-23 (`plans/limit-tracking.md`): warn
-only when the work will surely stand for long, no spam.
-
 ### A lead on an old version is restarted when the update allows
 Each dev-kit update is marked critical (agents cannot cope without it) or routine by the agent that makes
 it. A routine update reaches a lead once, on a later day, at its first quiet moment: the lead is idle, its
@@ -75,7 +67,6 @@ one project, remove its row from the project list.
 - A lead restart crashes halfway: at the watcher's next check the pause is lifted and the stopped leads come back.
 - A lead restart hangs: after 10 minutes it is cut, logged, the pause is lifted, and the watcher goes on.
 - A lead's move to a fresh context hangs: after 10 minutes it is cut, logged, the old lead comes back, and the watcher goes on.
-- The weekly per cent rises fast enough to run out more than 6 hours before the reset while a task session is open: one phone push with both times; none again in that weekly window, and none while no task session is open.
 
 ## Built in
 - `plugins/pult/scripts/start-servers.ps1`
@@ -89,8 +80,8 @@ one project, remove its row from the project list.
 - `tools/tests/test_watch_servers_handoff.py`
 - `tools/tests/test_watch_servers_heal.py`
 - `tools/tests/test_start_servers_handoff.py`
-- `plugins/spend-kit/scripts/usage_forecast.py`
-- `tools/tests/test_usage_forecast.py`
+- `plugins/spend-kit/scripts/limit_notices.py`
+- `tools/tests/test_limit_notices.py`
 - `tools/tests/test_watch_servers_wake.py`
 
 ## Open
@@ -98,4 +89,4 @@ one project, remove its row from the project list.
 - [x] Check in the Pult chat that a watcher message now arrives: passed 2026-11-24, four phone-push requests (2026-11-23 21:02 to 2026-11-24 10:03) went in default mode, each became a turn in Pult's chat and Pult called the push
 - [x] Find a quiet stretch of a lead in the watcher log and confirm it shows no wake: passed 2026-11-24, P: ClaudeDevKit up 18 hours (2026-11-22 17:37 to 2026-11-23 11:52) and P: Zhratva 13 hours (2026-11-24 06:13 to 19:51) with no event and no wake; no full quiet day happened, every lead has work daily, and every wake had an event or keep-warm cause
 - [x] Check the exact wording of the session list in the phone app: passed 2026-11-24, the owner sees the lead listed as «P: ClaudeDevKit», the name the epic's steps use
-- [ ] Check on the phone that the weekly limit forecast push arrives once, with the run-out and reset times (`plans/limit-tracking.md`); run it as a push test (`dev-kit:project-lead`, "Push test with the owner")
+- [x] Check on the phone that the weekly limit forecast push arrives once: dropped 2026-11-25, the owner removed that push (`plans/drop-forecast-push.md`)

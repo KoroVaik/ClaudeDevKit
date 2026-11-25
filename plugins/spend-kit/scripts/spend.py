@@ -18,7 +18,7 @@ problems. It reads the transcripts and uses no model.
     spend-kit units --path FILE --from N --to M   the units of the transcript lines in the byte range [N, M)
     spend-kit hook-end                            SessionEnd hook (JSON on stdin): write the ended session's spend file
 
-The weekly-limit forecast for the phone push is `usage_forecast.py` of this plugin (its own CLI, run by the Pult
+The limit notices to the project leads are `limit_notices.py` of this plugin (its own CLI, run by the Pult
 watcher); the status line is `spend-kit-statusline`; the API money client is `spend-kit-api`.
 
 Token spend, in units (owner, 2026-11-19: a subscription, so no dollars; raw tokens mislead, cache reads are most of

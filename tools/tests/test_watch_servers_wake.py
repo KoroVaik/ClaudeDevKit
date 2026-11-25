@@ -110,7 +110,7 @@ class WatchServersWakeTest(unittest.TestCase):
         shutil.copytree(PLUGINS / "dev-kit" / "scripts", self.plugins / "dev-kit" / "scripts",
                         ignore=shutil.ignore_patterns("__pycache__"))
         shutil.copytree(PLUGINS / "spend-kit" / "scripts", self.plugins / "spend-kit" / "scripts",
-                        ignore=shutil.ignore_patterns("__pycache__"))  # the forecast block runs its usage_forecast.py
+                        ignore=shutil.ignore_patterns("__pycache__"))  # the limit notices run its limit_notices.py
         self.scripts = self.plugins / "pult" / "scripts"
         (self.scripts / "restart-leads.ps1").write_text(STUB_RESTART, encoding="ascii")
         self.set_version("pult", "1.0.0")
@@ -477,31 +477,14 @@ class WatchServersWakeTest(unittest.TestCase):
              "week_resets": resets, "five_hour_pct": None}) + "\n" for h, p in rows), encoding="utf-8")
 
     # protects: Rule
-    def test_weekly_limit_forecast_gets_one_phone_push_per_window(self):
+    def test_fast_weekly_pace_with_open_tasks_gets_no_phone_push(self):
+        """The weekly limit forecast push was removed (owner, 2026-11-25, plans/drop-forecast-push.md)."""
         self.usage_log([(3, 40), (1, 50)])  # 5 %/h: runs out in about 9 hours, days before the reset
         self.registry_task()
         self.agents(pult=True)
-        self.run_watch(2)
-        log = self.run_watch(2)  # a new watcher run (as after WATCH-RESTART) pushes no second time
-        pushes = [w for w in self.wakes() if self.push(w) is not None]
-        self.assertEqual(1, len(pushes), log)
-        self.assertEqual("Pult", self.to(pushes[0]))
-        self.assertRegex(self.push(pushes[0]),
-                         r"^Тижневий ліміт: витрачено 50%, за темпом скінчиться (пн|вт|ср|чт|пт|сб|нд) \d\d:\d\d, "
-                         r"оновиться (пн|вт|ср|чт|пт|сб|нд) \d\d:\d\d$")
-        self.assertEqual(1, len([line for line in log if line.startswith("LIMIT-FORECAST runout=")]), log)
-
-    # protects: Rule
-    def test_weekly_limit_forecast_without_open_task_sessions_pushes_nothing(self):
-        self.usage_log([(3, 40), (1, 50)])
-        self.agents(pult=True)  # no task session in the lead's registry
         log = self.run_watch(2)
-        self.assertEqual([], [w for w in self.wakes() if self.push(w) is not None])
-        self.assertFalse([line for line in log if line.startswith("LIMIT-FORECAST")])
+        self.assertEqual([], [w for w in self.wakes() if self.push(w) is not None], log)
         self.assertFalse((self.pult / "limit-forecast.json").exists())
-        self.registry_task()  # a task session opens later in the same window: no mark was set, so it still pushes
-        self.run_watch(2)
-        self.assertEqual(1, len([w for w in self.wakes() if self.push(w) is not None]))
 
     # protects: Rule
     def test_lead_with_a_working_task_or_busy_is_asked_for_a_critical_dev_kit_not_restarted(self):
@@ -624,14 +607,14 @@ class WatchServersWakeTest(unittest.TestCase):
         self.assertEqual([f"LIMIT-RESUME-FAILED C: task {TASK} You've hit your limit"], failed)
         self.assertFalse([line for line in log if "GIVEUP" in line], log)
 
-    # ---- limit notices (usage_forecast.py notices is stubbed: the script owns thresholds and marks) ----
+    # ---- limit notices (limit_notices.py notices is stubbed: the script owns thresholds and marks) ----
 
     def stub_notices(self, fail=False):
-        """Replaces the copied usage_forecast.py: `check` prints nothing, `notices` prints notices.txt once (and logs the
-        call), or fails when told to."""
-        (self.plugins / "spend-kit" / "scripts" / "usage_forecast.py").write_text(
+        """Replaces the copied limit_notices.py: `notices` prints notices.txt once (and logs the call), or fails when
+        told to."""
+        (self.plugins / "spend-kit" / "scripts" / "limit_notices.py").write_text(
             "import json, os, sys\nfrom pathlib import Path\nd = Path(os.environ['TEST_DIR'])\n"
-            "with open(d / 'forecast-calls.txt', 'a', encoding='utf-8') as f:\n    f.write(json.dumps(sys.argv[1:]) + '\\n')\n"
+            "with open(d / 'notices-calls.txt', 'a', encoding='utf-8') as f:\n    f.write(json.dumps(sys.argv[1:]) + '\\n')\n"
             "sys.stdout.reconfigure(encoding='utf-8')\n"
             "if sys.argv[1] == 'notices':\n"
             f"    if {fail!r}:\n        print('boom')\n        sys.exit(2)\n"
@@ -643,7 +626,7 @@ class WatchServersWakeTest(unittest.TestCase):
         (self.bin / "notices.txt").write_text("\n".join(lines) + "\n", encoding="utf-8")
 
     def notices_calls(self):
-        f = self.bin / "forecast-calls.txt"
+        f = self.bin / "notices-calls.txt"
         calls = [json.loads(line) for line in f.read_text(encoding="utf-8").splitlines()] if f.exists() else []
         return [c for c in calls if c[0] == "notices"]
 

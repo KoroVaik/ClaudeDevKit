@@ -49,9 +49,10 @@ Accepted product rule (owner «так», 2026-11-25): Pult's watcher must see a 
 when reports of its cut helpers arrive after the limit notice. (On 2026-11-24 the Zhratva core session
 slept about a day after a 5-hour stop the watcher did not see.)
 
-### The owner's weekly forecast push stays
-Accepted product rule (owner «так», 2026-11-24): the weekly limit forecast push to the owner's phone stays
-as it is.
+### No weekly forecast push to the owner
+Accepted product rule (owner «Прибирай», 2026-11-25, `plans/drop-forecast-push.md`): the owner's phone gets no
+push that forecasts when the weekly limit runs out. The same work costs the same limit in parallel or one by one;
+the 98% stop keeps the reserve. (Replaces the rule of 2026-11-24 that kept that push.)
 
 ## Acceptance criteria
 - When the weekly limit reaches 90%, every live project lead gets one notice with the per cent and the reset
@@ -66,10 +67,10 @@ as it is.
   the reset.
 - A session cut by the limit whose helpers report after the limit notice is still seen as stopped by Pult and
   woken after the reset.
-- The weekly forecast push to the owner's phone comes as before.
+- The owner's phone gets no weekly limit forecast push.
 
 ## Built in
-- Thresholds and once-per-window marks: `plugins/spend-kit/scripts/usage_forecast.py` (`notices`); the 5-hour
+- Thresholds and once-per-window marks: `plugins/spend-kit/scripts/limit_notices.py` (`notices`); the 5-hour
   readings it needs: `plugins/spend-kit/scripts/statusline.py`.
 - Sending to the leads: `plugins/pult/scripts/watch-servers.ps1` (`Invoke-LimitNotices`).
 - What a lead does: `plugins/dev-kit/skills/project-lead/SKILL.md`, "Wake-up", the `ЛІМІТ:` lines.

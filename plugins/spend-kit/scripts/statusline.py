@@ -15,8 +15,8 @@ session), are not logged:
 
 The 5-hour reading is also logged on its own, with `"five_only": true`, when it is FIVE_LOG_FROM per cent or more and
 it rose within the 5-hour window of the last line or a newer 5-hour window began (same rules as the weekly one); the
-Pult watcher's limit notices read it (`usage_forecast.py notices`, docs/features/wind-down-at-weekly-limit.md). A
-reader of the weekly pace (the forecast, the limit fit) skips `five_only` lines: their weekly per cent did not rise.
+Pult watcher's limit notices read it (`limit_notices.py notices`, docs/features/wind-down-at-weekly-limit.md). A
+reader of the weekly pace (the limit fit) skips `five_only` lines: their weekly per cent did not rise.
 
 Log folder: env DEV_KIT_USAGE_LOG, else the spend-kit data folder `~/.claude/spend-kit` (`spend_dir.py`; a log still in
 `~/.claude/dev-kit` is copied there once, when the new one is missing). Parallel sessions may

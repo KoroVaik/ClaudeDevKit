@@ -119,16 +119,10 @@
 #     $SizePushShare of its window or more gets one phone push (once per session id, wake-state.json):
 #     PUSH-SIZE; all the sessions that pass it in one round share one push. Every $SizeLogMin minutes the call takes `--wakes <StateDir>\size-state.json` and each session
 #     is logged: SIZE <name> <session id> <tokens> owner=N peer=N notify=N units=U.
-#   - Weekly limit forecast (plans/limit-tracking.md): when the usage log of the status line (usage-log.jsonl in the
-#     folder of env DEV_KIT_USAGE_LOG, else ~\.claude\spend-kit) changed since the last look, or task sessions opened or
-#     all closed (first look at start; the last look is kept in memory only, the mark stops a second push), one
-#     `<SpendKitDir>\scripts\usage_forecast.py check --open <live task sessions of the leads' registries> --mark <StateDir>\limit-forecast.json`
-#     call (the forecast, the "open tasks" test and the once-per-weekly-window mark are its own; see its doc). On `push`
-#     it logs LIMIT-FORECAST runout=<local time> resets=<local time> pct=<last %> pace=<%/h> and queues one phone push
-#     (cause limit) with its text, delivered like a size push. After it nothing is paused or asked.
-#   - Limit notices (docs/features/wind-down-at-weekly-limit.md, plans/limit-wind-down.md): when the same usage log
-#     changed since the last look, or $LimitNoticeSec s passed since the last call (the `back` lines are time based), one
-#     `<SpendKitDir>\scripts\usage_forecast.py notices --mark <StateDir>\limit-notices.json --log <usage log>` call
+#   - Limit notices (docs/features/wind-down-at-weekly-limit.md, plans/limit-wind-down.md): when the usage log of the
+#     status line (usage-log.jsonl in the folder of env DEV_KIT_USAGE_LOG, else ~\.claude\spend-kit) changed since the
+#     last look, or $LimitNoticeSec s passed since the last call (the `back` lines are time based), one
+#     `<SpendKitDir>\scripts\limit_notices.py notices --mark <StateDir>\limit-notices.json --log <usage log>` call
 #     (the thresholds and the once-per-window marks are its own). Each `notice | <week|five> | <threshold> | <pct> |
 #     <reset epoch> | <text>` line becomes an event line (kind limitnote, no `sessions.py mark`) for every lead of the
 #     list with a Path that is live and passes the gate of the lead events (Test-WakeLead), merged into its message like
@@ -225,7 +219,7 @@
 #   is logged again) and the "seen" lists (STATE lines again, as at any start). The wake files stay on disk and
 #   the new copy goes on with them: wake-pending.json (undelivered messages and their marks), wake-state.json
 #   (the Pult note, the size pushes, the last send per target), size-state.json (the `size --wakes` offsets) and
-#   limit-forecast.json (the weekly window already pushed);
+#   limit-notices.json (the limit notices already sent);
 #   only the time of the last SIZE lines is lost (they are logged again at once).
 # start-servers.ps1 starts it at logon in a hidden window. -Once: one check, then exit; -Rounds N:
 # N checks, then exit (both for tests; -Once never restarts anything, touches restart.json or wakes anyone).
@@ -246,7 +240,7 @@
 # -DevKitDir: the dev-kit plugin folder (default: ..\..\dev-kit next to this plugin); it holds
 # .claude-plugin\plugin.json (the installed version) and scripts\sessions.py.
 # -SpendKitDir: the spend-kit plugin folder (default: ..\..\spend-kit next to this plugin); it holds
-# scripts\usage_forecast.py, which the weekly limit forecast runs.
+# scripts\limit_notices.py, which the limit notices run.
 # Keep this file saved as UTF-8 with BOM (plugins/dev-kit/claude-facts.md, "Windows PowerShell 5.1 misreads
 # Cyrillic in a script saved without a BOM").
 param([int]$IntervalSec = 60, [switch]$Once, [int]$Rounds = 0, [int]$MaxHeals = 3,
@@ -544,7 +538,7 @@ function Invoke-TaskHeal {
                 $_ -and ((Test-IdMatch ([string]$_.sessionId) $wid) -or (Test-IdMatch ([string]$_.id) $wid)) })
             $states = @($entries | ForEach-Object { if ($_.state) { $_.state } else { $_.status } })
             $live = $entries | Where-Object { $_.pid -and $_.sessionId } | Select-Object -First 1
-            if ($live) { $liveSessions[[string]$live.sessionId] = [string]$r.name; $liveTasks[[string]$live.sessionId] = [string]$r.name }
+            if ($live) { $liveSessions[[string]$live.sessionId] = [string]$r.name }
             if ($entries | Where-Object { $_.pid }) {  # alive
                 $taskClosed.Remove($wid); $taskGaveUp.Remove($wid); continue
             }
@@ -1301,31 +1295,6 @@ function Invoke-SizeCheck($Targets) {
     $script:wakeDirty = $true
 }
 
-# The weekly limit forecast (see the header): one `usage_forecast.py check` call when the usage log changed; on `push`
-# a LIMIT-FORECAST line and one phone push. The forecast, the open-task test and the once-per-window mark are its own.
-function Invoke-LimitForecast {
-    $usageLog = if ($env:DEV_KIT_USAGE_LOG) { Join-Path $env:DEV_KIT_USAGE_LOG 'usage-log.jsonl' }
-        else { Join-Path $env:USERPROFILE '.claude\spend-kit\usage-log.jsonl' }
-    $f = Get-Item -LiteralPath $usageLog -ErrorAction SilentlyContinue
-    if (-not $f) { return }
-    $written = "$($f.LastWriteTimeUtc.Ticks) $($liveTasks.Count -gt 0)"  # a look again when task sessions open or close
-    if ($written -ceq $script:lastUsageWrite) { return }
-    $script:lastUsageWrite = $written
-    $py = Join-Path $SpendKitDir 'scripts\usage_forecast.py'
-    $r = Invoke-Python @($py, 'check', '--open', [string]$liveTasks.Count, '--mark', (Join-Path $StateDir 'limit-forecast.json'), '--log', $usageLog) -NoStderr
-    if ($r.Code -ne 0) { Write-WarnOnce 'forecast' ("limit forecast failed (exit {0}): {1}" -f $r.Code, ($r.Out -replace '\s+', ' ')); return }
-    $warnedOnce.Remove('forecast')
-    $p = @(($r.Out.Trim() -split ' \| ') | ForEach-Object { $_.Trim() })
-    if ($p[0] -cne 'push' -or $p.Count -lt 6) { return }
-    $at = { param($e) [DateTimeOffset]::FromUnixTimeSeconds([int64]$e).LocalDateTime.ToString('yyyy-MM-dd HH:mm') }
-    Write-Log ("LIMIT-FORECAST runout={0} resets={1} pct={2} pace={3}" -f (& $at $p[1]), (& $at $p[2]), $p[3], $p[4])
-    $item = New-WakeItem 'phone' 'phone' 'limit'
-    $item.Kinds = @('limit')
-    $item.Text = Get-PhoneText '' @($p[5])
-    [void]$wakePending.Add($item)
-    $script:wakeDirty = $true
-}
-
 # The names of the leads that get a limit notice now: a lead of the list with a Path that is live and passes the gate of
 # the lead events (Test-WakeLead).
 function Get-NoticeLeads($Targets) {
@@ -1338,7 +1307,7 @@ function Get-NoticeLeads($Targets) {
     return $names
 }
 
-# The limit notices (see the header): one `usage_forecast.py notices` call when the usage log changed or $LimitNoticeSec s
+# The limit notices (see the header): one `limit_notices.py notices` call when the usage log changed or $LimitNoticeSec s
 # passed since the last call (the `back` lines are time based). A `notice` line goes to every live lead (wake line of kind
 # limitnote, no `sessions.py mark`), the names are kept in wake-state.json LimitNotified under <limit>|<reset epoch>; a
 # `back` line goes to the leads kept under its key that are live now, then the key is removed. The thresholds and the
@@ -1352,7 +1321,7 @@ function Invoke-LimitNotices($Targets) {
     if ($written -ceq $script:lastNoticeWrite -and (Get-Age $script:lastNoticeCall) -lt $LimitNoticeSec) { return }
     $script:lastNoticeWrite = $written
     $script:lastNoticeCall = Get-Now
-    $py = Join-Path $SpendKitDir 'scripts\usage_forecast.py'
+    $py = Join-Path $SpendKitDir 'scripts\limit_notices.py'
     $r = Invoke-Python @($py, 'notices', '--mark', (Join-Path $StateDir 'limit-notices.json'), '--log', $usageLog) -NoStderr
     if ($r.Code -ne 0) { Write-WarnOnce 'notices' ("limit notices failed (exit {0}): {1}" -f $r.Code, ($r.Out -replace '\s+', ' ')); return }
     $warnedOnce.Remove('notices')
@@ -1506,7 +1475,6 @@ function Invoke-WakePass {
             $script:wakeDirty = $true
         }
         try { Invoke-SizeCheck $targets } catch { Write-Log "WARN size check failed: $_" }
-        try { Invoke-LimitForecast } catch { Write-Log "WARN limit forecast failed: $_" }
         try { Invoke-LimitNotices $targets } catch { Write-Log "WARN limit notices failed: $_" }
     }
 
@@ -1807,7 +1775,6 @@ $lastSizeLog = 0.0  # epoch of the last SIZE lines
 $wakePendingFile = Join-Path $StateDir 'wake-pending.json'
 $wakeStateFile = Join-Path $StateDir 'wake-state.json'
 $wakePending = New-Object System.Collections.ArrayList  # messages not delivered yet (New-WakeItem)
-$lastUsageWrite = $null  # the usage log's last write time at the last forecast look (Invoke-LimitForecast)
 $lastNoticeWrite = $null  # the usage log's last write time at the last limit notices call (Invoke-LimitNotices)
 $lastNoticeCall = 0.0     # epoch of that call
 # SizePushed: session id -> tokens; LastWake: target -> epoch; LimitNotified: "<week|five>|<reset epoch>" -> lead names told
@@ -1851,7 +1818,6 @@ while ($true) {
     $holdLogged = $onHold
     $devKitVersion = Get-DevKitVersion
     $liveSessions = @{}  # session id -> name of each live lead and task session this round (for Invoke-LimitCheck)
-    $liveTasks = @{}     # session id -> name of each live task session of a lead's registry (not a lead, not an owner's)
     if ($devKitVersion -and $devKitVersion -cne $lastVersion) { $leadTried.Clear(); $lastVersion = $devKitVersion }
 
     foreach ($s in $servers) {

@@ -37,8 +37,7 @@ The lead's rules (queue, task sessions, merge) are in the epic
    data or money, and once when its first question waits on you; Pult pushes when the watcher gave up on a
    server or session (the watcher tells Pult by message; when Pult is down, a running P pushes for it).
    You also get one push when a session's conversation grows past 0.7 of its window, so you move it to a
-   new session, and one per week when the weekly limit, at the recent pace, runs out over 6 hours before its
-   reset while work is open. The watcher cannot push by itself (a new session's push is refused: [Claude facts](../../plugins/dev-kit/claude-facts.md), "A push from a fresh session is refused"), so it asks Pult, or a
+   new session. The watcher cannot push by itself (a new session's push is refused: [Claude facts](../../plugins/dev-kit/claude-facts.md), "A push from a fresh session is refused"), so it asks Pult, or a
    running P when Pult is down, to send each push. Nothing is shown while the Claude app is open on screen ("No push shows while the Claude app is open on the phone").
 
 The commands behind steps 5 and 6 (`status-page.py`, `list-sessions.py`, `restart-leads.ps1`) are in the
