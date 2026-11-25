@@ -38,3 +38,30 @@ Detail for the builders:
 - Rule text. Every rule, skill, agent file and `messages.md` that names P, C, «Обговорення:», «Ретро:», «Документація:» moves to the new names (about 40 files say a bare P or C; plans/ history is left as is). Sender/receiver names in `messages.md` change; the message kinds (`ЗАКРИТО`, `ГОТОВО`...) stay. The Pult repo's own `CLAUDE.md` lookup of "P: <project>" changes too (other repo: through `other-repo-editor`).
 - Switch-over of running leads. Each running `P: <project>` lead is resumed once with `-n "L: <project>"` so its history stays (claude-facts.md, "Resuming without `-n` renames the session": `-n` keeps the given name); `servers.psd1` gets the new names in the same step, so the watcher does not start a second lead.
 - Success: in a lead's chat and the session list the owner sees only `L:`, `M:`, `Discuss:`, `Retro:`, `Docs:`, «Lead», «Manager» and «помічник»; Pult starts, restarts and stops leads under `L:` names; the hook, retro and docs scripts skip and gate on the new titles; tests pass.
+
+## Build steps
+
+Manager session «C: Назви ролей» (this build), 2026-11-25. Doers: M = this session; coder = `dev-kit:coder` sonnet.
+
+1. Pult code (coder): one helper maps a lead name to its old name (`L: X` -> `P: X`); every match of a running
+   lead by name (stop-servers, restart-leads, watch-servers skips and heal check, start-servers resume look-up,
+   status-page) accepts both. Resume look-up falls back to the old `P: X` session, and the saved options in the
+   job's `state.json` (`name`, `--name`) are rewritten to `L: X` before the resume (same place as
+   Set-LeadRespawnModel), so the lead keeps its history under the new name. `servers.psd1` gets `L:` names.
+   Tests in `tools/tests` updated and extended for the fallback.
+2. dev-kit and rules-kit scripts (coder): `lead-reply-form.py`, `docs-start.py`, `docs_weekly.py`, `sessions.py`,
+   `talk.py`, `retro.py`, `fixes.py`, `subscriptions.py`: new titles are made, both old and new are matched;
+   owner-facing hook text says «Lead»/«Manager»/«Discuss:». Tests updated.
+3. Rule text (coder, then M reads the diff): skills, agents, `messages.md`, rules, docs, README in `plugins/` and
+   `docs/`; P -> Lead (`L: <project>`), C -> Manager (`M: <task>`), «Обговорення:» -> `Discuss:`, «Ретро:» ->
+   `Retro:`, «Документація:» -> `Docs:`; «керівник»/«менеджер» in owner-facing lines -> «Lead»/«Manager»;
+   «агент:» launch line -> «помічник:». `plans/` history left as is. Via `rules-kit:edit-rules`.
+4. Owner's global rules (M, local git in the user's `.claude` folder): launch line `помічник:`, P/C/керівник
+   words -> Lead/Manager. Via `rules-kit:edit-rules` steps 1-2, 5-6.
+5. Pult repo `CLAUDE.md` lookup of "P: <project>" (other repo: `other-repo-editor`, haiku).
+6. Live check (M): a throwaway background session renamed through its `state.json`, then resumed, shows the
+   new name in `claude agents`. Decides whether step 1's rename works.
+7. Versions: dev-kit, pult, rules-kit bumped; routine marks in `releases.json` (the watcher restarts leads at
+   a quiet moment, and that restart does the rename). Full test run, pull main, report to P.
+
+Spend: see the line at the end of this file.
