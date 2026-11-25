@@ -1,5 +1,6 @@
 {
   "0.4.2": {"kind": "routine", "date": "2026-11-24", "reason": "a rules subscription file for the rules checks of rules-kit"},
   "0.4.3": {"kind": "routine", "date": "2026-11-25", "reason": "the polish of a built screen runs in the build session at the review session's remarks"},
-  "0.4.4": {"kind": "routine", "date": "2026-11-25", "reason": "rule text names the Lead and Manager roles and the «Discuss:» review session"}
+  "0.4.4": {"kind": "routine", "date": "2026-11-25", "reason": "web-kit-pair draws a label over each half: Мокап and Зроблено"},
+  "0.4.5": {"kind": "routine", "date": "2026-11-25", "reason": "rule text names the Lead and Manager roles and the «Discuss:» review session"}
 }

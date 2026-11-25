@@ -35,6 +35,7 @@ What: in `plugins/dev-kit/skills/project-lead/SKILL.md`, "Message templates" (th
 Why: P: Prishch, 2026-11-24/25, answered such events with free plain-English text; owner: «Чому на англ? Чому не показуєш статистику а пишеш цей текст?». The English part is already fixed in the owner's global rules (Reply language, 2026-11-25); this entry covers only the free-text part.
 Cheapest test: replay a usage-limit line and a finished retro to a lead; the reply is a status line in the template or empty, never a plain sentence.
 Verdict: owner yes 2026-11-25 (P: Prishch chat); simple edit, one place.
+Verdict (2026-11-25, P: ClaudeDevKit): owner yes stands; done after «C: Нові назви ролей» merges, since both edit the lead skill.
 
 ## Clearer names for the session roles
 
@@ -43,8 +44,3 @@ Why: owner, 2026-11-25, «Обговорення: Перевірка зібра�
 Cheapest test: list every role name the owner sees in a lead's chat and session titles, and check each has one meaning.
 Verdict (2026-11-25): owner «Можна зараз»: discussion started («Обговорення: Назви ролей сесій»).
 
-## web-kit-pair: half labels under the title
-
-What: change `web-kit-pair` (plugins web-kit, `scripts/pair.mjs`) to keep the one `--title` line on top (the state in the owner's words) and add under it a fixed label above each half, drawn inside the image: «Мокап» over the left half and «Зроблено» over the right (defaults, overridable with `--left-label` / `--right-label`). The old note that the title must not say "mockup" / "built" is dropped only for these labels; the title itself stays the state. The caller's chat caption repeats the title. Update the doc lines (the header comment and usage line in `pair.mjs`) and the callers that describe the title: `plugins/web-kit/browser-checks.md` (line 142), `skills/design-screen/SKILL.md` (line 112) and `skills/visual-check/SKILL.md` (line 51). Callers shoot the built half at the mockup's frame extent. When this ships, remove the per-half caption exception from the owner's global rules (C:/Users/korov/.claude/CLAUDE.md, bullet 'Pictures go to the owner', the sentences naming `web-kit-pair`), keeping only 'side by side' there; owner yes 2026-11-25.
-Why: owner, 2026-11-25, Zhratva: «Треба над фото писати прям в картинці опис короткий фото завжди. Тобто зараз 2 фото зклеєно, тому м буть 2 описи», then «Підписи повторяють текст», then «На картинці має бути підпис!!!!!», then yes to this layout (title on top, a label over each half). A built half cropped to one block also read to him as an empty screen, so the built half must be shot at the mockup's frame extent.
-Cheapest test: run `web-kit-pair` on one Zhratva board frame plus one built shot; open the PNG and check the title and both labels are legible on a phone.

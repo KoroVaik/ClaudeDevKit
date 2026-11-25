@@ -297,8 +297,19 @@ class SessionsTestCase(unittest.TestCase):
                                       sessions.agents_list(include_ended=True))
         self.assertEqual([("C: stopped", "c1-stopped-session", "stopped"),
                           ("C: missing", "c2-missing-session", "not in the session list")], gone)
-        self.assertEqual(["C: stopped | c1-stopped-session | gone | (no reply text)",
+        self.assertEqual(["C: stopped | c1-stopped-session | closed | no process, the watcher may respawn it; (no reply text)",
                           "C: missing | c2-missing-session | gone | (no reply text)"], self.state_lines())
+
+    def test_state_calls_a_closed_session_gone_only_after_the_check_grace(self):  # Rule: a reboot must not end a C
+        self.add("c1-closed-session", name="C: closed")
+        self.listing([{"sessionId": "c1-closed-session", "state": "stopped"}])  # after a reboot: listed, no pid
+        closed = dev_kit_state.project_state_dir(self.project) / sessions.CLOSED
+        closed.write_text(json.dumps({"c1-closed-session": time.time() - 60}), encoding="utf-8")
+        self.assertEqual(["C: closed | c1-closed-session | closed | no process, the watcher may respawn it; (no reply text)"],
+                         self.state_lines())
+        closed.write_text(json.dumps({"c1-closed-session": time.time() - sessions.CLOSED_GRACE - 1}), encoding="utf-8")
+        self.assertEqual(["C: closed | c1-closed-session | gone | (no reply text)"], self.state_lines())
+        self.assertEqual("active", self.records()[0]["status"])  # state never ends a record
 
     def test_watch_missing_session_and_short_ids(self):
         self.listing([{"sessionId": "aaaaaaaa-1111", "name": "C: a", "pid": 1, "state": "done"}])
@@ -501,7 +512,7 @@ class SessionsTestCase(unittest.TestCase):
         lines = self.state_lines()
         self.assertEqual(["S: busy | busy-session | working | Reading the files.",
                           "S: idle | idle-session | waiting | Which arbiter do you mean?",
-                          "S: dead | dead-session | gone | (no reply text)",
+                          "S: dead | dead-session | closed | no process, the watcher may respawn it; (no reply text)",
                           "S: done | done-session | finished | Fixed it."], lines)
 
     @staticmethod
@@ -840,11 +851,11 @@ class SessionsTestCase(unittest.TestCase):
         self.assertEqual("old", entries[1]["uuid"])
 
     # protects: Rule
-    def test_a_limited_session_without_a_pid_is_gone(self):
+    def test_a_limited_session_without_a_pid_is_closed(self):
         self.add("c1-session", name="C: lim")
         self.listing([{"sessionId": "c1-session", "status": "stopped"}])
         self.transcript("c1-session", [self.limit_notice(resets=None)])
-        self.assertEqual(["C: lim | c1-session | gone | (no reply text)"], self.state_lines())
+        self.assertEqual(["C: lim | c1-session | closed | no process, the watcher may respawn it; (no reply text)"], self.state_lines())
         self.assertEqual([], sessions.limited_sessions([("C: lim", "c1-session")], sessions.agents_list(True)))
 
     # protects: Bug

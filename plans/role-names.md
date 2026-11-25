@@ -80,7 +80,7 @@ Steps 1-7 done. A rule-reviewer (sonnet) sweep found leftovers (project-lead SKI
 them. Kept on purpose: old-prefix matchers (`session_titles.py`, Pult "old name" handling) for the transition, test
 fixtures with old titles, owner quotes, the «Обговорення закрите» closing line (the hook matches it), and `BACKLOG.md`
 / `PROGRESS.md` history. Global rules: launch line `помічник:` / `helper:`, Lead/Manager words (local commit
-813ef83). Versions: dev-kit 0.1.133, pult 0.1.37, rules-kit 0.1.1, spend-kit 0.1.5, unity-kit 0.2.5, web-kit 0.4.4,
+813ef83). Versions: dev-kit 0.1.134, pult 0.1.37, rules-kit 0.1.1, spend-kit 0.1.5, unity-kit 0.2.5, web-kit 0.4.5,
 routine release marks; the watcher's restart of each lead renames it to `L: <project>` with its history.
 Lint 0 errors; 922 tests pass, 1 skipped.
 

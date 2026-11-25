@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 // One owner-facing picture of one state: the mockup and the built screen side by side, at equal height,
-// with a very short title line on top that says what the frame shows. No dependencies: it lays the two
+// with a very short title line on top that says what the frame shows and, under it, a label over each
+// half («Мокап» over the left, «Зроблено» over the right). No dependencies: it lays the two
 // PNGs out in a throwaway page and shoots it with capture.mjs (headless Edge or Chrome).
 //
 // Why it exists: the owner reads pictures on a phone. A contact sheet of many screens is unreadable there,
@@ -8,10 +9,14 @@
 // write one-off image scripts for this.
 //
 // Usage: web-kit-pair --left <mockup.png> --right <app.png> --title "<short text>" --out <file.png>
+//          [--left-label "<text>"] [--right-label "<text>"]
 //
 // Both halves keep their whole frame (each is one full phone window, never cropped); the shorter one is
-// scaled up to the taller one's height. The title is at most 60 characters: the essence of the state in
-// the owner's words, not "mockup" / "built". Prints one line: "<absolute path> <width>x<height>".
+// scaled up to the taller one's height. Shoot the built half at the mockup's frame extent, so it never
+// reads as an empty screen. The title is at most 60 characters: the essence of the state in the owner's
+// words, not "mockup" / "built" (the half labels say that). The labels default to «Мокап» and «Зроблено»,
+// at most 20 characters each (owner, Zhratva, 2026-11-25: two photos glued together need two captions).
+// Prints one line: "<absolute path> <width>x<height>".
 
 import { spawnSync } from 'node:child_process';
 import { existsSync, mkdtempSync, openSync, readSync, closeSync, copyFileSync, rmSync, writeFileSync } from 'node:fs';
@@ -20,18 +25,27 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const TITLE_MAX = 60;
+const LABEL_MAX = 20;
 const args = Object.fromEntries(
   process.argv.slice(2).reduce((acc, a, i, all) => (a.startsWith('--') ? [...acc, [a.slice(2), all[i + 1]]] : acc), []),
 );
 const fail = (msg, code = 1) => { console.error(`web-kit-pair failed: ${msg}`); process.exit(code); };
 
 if (!args.left || !args.right || !args.title || !args.out || !/\.png$/i.test(args.out)) {
-  console.error('Usage: web-kit-pair --left <mockup.png> --right <app.png> --title "<short text>" --out <file.png>');
+  console.error('Usage: web-kit-pair --left <mockup.png> --right <app.png> --title "<short text>" --out <file.png> [--left-label "<text>"] [--right-label "<text>"]');
   process.exit(2);
 }
 const title = args.title.trim();
 if (!title) fail('the title is empty.', 2);
 if (title.length > TITLE_MAX) fail(`the title has ${title.length} characters; keep it to ${TITLE_MAX} (a very short line).`, 2);
+const label = (name, dflt) => {
+  const v = (args[name] ?? dflt).trim();
+  if (!v) fail(`--${name} is empty.`, 2);
+  if (v.length > LABEL_MAX) fail(`--${name} has ${v.length} characters; keep it to ${LABEL_MAX}.`, 2);
+  return v;
+};
+const leftLabel = label('left-label', 'Мокап');
+const rightLabel = label('right-label', 'Зроблено');
 
 // Width and height from the PNG header (IHDR follows the 8-byte signature).
 function pngSize(path) {
@@ -50,8 +64,9 @@ const leftW = Math.round((left.w * height) / left.h);
 const rightW = Math.round((right.w * height) / right.h);
 const gap = Math.max(8, Math.round(height / 60));
 const titleH = Math.max(32, Math.round(height / 16));
+const labelH = titleH;
 const width = leftW + gap + rightW + 2 * gap;
-const total = titleH + height + gap;
+const total = titleH + labelH + height + gap;
 
 const esc = (s) => s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
 const html = `<!doctype html><meta charset="utf-8"><style>
@@ -59,8 +74,10 @@ html,body{margin:0;background:#fff;overflow:hidden}
 #p{display:inline-block;width:${width}px;background:#fff}
 .t{height:${titleH}px;display:flex;align-items:center;justify-content:center;font:600 ${Math.round(titleH * 0.5)}px system-ui,sans-serif;color:#111;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding:0 ${gap}px}
 .r{display:flex;gap:${gap}px;padding:0 ${gap}px ${gap}px}
+.h{display:flex;flex-direction:column;min-width:0}
+.l{height:${labelH}px;display:flex;align-items:center;justify-content:center;font:700 ${Math.round(labelH * 0.5)}px system-ui,sans-serif;color:#111;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
 img{display:block;height:${height}px}
-</style><div id="p"><div class="t">${esc(title)}</div><div class="r"><img style="width:${leftW}px" src="${pathToFileURL(resolve(args.left)).href}"><img style="width:${rightW}px" src="${pathToFileURL(resolve(args.right)).href}"></div></div>`;
+</style><div id="p"><div class="t">${esc(title)}</div><div class="r"><div class="h"><div class="l">${esc(leftLabel)}</div><img style="width:${leftW}px" src="${pathToFileURL(resolve(args.left)).href}"></div><div class="h"><div class="l">${esc(rightLabel)}</div><img style="width:${rightW}px" src="${pathToFileURL(resolve(args.right)).href}"></div></div></div>`;
 
 const work = mkdtempSync(join(tmpdir(), 'web-kit-pair-'));
 try {
