@@ -21,5 +21,6 @@
   "0.1.122": {"kind": "routine", "date": "2026-11-24", "reason": "a console step for the owner is a ready .cmd file in his desktop folder Claude, never a command to type; the bans undo uses it"},
   "0.1.123": {"kind": "routine", "date": "2026-11-25", "reason": "a discussion whose first message already names what to design and why starts with numbered questions, not an open talk"},
   "0.1.124": {"kind": "routine", "date": "2026-11-25", "reason": "an «Обговорення:» session starts without the --remote-control flag, like a C, so it sends no «Remote control enabled» push"},
-  "0.1.125": {"kind": "routine", "date": "2026-11-25", "reason": "a lead stops sessions at safe points near a usage limit and wakes them after the reset; the watcher no longer misses a limit stop followed by helper reports"}
+  "0.1.125": {"kind": "routine", "date": "2026-11-25", "reason": "a lead stops sessions at safe points near a usage limit and wakes them after the reset; the watcher no longer misses a limit stop followed by helper reports"},
+  "0.1.126": {"kind": "routine", "date": "2026-11-25", "reason": "a lead stops all its sessions at 98% of the weekly limit when the reset is over 6 hours away"}
 }
