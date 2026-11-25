@@ -36,7 +36,7 @@ is listed below.
 - The Remote Control server "Pult", with cwd = the home folder, serves the phone.
 - The session watcher (`dev-kit-sessions watch`) runs in the background only of a project lead on dev-kit before 0.1.78.
 - The spend file of an ended session is written by spend-kit's SessionEnd hook; the retro takes its token findings by running `spend-kit findings`.
-- The retro scan runs from rules-kit's SessionEnd hook (one transcript) and SessionStart hook (the full pass once a day), which also starts a background «Ретро: <project>» session in a project with a lead. A dev-kit SessionStart hook starts, once a week, a «Документація: <project>» docs session, after reading the retro's run file in the rules-kit data folder.
+- The retro scan runs from rules-kit's SessionEnd hook (one transcript) and SessionStart hook (the full pass once a day), which also starts a background «Retro: <project>» session in a project with a lead. A dev-kit SessionStart hook starts, once a week, a «Docs: <project>» docs session, after reading the retro's run file in the rules-kit data folder.
 - `dev-kit-app start` queues a project's app start between worktrees with a lock.
 
 ## Data stores

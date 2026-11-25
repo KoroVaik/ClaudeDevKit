@@ -65,3 +65,23 @@ Manager session «C: Назви ролей» (this build), 2026-11-25. Doers: M 
    a quiet moment, and that restart does the rename). Full test run, pull main, report to P.
 
 Spend: see the line at the end of this file.
+
+## Step 6 result (live check, 2026-11-25)
+
+Throwaway background session `P: RenameProbe` (haiku): stopped, `"name"` and the `--name` value in its job's
+`state.json` replaced by `L: RenameProbe`, then `claude --bg --resume <id> -- <prompt>` with no other flag. Result:
+same session id, `claude agents` lists it as `L: RenameProbe`, the prompt bar shows the new name. Step 1's design
+holds.
+
+## Build result (2026-11-25)
+
+Steps 1-7 done. A rule-reviewer (sonnet) sweep found leftovers (project-lead SKILL.md tail, broken "Restart P" and
+"Start a C" pointers, talk.py launch-line skip, start-session usage, claude-facts.md roles); a coder (sonnet) fixed
+them. Kept on purpose: old-prefix matchers (`session_titles.py`, Pult "old name" handling) for the transition, test
+fixtures with old titles, owner quotes, the «Обговорення закрите» closing line (the hook matches it), and `BACKLOG.md`
+/ `PROGRESS.md` history. Global rules: launch line `помічник:` / `helper:`, Lead/Manager words (local commit
+813ef83). Versions: dev-kit 0.1.133, pult 0.1.37, rules-kit 0.1.1, spend-kit 0.1.5, unity-kit 0.2.5, web-kit 0.4.4,
+routine release marks; the watcher's restart of each lead renames it to `L: <project>` with its history.
+Lint 0 errors; 922 tests pass, 1 skipped.
+
+Spend: ~0.3% of the weekly limit, estimate (this restarted session only; the first build session not counted); API: 0 USD

@@ -79,7 +79,7 @@ After consent use the
 check slots: `check-ui` for a scenario, `check-usability` for an ordinary user's walk, `check-look` for
 mockups and layout. The skill filling a slot owns how its check runs. A check with consent is never dropped silently for want of a tool (a background
 session has no in-app browser): the slot's skill names the route there (web-kit: its headless browser), and
-when none works the report says "not run: <check>, <why>", which a C asks P about with `ПИТАННЯ`. Run them in this order (owner
+when none works the report says "not run: <check>, <why>", which a Manager asks the Lead about with `ПИТАННЯ`. Run them in this order (owner
 decision of 2026-11-10): `check-look` first, then `check-ui`, then `check-usability` last, on a page that
 already matches the mockup and works; fix what one finds before the next.
 
@@ -89,4 +89,4 @@ plan did not list these checks, no approved mockup gave them, and you accept it 
 whether to run `check-ui`, when the change adds or reworks a flow `check-usability`, and when a mockup exists
 `check-look`, with your recommendation and its reason.
 Without a yes, the report says "not checked: browser scenario, user walk and look"; tests, review and "open it and tell me"
-are not a substitute. In a session started by the project lead, ask P instead (`dev-kit:manager`, "A task from the project lead").
+are not a substitute. In a session started by the project lead, ask the Lead instead (`dev-kit:manager`, "A task from the project lead").

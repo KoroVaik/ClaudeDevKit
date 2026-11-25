@@ -2,9 +2,9 @@
 
 A reply is the last assistant text of a turn the owner opened (`parts.prompt_kind` "owner": a `user` line with
 `origin.kind: "human"`); a turn ends at the next owner message, slash command or message of another kind. Only the
-sessions the owner talks with are checked: the caller leaves out subagent files and «Ретро:» or «Документація:»
-sessions, and drops a hit with `first_prompt` in a session whose title starts with STARTED_BY_SESSION (a C or an
-«Обговорення:» session gets its first prompt from the lead, not from the owner).
+sessions the owner talks with are checked: the caller leaves out subagent files and «Retro:» or «Docs:»
+sessions, and drops a hit with `first_prompt` in a session whose title starts with STARTED_BY_SESSION (an «M:» or a
+«Discuss:» session gets its first prompt from the lead, not from the owner; the old «C:» and «Обговорення:» count too).
 
 Before any check the text that is not the agent's own prose is left out: fenced code, inline code, quote lines (`>`),
 table rows, and text in «», “” or "" quotes (a verbatim quote may keep a dash).
@@ -12,7 +12,7 @@ Checks, each the finding kind `talk <check>`:
 - `dash`: an em dash or an en dash;
 - `long reply`: a block (the reply, or one `### ` block of a reply to several questions) with more than MAX_SENTENCES
   sentences of prose; list items, headings, the closing question and the recommendation, hint and launch lines
-  (SKIP_LINE) are not counted;
+  (SKIP_LINE: «помічник:», «сесія:», their English forms and the old «агент:») are not counted;
 - `long list`: a list of more than MAX_ITEMS items; `long item`: an item over MAX_ITEM_WORDS words (a name or path is
   one word; a batch item's «Рекомендую» part is not counted; nested items are left out);
 - `not ukrainian`: the owner's message is mostly Cyrillic and a prose paragraph of more than two sentences is not;
@@ -27,6 +27,7 @@ from collections import namedtuple
 from pathlib import Path
 
 import parts
+import session_titles
 import subscriptions
 
 CHECKS = ("dash", "long reply", "long list", "long item", "not ukrainian", "yes-no first")
@@ -34,7 +35,7 @@ MAX_SENTENCES = 5
 MAX_ITEMS = 5
 MAX_ITEM_WORDS = 15
 QUESTION_WORDS_MAX = 25
-STARTED_BY_SESSION = ("C:", "Обговорення:")
+STARTED_BY_SESSION = session_titles.MANAGER_PREFIXES + session_titles.DISCUSS_PREFIXES
 EXCERPT_CHARS = 80
 PROBES = {  # check -> (words of the rule line, the section of the fallback)
     "dash": ("em dash", "No em dash"),
@@ -55,7 +56,7 @@ ITEM = re.compile(r"^(\s*)([-*+•]|\d+[.)])\s+(.*)$")
 HEADING = re.compile(r"^\s*#{1,6}\s")
 BLOCK_HEADING = re.compile(r"^\s*###\s")
 SKIP_LINE = re.compile(r"^\W*(Рекомендую|Recommend|немає рекомендації|no recommendation|In English:|I read it as:|"
-                       r"Better:|агент:|agent:|👆|Чекаю на підтвердження|Waiting for confirmation)", re.IGNORECASE)
+                       r"Better:|помічник:|helper:|сесія:|session:|агент:|agent:|👆|Чекаю на підтвердження|Waiting for confirmation)", re.IGNORECASE)
 RECOMMEND = re.compile(r"\b(Рекомендую|Recommend|немає рекомендації|no recommendation)\b", re.IGNORECASE)
 BRACKET = re.compile(r"\([^()]*\)")
 BRACKET_WORDS = 6  # a question's example or consequence in brackets (the owner's "Question" rule)

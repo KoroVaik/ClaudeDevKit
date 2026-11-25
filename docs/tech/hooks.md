@@ -41,18 +41,18 @@ The hook adds no `retro: N items due` line for the lead any more: the retro asks
 lead, print nothing and always exit 0, so a failure never blocks a session. Any other project is left alone.
 
 - SessionEnd (`retro-end.py`): starts a detached scan of the ending session's transcript and returns at once.
-- SessionStart (`retro-start.py`): records the lead's session id (a session titled «P: ...»), starts the
+- SessionStart (`retro-start.py`): records the lead's session id (a session titled «L: ...»), starts the
   daily scan when it has not run today, and, when new findings wait and the last review is old, starts the
-  background «Ретро:» session (`/rules-kit:retro`); it also writes the run file
-  `runs/<project folder>.json` in the rules-kit folder for the docs hook below. The «Ретро:» and
-  «Документація:» sessions themselves do not trigger it.
+  background «Retro:» session (`/rules-kit:retro`); it also writes the run file
+  `runs/<project folder>.json` in the rules-kit folder for the docs hook below. The «Retro:» and
+  «Docs:» sessions themselves do not trigger it.
 
 What retro finds and does with it: [project lead](project-lead.md), section "Retro".
 
 ## Weekly docs session (dev-kit, SessionStart)
 
 `plugins/dev-kit/hooks/docs-start.py` calls `docs_weekly.hook_main()` in `plugins/dev-kit/scripts/docs_weekly.py`.
-In a project that has a lead it starts the background «Документація:» session once a week: when the last docs
+In a project that has a lead it starts the background «Docs:» session once a week: when the last docs
 run is over 7 days old, no start in the last day, the retro's run file shows no retro running or due and its
 branch is merged (or 48 hours old). It reads the run file as a file, never through an import of rules-kit; the
 state (`docs.json` and the `docs-items` folder) is in the project's dev-kit state folder. It prints nothing and

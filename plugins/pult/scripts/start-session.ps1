@@ -1,7 +1,7 @@
 # Starts a background session with Remote Control in a project folder, with a long first prompt
 # read from a file. A prompt with " is cut at the first quote (plugins/dev-kit/claude-facts.md,
 # "Windows PowerShell 5.1 cuts a prompt at the first double quote"). This script escapes them.
-# Usage: start-session.ps1 -Name 'C: <task>' -Path <project folder> -PromptFile <file>
+# Usage: start-session.ps1 -Name 'M: <task>' -Path <project folder> -PromptFile <file>
 #        [-Model opus] [-Effort medium]   (sessions the owner talks with run on Opus, medium)
 
 param(

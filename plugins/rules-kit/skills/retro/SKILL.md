@@ -1,13 +1,13 @@
 ---
 name: retro
-description: Use when a background session named «Ретро: <project>» starts (the rules-kit SessionStart hook starts it with "/rules-kit:retro") to review the problems logged from this project's sessions, fix the rules behind them through an approver and a replay, check earlier fixes and revert the ones that did not work, all with no owner ask.
+description: Use when a background session named «Retro: <project>» starts (the rules-kit SessionStart hook starts it with "/rules-kit:retro") to review the problems logged from this project's sessions, fix the rules behind them through an approver and a replay, check earlier fixes and revert the ones that did not work, all with no owner ask.
 ---
 
 # Retro of session problems
 
 The session runs in the background with no owner, in the main checkout of one project with a lead. It asks the owner
 nothing and never uses `AskUserQuestion`: an approver agent and a replay on past sessions replace his yes, and Pult's
-«статус» shows what it did (`rules-kit list`). It sends its lead, `P: <project>`, one SendMessage at the end:
+«статус» shows what it did (`rules-kit list`). It sends its Lead, `L: <project>`, one SendMessage at the end:
 `ГОТОВО` (dev-kit's `messages.md`). Every `rules-kit` command runs in the Bash tool (in PowerShell it prints
 nothing); where Bash cannot run it, use `python -X utf8 <this plugin>/scripts/retro.py` with the same arguments. The
 folders, the commands and the item lines: the docstrings of `scripts/retro.py` and `scripts/fixes.py`.
@@ -26,7 +26,7 @@ and `rules-kit revert` refuses to run in a main checkout. Only the owner's globa
 ## Scope
 
 The retro catches every problem of agent work in this project, and only that (the scan already drops the findings
-of «Ретро:» and «Документація:» sessions):
+of «Retro:» and «Docs:» sessions):
 - A cause in the files of a rule set this project reviews (`rules-kit items` lists them) is fixed here.
 - A bug in the project's code (a flaky test, a crash) is recorded as a defect where the project's
   `dev-kit:documentation` says ("Where things go"); the item gets `status: handed`.
@@ -143,8 +143,8 @@ parked --note "<the actual reason>"`. A parked item is shown in Pult with that r
 ## 6. Close
 
 Run `rules-kit done --branch <branch>` (plain `rules-kit done` when nothing was committed): the weekly docs session
-waits for that branch's merge. Then send P one `ГОТОВО` in 3 lines: state, result (fixes landed, reverted, parked),
-what is needed (merge branch `<branch>`, the `task:` lines, or nothing). The session then waits; P closes it.
+waits for that branch's merge. Then send the Lead one `ГОТОВО` in 3 lines: state, result (fixes landed, reverted, parked),
+what is needed (merge branch `<branch>`, the `task:` lines, or nothing). The session then waits; the Lead closes it.
 
 Why: owner, 2026-11-21 and 2026-11-22 (`docs/features/fix-agent-problems-in-the-retro.md` of the plugin repo): the
 retro fixes each project's problems in its own context, only causes that recur. Owner, 2026-11-24

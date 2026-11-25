@@ -303,7 +303,8 @@ class DiscoveryTestCase(unittest.TestCase):
         for found in registry.sets.values():
             for sign in found.signs:
                 if sign.regex is not None:
-                    for text in ("P: ClaudeDevKit", "Ретро: Zhratva", "C: build the page"):
+                    for text in ("P: ClaudeDevKit", "Ретро: Zhratva", "C: build the page", "L: ClaudeDevKit",
+                                 "Retro: Zhratva", "M: build the page", "Discuss: a topic", "Docs: Zhratva"):
                         self.assertIsNone(sign.regex.search(text), (found.name, sign.name, text))
 
     # protects: Flow
@@ -400,7 +401,7 @@ class RealFilesTestCase(unittest.TestCase):
         folder = PLUGINS / "rules-kit"
         sub = subscriptions.load(folder / subscriptions.FILE_NAME, folder)
         for gate in ("agents/approver.md", "agents/replayer.md", "skills/retro/SKILL.md"):
-            self.assertEqual(sub.may_change_path(folder / gate), [], gate)  # a fix there goes to P as a task
+            self.assertEqual(sub.may_change_path(folder / gate), [], gate)  # a fix there goes to the Lead as a task
         for free in ("agents/rule-reviewer.md", "agents/part-reader.md", "skills/edit-rules/SKILL.md"):
             self.assertTrue(sub.may_change_path(folder / free), free)
 

@@ -1,5 +1,34 @@
 # Helpers for start-servers.ps1 (ASCII only; dot-source to test).
 
+# Project leads are named "L: <project>"; until the running ones are renamed they carry the old name "P: <project>"
+# (plans/role-names.md). The old name is found by these helpers only: a lead "L: X" counts as running when a session
+# named "P: X" runs, and its stopped "P: X" session is resumed and renamed (Get-LeadResumeEntry, Set-LeadStateName).
+# Drop the helpers' P: side once no session of the old name is left.
+
+# The old name of a lead name "L: X" ("P: X"), else $null.
+function Get-LegacyLeadName([string]$Name) {
+    if ($Name -cmatch '^L: (.+)$') { return 'P: ' + $Matches[1] }
+    return $null
+}
+
+# True when $Name is a lead name, the new "L: " or the old "P: " one.
+function Test-LeadName([string]$Name) {
+    return [bool]($Name -cmatch '^[LP]: ')
+}
+
+# True when a session named $EntryName is the lead $LeadName: its own name or its old name (Get-LegacyLeadName).
+function Test-LeadEntryName([string]$EntryName, [string]$LeadName) {
+    if ($EntryName -ceq $LeadName) { return $true }
+    $old = Get-LegacyLeadName $LeadName
+    return [bool]($old -and $EntryName -ceq $old)
+}
+
+# True when a session named $EntryName is one of the leads in $LeadNames (Test-LeadEntryName).
+function Test-AnyLeadEntryName([string]$EntryName, [string[]]$LeadNames) {
+    foreach ($n in @($LeadNames)) { if (Test-LeadEntryName $EntryName $n) { return $true } }
+    return $false
+}
+
 # Full sessionId of the newest background session with this exact name and folder, or $null.
 # Works for stopped and finished sessions: `claude --bg --resume <sessionId>` wakes it under the same id
 # (plugins/dev-kit/claude-facts.md, "`claude --bg --resume <id>` with any other flag starts a copy"). After a /clear
@@ -18,13 +47,30 @@ function Get-ResumeSessionId([string]$Name, [string]$Path, $Sessions) {
         Select-Object -First 1 -ExpandProperty sessionId
 }
 
+# The session to resume for the lead $Name: @{ SessionId; Name } of the newest background session named $Name in $Path,
+# else of the one with its old name (Get-LegacyLeadName); $null when there is none. Name is the name the session has now.
+# $Sessions: a parsed session list (default: `claude agents --json --all`, read once).
+function Get-LeadResumeEntry([string]$Name, [string]$Path, $Sessions) {
+    if ($null -eq $Sessions) {
+        $Sessions = claude agents --json --all | Out-String | ConvertFrom-Json
+    }
+    $names = @($Name)
+    $old = Get-LegacyLeadName $Name
+    if ($old) { $names += $old }
+    foreach ($n in $names) {
+        $id = Get-ResumeSessionId $n $Path $Sessions
+        if ($id) { return @{ SessionId = [string]$id; Name = $n } }
+    }
+    return $null
+}
+
 # The note a lead gets after the skill name in its first prompt when it was restarted for a plugin
 # update (the project-lead skill, "Restart for a plugin update"). No double quotes
 # (plugins/dev-kit/claude-facts.md, "Windows PowerShell 5.1 cuts a prompt at the first double quote").
 $RestartNote = 'restart: plugin update'
 
 # The word that, followed by the handoff file name, ends the first prompt of a lead started for a handoff (the
-# project-lead skill, "Restart P"; the watcher does this, watch-servers.ps1 Invoke-HandoffCheck).
+# project-lead skill, "Restart the Lead"; the watcher does this, watch-servers.ps1 Invoke-HandoffCheck).
 # Same rule as sessions.py HANDOFF_NAME: a bare file name that goes on a command line, so no space or quote.
 $HandoffNote = 'handoff:'
 $HandoffNamePattern = '^[A-Za-z0-9][A-Za-z0-9._-]*\.md\z'
@@ -99,14 +145,14 @@ function Get-JobResumeId([string]$SessionId, [string]$JobsDir) {
     return $SessionId
 }
 
-# The live background entries of $Agents (a parsed session list) with this name that belong to the session: its `id` is
+# The live background entries of $Agents (a parsed session list) with this name (or the old name of a lead, Test-LeadEntryName) that belong to the session: its `id` is
 # the job's short id, or its sessionId is one of the session's ids (Get-JobSessionIds; after a /clear the list shows
 # the new transcript's id as the sessionId).
 function Get-SessionEntries($Agents, [string]$Name, [string]$SessionId, [string]$JobsDir) {
     $ids = @(Get-JobSessionIds $SessionId $JobsDir)
     $job = Get-JobState $SessionId $JobsDir
     $short = if ($job) { [string]$job.jobShort } else { '' }
-    return @($Agents | Where-Object { $_ -and $_.kind -eq 'background' -and $_.name -ceq $Name -and $_.pid -and
+    return @($Agents | Where-Object { $_ -and $_.kind -eq 'background' -and (Test-LeadEntryName ([string]$_.name) $Name) -and $_.pid -and
             (($short -and [string]$_.id -ceq $short) -or ($ids -ccontains [string]$_.sessionId)) })
 }
 
@@ -176,6 +222,36 @@ $LeadEffort = 'medium'
 # The one permission mode of every session the plugin starts (owner, 2026-11-20): no fallback to another mode.
 $LeadPermissionMode = 'bypassPermissions'
 
+# Renames the saved job of a lead that still has its old name (Get-LegacyLeadName) to $SessionName before the resume:
+# the job's state.json ("name") and its saved options ("respawnFlags": every entry that holds the old name, that is
+# `--name <old>` and `--remote-control <old>`) get the new name, so the resumed session keeps its history under it. The
+# resume itself takes no flag. Only the job whose sessionId or resumeSessionId is $SessionId and whose name is the old
+# one is touched, and only those values: the rest of the file keeps its bytes. Returns $true when the file was changed
+# (no old name, another job or a name that is already new: $false).
+function Set-LeadStateName([string]$SessionName, [string]$SessionId, [string]$JobsDir) {
+    $old = Get-LegacyLeadName $SessionName
+    if (-not $old -or -not $SessionId) { return $false }
+    if (-not $JobsDir) { $JobsDir = Get-JobsDir }
+    $utf8 = New-Object System.Text.UTF8Encoding $false
+    foreach ($f in Get-ChildItem $JobsDir -Filter state.json -Recurse -Depth 1 -ErrorAction SilentlyContinue) {
+        $text = [IO.File]::ReadAllText($f.FullName, $utf8)
+        try { $s = $text | ConvertFrom-Json } catch { continue }
+        if ($s.name -cne $old) { continue }
+        if ($s.sessionId -ne $SessionId -and $s.resumeSessionId -ne $SessionId) { continue }
+        $newJson = ConvertTo-Json ([string]$SessionName)
+        $new = [regex]::Replace($text, '("name"\s*:\s*)"((?:[^"\\]|\\.)*)"', {
+            param($m) if ([regex]::Unescape($m.Groups[2].Value) -ceq $old) { $m.Groups[1].Value + $newJson } else { $m.Value } })
+        $flags = @($s.respawnFlags)
+        if ($flags -ccontains $old) {
+            $arr = '[' + (($flags | ForEach-Object { ConvertTo-Json ([string]$(if ([string]$_ -ceq $old) { $SessionName } else { $_ })) }) -join ', ') + ']'
+            $new = [regex]::Replace($new, '"respawnFlags"\s*:\s*\[[^\]]*\]', { param($m) '"respawnFlags": ' + $arr })
+        }
+        if ($new -ne $text) { [IO.File]::WriteAllText($f.FullName, $new, $utf8); return $true }
+        return $false
+    }
+    return $false
+}
+
 # A resumed session takes its model and permission mode from the saved options of its job
 # (~/.claude/jobs/<short id>/state.json, "respawnFlags"; plugins/dev-kit/claude-facts.md, "`claude --bg --resume <id>`
 # with any other flag starts a copy"). Set --model, --effort and --permission-mode
@@ -188,7 +264,7 @@ function Set-LeadRespawnModel([string]$SessionName, [string]$SessionId, [string]
     foreach ($f in Get-ChildItem $JobsDir -Filter state.json -Recurse -Depth 1 -ErrorAction SilentlyContinue) {
         $text = [IO.File]::ReadAllText($f.FullName, $utf8)
         $s = $text | ConvertFrom-Json
-        if ($s.name -cne $SessionName) { continue }
+        if (-not (Test-LeadEntryName ([string]$s.name) $SessionName)) { continue }  # the old name too (Set-LeadStateName renames it)
         if ($s.sessionId -ne $SessionId -and $s.resumeSessionId -ne $SessionId) { continue }
         $flags = @($s.respawnFlags)
         $keep = @()

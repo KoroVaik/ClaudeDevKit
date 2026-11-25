@@ -46,7 +46,7 @@ def read_leads(path=SERVERS):
         session = re.search(r"\bSession\s*=\s*'([^']*)'", entry)
         folder = re.search(r"\bPath\s*=\s*'([^']*)'", entry)
         if session and folder:
-            name = re.sub(r"^P:\s*", "", session.group(1))
+            name = re.sub(r"^[LP]:\s*", "", session.group(1))  # "L: <project>"; the old "P: " too
             leads.append((name, Path(folder.group(1))))
     return leads
 

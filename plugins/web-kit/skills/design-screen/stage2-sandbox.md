@@ -8,7 +8,7 @@ the shots and the show rules are in [SKILL.md](SKILL.md).
 Stage 2 starts when the owner, shown the built screen next to its mockup, has remarks («є питання»), or
 remarks on the look of a screen later. At a review session's remarks it runs in the build session, on its
 branch (`dev-kit:project-lead`, "Build a designed screen"): every set or shot that steps 5 and 8 show the owner goes
-to the review session in a `ВІДПОВІДЬ` instead, the review session shows it, and P merges on its `ЗАКРИТО`. A later
+to the review session in a `ВІДПОВІДЬ` instead, the review session shows it, and the Lead merges on its `ЗАКРИТО`. A later
 remark on a merged screen runs in a separate session, on a branch made from main. The profile section `## design-screen` gives
 the sandbox URL and port, the data sets folder, the mockup folders, the app frame selector (for a whole-page
 shot), the frontend's type check, lint and build commands, and the project's own rules. The sandbox needs no

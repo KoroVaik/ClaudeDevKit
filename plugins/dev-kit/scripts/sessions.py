@@ -1,4 +1,4 @@
-"""Keep the registry of the background task sessions (C) that a project lead session (P) started, and show how
+"""Keep the registry of the background task sessions (Managers) that a project lead session (the Lead) started, and show how
 full their context is.
 
     dev-kit-sessions add --id <id> --name <name> --worktree <path> --task <file or text> [--parent <id>] [--predecessor <id>] [--owner]
@@ -40,8 +40,9 @@ of a side chain (`"isSidechain": true`, a subagent's) are not counted as the ses
 before a task starts. Source: `claude agents --json` (background sessions and running interactive ones, the desktop
 Code tab included; env DEV_KIT_AGENTS_JSON names a file to read instead). The claude command is taken from PATH, else
 from the usual install places (see `claude_candidates`), since a subagent's shell may lack the npm folder. The caller is `--self`, else env
-CLAUDE_CODE_SESSION_ID. Lead sessions (name starts with `P: `) and the hook-started retro and docs sessions
-(`Ретро: `, `Документація: `) are left out: no owner started them and P merges their work. For each: name,
+CLAUDE_CODE_SESSION_ID. Lead sessions (name starts with `L:`, or the old `P:`) and the hook-started retro and docs
+sessions (`Retro:`, `Docs:`, or the old `Ретро:`, `Документація:`) are left out: no owner started them and the lead
+merges their work (the prefixes: `session_titles.py`). For each: name,
 state, who started it (`lead` when the registry holds its id, else `owner`), branch, cwd, the first task messages
 (owner or peer messages of its transcript, cut to TASK_CHARS) and the files it changed (the branch against the base
 branch, plus uncommitted ones). Reads no code. Prints `no other sessions` when there are none.
@@ -51,7 +52,7 @@ waiting|limited|finished|gone | gist`. The gist is the tail (at most GIST_CHARS)
 transcript, read from the end of the file. Status comes from `claude agents --json --all` (an entry matches a
 registry id by `id`, `sessionId` or a sessionId prefix): `finished` when that last reply has a line that, trimmed and
 without trailing punctuation, is one of FINISHED_MARKERS and no owner message came after it, and only for a record
-added with `--owner` (a C never reports finished); else `gone` when no
+added with `--owner` (a Manager never reports finished); else `gone` when no
 matching entry has a `pid` (a session with none is closed, see `watch`); `limited` when its transcript ends with
 Claude Code's usage-limit notice (see `usage_limit`; the gist then starts with `resets <YYYY-MM-DD HH:MM>;`, local
 time, or `resets unknown;`): the session list cannot tell it (plugins/dev-kit/claude-facts.md, "Other sessions
@@ -70,7 +71,7 @@ answered there. Exit 3 when the list cannot be read.
 last reply has the finished marker, see `state`), limited (stopped on the usage limit, see `state`) or stale (waiting
 `--stale-minutes` since its last reply), so a caller that
 runs it in the background wakes only then. Watched: the `--id` sessions (full or 8+ char short ids), else the
-registry's active records, read again each round (a C added later is watched too; one ended with `end` is not).
+registry's active records, read again each round (a Manager added later is watched too; one ended with `end` is not).
 Every `--interval` seconds it reads `claude agents --json --all`: a session is live while an entry with its id has a
 `pid`; one with no `pid` is not live. A session not in the list is gone at once. An entry in the list with no
 `pid`, whatever its state (done, stopped and blocked all occur: plugins/dev-kit/claude-facts.md, "Claude closes an
@@ -87,7 +88,7 @@ STALE in the state folder keeps the wait start already reported, so the re-armed
 session answers again and a new wait passes the threshold; the lead decides whether the wait is on the owner and
 pushes a reminder, since the cache of a waiting session runs out: plugins/dev-kit/claude-facts.md, "A main session's prompt cache lives about one hour") exit 0; `time limit: <N> min,
 all alive` exit 4 (re-arm it); `nothing to watch` exit 5 (on the first round, or at the time limit when the registry
-has emptied meanwhile: a watcher whose last C ended keeps quiet); `already watching: pid <N>` exit 6 (in registry
+has emptied meanwhile: a watcher whose last Manager ended keeps quiet); `already watching: pid <N>` exit 6 (in registry
 mode one watcher per project runs: a lock file in the state folder with a heartbeat; a new watcher waits until the
 heartbeat moves, then exits 6, or until it is stale after 3 intervals, then takes the lock of the killed watcher;
 a lock whose pid is not a live process is taken at once);
@@ -192,6 +193,7 @@ from pathlib import Path
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import dev_kit_state  # noqa: E402
+import session_titles  # noqa: E402  the new and the old session title prefixes
 import spend_client  # noqa: E402
 
 REGISTRY = "sessions.json"
@@ -205,9 +207,10 @@ NATIVE_1M_WINDOW = 1000000
 USAGE_FIELDS = ("input_tokens", "cache_creation_input_tokens", "cache_read_input_tokens")
 CHUNK = 256 * 1024
 AGENTS_ENV = "DEV_KIT_AGENTS_JSON"
-LEAD_PREFIX = "P: "
-RETRO_PREFIX = "Ретро: "  # a background retro session the rules-kit SessionStart hook starts (rules-kit:retro)
-DOCS_PREFIX = "Документація: "  # the weekly docs session the dev-kit SessionStart hook starts (dev-kit:maintain-project-docs)
+# Sessions no owner started, so `others` leaves them out: the lead, the background retro session the rules-kit
+# SessionStart hook starts (rules-kit:retro) and the weekly docs session the dev-kit SessionStart hook starts
+# (dev-kit:maintain-project-docs); each with its old prefix too.
+SKIPPED_PREFIXES = session_titles.LEAD_PREFIXES + session_titles.RETRO_PREFIXES + session_titles.DOCS_PREFIXES
 TASK_MESSAGES = 2
 TASK_CHARS = 700
 FILES_SHOWN = 40
@@ -228,7 +231,7 @@ GIST_CHARS = 120
 ANSWER_CHARS = 400  # an owner message in `answers` is cut to this
 ANSWER_FALLBACK = 3  # owner messages `answers` shows for a session that never sent a SendMessage
 ANSWER_SCAN = 50  # owner messages read back while looking for that SendMessage
-ANSWER_ENTRIES = 2000  # transcript entries read back at most (a long C transcript is not read whole)
+ANSWER_ENTRIES = 2000  # transcript entries read back at most (a long Manager transcript is not read whole)
 SUBAGENT_ID = re.compile(r"^a?[0-9a-f]{16,}$")  # a SendMessage `to` that names a subagent, not a session
 RELEASES = Path(__file__).resolve().parents[1] / "releases.json"  # the dev-kit release marks (see `release`)
 RELEASE_KINDS = ("critical", "routine")
@@ -634,7 +637,7 @@ def cmd_others(args, path, records):
         session_id = str(agent.get("sessionId") or "")
         name = str(agent.get("name") or "")
         cwd = agent.get("cwd")
-        skipped = name.startswith((LEAD_PREFIX, RETRO_PREFIX, DOCS_PREFIX))
+        skipped = name.startswith(SKIPPED_PREFIXES)
         if not cwd or not inside(cwd, roots) or (me and session_id == me) or skipped:
             continue
         branch, files = changed_files(cwd) if Path(cwd).is_dir() else ("", [])
@@ -812,7 +815,7 @@ def is_owner(records, wanted):
 
 def session_state(agents, wanted, owner):
     """(state, gist) of a registry id: finished, gone, limited, working or waiting (see the module docstring). Only an owner
-    session can be finished: a C reports through its own channel, so its reply lines never count."""
+    session can be finished: a Manager reports through its own channel, so its reply lines never count."""
     entries = agent_entries(agents, wanted)
     session_id = next((str(agent["sessionId"]) for agent in entries if agent.get("sessionId")), wanted)
     transcript = find_transcript(session_id)
@@ -1760,7 +1763,7 @@ def main(argv=None):
     check.add_argument("--stale-minutes", type=float, default=20,
                        help="report a session waiting this long since its last assistant entry")
     check.add_argument("--fill-limit", type=float, default=FILL_LIMIT,
-                       help="report an active C whose context reaches this share of its window")
+                       help="report an active Manager whose context reaches this share of its window")
     mark = sub.add_parser("mark", help="record that an event line of check was delivered")
     mark.add_argument("--kind", required=True, choices=MARK_KINDS)
     mark.add_argument("--id", default="", help="the session id (not for restart or handoff)")

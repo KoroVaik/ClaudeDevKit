@@ -1,4 +1,4 @@
-"""Start the weekly «Документація:» session of a project and keep its state (the session itself is the skill
+"""Start the weekly «Docs:» session of a project and keep its state (the session itself is the skill
 `dev-kit:maintain-project-docs`, "Weekly background run").
 
     dev-kit-docs done [--project DIR]     stamp the end of the weekly docs run (`docs_done`)
@@ -18,8 +18,8 @@ session; its line `- status: owner` marks an item the owner decides. `items` pri
 env DEV_KIT_OLD_RETRO_DIR); the first run copies the two stamps and the item files from there once (the old ones stay).
 With DEV_KIT_STATE_DIR set and DEV_KIT_OLD_RETRO_DIR not, there is no old folder (tests never read the real `~/.claude`).
 
-`hook-start`: in a project with a lead, a session titled `Ретро:` or `Документація:` does nothing; otherwise it starts
-the background session `Документація: <repo folder>` running `/dev-kit:maintain-project-docs weekly` (with the
+`hook-start`: in a project with a lead, a session titled `Retro:` or `Docs:` (or the old `Ретро:`, `Документація:`)
+does nothing; otherwise it starts the background session `Docs: <repo folder>` running `/dev-kit:maintain-project-docs weekly` (with the
 `--settings` file no-remote-control.json, so it stays out of the app; env DEV_KIT_DOCS_NO_START=1 skips the start, not
 the stamp) when all hold: `docs_done` is older than DOCS_DAYS (or missing); `docs_started` is older than
 DOCS_GUARD_HOURS (or missing), so a run that ended with no `done` is retried once a day, not at every session start;
@@ -45,13 +45,14 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))  # the launcher runs this file with runpy, which adds nothing
 import dev_kit_state  # noqa: E402  the project's folder name, state folder and main checkout
+import session_titles  # noqa: E402  the new and the old retro and docs title prefixes
 
 RULES_KIT_ENV = "RULES_KIT_DIR"
 OLD_RETRO_ENV = "DEV_KIT_OLD_RETRO_DIR"
 NO_START_ENV = "DEV_KIT_DOCS_NO_START"  # 1: the SessionStart hook does not start the docs session (tests)
 PROFILE_LINE = "## project-lead"  # the line of `.claude/dev-kit.md` that makes a project a project with a lead
-DOCS_TITLE = "Документація:"
-RETRO_TITLE = "Ретро:"
+DOCS_TITLE = session_titles.DOCS  # the title this script gives the docs session it starts
+SKIP_TITLES = session_titles.RETRO_PREFIXES + session_titles.DOCS_PREFIXES  # sessions that never start one
 DOCS_DAYS = 7  # the weekly docs session runs once in this many days
 DOCS_MERGE_WAIT_HOURS = 48  # the docs session waits this long for the retro's branch to be merged
 DOCS_GUARD_HOURS = 24  # no new docs session while the last start is younger (one that ended with no `done` too)
@@ -261,7 +262,7 @@ def spawn(argv, cwd=None):
 def hook_start(payload):
     """SessionStart in a project with a lead: start the weekly docs session when it is due (module doc)."""
     title = str(payload.get("session_title") or "").strip()
-    if title.startswith((RETRO_TITLE, DOCS_TITLE)):
+    if title.startswith(SKIP_TITLES):
         return
     cwd = payload.get("cwd")
     project = project_of(cwd) if isinstance(cwd, str) and cwd.strip() else None

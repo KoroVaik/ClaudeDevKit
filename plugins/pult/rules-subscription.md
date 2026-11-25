@@ -8,7 +8,7 @@ scripts that start, watch and restart the servers and the leads. `rules-kit` (th
 |---|---|
 | set | pult |
 | reviewed by | ClaudeDevKit |
-| lands by | branch merged by P: ClaudeDevKit; bump plugins/pult version with a release mark in plugins/pult/releases.json |
+| lands by | branch merged by L: ClaudeDevKit; bump plugins/pult version with a release mark in plugins/pult/releases.json |
 
 ## Files
 

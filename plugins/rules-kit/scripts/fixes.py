@@ -29,7 +29,7 @@ A new line goes after the last `- ` line of the head (the lines before the first
   id8, a `subagent <type>`, a part label `skill|agent|hook <name>` and `lines <a>-<b>` when the line has them), and of
   up to GOOD_MAX good parts: parts of the same skill or agent (or of the part kinds of the files `--file` names) in the
   sessions of the last GOOD_DAYS days, with no sign (`packets.mark` finds none), one per session, the problem sessions
-  and «Ретро:» / «Документація:» sessions left out. Written to `<data>/packets/replay-<key>/`.
+  and «Retro:» / «Docs:» sessions (the old titles too) left out. Written to `<data>/packets/replay-<key>/`.
 - Post-change check (`check`): per item with status `fixed`, whether its last fix commit is in the set's main
   branch (`main`, else the current branch: the owner's global folder) and since when (the oldest entry of the
   branch's reflog that holds it; no reflog: the commit's time), then the sessions started after that moment, newest
@@ -54,6 +54,7 @@ from pathlib import Path
 
 import packets
 import parts
+import session_titles
 import spend_client
 
 EXPIRE_DAYS = 14
@@ -70,12 +71,12 @@ DONE_FILE = "done.jsonl"
 REQUESTS_FOLDER = "requests"
 PACKETS_FOLDER = "packets"  # the same folder as `rules-kit parts` (retro.PACKETS_FOLDER)
 REPLAY_PREFIX = "replay-"
-SKIP_TITLES = ("Ретро:", "Документація:")
+SKIP_TITLES = session_titles.RETRO_PREFIXES + session_titles.DOCS_PREFIXES
 ACTIONS = ("fixed", "sign added", "reverted", "second try handed", "parked", "expired", "worked", "handed",
            "revert requested")
 MARK_ACTIONS = {"worked": "worked", "second-try": "second try handed", "parked": "parked",
                 "handed": "handed"}  # the marks that go to the done list
-MARK_WORDS = {"worked": "Перевірено, зміна спрацювала", "second try handed": "Друга спроба передана P як задача",
+MARK_WORDS = {"worked": "Перевірено, зміна спрацювала", "second try handed": "Друга спроба передана Lead як задача",
               "parked": "Відкладено", "handed": "Передано як задача або дефект"}  # parked: `mark` adds the note as the reason
 STATUS = re.compile(r"^- status:\s*(.*)$")
 SEEN = re.compile(r"^- seen:\s*(\d{4}-\d\d-\d\d)\s*\|(.*)$")
@@ -611,7 +612,7 @@ def check(item, subscription, projects_root, today=None):
 
 def has_new_sessions(item, subscription, projects_root, since=None):
     """Whether a session started after the item's last fix reached its branch (a date-only fix: after its date) and
-    after `since` (the last review), a «Ретро:» or «Документація:» session not counted: the post-change check of the
+    after `since` (the last review), a «Retro:» or «Docs:» session (or an old-titled one) not counted: the post-change check of the
     item has something new to read. False when the fix cannot be placed."""
     fixes = item.fixes()
     if not fixes:

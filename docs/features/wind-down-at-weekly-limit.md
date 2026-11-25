@@ -11,7 +11,7 @@ instead of sessions being cut mid-step or stopped by hand.
 
 ## Rules
 ### Each lead is told and decides itself
-Accepted product rule (owner, 2026-11-24, «Обговорення: Плавна зупинка при вичерпанні ліміту»): every
+Accepted product rule (owner, 2026-11-24, «Discuss: Плавна зупинка при вичерпанні ліміту»): every
 project lead gets a notice when the weekly or the 5-hour limit is getting close. The lead itself decides
 which of its sessions to stop and how best to stop each one. Nothing stops sessions centrally.
 

@@ -37,7 +37,7 @@ class OwnerSessionNoteTests(unittest.TestCase):
         git(self.repo, "worktree", "add", "-q", str(self.worktree), "-b", "side")
         self.env = {**os.environ, "DEV_KIT_STATE_DIR": str(self.state)}
         self.register(OWNER_ID, "Own idea", owner=True)
-        self.register(LEAD_ID, "C: task", owner=False)
+        self.register(LEAD_ID, "M: task", owner=False)
 
     def register(self, session_id, name, owner):
         argv = ["--project", str(self.repo), "add", "--id", session_id, "--name", name, "--worktree", "wt",

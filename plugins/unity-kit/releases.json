@@ -1,3 +1,4 @@
 {
-  "0.2.4": {"kind": "routine", "date": "2026-11-24", "reason": "a rules subscription file for the rules checks of rules-kit"}
+  "0.2.4": {"kind": "routine", "date": "2026-11-24", "reason": "a rules subscription file for the rules checks of rules-kit"},
+  "0.2.5": {"kind": "routine", "date": "2026-11-25", "reason": "rule text names the Lead and Manager roles"}
 }

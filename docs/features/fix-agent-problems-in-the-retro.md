@@ -32,7 +32,7 @@ project's own rules; outside any repository, under the retro folder of the user'
 file names the project whose retro handles it, the one where its files are edited (today ClaudeDevKit for the plugins
 and your global rules); a run in a project handles only the sets that project reviews. Any session may add an item to
 any set's folder, marked with its source; a retro may pass an item to the set's reviewer (rare).
-Why: writes into a project's main checkout are blocked for P, items on unmerged branches would be lost, the scan
+Why: writes into a project's main checkout are blocked for the Lead, items on unmerged branches would be lost, the scan
 from ClaudeDevKit would write into other repositories, and two sessions writing one shared file overwrite each other.
 One folder per set and not per project: owner, 2026-11-24 («Звучить ок»): web-kit has one folder although it runs in
 three projects.
@@ -40,7 +40,7 @@ three projects.
 ### Collected and started by hooks, no model and no scheduler
 A SessionEnd hook scans the ending session's transcript; a SessionStart hook runs the full scan once a day (it
 also catches sessions killed by force, which end with no event) and, when new findings wait and the last review is
-old enough, starts a background session «Ретро: <project>» that ends after it reports to P.
+old enough, starts a background session «Retro: <project>» that ends after it reports to the Lead.
 Why: owner, 2026-11-22: not Pult («його призначення дещо інше»), no Windows scheduled task, a fixed time not
 required. Leads never wake by themselves, so a step "started by the lead" would not run while you are silent.
 
@@ -48,7 +48,7 @@ required. Leads never wake by themselves, so a step "started by the lead" would 
 A first sighting that is not urgent waits; a fix needs the same cause in a second session or on a second day (a
 lead and its own subagents are one session). Lost work and a critical token problem are urgent and fixed at once.
 A cause seen once and not again in 2 weeks closes by itself. A cause that is a rule agents ignore is not reworded:
-it gets another means (a hook, a check, a script), built by a task session P starts. Every rule fix also removes or
+it gets another means (a hook, a check, a script), built by a task session the Lead starts. Every rule fix also removes or
 merges something, so the rules do not keep growing; at most 5 fixes land per rule set a week. Why: owner,
 2026-11-21: avoid fixes for problems that arose by chance and not through bad rules, skills or agents; the 2-week
 expiry: owner, 2026-11-24.

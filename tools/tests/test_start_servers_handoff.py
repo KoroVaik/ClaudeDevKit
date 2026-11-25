@@ -12,7 +12,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent.parent
 POWERSHELL = shutil.which("powershell.exe") or shutil.which("powershell")
-LEAD = "P: Lead"
+LEAD = "L: Lead"
 
 FAKE_CLAUDE = '''import json, os, pathlib, sys
 d = pathlib.Path(__file__).parent
@@ -25,7 +25,7 @@ with open(d / "calls.txt", "a", encoding="utf-8") as f:
 agents = json.loads((d / "agents.json").read_text())
 def live(on, session_id=None):  # the lead's entry gets a pid (woken) or loses it (stopped)
     for a in agents:
-        if a["name"] == "P: Lead":
+        if a["name"] in ("L: Lead", "P: Lead"):
             a["pid"], a["status"] = (os.getpid(), "idle") if on else (None, None)
             if session_id:
                 a["sessionId"] = session_id
@@ -127,17 +127,73 @@ class StartServersHandoffTest(unittest.TestCase):
         self.assertEqual("/dev-kit:project-lead handoff: handoff-3.md", calls[0][-1])
         self.assertIn(f"STARTED {LEAD} handoff handoff-3.md", self.log())
 
-    def stopped_lead(self, plan):
-        """The lead the watcher just stopped: a stopped list entry, its job state, and how the fake claude answers."""
+    def stopped_lead(self, plan, name=LEAD):
+        """The lead the watcher just stopped: a stopped list entry, its job state, and how the fake claude answers.
+        `name`: what the session is still called (a lead started before the rename is "P: Lead")."""
         (self.bin / "agents.json").write_text(json.dumps([
-            {"kind": "background", "name": LEAD, "sessionId": SID, "id": SID[:8], "cwd": str(self.project),
+            {"kind": "background", "name": name, "sessionId": SID, "id": SID[:8], "cwd": str(self.project),
              "startedAt": 2, "state": "stopped", "pid": None}]), encoding="utf-8")
         job = self.user / ".claude" / "jobs" / SID[:8]
         job.mkdir(parents=True)
         (job / "state.json").write_text(json.dumps({
-            "sessionId": SID, "resumeSessionId": SID, "name": LEAD, "linkScanPath": str(self.tmp / f"{SID}.jsonl"),
-            "respawnFlags": ["--remote-control", "--name", LEAD, "--model", "haiku"]}), encoding="utf-8")
+            "sessionId": SID, "resumeSessionId": SID, "name": name, "linkScanPath": str(self.tmp / f"{SID}.jsonl"),
+            "respawnFlags": ["--remote-control", name, "--name", name, "--model", "haiku"]}), encoding="utf-8")
         (self.bin / "plan.json").write_text(json.dumps(plan), encoding="utf-8")
+
+    def job_state(self):
+        return json.loads((self.user / ".claude" / "jobs" / SID[:8] / "state.json").read_text(encoding="utf-8"))
+
+    # protects: Flow
+    def test_stopped_lead_with_the_old_name_is_resumed_under_the_new_name(self):
+        # Plan: running leads are renamed "P: X" -> "L: X" by one resume that keeps their history.
+        self.stopped_lead({}, name="P: Lead")
+        code, out = self.run_start("-Only", LEAD)
+        self.assertEqual(0, code, out)
+        self.assertIn(f"Resumed lead: {LEAD}", out)
+        # The resume keeps no extra flag (a resume with any flag starts a copy): the saved options carry the name.
+        self.assertEqual([["--bg", "--resume", SID, "--", "/dev-kit:project-lead"]], self.claude_calls())
+        job = self.job_state()
+        self.assertEqual(LEAD, job["name"])
+        self.assertEqual(["--remote-control", LEAD, "--name", LEAD, "--model", "opus", "--effort", "medium",
+                          "--permission-mode", "bypassPermissions"], job["respawnFlags"])
+        self.assertIn(f"RENAMED P: Lead -> {LEAD} {SID}", self.log())
+
+    # protects: Rule
+    def test_session_with_the_new_name_is_resumed_before_one_with_the_old_name(self):
+        # The old name is only a fallback: an "L: Lead" session of the folder wins, the "P: Lead" job stays as it is.
+        self.stopped_lead({}, name="P: Lead")
+        agents = json.loads((self.bin / "agents.json").read_text())
+        agents.append({"kind": "background", "name": LEAD, "sessionId": "22222222-aaaa-bbbb-cccc-000000000002",
+                       "id": "22222222", "cwd": str(self.project), "startedAt": 1, "state": "stopped"})
+        (self.bin / "agents.json").write_text(json.dumps(agents), encoding="utf-8")
+        code, out = self.run_start("-Only", LEAD)
+        self.assertEqual(0, code, out)
+        self.assertEqual("22222222-aaaa-bbbb-cccc-000000000002", self.claude_calls()[0][2])
+        self.assertEqual("P: Lead", self.job_state()["name"])
+        self.assertNotIn("RENAMED", self.log())
+
+    # protects: Rule
+    def test_running_lead_with_the_old_name_is_not_started_again(self):
+        # The watcher and logon runs must never start a second lead of the project while "P: Lead" runs.
+        self.stopped_lead({}, name="P: Lead")
+        agents = json.loads((self.bin / "agents.json").read_text())
+        agents[0]["pid"] = os.getpid()
+        (self.bin / "agents.json").write_text(json.dumps(agents), encoding="utf-8")
+        code, out = self.run_start("-Only", LEAD)
+        self.assertEqual(0, code, out)
+        self.assertIn(f"Already running: {LEAD}", out)
+        self.assertEqual([], self.claude_calls())
+
+    # protects: Flow
+    def test_handoff_move_of_a_lead_with_the_old_name_renames_it_and_moves_it(self):
+        self.stopped_lead({}, name="P: Lead")
+        code, out = self.run_move()
+        self.assertEqual(0, code, out)
+        self.assertIn(f"Resumed lead: {LEAD}", out)
+        self.assertEqual([["--bg", "--resume", SID, "--", "/clear"], ["stop", SID[:8]],
+                          ["--bg", "--resume", SID, "--", "/dev-kit:project-lead handoff: h.md"]], self.claude_calls())
+        self.assertEqual(LEAD, self.job_state()["name"])
+        self.assertIn(f"RENAMED P: Lead -> {LEAD} {SID}", self.log())
 
     def run_move(self, *extra):
         return self.run_start("-Only", LEAD, "-Handoff", "h.md", "-HandoffSessionId", SID, *extra)
@@ -249,7 +305,7 @@ class StartServersHandoffTest(unittest.TestCase):
 
     # protects: Rule
     def test_handoff_needs_exactly_one_only_name(self):
-        for extra in (["-Handoff", "h.md"], ["-Only", f"{LEAD},P: Other", "-Handoff", "h.md"]):
+        for extra in (["-Handoff", "h.md"], ["-Only", f"{LEAD},L: Other", "-Handoff", "h.md"]):
             code, out = self.run_start(*extra)
             self.assertEqual(1, code, out)
             self.assertIn("-Handoff", out)

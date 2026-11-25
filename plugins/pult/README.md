@@ -96,10 +96,10 @@ a session is busy, `-Force` overrides, `-CheckOnly` only lists).
 
 ## Commands for the phone flow
 
-The steps of a day with a project lead (P) from the phone and the rules behind them are in the epic
+The steps of a day with a project lead (Lead) from the phone and the rules behind them are in the epic
 [Run all projects from the phone](../../docs/epics/run-all-projects-from-the-phone.md) and the feature
 [Hand work to the project lead](../../docs/features/hand-work-to-the-project-lead.md). The commands:
 
 - Status page: `python -X utf8 scripts/status-page.py` writes `~/.claude/pult/status.html` (`--out` for another file).
 - All desktop-app sessions of all projects: `python -X utf8 scripts/list-sessions.py`.
-- After a dev-kit plugin update the watcher restarts each P by itself (a routine release on a later day); to hurry it, run `scripts/restart-leads.ps1 -Ask`. By hand: `scripts/restart-leads.ps1`, or `scripts/stop-servers.ps1` (graceful stop) and then `scripts/start-servers.ps1`, or restart Windows.
+- After a dev-kit plugin update the watcher restarts each Lead by itself (a routine release on a later day); to hurry it, run `scripts/restart-leads.ps1 -Ask`. By hand: `scripts/restart-leads.ps1`, or `scripts/stop-servers.ps1` (graceful stop) and then `scripts/start-servers.ps1`, or restart Windows.

@@ -1,6 +1,6 @@
 """Stop hook: a project lead's reply to an event keeps the message form.
 
-Scope is narrow on purpose (plans/lead-reply-hook.md): only a lead session (its title starts with «P: »), only a
+Scope is narrow on purpose (plans/lead-reply-hook.md): only a lead session (its title starts with «L: », or the old «P: », see `scripts/session_titles.py`), only a
 turn not woken by the owner (a session's message, a Pult event, a subagent notice, a timer), and only the turn's
 final text. That text must be empty, one of the named one-line exceptions of `dev-kit:project-lead`, or the bold
 blocks of "Message templates" with no free text before, between or after them (a closing question or a written-out
@@ -10,13 +10,16 @@ extra step that sends no new text, so the owner never sees the message twice. Th
 import json
 import re
 import sys
+from pathlib import Path
 
-LEAD_PREFIX = "P: "
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
+import session_titles  # noqa: E402  the new and the old lead and discussion prefixes
+
 TITLES = ("Питання без відповіді", "Статуси сесій", "Стан проєкту", "Питання сесій", "Питання від мене")
 PROSE_TITLES = ("Стан проєкту",)  # blocks whose body is sentences, not a list
 ONE_LINERS = (
     "Зараз нічого не працює і нічого не чекає на тебе.",  # forced output with nothing running
-    "Відкрий сесію «Обговорення:",  # the one line after starting a discussion
+    *(f"Відкрий сесію «{prefix}" for prefix in session_titles.DISCUSS_PREFIXES),  # the one line after starting a discussion
     "Тест пушу:",  # push test readiness step
     "Пуш «Тест",  # push test result question
     "⚠ ЧЕРЕЗ 30 СЕК БУДЕ ПЕРЕЗАВАНТАЖЕННЯ",  # restart lines
@@ -26,7 +29,7 @@ TITLE_RE = re.compile(r"^\*\*(.+?)\*\*\s*$")
 LIST_LINE_RE = re.compile(r"^(\s+\S|-\s|\d+\.\s|ще \d+ питан)")
 CLOSING_RE = re.compile(r"(\?\s*(\([^()]*\))?\s*$)|(\+ або -\s*$)|(^(Рекомендую|немає рекомендації)\b)")
 
-NUDGE = ("Хук форми повідомлень керівника: остання відповідь на подію не тримає форму «Message templates» "
+NUDGE = ("Хук форми повідомлень Lead: остання відповідь на подію не тримає форму «Message templates» "
          "(dev-kit:project-lead): {why}. Власник її вже бачив: не надсилай її знову і не виправляй окремим "
          "повідомленням. Закінчи цей крок без тексту, а наступне повідомлення напиши у формі: порожньо або лише "
          "жирні блоки, без вільного тексту поруч.")
@@ -84,7 +87,7 @@ def woken_by_owner(entry):
 
 def owner_still_waits(entries, start):
     """Whether the owner's last message has had no final reply before this turn: the turn then answers the owner
-    (P's reply to the owner's own question keeps the global caps, not the blocks)."""
+    (the Lead's reply to the owner's own question keeps the global caps, not the blocks)."""
     owner = None
     for index in range(start - 1, -1, -1):
         entry = entries[index]
@@ -164,7 +167,7 @@ def check(call):
     if not path:
         return None
     entries = read_entries(path)
-    if not session_title(entries).startswith(LEAD_PREFIX):
+    if not session_title(entries).startswith(session_titles.LEAD_PREFIXES):
         return None
     start = turn_start(entries)
     if start is None or woken_by_owner(entries[start]) or owner_still_waits(entries, start):

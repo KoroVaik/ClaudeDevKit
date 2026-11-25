@@ -8,7 +8,7 @@ serve them. It subscribes itself, reviewed by ClaudeDevKit. Format:
 |---|---|
 | set | rules-kit |
 | reviewed by | ClaudeDevKit |
-| lands by | branch merged by P: ClaudeDevKit; bump plugins/rules-kit version with a release mark in plugins/rules-kit/releases.json |
+| lands by | branch merged by L: ClaudeDevKit; bump plugins/rules-kit version with a release mark in plugins/rules-kit/releases.json |
 
 ## Files
 
@@ -32,7 +32,7 @@ serve them. It subscribes itself, reviewed by ClaudeDevKit. Format:
 
 | Sign | Kind | Pattern |
 |---|---|---|
-| a retro session writes into a main checkout | technical | in a `Ретро: ` session an Edit or Write call fails because its path is in the main checkout (the session must call EnterWorktree first); the block's text is not known yet, so no expression |
+| a retro session writes into a main checkout | technical | in a `Retro: ` session an Edit or Write call fails because its path is in the main checkout (the session must call EnterWorktree first); the block's text is not known yet, so no expression |
 | a fix with one sighting | process | an item file has a `- fix:` line, one `- seen:` line and a status other than `urgent` |
 
 ## May change itself
@@ -44,4 +44,4 @@ serve them. It subscribes itself, reviewed by ClaudeDevKit. Format:
 | agents/part-reader.md | word, sentence, new sign |
 
 The gates cannot edit themselves: `agents/approver.md`, `agents/replayer.md` and `skills/retro/SKILL.md` are not in
-this table, so a fix there goes to P as a `task:` line in the closing `ГОТОВО`.
+this table, so a fix there goes to the Lead as a `task:` line in the closing `ГОТОВО`.

@@ -14,7 +14,7 @@ approved by the owner on 2026-11-19.
 | Check that a test says what it protects | Feature: every added test carries a mark of what it protects. | - |
 | Start and stop the app | Feature: the project's run-app and stop-app commands run in order and in reverse. | - |
 | Launch only the project's own agents | Feature: a project can start only its own agents and those of its enabled plugins. | - |
-| Hand work to the project lead | Feature: the owner gives work to P, who starts task sessions and merges them. | - |
+| Hand work to the project lead | Feature: the owner gives work to the Lead, who starts task sessions and merges them. | - |
 | Take over a session I started | Feature: the lead watches a session the owner started on their own; it ends its work with "Роботу завершено". | - |
 | Design a screen | Feature: a mockup the owner approves, then polish on real components in the design sandbox. | - |
 | Take a wide screenshot | Feature: a headless full-resolution screenshot of a wide screen. | - |
@@ -27,7 +27,7 @@ approved by the owner on 2026-11-19.
 | Fix agent problems in the retro | Feature: each project's problems of agent work are collected and fixed by a background retro session by itself; the owner sees a passive list in Pult's status and may say «поверни». | - |
 | State cost as a share of the weekly limit | Feature: agents state the cost of subscription work as a share of the weekly limit, never in dollars. | - |
 | Tidy the docs once a week | Feature: a background session audits a project's docs weekly, fixes the trivial and leaves the rest as items. | - |
-| Project lead (P) | The one session per project that starts task sessions and merges their work; it does no task work itself. | - |
-| Task session (C) | A session the project lead starts for one task, in its own worktree. | - |
-| Owner queue | What waits on the owner, kept in PROGRESS.md "Open questions"; P's messages only count the open questions and write one in full on «так» to «Показати всі питання?», at the start of a new P session, when it is critical, or when it is P's next-task proposal while nothing works. | - |
-| Discussion session («Обговорення:») | A session where the owner settles the meaning and the mockup of a feature with one agent. | - |
+| Project lead (Lead) | The one session per project that starts task sessions and merges their work; it does no task work itself. | - |
+| Task session (Manager) | A session the project lead starts for one task, in its own worktree. | - |
+| Owner queue | What waits on the owner, kept in PROGRESS.md "Open questions"; the Lead's messages only count the open questions and write one in full on «так» to «Показати всі питання?», at the start of a new Lead session, when it is critical, or when it is the Lead's next-task proposal while nothing works. | - |
+| Discussion session («Discuss:») | A session where the owner settles the meaning and the mockup of a feature with one agent. | - |

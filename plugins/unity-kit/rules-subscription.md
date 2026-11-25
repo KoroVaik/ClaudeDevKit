@@ -7,7 +7,7 @@ Unity editor checks: skills, the editor operator agent, slots and the scripts th
 |---|---|
 | set | unity-kit |
 | reviewed by | ClaudeDevKit |
-| lands by | branch merged by P: ClaudeDevKit; bump plugins/unity-kit version with a release mark in plugins/unity-kit/releases.json |
+| lands by | branch merged by L: ClaudeDevKit; bump plugins/unity-kit version with a release mark in plugins/unity-kit/releases.json |
 
 ## Files
 

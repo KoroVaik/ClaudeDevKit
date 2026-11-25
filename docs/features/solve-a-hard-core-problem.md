@@ -12,7 +12,7 @@ cause to the change, and helpers do its side research without filling anyone's c
 `dev-kit:core-engineer` runs on Fable with high effort and a 1-hour prompt cache. A project turns it on
 with a `## core-engineer` section in its profile: its core areas, what the engineer reads first, what it
 never does there (for example paid analysis runs). Without that section the engineer is not used.
-Why: owner, 2026-11-23 (Zhratva «Обговорення: Інженер ядра аналізу»): Prishch's local engineer was wanted
+Why: owner, 2026-11-23 (Zhratva «Discuss: Інженер ядра аналізу»): Prishch's local engineer was wanted
 in Zhratva too, reusable rather than copied.
 
 ### Every launch needs the owner's yes

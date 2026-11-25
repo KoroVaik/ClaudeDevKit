@@ -80,14 +80,16 @@ $stateDir = Join-Path $env:USERPROFILE '.claude\pult'
 New-Item -ItemType Directory -Force $stateDir | Out-Null
 Set-Content -LiteralPath (Join-Path $stateDir 'hold') -Encoding UTF8 -Value "stop-servers.ps1 $(Get-Date -Format s)"
 
-# Project leads "P: <name>" are background sessions: stop them through Claude (conversation kept).
+# Project leads "L: <name>" (or still "P: <name>", resume-lib.ps1 Test-LeadName) are background sessions: stop them
+# through Claude (conversation kept).
+. (Join-Path $PSScriptRoot 'resume-lib.ps1')
 try {
     (claude agents --json | Out-String | ConvertFrom-Json) |
-        Where-Object { $_.kind -eq 'background' -and $_.name -like 'P: *' -and $_.pid } |
+        Where-Object { $_.kind -eq 'background' -and (Test-LeadName ([string]$_.name)) -and $_.pid } |
         ForEach-Object { @(claude stop $_.id) | Select-Object -First 1 }  # capture first: a cut pipe sets exit code -1
 } catch { Write-Output "Could not list background sessions: $_" }
 
-# Servers only: the `remote-control` subcommand, not the --remote-control flag of a background P.
+# Servers only: the `remote-control` subcommand, not the --remote-control flag of a background lead.
 $servers = Get-CimInstance Win32_Process -Filter "Name='claude.exe' OR Name='node.exe'" |
     Where-Object { $_.CommandLine -match '\sremote-control\s' }
 if (-not $servers) { Write-Output 'No servers running.'; exit 0 }

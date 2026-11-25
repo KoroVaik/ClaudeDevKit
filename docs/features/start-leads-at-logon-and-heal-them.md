@@ -85,8 +85,8 @@ one project, remove its row from the project list.
 - `tools/tests/test_watch_servers_wake.py`
 
 ## Open
-- [x] Check on the phone that a push asked of a live lead arrives with the Claude app fully closed: passed 2026-11-24, «Тест 1» from P: ClaudeDevKit reached the phone
+- [x] Check on the phone that a push asked of a live lead arrives with the Claude app fully closed: passed 2026-11-24, «Тест 1» from L: ClaudeDevKit reached the phone
 - [x] Check in the Pult chat that a watcher message now arrives: passed 2026-11-24, four phone-push requests (2026-11-23 21:02 to 2026-11-24 10:03) went in default mode, each became a turn in Pult's chat and Pult called the push
-- [x] Find a quiet stretch of a lead in the watcher log and confirm it shows no wake: passed 2026-11-24, P: ClaudeDevKit up 18 hours (2026-11-22 17:37 to 2026-11-23 11:52) and P: Zhratva 13 hours (2026-11-24 06:13 to 19:51) with no event and no wake; no full quiet day happened, every lead has work daily, and every wake had an event or keep-warm cause
-- [x] Check the exact wording of the session list in the phone app: passed 2026-11-24, the owner sees the lead listed as «P: ClaudeDevKit», the name the epic's steps use
+- [x] Find a quiet stretch of a lead in the watcher log and confirm it shows no wake: passed 2026-11-24, L: ClaudeDevKit up 18 hours (2026-11-22 17:37 to 2026-11-23 11:52) and L: Zhratva 13 hours (2026-11-24 06:13 to 19:51) with no event and no wake; no full quiet day happened, every lead has work daily, and every wake had an event or keep-warm cause
+- [x] Check the exact wording of the session list in the phone app: passed 2026-11-24, the owner sees the lead listed as «L: ClaudeDevKit», the name the epic's steps use
 - [x] Check on the phone that the weekly limit forecast push arrives once: dropped 2026-11-25, the owner removed that push (`plans/drop-forecast-push.md`)

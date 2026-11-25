@@ -103,26 +103,26 @@ class LeadPermissionModeTest(unittest.TestCase):
 
     # protects: Flow
     def test_fresh_start_is_always_bypass(self):
-        out = ps("(Get-LeadStartArgs 'P: X' $null) -join ' '")
+        out = ps("(Get-LeadStartArgs 'L: X' $null) -join ' '")
         self.assertIn("--permission-mode bypassPermissions", out)
         self.assertNotIn("auto", out)
 
     # protects: Rule
     def test_handoff_start_is_fresh_even_with_a_session_id_and_names_the_file(self):
         # A resume would bring back the full conversation: the handoff lead must start empty and read the file.
-        out = ps("(Get-LeadStartArgs 'P: X' 'old-session-id' -Handoff 'handoff-2.md') -join ' '")
+        out = ps("(Get-LeadStartArgs 'L: X' 'old-session-id' -Handoff 'handoff-2.md') -join ' '")
         self.assertNotIn("--resume", out)
-        self.assertIn("--remote-control P: X --name P: X --permission-mode bypassPermissions", out)
+        self.assertIn("--remote-control L: X --name L: X --permission-mode bypassPermissions", out)
         self.assertTrue(out.endswith("-- /dev-kit:project-lead handoff: handoff-2.md"), out)
         self.assertNotIn('"', out)
-        plain = ps("(Get-LeadStartArgs 'P: X' 'old-session-id') -join ' '")
+        plain = ps("(Get-LeadStartArgs 'L: X' 'old-session-id') -join ' '")
         self.assertIn("--resume old-session-id", plain)  # without -Handoff nothing changes
 
     # protects: Rule
     def test_handoff_name_with_a_path_or_a_quote_is_refused(self):
         # The name goes into a command line (no double quote survives Windows PowerShell 5.1).
         for bad in ("..\\x.md", "a b.md", 'a"b.md', "x.txt", "a;b.md"):
-            got = ps(f"try {{ Get-LeadStartArgs 'P: X' $null -Handoff '{bad.replace(chr(39), chr(39) * 2)}' | Out-Null; 'ok' }} "
+            got = ps(f"try {{ Get-LeadStartArgs 'L: X' $null -Handoff '{bad.replace(chr(39), chr(39) * 2)}' | Out-Null; 'ok' }} "
                      "catch { 'threw' }")
             self.assertEqual("threw", got, bad)
 
@@ -131,11 +131,11 @@ class LeadPermissionModeTest(unittest.TestCase):
         job = self.tmp / "jobs" / "abc"
         job.mkdir(parents=True)
         state = job / "state.json"
-        state.write_text(json.dumps({"name": "P: X", "sessionId": "s1", "respawnFlags": [
-            "--remote-control", "P: X", "--permission-mode", "auto", "--model", "sonnet"]}))
-        ps(f"Set-LeadRespawnModel 'P: X' 's1' '{self.tmp / 'jobs'}' | Out-Null")
+        state.write_text(json.dumps({"name": "L: X", "sessionId": "s1", "respawnFlags": [
+            "--remote-control", "L: X", "--permission-mode", "auto", "--model", "sonnet"]}))
+        ps(f"Set-LeadRespawnModel 'L: X' 's1' '{self.tmp / 'jobs'}' | Out-Null")
         flags = json.loads(state.read_text())["respawnFlags"]
-        self.assertEqual(flags, ["--remote-control", "P: X", "--model", "opus", "--effort", "medium",
+        self.assertEqual(flags, ["--remote-control", "L: X", "--model", "opus", "--effort", "medium",
                                  "--permission-mode", "bypassPermissions"])
 
 

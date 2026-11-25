@@ -164,7 +164,7 @@
 #   dropped (WAKE-FAILED).
 #   The keep-warm ping is not sent to a lead that has a handoff marker (see the next item); events still are.
 # - A lead whose context is a third full saves a handoff file and a marker (`sessions.py handoff save --file <name.md>
-#   [--go]`, handoff.json next to its registry; the project-lead skill's "Restart P"). A pass after its version check
+#   [--go]`, handoff.json next to its registry; the project-lead skill's "Restart the Lead"). A pass after its version check
 #   each round (Invoke-HandoffCheck; not with -Once, not while the hold file or a full start runs, not while NO-BANS
 #   blocks that lead) reads `handoff status` for each live lead: none (the in-memory marks of that lead are dropped) or
 #   `saved <file> <s>` (seconds since the save) / `go <file> <s>` (seconds since `handoff go`). The move works like a
@@ -283,7 +283,7 @@ $HandoffWakeQuietSec = 120 # a lead that saved a handoff (not go) is moved only 
 $SizePushShare = 0.7       # a conversation at this share of its window gets one phone push
 $SizeLogMin = 10           # minutes between the SIZE lines
 $LimitNoticeSec = 300      # the limit notices script is called at least this often (its `back` lines are time based)
-$PingLine = 'PING keep-warm: run dev-kit-sessions fill for your C sessions and dev-kit-sessions fill --self for yourself, then answer with your standard status only.'
+$PingLine = 'PING keep-warm: run dev-kit-sessions fill for your Manager sessions and dev-kit-sessions fill --self for yourself, then answer with your standard status only.'
 $NoteLine = 'Note: your log watcher (watch-log.py) is retired. Events now arrive as messages from the server watcher, like this one, so do not arm it again.'
 
 if (-not $ConfigFile) { $ConfigFile = Join-Path $PSScriptRoot 'servers.psd1' }
@@ -531,7 +531,7 @@ function Invoke-TaskHeal {
             $records = @(Get-Content -Raw -Encoding UTF8 -LiteralPath $f | ConvertFrom-Json | ForEach-Object { $_ })
         } catch { Write-Log "WARN cannot read $f : $_"; continue }
         foreach ($r in $records) {
-            if ($r.status -cne 'active' -or -not $r.id -or $r.owner -eq $true -or ([string]$r.name).StartsWith('P: ', [StringComparison]::Ordinal)) { continue }
+            if ($r.status -cne 'active' -or -not $r.id -or $r.owner -eq $true -or (Test-LeadName ([string]$r.name))) { continue }
             $wid = ([string]$r.id).Trim()  # an id pasted with a CR would match no session
             $seen[$wid] = $true
             $entries = @($agents | Where-Object {
@@ -652,7 +652,7 @@ function Invoke-LimitResume {
         $row = $servers | Where-Object { $_.Lead -and $_.Session -ceq $st.Name } | Select-Object -First 1
         if ($row -and $row.Path -and (Invoke-LeadRestartFile $row.Path @('status')) -match '^ready ') { continue }
         if ($t - $passStart -ge $WakeSendBudgetSec -or (Test-Path -LiteralPath $hold)) { break }
-        $same = @($agents | Where-Object { $_.pid -and [string]$_.name -ceq $st.Name }).Count
+        $same = @($agents | Where-Object { $_.pid -and (Test-LeadEntryName ([string]$_.name) $st.Name) }).Count
         if ($same -gt 1) {
             Write-Log ("LIMIT-RESUME-SKIPPED {0} {1} ({2} live sessions have this name)" -f $st.Name, $id, $same)
             $st.Done = $true; $st.GaveUp = $true
@@ -663,7 +663,9 @@ function Invoke-LimitResume {
             "from where you stopped. If it was already done, answer with your usual status only."
         $wakeState.LastWake[$st.Name] = Get-Now  # the keep-warm ping and the handoff "just woken" check see it
         Save-WakeState
-        $res = Send-Wake $st.Name $text $WakeMode
+        # A message names the session as it is called now: a lead may still have its old name (Test-LeadEntryName).
+        $liveNow = $agents | Where-Object { $_.pid -and (Test-LeadEntryName ([string]$_.name) $st.Name) } | Select-Object -First 1
+        $res = Send-Wake $(if ($liveNow) { [string]$liveNow.name } else { $st.Name }) $text $WakeMode
         if (-not $res.Ok) {
             if ($res.Reason -cne $st.LastFail) { Write-Log ("LIMIT-RESUME-FAILED {0} {1} {2}" -f $st.Name, $id, $res.Reason) }
             $st.LastFail = $res.Reason
@@ -998,7 +1000,7 @@ function Get-BusyTask([string]$ProjectPath, [switch]$NonOwner) {
     try { $records = @(Get-Content -Raw -Encoding UTF8 -LiteralPath $f | ConvertFrom-Json | ForEach-Object { $_ }) }
     catch { Write-WarnOnce "registry read $f" "cannot read $f : $_"; return $null }
     foreach ($r in $records) {
-        if ($r.status -cne 'active' -or -not $r.id -or ([string]$r.name).StartsWith('P: ', [StringComparison]::Ordinal)) { continue }
+        if ($r.status -cne 'active' -or -not $r.id -or (Test-LeadName ([string]$r.name))) { continue }
         if ($NonOwner -and $r.owner -eq $true) { continue }
         $wid = ([string]$r.id).Trim()
         $hit = $agents | Where-Object { $_ -and $_.pid -and ($_.status -eq 'busy' -or $_.state -eq 'working') -and
@@ -1407,9 +1409,10 @@ function Invoke-WakePass {
     if ($null -ne $agents) {
         foreach ($s in $servers) {
             if (-not $s.Lead) { continue }
-            $m = $agents | Where-Object { $_.kind -eq 'background' -and $_.name -ceq $s.Session -and $_.pid } | Select-Object -First 1
+            $m = $agents | Where-Object { $_.kind -eq 'background' -and (Test-LeadEntryName ([string]$_.name) $s.Session) -and $_.pid } | Select-Object -First 1
+            # Name: the session as it is called now, which a message must name (an old "P: X" until the lead is renamed).
             $targets[$s.Session] = @{ Kind = 'lead'; Live = [bool]$m; SessionId = [string]$m.sessionId
-                Idle = [bool]($m -and $m.status -eq 'idle'); Row = $s; Agent = $m; Name = $s.Session }
+                Idle = [bool]($m -and $m.status -eq 'idle'); Row = $s; Agent = $m; Name = $(if ($m) { [string]$m.name } else { $s.Session }) }
         }
         $pm = Find-PultAgent $agents
         $targets['Pult'] = @{ Kind = 'pult'; Live = [bool]$pm; SessionId = [string]$pm.Agent.sessionId; Idle = $false; Row = $null
@@ -1519,7 +1522,7 @@ function Invoke-WakePass {
 function Get-HandoffWhy($s, $Entry, [string]$Kind) {
     if (-not $Entry -or $Entry.status -ne 'idle') { return 'busy' }
     if ($Kind -eq 'go') { return '' }
-    if ((Get-Age ([double]$wakeState.LastWake[[string]$Entry.name])) -lt $HandoffWakeQuietSec) { return 'just woken' }
+    if ((Get-Age ([double]$wakeState.LastWake[[string]$s.Session])) -lt $HandoffWakeQuietSec) { return 'just woken' }  # keyed by the lead's name in the list, not the entry's (an old "P: X")
     return (Get-LeadActivity $Entry (Get-BusyTask $s.Path))
 }
 
@@ -1550,7 +1553,7 @@ function Wait-HandoffStopped([string]$Name, [string]$SessionId) {
         $keep = $script:agentsText
         $list = Get-Agents -All
         $script:agentsText = $keep
-        $listed = $null -eq $list -or @($list | Where-Object { $_.kind -eq 'background' -and $_.name -ceq $Name -and $_.pid }).Count
+        $listed = $null -eq $list -or @($list | Where-Object { $_.kind -eq 'background' -and (Test-LeadEntryName ([string]$_.name) $Name) -and $_.pid }).Count
         if (-not $listed -and -not (Get-SessionProcessIds $ids).Count) { return $true }
         if ((Get-Date) -gt $until) { return $false }
         Start-Sleep -Milliseconds 500
@@ -1605,7 +1608,7 @@ function Invoke-HandoffCheck($s, $m) {
     $keep = $script:agentsText
     $fresh = Get-Agents -All
     $script:agentsText = $keep
-    $cur = $fresh | Where-Object { $_.kind -eq 'background' -and $_.name -ceq $name -and $_.pid } | Select-Object -First 1
+    $cur = $fresh | Where-Object { $_.kind -eq 'background' -and (Test-LeadEntryName ([string]$_.name) $name) -and $_.pid } | Select-Object -First 1
     # The same job by its short id (stable; the sessionId the list shows changes with each /clear move).
     if (-not $cur -or [string]$cur.id -cne [string]$m.id -or (Get-HandoffWhy $s $cur $kind)) { return }
     $handoffTried[$name] = $key
@@ -1741,7 +1744,16 @@ try {
         }
     }
 } catch { Write-Log "WARN cannot read $versionFile : $_" }
-$leadSeen = @{}     # lead name -> the pid whose start time was checked in this run
+# An entry saved under a lead's old name "P: X" belongs to the lead "L: X": it describes the process (pid, start time,
+# versions), not the name. Moved here in memory; the next save writes the new key.
+foreach ($row in @($servers | Where-Object { $_.Lead })) {
+    $oldKey = Get-LegacyLeadName ([string]$row.Session)
+    if ($oldKey -and $leadVer.ContainsKey($oldKey)) {
+        if (-not $leadVer.ContainsKey([string]$row.Session)) { $leadVer[[string]$row.Session] = $leadVer[$oldKey] }
+        $leadVer.Remove($oldKey)
+    }
+}
+$leadSeen = @{}    # lead name -> the pid whose start time was checked in this run
 $ReadyMaxAgeSec = 600  # a ready mark older than this is not acted on (READY-EXPIRED)
 $leadTried = @{}    # lead name -> the version a restart was tried for
 $releaseKinds = @{} # "<lead>|<pid>|<installed dev-kit>" -> critical or routine (Get-ReleaseKind)
@@ -1825,7 +1837,9 @@ while ($true) {
         $procId = $null
         if ($s.Lead) {
             if ($null -eq $agents) { continue }  # unknown this round; logged as WARN
-            $m = $agents | Where-Object { $_.kind -eq 'background' -and $_.name -ceq $name -and $_.pid } |
+            # A lead that still runs under its old name "P: X" is alive as the lead "L: X": no HEAL start of a second one
+            # (resume-lib.ps1, Test-LeadEntryName; start-servers.ps1 renames it when it is resumed).
+            $m = $agents | Where-Object { $_.kind -eq 'background' -and (Test-LeadEntryName ([string]$_.name) $name) -and $_.pid } |
                 Select-Object -First 1
             if ($m) { $procId = $m.pid; if ($m.sessionId) { $liveSessions[[string]$m.sessionId] = $name } }
         } else {
@@ -1841,7 +1855,7 @@ while ($true) {
             Write-Log ("DOWN {0} (was pid {1}, seen up at {2:s})" -f $name, $was.Pid, $lastCheck)
             if ($s.Lead) {
                 $all = $agents
-                $last = $all | Where-Object { $_.name -ceq $name } |
+                $last = $all | Where-Object { Test-LeadEntryName ([string]$_.name) $name } |
                     Sort-Object { [int64]$_.startedAt } -Descending | Select-Object -First 1
                 if ($last) { Write-Log "  session $($last.id) state: $($last.state)" }
             }

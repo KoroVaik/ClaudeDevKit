@@ -17,7 +17,7 @@
 - A commit that bumps a plugin's version (`dev-kit`, `pult`, `web-kit`, `unity-kit`, `rules-kit`, `spend-kit`) adds its
   release mark to that plugin's own `plugins/<plugin>/releases.json` (create it when missing):
   `"<version>": {"kind": "critical" | "routine", "date": "<YYYY-MM-DD>", "reason": "<one line>"}`. Critical only
-  when agents cannot cope without it: messages lost, sessions stuck or looping, a lead or C cannot do its job,
+  when agents cannot cope without it: messages lost, sessions stuck or looping, a Lead or Manager cannot do its job,
   harm to data; everything else is routine (a missing mark counts as routine). The Pult watcher restarts the
   leads for a routine release on a later day at a quiet moment, for a critical one the same day
   (`plugins/dev-kit/skills/project-lead/SKILL.md`, "Restart for a plugin update"). One bump, so one mark, for

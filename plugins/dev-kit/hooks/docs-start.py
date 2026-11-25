@@ -1,4 +1,4 @@
-"""SessionStart hook: start the weekly «Документація:» session of the project (see `scripts/docs_weekly.py`, `hook-start`).
+"""SessionStart hook: start the weekly «Docs:» session of the project (see `scripts/docs_weekly.py`, `hook-start`).
 
 In a project that has a lead it starts the background docs session when it is due and the retro's run file shows no retro
 to wait for. It prints nothing and never blocks: any error ends it with exit code 0."""

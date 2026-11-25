@@ -16,7 +16,7 @@ Why: owner, 2026-11-21: the retro counts tokens closely enough to state cost in 
 
 ### Real money stays in dollars, apart
 Calls through `spend-kit-api` keep their dollar figures ([Log and reconcile API spend](log-and-reconcile-api-spend.md)).
-A report with both writes them apart: «~1% тижневого ліміту, оцінка; API: 0.40 USD». P's question about spend over
+A report with both writes them apart: «~1% тижневого ліміту, оцінка; API: 0.40 USD». The Lead's question about spend over
 $1 per task counts only the API money; subscription use never asks you.
 
 ### The figure comes from a command

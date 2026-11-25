@@ -10,7 +10,7 @@ change lands in it: a plugin folder, the owner's global folder, a project. Each 
     |---|---|
     | set | dev-kit |                          required; the set's name (letters, digits, `.`, `_`, `-`)
     | reviewed by | ClaudeDevKit |             required; the project whose retro handles the set
-    | lands by | branch merged by P: ... |     required; how a change reaches the set (free text for the retro)
+    | lands by | branch merged by L: ... |     required; how a change reaches the set (free text for the retro)
     | special editor | ... |                    optional; a file with its own editor agent: the retro passes findings
 
     ## Files                                    required, at least one row

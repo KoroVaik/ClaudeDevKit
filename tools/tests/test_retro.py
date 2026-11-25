@@ -293,7 +293,7 @@ class RetroTestCase(RetroFixture):
             self.write(f"proj/{session}/subagents/agent-0.jsonl",
                        [assistant(f"{session}a", "claude-opus-5-5", {"output_tokens": 1000}, "2026-11-19T10:00:00Z")], cwd=cwd)
             (self.projects / f"proj/{session}/subagents/agent-0.meta.json").write_text('{"agentType": "dev-kit:coder"}')
-        self.write("proj/retro123.jsonl", [{"type": "custom-title", "customTitle": "Ретро: repo"},
+        self.write("proj/retro123.jsonl", [{"type": "custom-title", "customTitle": "Retro: repo"},
                                            assistant("rm", "claude-sonnet-5-5", {"output_tokens": 10}, "2026-11-19T10:00:00Z")])
         self.write("proj/retro123/subagents/agent-0.jsonl",
                    [assistant("ra", "claude-opus-5-5", {"output_tokens": 1000}, "2026-11-19T10:00:00Z")])
@@ -443,13 +443,13 @@ class RetroTestCase(RetroFixture):
         self.assertEqual(self.global_state()["facts_recheck"], "2099-01-08")
 
     # protects: Bug
-    def retro_session(self):
+    def retro_session(self, title="Retro: repo", session="abcdef1234"):
         """The transcript of a retro session with findings of its own and of a subagent."""
-        entries = [{"type": "custom-title", "customTitle": "Ретро: repo"}] + self.session()[1:]  # [0] is another title
+        entries = [{"type": "custom-title", "customTitle": title}] + self.session()[1:]  # [0] is another title
         entries.append(assistant("a", "claude-sonnet-5-5", {"output_tokens": 500}, "2026-11-19T10:40:00Z"))
-        self.write("proj/abcdef1234/subagents/agent-0.jsonl", [call("c", "Glob", {"pattern": "*"},
+        self.write(f"proj/{session}/subagents/agent-0.jsonl", [call("c", "Glob", {"pattern": "*"},
                                                                     "2026-11-19T10:00:00Z")] * 3)
-        return self.write("proj/abcdef1234.jsonl", entries)
+        return self.write(f"proj/{session}.jsonl", entries)
 
     # protects: Bug
     def test_the_findings_of_a_retro_session_and_its_subagents_are_dropped_by_the_full_scan(self):
@@ -461,13 +461,21 @@ class RetroTestCase(RetroFixture):
         self.assertNotIn("abcdef12", text)
         log = (self.retro / f"scan-{retro.today()}.md").read_text(encoding="utf-8")
         self.assertEqual([line for line in log.splitlines() if line.startswith("- ") and "abcdef12" in line], [])
-        self.assertIn("| Ретро: repo (abcdef12) |", log)  # the spend table is not a finding; its tokens still count
+        self.assertIn("| Retro: repo (abcdef12) |", log)  # the spend table is not a finding; its tokens still count
 
     # protects: Bug
     def test_the_findings_of_a_retro_session_are_dropped_by_the_transcript_scan_too(self):
         main = self.retro_session()
         self.run_cmd("scan", "--transcript", str(main))
         self.assertEqual(self.new_files(), [])
+
+    # protects: Edge
+    def test_a_docs_session_and_sessions_under_the_old_titles_are_dropped_too(self):
+        for index, title in enumerate(("Docs: repo", "Ретро: repo", "Документація: repo")):
+            with self.subTest(title=title):
+                main = self.retro_session(title, f"abcdef{index}0")
+                self.run_cmd("scan", "--transcript", str(main))
+                self.assertEqual(self.new_files(), [])
 
     # protects: Edge
     def test_a_transcript_with_no_cwd_yet_is_read_unrouted_and_its_later_lines_are_routed(self):
@@ -709,7 +717,8 @@ class RetroCommandsTestCase(RetroFixture):
     # protects: Rule
     def test_a_retro_session_start_does_nothing_so_the_retro_never_starts_itself(self):
         self.put("new/a.md", "- finding\n")
-        self.assertEqual(self.start(title="Ретро: repo", session_id="retro-1"), [])
+        for title in ("Retro: repo", "Docs: repo", "Ретро: repo", "Документація: repo"):  # the old titles too
+            self.assertEqual(self.start(title=title, session_id="retro-1"), [], title)
         self.assertFalse((self.pfolder / "state.json").exists())  # not even a root record
 
     # protects: Rule
@@ -735,7 +744,7 @@ class RetroCommandsTestCase(RetroFixture):
     # protects: Flow
     def test_the_retro_session_starts_when_findings_wait_the_review_is_old_and_no_start_is_recent(self):
         self.scanned_today()
-        command = ["fake-claude", "--bg", "--name", "Ретро: repo", "--settings", str(retro.NO_REMOTE_CONTROL), "--model", "sonnet", "--effort", "medium",
+        command = ["fake-claude", "--bg", "--name", "Retro: repo", "--settings", str(retro.NO_REMOTE_CONTROL), "--model", "sonnet", "--effort", "medium",
                    "--permission-mode", "bypassPermissions", "--", "/rules-kit:retro"]  # sonnet: the approver (opus) is another model
         self.assertEqual(self.start(), [])  # no findings
         self.put("new/a.md", "- finding\n")
@@ -876,7 +885,7 @@ class RetroCommandsTestCase(RetroFixture):
         (fake / name).chmod(0o755)
         env = {**os.environ, "PATH": str(fake) + os.pathsep + os.environ.get("PATH", "")}
         self.put("new/a.md", "- finding\n")
-        payload = json.dumps({"cwd": str(self.repo), "session_id": "lead-9", "session_title": "P: repo"}).encode()
+        payload = json.dumps({"cwd": str(self.repo), "session_id": "lead-9", "session_title": "L: repo"}).encode()
         for script in ("retro-start.py", "retro-end.py"):
             for data in (b"not json", b"", b"[1]", b"\xff\xfe", payload if script == "retro-end.py" else b"{}"):
                 result = subprocess.run([sys.executable, str(PLUGIN / "hooks" / script)], input=data, env=env,

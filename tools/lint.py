@@ -29,7 +29,7 @@ PROFILE_TABLES = {
     "user-check": [["Setting", "Value"]],
     "project-lead": [["Path", "How"], ["Setting", "Value"]],
 }
-# What P does with each ignored path of a fresh worktree (the project-lead `| Path | How |` table).
+# What the Lead does with each ignored path of a fresh worktree (the project-lead `| Path | How |` table).
 WORKTREE_SETUP = ("copy", "link")
 
 

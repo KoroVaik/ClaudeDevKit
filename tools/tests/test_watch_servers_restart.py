@@ -16,7 +16,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent.parent
 PLUGINS = ROOT / "plugins"
 POWERSHELL = shutil.which("powershell.exe") or shutil.which("powershell")
-LEAD = "P: Lead"
+LEAD = "L: Lead"
 LEAD_SID = "11111111-aaaa-bbbb-cccc-000000000001"
 OLD_TIME = 946684800  # 2000-01-01: every plugin.json is older than the "lead" process
 
@@ -300,7 +300,7 @@ class WatchServersRestartTest(WatcherEnv, unittest.TestCase):
     # protects: Bug
     def test_no_bans_line_of_another_lead_does_not_block_a_restarted_lead(self):
         (self.scripts / "restart-leads.ps1").write_text(
-            STUB_RESTART + 'Write-Output "NO-BANS P: Other (no Bash and PowerShell hard-ban deny lines on main): not restarted"\n',
+            STUB_RESTART + 'Write-Output "NO-BANS L: Other (no Bash and PowerShell hard-ban deny lines on main): not restarted"\n',
             encoding="ascii")
         self.releases({"1.1.0": "critical"}, "web-kit")
         self.lead_chat(owner_said("go", 60), lead_said("Done."))

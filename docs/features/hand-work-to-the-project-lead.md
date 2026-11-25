@@ -3,51 +3,51 @@
 Epic: [Work through a project lead](../epics/work-through-a-project-lead.md)
 
 ## Purpose
-You give work to one session per project, the project lead (P), and decide only what is yours: P starts
+You give work to one session per project, the project lead (the Lead), and decide only what is yours: the Lead starts
 the task sessions, merges their work and tells you the result. You are the CEO and do not micromanage.
 
 ## Rules
 ### Roles
-P is one session per project. It starts task sessions (C), each in its own worktree, merges their
+The Lead is one session per project. It starts task sessions (Managers), each in its own worktree, merges their
 finished work into main and tells you the result. It does no task work itself.
 
-### P's messages: session states and question counts
-Every status message from P has two short blocks (a third when nothing works, below): «Питання без відповіді» (only the counts: how many
-questions from sessions, how many from P, how many urgent) and «Статуси сесій» (each session's state
-and name). A message with open questions ends with «Показати всі питання?» (except the next-task proposal below); on your «так» P lists every
+### The Lead's messages: session states and question counts
+Every status message from the Lead has two short blocks (a third when nothing works, below): «Питання без відповіді» (only the counts: how many
+questions from sessions, how many from the Lead, how many urgent) and «Статуси сесій» (each session's state
+and name). A message with open questions ends with «Показати всі питання?» (except the next-task proposal below); on your «так» the Lead lists every
 question in full, numbered, after a separate cheap check that each reads in your own words with no
 agent terms. The one exception is a critical question (a session stands and cannot move without your
 answer): it is shown in full as the last thing in the message, with no closing line, so a bare «так»
 answers it; the next critical question is shown the same way only after you answer the first. The full
-list also opens the start status of a fresh P session, but not the one after a plugin-update restart
+list also opens the start status of a fresh Lead session, but not the one after a plugin-update restart
 (same chat, you saw the questions); the list ends with the question itself when it is the only one, or
-«Приймаєш усі мої рекомендації?» when several are listed. With more than 3 open questions the list shows only 2 at a time, with «ще N питань» for the rest, and the next 2 come after you answer. A bare «так» or «ні» answers P's last line;
-P never asks back which one you meant.
-You can still answer by number («1 так, 3 ні»). P writes at once on each event, only
-what changed; the other sessions still at work share one last line «ще працюють: «A», «B»». After a plugin-update restart, or when Claude Code demands a reply where P has nothing new,
-P shows the current state in this form, never a filler phrase; with nothing running and nothing
+«Приймаєш усі мої рекомендації?» when several are listed. With more than 3 open questions the list shows only 2 at a time, with «ще N питань» for the rest, and the next 2 come after you answer. A bare «так» or «ні» answers the Lead's last line;
+the Lead never asks back which one you meant.
+You can still answer by number («1 так, 3 ні»). The Lead writes at once on each event, only
+what changed; the other sessions still at work share one last line «ще працюють: «A», «B»». After a plugin-update restart, or when Claude Code demands a reply where the Lead has nothing new,
+the Lead shows the current state in this form, never a filler phrase; with nothing running and nothing
 waiting, it is one line saying so.
 When no session works any more (for example after the last one is merged), the message adds a third
 block «Стан проєкту»: 2-4 plain sentences on what was just finished, what the project waits on and what
-is blocked, then P's one proposal of the next task («Запустити нову сесію «C: ...»?» with its
-`Рекомендую:` line) as the last thing, so a bare «так» starts it. P writes it again only when the state
+is blocked, then the Lead's one proposal of the next task («Запустити нову сесію «M: ...»?» with its
+`Рекомендую:` line) as the last thing, so a bare «так» starts it. The Lead writes it again only when the state
 or the proposal changed. The other questions stay counted, with no «Показати всі питання?»; an open
 critical question still comes last, and the proposal then stays counted. While a session works, the
 message has neither.
-A check at the end of each P turn keeps this form: when a session's message, an event or a finished
-helper woke P (not your own message, and not while P still owes you a reply), P's reply must be empty,
+A check at the end of each Lead turn keeps this form: when a session's message, an event or a finished
+helper woke the Lead (not your own message, and not while the Lead still owes you a reply), the Lead's reply must be empty,
 one of the named one-line steps (a discussion start, a push test, a restart notice) or only the blocks.
-On free text before, between or after the blocks, P gets a note to write the next message in form; the
+On free text before, between or after the blocks, the Lead gets a note to write the next message in form; the
 message you saw is not sent again.
 
 ### How a question and a state are written
 The counts are three lines: «❗ термінові» (a session stands and cannot move without your answer; a session
 that asks and goes on, or a closed session with a leftover question, is not urgent), «від сесій» and «від
-мене» (P's own: start a new task session, close a session, take one over, restart a crashed one,
-new plugin backlog entries (the retro asks nothing: it fixes by itself and shows a passive list in Pult's status); P never asks «Яку задачу запустити?»). A kind with zero is left out. A
+мене» (the Lead's own: start a new task session, close a session, take one over, restart a crashed one,
+new plugin backlog entries (the retro asks nothing: it fixes by itself and shows a passive list in Pult's status); the Lead never asks «Яку задачу запустити?»). A kind with zero is left out. A
 question stands alone: a session's question starts with its name and «питає:»; it is in your words (what you
-see or do on your side, never P's own mechanisms), with the consequence in brackets, worded so the advice is
-«так», then an indented `Рекомендую: так - <reason>` (P adds one a session did not give). A question about
+see or do on your side, never the Lead's own mechanisms), with the consequence in brackets, worded so the advice is
+«так», then an indented `Рекомендую: так - <reason>` (the Lead adds one a session did not give). A question about
 how a screen looks carries its shots next to the mockup every time it is written in full. An answered
 question just leaves the counts, with no confirmation line.
 
@@ -55,12 +55,12 @@ Each line of «Статуси сесій» is the state first, then the session 
 `працює`, `чекає на тебе` (with the reason in brackets), `чекає` (a session waits more than a minute on
 something other than you, such as low memory or a retry timer; with the reason and the resume time), `стоїть, скінчився ліміт` (with the reset time),
 `стоїть, сесія впала`, `готово`. The start status and your «що працює?» list every session; any other
-message lists the sessions whose state changed, plus each `готово` one until you next write to P.
+message lists the sessions whose state changed, plus each `готово` one until you next write to the Lead.
 
-### P never asks what you already answered in a session
-Before P asks you about a session or shows its status, it reads what you wrote in that session since
-its last report. If you already answered there (for example «так» to closing a discussion), P drops its
-own question silently and acts on your answer. Sessions also tell P such answers in a message that
+### The Lead never asks what you already answered in a session
+Before the Lead asks you about a session or shows its status, it reads what you wrote in that session since
+its last report. If you already answered there (for example «так» to closing a discussion), the Lead drops its
+own question silently and acts on your answer. Sessions also tell the Lead such answers in a message that
 starts with a fixed kind word: every message between sessions starts with one word from a short fixed
 list (`plugins/dev-kit/messages.md`), such as «ГОТОВО», «ПИТАННЯ» or «ВЛАСНИК ВІДПОВІВ».
 
@@ -73,143 +73,143 @@ event lines that need nothing. A push is one line under 200 characters: the proj
 first; it is skipped while you look at the screen.
 
 A reminder push is the one time-based push. A session that has waited on you 20 minutes (a question from
-it in P's queue, a taken-over session of yours that shows `чекає на тебе`, or an «Обговорення:» session)
+it in the Lead's queue, a taken-over session of yours that shows `чекає на тебе`, or a «Discuss:» session)
 gets one, before its cache runs out and the next answer costs its whole context again ([Claude facts](../../plugins/dev-kit/claude-facts.md), "A main session's prompt cache lives about one hour").
 Several such sessions in one wake-up make one push that names the first and adds «і ще <N>». One push per
-wait, also across restarts; a new wait may push again. A C that waits on P pushes nothing, and sessions
-outside P's registry are not covered.
+wait, also across restarts; a new wait may push again. A Manager that waits on the Lead pushes nothing, and sessions
+outside the Lead's registry are not covered.
 
 ### A push test asks you twice at most
-When a check needs a push on your phone, P writes one line: «Тест пушу: напиши + і одразу закрий застосунок.
+When a check needs a push on your phone, the Lead writes one line: «Тест пушу: напиши + і одразу закрий застосунок.
 Через 5 секунд прийде пуш «Тест N · HH:MM».». Your «+» there means "ready". Five seconds later one push comes,
-its text starting with «Тест», and P asks once: «Пуш «Тест N» надіслано. Прийшов? + або -». Nothing else stops
+its text starting with «Тест», and the Lead asks once: «Пуш «Тест N» надіслано. Прийшов? + або -». Nothing else stops
 during a test. With no answer in 10 minutes nobody asks about that push again; if the check is still needed, it
 starts over with a new push. Several pushes in one test come at least 3 seconds apart.
 
-### What P decides alone
-P decides alone within the approved acceptance criteria. An item reaches your queue only when it leaves
-those criteria (a product choice), what you get is not agreed yet (see "P sorts each task"), the step is
+### What the Lead decides alone
+The Lead decides alone within the approved acceptance criteria. An item reaches your queue only when it leaves
+those criteria (a product choice), what you get is not agreed yet (see "The Lead sorts each task"), the step is
 hard to undo, or API spend (real money through `spend-kit-api`) would pass 1 USD in total per task. Smaller
-API spend and subscription use (sessions, subagents, `claude -p`) never ask you. The C keeps the task's
-spend line in its task file and asks P before a paid call that would pass the limit. An offer to take over a
+API spend and subscription use (sessions, subagents, `claude -p`) never ask you. The Manager keeps the task's
+spend line in its task file and asks the Lead before a paid call that would pass the limit. An offer to take over a
 session you started
-([Take over a session I started](take-over-a-session-i-started.md)) always enters the queue. A question a C put to you, unanswered
-since before today, whose answer lies in P's own rights (a step the C may ask P, a choice inside the
-criteria), P decides by its recommendation, records in the doc it came from and drops from the queue.
+([Take over a session I started](take-over-a-session-i-started.md)) always enters the queue. A question a Manager put to you, unanswered
+since before today, whose answer lies in the Lead's own rights (a step the Manager may ask the Lead, a choice inside the
+criteria), the Lead decides by its recommendation, records in the doc it came from and drops from the queue.
 
-### P sorts each task
-P sorts each task and says the branch in one line: the C alone (a small change with no new screen or user
-flow); P and the C (an agreed feature, technical details); or, for what you get that is not agreed yet (a
+### The Lead sorts each task
+The Lead sorts each task and says the branch in one line: the Manager alone (a small change with no new screen or user
+flow); the Lead and the Manager (an agreed feature, technical details); or, for what you get that is not agreed yet (a
 «Так» to a task title does not agree it; a task that changes a rule's effect on you counts), a question
 first: up to 3 text questions through the queue. More than 3, any doubt from you, or any question about
-how a screen looks: P proposes an «Обговорення:» session and opens it after your «так». A small rule edit
-is no task: P does it itself. A "how will it work" question whose answer needs reading code or docs P
+how a screen looks: the Lead proposes a «Discuss:» session and opens it after your «так». A small rule edit
+is no task: the Lead does it itself. A "how will it work" question whose answer needs reading code or docs the Lead
 researches with a read-only subagent and never puts to you.
 
 ### A discussion ends in the feature file
-In an «Обговорення:» session you settle the meaning and the mockup with one agent, and the feature file
+In a «Discuss:» session you settle the meaning and the mockup with one agent, and the feature file
 ends with an «Approved design» section (acceptance criteria, the approved mockup, the user's situation).
-Then P starts a C that builds the screen, and a new «Обговорення:» session shows you its shots next to the
-mockup and passes your remarks to that C.
+Then the Lead starts a Manager that builds the screen, and a new «Discuss:» session shows you its shots next to the
+mockup and passes your remarks to that Manager.
 Each question there names the screen it is about in its own words, with no block of facts before it.
 
-### A C asks only P
-A C never asks you in its own chat; it asks P. Every C shows in the Claude app with no push, and you may
-write in its chat: it follows your words, answers you in short and tells P at once with your words. It messages no other session unless P's brief for it
-or a later P instruction names one (sessions, not its own subagents). Only P and an «Обговорення:» session message other sessions
+### A Manager asks only the Lead
+A Manager never asks you in its own chat; it asks the Lead. Every Manager shows in the Claude app with no push, and you may
+write in its chat: it follows your words, answers you in short and tells the Lead at once with your words. It messages no other session unless the Lead's brief for it
+or a later Lead instruction names one (sessions, not its own subagents). Only the Lead and a «Discuss:» session message other sessions
 freely; none of them messages a session you started yourself. Nothing blocks the tool: it is a rule of the skills.
 Why: owner, 2026-11-21 (his «так»): only leads and discussion sessions message other sessions freely.
 
 ### No permission prompts in any session
-Every session a project starts, P included, runs with no permission prompts, so a message between two
+Every session a project starts, the Lead included, runs with no permission prompts, so a message between two
 sessions is never held for your approval. A project whose committed main has no hard-ban deny rules (push
-to main where it deploys, deleting data, and the like) starts no sessions. P shows you the exact lines
+to main where it deploys, deleting data, and the like) starts no sessions. The Lead shows you the exact lines
 and, on your «так», writes them to `.claude/hard-bans.json` and adds them on main itself; you cannot
 decline them and type nothing. Removing a ban stays yours: you run the undo from a file the lead puts in the folder `Claude` on your desktop (only
 the latest addition), and only you remove an older ban. You accept the Claude
 Code disclaimer once per machine. The Pult hub and the sessions Pult starts run the same way; a session you
 start by hand from the app keeps your own mode. ClaudeDevKit's own bans are `rm -rf` lines only (no push ban,
-since its P pushes main): a ticket for Pult's check more than real protection.
+since its Lead pushes main): a ticket for Pult's check more than real protection.
 Why: owner, 2026-11-20 and 2026-11-21: a question between two projects' sessions in different modes was held for
 approval and never delivered ([Claude facts](../../plugins/dev-kit/claude-facts.md), "A message between sessions
 in different permission modes may be held"); one mode for all removes the hold, and the hard bans are what keeps it safe.
 
 ### No two sessions on the same task
-Before a task starts, P (and any session through the manager skill) checks that no other live session of
+Before a task starts, the Lead (and any session through the manager skill) checks that no other live session of
 the repository, one you started yourself included, already does it.
 
-### P wakes only when needed
-P wakes only on a task session's report, your message, or a message from the Pult watcher when a session
+### The Lead wakes only when needed
+The Lead wakes only on a task session's report, your message, or a message from the Pult watcher when a session
 ends, writes the line "Роботу завершено", stops on the usage limit, waits 20 minutes or passes a third of its
-context, or when a plugin update or P's own move waits for a safe point to restart P; P keeps no watcher of its own. While
-a task session (not one you started) works and P has been silent 50 minutes, the Pult watcher pings P; P
+context, or when a plugin update or the Lead's own move waits for a safe point to restart the Lead; the Lead keeps no watcher of its own. While
+a task session (not one you started) works and the Lead has been silent 50 minutes, the Pult watcher pings the Lead; the Lead
 then shows its short status.
-Why: owner, 2026-11-20: P and Pult were woken every 2 hours only to re-arm a watcher
+Why: owner, 2026-11-20: the Lead and Pult were woken every 2 hours only to re-arm a watcher
 ([measured](../findings/idle-wake-cost.md); [Claude facts](../../plugins/dev-kit/claude-facts.md), "The host kills a
-background Bash run after 2 hours"); the ping keeps P's cache warm, since P's next task report would otherwise find
+background Bash run after 2 hours"); the ping keeps the Lead's cache warm, since the Lead's next task report would otherwise find
 it cold ([Claude facts](../../plugins/dev-kit/claude-facts.md), "A main session's prompt cache lives about one hour").
 
-### A report sent while P restarts
-A report a task session sends while P restarts (about 10 seconds) is not lost: the session sends it
-again by itself about a minute later, up to three times, then before its next message to P or when P
+### A report sent while the Lead restarts
+A report a task session sends while the Lead restarts (about 10 seconds) is not lost: the session sends it
+again by itself about a minute later, up to three times, then before its next message to the Lead or when the Lead
 next writes to it. Task sessions
-get no warning before a restart and P sends them nothing after it.
+get no warning before a restart and the Lead sends them nothing after it.
 Why: owner, 2026-11-23 ([the talk](../../plans/restart-notice.md)): a warning misses the silent restart
-and costs P and every task session a turn.
+and costs the Lead and every task session a turn.
 
-### P moves itself to a fresh session
-When P's own context is a third full, P saves its notes and the Pult watcher moves it to a fresh context, the
-way a plugin update restarts it: no question to you and no phone push. When you and P are quiet, it happens
-silently; when P is in a talk with you, P writes «⚠ ЧЕРЕЗ 30 СЕК БУДЕ ПЕРЕЗАВАНТАЖЕННЯ (СВІЖИЙ КОНТЕКСТ)» at a
+### The Lead moves itself to a fresh session
+When the Lead's own context is a third full, the Lead saves its notes and the Pult watcher moves it to a fresh context, the
+way a plugin update restarts it: no question to you and no phone push. When you and the Lead are quiet, it happens
+silently; when the Lead is in a talk with you, it writes «⚠ ЧЕРЕЗ 30 СЕК БУДЕ ПЕРЕЗАВАНТАЖЕННЯ (СВІЖИЙ КОНТЕКСТ)» at a
 safe point and is moved 30 seconds later. While you keep writing, the move waits. «перезапускай» moves it at
 any time ([the wait](start-leads-at-logon-and-heal-them.md)); you type nothing else. It stays the same session
 in the phone app.
 Why: owner, 2026-11-23 ([the plan](../../plans/lead-self-move.md), [the pushes](../../plans/push-noise.md)): the
 restart question and the push of a new session were noise.
 
-How P does it: [project lead tools](../tech/project-lead.md).
+How the Lead does it: [project lead tools](../tech/project-lead.md).
 
 Known limits: what the plugin covers and what lives in the `pult` plugin: see the epics
 [Work through a project lead](../epics/work-through-a-project-lead.md) and
 [Run all projects from the phone](../epics/run-all-projects-from-the-phone.md).
 
-Known limits: P does not limit the number of parallel task sessions or heavy steps by memory.
+Known limits: the Lead does not limit the number of parallel task sessions or heavy steps by memory.
 Why: on 2026-11-16 Claude Code closed idle sessions while Windows ran low on memory ([Claude facts](../../plugins/dev-kit/claude-facts.md), "A low-memory spell closes idle background sessions"); the owner
 decided memory is enough and Windows was the problem, so no queue or memory gate was added and the
 pagefile was fixed instead (48 GB initial, 64 GB max).
 
-Known limits: the reader check covers only P's questions, its own and those it relays from sessions, each once
+Known limits: the reader check covers only the Lead's questions, its own and those it relays from sessions, each once
 when first written in full; sessions that talk with you directly are not checked. It counts developer words (a
 branch name like «main») as unclear, which fits a non-developer reader.
 Why: owner, 2026-11-22: the rule «every question in your words» alone did not stop «USD-еквівалент за цінами
 API» in a question; a separate cheap reader checks them (agent `question-reader`, model haiku, sees only the
 question text and your list of terms in learning).
 
-Known limits: the reminder push always says "20 хв ... ~40 хв", even for a longer wait found after a P
+Known limits: the reminder push always says "20 хв ... ~40 хв", even for a longer wait found after a Lead
 restart. A wait whose question is not yet in your queue when the watcher's message arrives gets no reminder.
 
-Known limits: your global rules keep five lines that P messages override (no headings or bold labels,
+Known limits: your global rules keep five lines that Lead messages override (no headings or bold labels,
 deferring a result mid-discussion, no relay of a started session, every question written out, the
-closing next-step question); they still guard ordinary sessions, so a one-line exception names P's
+closing next-step question); they still guard ordinary sessions, so a one-line exception names the Lead's
 format instead of removing them. Those rules live outside this repo and change only through
 `rules-kit:edit-rules`.
 
 ## Acceptance criteria
-- You give P a task whose outcome is not agreed: P asks up to 3 questions through the queue, or proposes an «Обговорення:» session when there are more or a screen is involved.
-- A new question arrives: P's message only counts it and ends with «Показати всі питання?» (when nothing works, P's next-task proposal ends it instead); on «так» all are listed in full, numbered, in your own words with no agent terms (a separate checker rewrites them first). A critical question is the exception: it is shown in full as the last message line with no closing line, and the next one only after you answer it.
-- You answer a P message with a bare «так»: P takes it as the answer to the message's last line and acts, never asking «1 чи 2?».
-- A session finishes while you are away: P writes at once, and its message lists the session as «готово».
-- The last working session finishes: P's message adds 2-4 sentences on the project's state and ends with one proposal of the next task; while a session still works, it has neither.
+- You give the Lead a task whose outcome is not agreed: the Lead asks up to 3 questions through the queue, or proposes a «Discuss:» session when there are more or a screen is involved.
+- A new question arrives: the Lead's message only counts it and ends with «Показати всі питання?» (when nothing works, the Lead's next-task proposal ends it instead); on «так» all are listed in full, numbered, in your own words with no agent terms (a separate checker rewrites them first). A critical question is the exception: it is shown in full as the last message line with no closing line, and the next one only after you answer it.
+- You answer a Lead message with a bare «так»: the Lead takes it as the answer to the message's last line and acts, never asking «1 чи 2?».
+- A session finishes while you are away: the Lead writes at once, and its message lists the session as «готово».
+- The last working session finishes: the Lead's message adds 2-4 sentences on the project's state and ends with one proposal of the next task; while a session still works, it has neither.
 - A task session crashes: you get it at once, also as a push to your phone.
-- A session waits on your answer for 20 minutes: you get one reminder push for that wait; a session waiting on P pushes nothing.
+- A session waits on your answer for 20 minutes: you get one reminder push for that wait; a session waiting on the Lead pushes nothing.
 - A second question arrives while one already waits on you: no second push until you write.
 - A check needs a push on your phone: you get one ready line, one push starting «Тест» and one «Прийшов? + або -»; with no answer in 10 minutes nobody asks about it again.
-- A session needs a paid API call that would take the task past 1 USD: it asks P, and P asks you; below 1 USD and on your subscription nobody asks.
-- You answer a session's question inside that session: P never asks you the same thing in its own chat.
-- A task is finished: P merges it into main and tells you the result; you need not start or watch the C.
-- You write in a C's chat: it follows your words and P is told at once; it asks you nothing there.
-- A second session already works on the same task: P does not start another one.
-- A session's message wakes P and P writes a note beside the blocks: P gets a reminder of the form and you do not get the message twice; P's answer to your own question is not checked.
+- A session needs a paid API call that would take the task past 1 USD: it asks the Lead, and the Lead asks you; below 1 USD and on your subscription nobody asks.
+- You answer a session's question inside that session: the Lead never asks you the same thing in its own chat.
+- A task is finished: the Lead merges it into main and tells you the result; you need not start or watch the Manager.
+- You write in a Manager's chat: it follows your words and the Lead is told at once; it asks you nothing there.
+- A second session already works on the same task: the Lead does not start another one.
+- A session's message wakes the Lead and the Lead writes a note beside the blocks: the Lead gets a reminder of the form and you do not get the message twice; the Lead's answer to your own question is not checked.
 
 ## Built in
 - `plugins/dev-kit/skills/project-lead/SKILL.md`
@@ -229,4 +229,4 @@ format instead of removing them. Those rules live outside this repo and change o
 
 ## Open
 - [ ] Run the first phone push test in the form of «A push test asks you twice at most» with the owner and confirm the steps read clearly (`plans/push-test-flow.md`)
-- [ ] Defect: a question P shows only in chat, not in PROGRESS.md "Open questions", is lost when P restarts; `plugins/dev-kit/skills/project-lead/SKILL.md`
+- [ ] Defect: a question the Lead shows only in chat, not in PROGRESS.md "Open questions", is lost when the Lead restarts; `plugins/dev-kit/skills/project-lead/SKILL.md`

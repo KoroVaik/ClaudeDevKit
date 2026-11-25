@@ -130,7 +130,7 @@ class UnitsTestCase(SpendFixture):
     def test_cold_restart_is_the_cache_write_of_a_wake_after_a_gap_not_of_the_owner(self):
         write = {"cache_creation": {"ephemeral_1h_input_tokens": 1000, "ephemeral_5m_input_tokens": 0}}
         peer = {"type": "user", "timestamp": "2026-11-19T13:00:00Z", "origin": {"kind": "peer"},
-                "message": {"content": "C report"}}
+                "message": {"content": "Manager report"}}
         soon = {**peer, "timestamp": "2026-11-19T13:10:00Z"}
         owner = {"type": "user", "timestamp": "2026-11-19T16:00:00Z", "origin": {"kind": "human"},
                  "message": {"content": "hi"}}
@@ -264,7 +264,7 @@ class FindingsTestCase(SpendFixture):
 
     # protects: Rule
     def test_every_session_counts_including_a_retro_titled_one(self):
-        self.write("proj/abcdef1234.jsonl", [{"type": "custom-title", "customTitle": "Ретро: repo"},
+        self.write("proj/abcdef1234.jsonl", [{"type": "custom-title", "customTitle": "Retro: repo"},
                                              assistant("a", "claude-sonnet-5-5", {"output_tokens": 500},
                                                        "2026-11-19T10:40:00Z")])
         self.run_cmd("scan")

@@ -8,9 +8,9 @@ description: Use when rule text is about to change - a `CLAUDE.md`, `.claude/` r
 Rules are read by agents that load several rule files at once. A rule written twice drifts, and two rules
 that disagree make the agent pick one at random. This skill keeps every rule edit to one home and no clash.
 It does not change who approves an edit: agent rules still need the owner's yes ("Agent rules" in
-`dev-kit:documentation`), except a «Ретро:» session's fix (step 3). Feature rules in product docs follow that skill's "Review" instead.
+`dev-kit:documentation`), except a «Retro:» session's fix (step 3). Feature rules in product docs follow that skill's "Review" instead.
 
-The session that owns the edit runs the steps (the manager, P, a C or a «Ретро:» session); a subagent cannot run a skill. A
+The session that owns the edit runs the steps (a Lead, a Manager or a «Retro:» session); a subagent cannot run a skill. A
 `dev-kit:coder` or `dev-kit:mechanical-editor` may apply the edit from a brief that carries the step-3 list.
 
 ## 1. Read set
@@ -37,7 +37,7 @@ List, with `file:line`:
   never add a second copy.
 - **Conflicts**: a rule that cannot hold together with the new one, or names a different doer or moment.
   Where a rule already says which wins (the owner's global rules, a profile over a plugin default), write
-  the new rule as a named exception to the one it overrides. Otherwise stop and ask the owner (a C asks P).
+  the new rule as a named exception to the one it overrides. Otherwise stop and ask the owner (a Manager asks the Lead).
 - **Restatements**: other files that repeat the old wording; they change with it or become a link.
 - **Home**: the narrowest file that loads for every reader that needs the rule - one skill step before a
   skill's general section, a skill before `slots.md` or a shared doc, those before `CLAUDE.md`, the owner's
@@ -51,7 +51,7 @@ idea; the exact wording goes to the owner only on request (owner, 2026-11-16: «
 duplicate or conflict that changes the idea (a rule moved, another rule given way) is part of that line.
 The full list with the wording stays in the task file or a scratchpad for the agents.
 
-Exception: a fix of a «Ретро:» session skips this step and step 6: the `rules-kit:approver` and the replay on past
+Exception: a fix of a «Retro:» session skips this step and step 6: the `rules-kit:approver` and the replay on past
 sessions replace the owner's yes and the review (`rules-kit:retro`, step 4).
 
 ## 4. Edit

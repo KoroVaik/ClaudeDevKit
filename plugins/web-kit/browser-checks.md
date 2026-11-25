@@ -45,7 +45,7 @@ uses the board only to say where each fix belongs.
   it (the desktop app; `plugins/dev-kit/claude-facts.md`, "`claude -p` and background sessions have no in-app browser; the web-kit headless server's tools load with `--plugin-dir`"). A session without it (`claude --bg`, `claude -p`) uses the headless browser web-kit
   ships (`.mcp.json` of this plugin, tools `mcp__plugin_web-kit_headless__browser_*`, a private Edge with an
   empty profile per session); the check is never skipped for want of the pane. With neither, the session
-  reports the check as not run (a C asks its P with `ПИТАННЯ`), never passes over it. The caller knows which one
+  reports the check as not run (a Manager asks its Lead with `ПИТАННЯ`), never passes over it. The caller knows which one
   it has (its own tool list; subagents get the same), and with the headless one it adds these lines to every
   brief:
   - "Use the `mcp__plugin_web-kit_headless__browser_*` tools for the in-app ones your instructions name:

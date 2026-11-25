@@ -54,7 +54,7 @@ git fails.
 Token spend (units, the weekly limit, `critical`, per-session spend) is not counted here: it belongs to the spend-kit
 plugin (`spend-kit session | critical | calibrate`, plugins/spend-kit/scripts/spend.py). The scan runs the command
 `spend-kit findings` (a process, no import) and takes its token findings and `## Spend` table; with spend-kit not
-installed there are none. The weekly docs session (`Документація:`) is dev-kit's (`plugins/dev-kit/scripts/docs_weekly.py`);
+installed there are none. The weekly docs session (`Docs:`) is dev-kit's (`plugins/dev-kit/scripts/docs_weekly.py`);
 this plugin only writes the run file it waits for (see "Run file").
 
 `--project DIR` is any folder of the project (a worktree too; default the current folder), or a bare repository folder
@@ -72,7 +72,7 @@ a hook refusal the set of the hook's plugin; else the session's project set); it
 to a plugin set or the owner's global set is routed from every project (the global rules are checked in the sessions
 of every project); one laid to a project's own set only from a retro project, as below. `rules-kit parts` reads whole
 transcripts (with --session, the main files whose id starts with ID and their subagents; else those changed since
-DATE, default yesterday; the newest first; «Ретро:» and «Документація:» sessions left out), marks the parts with a sign
+DATE, default yesterday; the newest first; «Retro:» and «Docs:» sessions left out, the old «Ретро:» and «Документація:» too), marks the parts with a sign
 and writes their packets (`scripts/packets.py`) to `<retro folder>/packets/` (older than SEEN_DAYS days deleted), at
 most `--limit` (PACKETS_MAX); it prints one line per packet `<path> | <session> | <part> lines <a>-<b> | signs: ... |
 sets: ...` and then the parts counted by kind.
@@ -87,8 +87,8 @@ its session and is routed by it the same way. One exception: the `claude app` fi
 a project with no lead, Pult and the home folder included, go to the set FACTS_SET (`dev-kit`, the owner of the Claude
 app facts) when it is known, else to the own set of the retro project named `ClaudeDevKit` (found by its repository
 folder name among the known retro projects and this scan's projects, never by the place of this script), and not to
-the set of their transcript's project; with no such project they stay in the log. The findings of a session whose title starts with `Ретро:` (a retro session)
-or `Документація:` (the weekly docs session) and of its subagents are dropped everywhere (log included), so the retro
+the set of their transcript's project; with no such project they stay in the log. The findings of a session whose title starts with `Retro:` (a retro session)
+or `Docs:` (the weekly docs session; the old `Ретро:` and `Документація:` too) and of its subagents are dropped everywhere (log included), so the retro
 never feeds on these hook-started sessions; their token spend still counts in spend-kit.
 
 Folders: the retro folder is env RULES_KIT_DIR, else `~/.claude/rules-kit` (local, outside any repository; the retro
@@ -169,13 +169,13 @@ the last 7 days (<set>): <N> of FIXES_PER_WEEK` (`fixes.landed`). It records the
 showed (`<set>/<file>`); `done` moves exactly those to `seen/` of their set, sets `last_review`, records `retro_branch`
 (`--branch`, else none) and deletes what is older than SEEN_DAYS in `seen/`. Findings that came after `items` stay
 new. `items`, `add` and `done` print the work of the first run (the migration) on stderr.
-`hook-start` (never fails, exit 0): in a retro project, a session titled `Ретро:` or `Документація:` does nothing; a
+`hook-start` (never fails, exit 0): in a retro project, a session titled `Retro:` or `Docs:` (or the old `Ретро:`, `Документація:`) does nothing; a
 full scan is spawned
 (detached) when none ran today and the scan lock is free; then, under the project lock, when a retro is due
 (`retro_due`: `new/` of a set the project reviews has files, a revert request, a `reverted` item or a fixed item with
 new sessions to check waits) and `last_review` is older than REVIEW_HOURS (or missing),
 `retro_started` older than START_GUARD_HOURS (or missing) and no docs session may still run (see "Run file"), it
-stamps `retro_started` and starts a background `Ретро: <repo folder>` session on Sonnet (a helper session the owner is
+stamps `retro_started` and starts a background `Retro: <repo folder>` session on Sonnet (a helper session the owner is
 not in; the approver runs on another model, Opus) running `/rules-kit:retro` (env RULES_KIT_NO_START=1 skips that
 start, not the stamp). The session starts with the `--settings` file NO_REMOTE_CONTROL (no Remote Control, so it stays
 out of the app). The weekly docs session is not started here any more: dev-kit's own SessionStart hook starts it.
@@ -217,7 +217,7 @@ The plugin's own commands (containing OWN_COMMAND) count for neither repeats nor
 Token findings (owner, 2026-11-20, docs/features/fix-agent-problems-in-the-retro.md): `long session`, `opus coder`,
 `token spend` and `token waste` come from spend-kit (`spend-kit findings`, its module doc, "Findings", holds the
 units, the waste kinds, the thresholds and the line formats). Each line is routed like the other findings (a
-`Ретро:` or `Документація:` session's lines are dropped); `token ...` lines are the "Priority" part of `items`. The
+`Retro:` or `Docs:` session's lines are dropped, the old titles too); `token ...` lines are the "Priority" part of `items`. The
 scan file also gets spend-kit's `## Spend` section of `| `-table lines (not findings; they stay in the scan files
 only).
 
@@ -248,6 +248,7 @@ import folder_naming  # noqa: E402  the project's folder name and main checkout 
 import packets  # noqa: E402  the parts with a sign and their packets for the part reader
 import parts  # noqa: E402  a transcript split into parts by the skill, agent or hook at work
 import rules_dir  # noqa: E402  the data folder and the one-time copy from dev-kit's retro folder
+import session_titles  # noqa: E402  the new and the old session title prefixes
 import spend_client  # noqa: E402  runs the `spend-kit` command (token spend), no import of its code
 import subscriptions  # noqa: E402  the rule sets, their subscription files and who owns a file
 import talk  # noqa: E402  the talk rules checked on every reply to the owner
@@ -272,8 +273,9 @@ LOCK_WAIT_FULL_S = 60
 PROJECT_LOCK_NAME = "state.lock"  # in a project's item folder, for its state.json
 PROJECT_LOCK_STALE_S = 60
 PROJECT_LOCK_WAIT_S = 2
-RETRO_TITLE = "Ретро:"  # the title of a retro session (dev-kit's sessions.RETRO_PREFIX is this plus a space)
-DOCS_TITLE = "Документація:"  # the title of the weekly docs session of dev-kit (its findings are dropped too)
+RETRO_TITLE = session_titles.RETRO  # the title this script gives the retro session it starts
+# Retro sessions and the weekly docs session of dev-kit, the old titles too: their findings are dropped, they start nothing.
+SKIP_TITLES = session_titles.RETRO_PREFIXES + session_titles.DOCS_PREFIXES
 WINDOWS = os.name == "nt"
 CREATE_NO_WINDOW = 0x08000000
 CREATE_NEW_PROCESS_GROUP = 0x00000200
@@ -293,7 +295,7 @@ PART_FINDINGS = ("repeated call", "failed calls", "hook refusal")  # the technic
 PACKETS_FOLDER = "packets"  # in the retro folder: the packets of `rules-kit parts`
 PACKETS_MAX = 20  # the packets one `parts` run writes at most (each costs one part reader)
 WAITING_TOOLS = {"AskUserQuestion"}
-OWN_COMMAND = ("dev-kit-", "rules-kit", "spend-kit")  # the plugins' own commands, run by rules at fixed moments (P's checks)
+OWN_COMMAND = ("dev-kit-", "rules-kit", "spend-kit")  # the plugins' own commands, run by rules at fixed moments (the Lead's checks)
 SCRIPT_MIN_CHARS = 30  # shorter Bash commands (git status, ls) are not worth a script
 DETAIL_CHARS = 160
 CLAUDE_APP_KIND = "claude app"  # a finding about the Claude app itself, not about the session: routed to DEVKIT_NAME
@@ -1052,7 +1054,7 @@ def scan_locked(folder, days, force, out, transcript):
 
     def retro_session(project, session):
         """A retro session's own findings never feed the retro again (its token statistics still count)."""
-        return titles.get((project, session), "").strip().startswith((RETRO_TITLE, DOCS_TITLE))
+        return titles.get((project, session), "").strip().startswith(SKIP_TITLES)
 
     def route(project, session, line):
         """A finding line to the scan log, and to the project of its session when that is a retro project."""
@@ -1129,7 +1131,7 @@ def scan_locked(folder, days, force, out, transcript):
                     routed[own_set(plugin)].append(line)
     spend_lines, table = spend_kit_findings(transcript)
     for entry in spend_lines:  # the token findings (long session, opus coder, token spend and waste), see spend-kit
-        if str(entry.get("title") or "").strip().startswith((RETRO_TITLE, DOCS_TITLE)):
+        if str(entry.get("title") or "").strip().startswith(SKIP_TITLES):
             continue
         out_lines.append(entry["line"])
         owner = mapper.project_of_cwd(entry.get("cwd"))
@@ -1585,7 +1587,7 @@ def parts_command(session=None, since=None, limit=PACKETS_MAX, out=None):
     for _, main in sorted(mains, reverse=True):
         entries = parts.read_file(main)
         title = parts.title_of(entries).strip()
-        if title.startswith((RETRO_TITLE, DOCS_TITLE)):
+        if title.startswith(SKIP_TITLES):
             continue
         project = mapper.project_of_transcript(main)
         own = project_set_name(registry, project) if project else None
@@ -1805,7 +1807,7 @@ def hook_start(payload):
     """SessionStart in a retro project: record the lead, start the daily scan and the retro session (module doc)."""
     project = Mapper().project_of_cwd(payload.get("cwd"))
     title = str(payload.get("session_title") or "").strip()
-    if not project or title.startswith((RETRO_TITLE, DOCS_TITLE)):
+    if not project or title.startswith(SKIP_TITLES):
         return
     folder = project_folder(project)
     retro = retro_dir()
@@ -1848,7 +1850,7 @@ def retro_start_command(project, folder, state, names, registry=None):
 
 # A background session the owner need not open starts with no Remote Control, so it stays out of the app: the
 # owner's `remoteControlAtStartup` would give it one (plugins/dev-kit/claude-facts.md, "`remoteControlAtStartup: true`
-# gives every new session Remote Control, with or without `--remote-control`"). A C, unlike these, keeps the link.
+# gives every new session Remote Control, with or without `--remote-control`"). A Manager, unlike these, keeps the link.
 NO_REMOTE_CONTROL = Path(__file__).resolve().parent.parent / "no-remote-control.json"
 
 

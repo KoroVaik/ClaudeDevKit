@@ -62,6 +62,6 @@ a `dev-kit:reviewer` (model sonnet) check ("Review").
 
 ## Boundaries
 
-In a session started by the project lead, ask P instead of the owner (`dev-kit:manager`, "A task from the
+In a session started by the project lead, ask the Lead instead of the owner (`dev-kit:manager`, "A task from the
 project lead"). Commit the finished fix as the project's rules say; never push or create a branch unless the owner
 asks.

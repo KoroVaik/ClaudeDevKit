@@ -1,4 +1,4 @@
-# Restarts project leads "P: <name>" so they load a new dev-kit version. Each lead continues its
+# Restarts project leads "L: <name>" so they load a new dev-kit version. Each lead continues its
 # conversation: stop it, then start-servers.ps1 resumes it on Opus, medium, pinned, with the first
 # prompt '/dev-kit:project-lead restart: plugin update' (the lead goes on where it stopped).
 # Normal path: watch-servers.ps1 does the restart by itself when it sees a lead on an older dev-kit version
@@ -22,9 +22,11 @@
 # start-servers.ps1 (for tests with a throwaway lead; defaults: servers.psd1 and ~\.claude\pult).
 # -DevKitDir and -DevKitStateDir (only for -Ask): the dev-kit plugin folder (default: ..\..\dev-kit next to
 # this plugin) and the dev-kit state folder (default: env DEV_KIT_STATE_DIR, else ~\.claude\dev-kit).
-# Usage: restart-leads.ps1 -Ready 'P: Zhratva','P: Prishch'
+# A lead that still runs under its old name "P: <name>" is found as the lead "L: <name>" and restarted: start-servers.ps1
+# then resumes it under the new name (resume-lib.ps1, Set-LeadStateName). -Name and -Ready take the old name too.
+# Usage: restart-leads.ps1 -Ready 'L: Zhratva','L: Prishch'
 #        restart-leads.ps1 -Ask
-#        restart-leads.ps1 [-Name 'P: Zhratva'] [-Force]
+#        restart-leads.ps1 [-Name 'L: Zhratva'] [-Force]
 
 param([string[]]$Name, [string[]]$Ready, [switch]$Force, [switch]$Ask, [string]$ConfigFile, [string]$StateDir,
     [string]$DevKitDir, [string]$DevKitStateDir)
@@ -40,7 +42,7 @@ $rows = @((Import-PowerShellDataFile $ConfigFile).Servers | Where-Object { $_.Le
 $leads = @($rows | ForEach-Object { $_.Session })
 if ($Ready) { $Name = $Ready }
 $Name = @($Name | ForEach-Object { $_ -split ',' } | ForEach-Object { $_.Trim() } | Where-Object { $_ })  # -File passes one comma-joined string
-if ($Name) { $leads = @($leads | Where-Object { $Name -ccontains $_ }) }
+if ($Name) { $leads = @($leads | Where-Object { $l = $_; @($Name | Where-Object { Test-LeadEntryName $_ $l }).Count }) }  # an old "P: X" name selects the lead "L: X"
 if (-not $leads) { Write-Output 'No matching leads.'; exit 1 }
 
 # Hold the watcher (watch-servers.ps1) while the leads are down on purpose; start-servers.ps1 below
@@ -79,8 +81,11 @@ function Get-LeadStaleness([string]$Lead, $ProcId, $Row) {
     try {
         $v = [string](Get-Content -Raw -Encoding UTF8 -LiteralPath (Join-Path $DevKitDir '.claude-plugin\plugin.json') -ErrorAction Stop |
             ConvertFrom-Json).version
-        $e = (Get-Content -Raw -Encoding UTF8 -LiteralPath (Join-Path $StateDir 'lead-versions.json') -ErrorAction Stop |
-            ConvertFrom-Json).$Lead
+        $all = Get-Content -Raw -Encoding UTF8 -LiteralPath (Join-Path $StateDir 'lead-versions.json') -ErrorAction Stop |
+            ConvertFrom-Json
+        $e = $all.$Lead
+        $old = Get-LegacyLeadName $Lead
+        if (-not $e -and $old) { $e = $all.$old }  # saved before the lead was renamed
         if (-not ($v -and $e -and [int]$e.pid -eq [int]$ProcId -and [string]$e.version -ceq $v)) { return 'devkit' }
         $stored = $null
         if ($e.PSObject.Properties['ext']) {
@@ -94,7 +99,8 @@ function Get-LeadStaleness([string]$Lead, $ProcId, $Row) {
 }
 
 foreach ($lead in $leads) {
-    $s = $sessions | Where-Object { $_.kind -eq 'background' -and $_.name -ceq $lead -and $_.pid } |
+    # The running session may still have the old name "P: X" (resume-lib.ps1, Test-LeadEntryName); start-servers.ps1 renames it.
+    $s = $sessions | Where-Object { $_.kind -eq 'background' -and (Test-LeadEntryName ([string]$_.name) $lead) -and $_.pid } |
         Select-Object -First 1
     if (-not $s) { Write-Output "Not running, will be started: $lead"; continue }
     $row = $rows | Where-Object { $_.Session -ceq $lead } | Select-Object -First 1
@@ -122,7 +128,7 @@ if ($stopped) {
     do {
         Start-Sleep -Seconds 3
         $alive = @((claude agents --json | Out-String | ConvertFrom-Json) | ForEach-Object { $_ } |
-            Where-Object { $_.kind -eq 'background' -and $_.pid -and $stopped -ccontains $_.name })
+            Where-Object { $_.kind -eq 'background' -and $_.pid -and (Test-AnyLeadEntryName ([string]$_.name) $stopped) })
     } while ($alive -and (Get-Date) -lt $until)
     if ($alive) { Write-Output "Still running after the stop, not resumed: $(($alive | ForEach-Object { $_.name }) -join ', ')" }
 }

@@ -7,7 +7,7 @@ retro) reads this file; format: `plugins/rules-kit/scripts/subscriptions.py`.
 |---|---|
 | set | web-kit |
 | reviewed by | ClaudeDevKit |
-| lands by | branch merged by P: ClaudeDevKit; bump plugins/web-kit version with a release mark in plugins/web-kit/releases.json |
+| lands by | branch merged by L: ClaudeDevKit; bump plugins/web-kit version with a release mark in plugins/web-kit/releases.json |
 
 ## Files
 

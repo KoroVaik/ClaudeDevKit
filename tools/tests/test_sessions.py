@@ -125,7 +125,7 @@ class SessionsTestCase(unittest.TestCase):
         self.assertIn("window 1000000 | 30%", self.run_main("fill")[1])
 
     def test_fill_native_one_million_model_without_suffix(self):
-        # Seen live: a fresh Sonnet 5.5 C at 80k tokens showed 40% against an assumed 200K window.
+        # Seen live: a fresh Sonnet 5.5 Manager at 80k tokens showed 40% against an assumed 200K window.
         self.add("a1")
         self.transcript("a1", [self.assistant(0, 0, 80000, model="claude-sonnet-5-5")])
         self.assertIn("window 1000000 | 8%", self.run_main("fill")[1])
@@ -201,12 +201,17 @@ class SessionsTestCase(unittest.TestCase):
         (wt / "b.py").write_text("b", encoding="utf-8")
         self.project = repo
         agents = [
-            {"sessionId": "me", "name": "C: me", "cwd": str(repo), "kind": "background", "status": "busy"},
-            {"sessionId": "lead", "name": "P: repo", "cwd": str(repo), "kind": "background", "status": "idle"},
-            {"sessionId": "r1", "name": "Ретро: repo", "cwd": str(repo), "kind": "background", "status": "busy"},
-            {"sessionId": "d1", "name": "Документація: repo", "cwd": str(repo), "kind": "background",
+            {"sessionId": "me", "name": "M: me", "cwd": str(repo), "kind": "background", "status": "busy"},
+            {"sessionId": "lead", "name": "L: repo", "cwd": str(repo), "kind": "background", "status": "idle"},
+            {"sessionId": "r1", "name": "Retro: repo", "cwd": str(repo), "kind": "background", "status": "busy"},
+            {"sessionId": "d1", "name": "Docs: repo", "cwd": str(repo), "kind": "background",
              "status": "busy"},
-            {"sessionId": "c1", "name": "C: side", "cwd": str(wt), "kind": "background", "status": "busy",
+            # Edge: sessions that still run under the old titles are left out too
+            {"sessionId": "lead-old", "name": "P: repo", "cwd": str(repo), "kind": "background", "status": "idle"},
+            {"sessionId": "r1-old", "name": "Ретро: repo", "cwd": str(repo), "kind": "background", "status": "busy"},
+            {"sessionId": "d1-old", "name": "Документація: repo", "cwd": str(repo), "kind": "background",
+             "status": "busy"},
+            {"sessionId": "c1", "name": "M: side", "cwd": str(wt), "kind": "background", "status": "busy",
              "state": "working"},
             {"sessionId": "o1", "name": "Own idea", "cwd": str(repo), "kind": "interactive", "status": "idle"},
             {"sessionId": "x1", "name": "Elsewhere", "cwd": str(self.tmp), "kind": "interactive", "status": "idle"},
@@ -216,7 +221,7 @@ class SessionsTestCase(unittest.TestCase):
         env = mock.patch.dict(os.environ, {sessions.AGENTS_ENV: str(listing), "CLAUDE_CODE_SESSION_ID": "me"})
         env.start()
         self.addCleanup(env.stop)
-        self.add("c1", name="C: side")
+        self.add("c1", name="M: side")
         return repo, wt
 
     def test_others_lists_sessions_of_this_repo(self):
@@ -233,7 +238,8 @@ class SessionsTestCase(unittest.TestCase):
         code, output = self.run_main("others", "--json")
         self.assertEqual(0, code)
         rows = {row["sessionId"]: row for row in json.loads(output)}
-        self.assertEqual({"c1", "o1"}, set(rows))  # not the caller, the lead, the retro or another repo's session
+        # not the caller, the lead, the retro, the docs session (old titles too) or another repo's session
+        self.assertEqual({"c1", "o1"}, set(rows))
         self.assertEqual("lead", rows["c1"]["startedBy"])
         self.assertEqual("owner", rows["o1"]["startedBy"])
         self.assertEqual("side", rows["c1"]["branch"])
@@ -243,7 +249,7 @@ class SessionsTestCase(unittest.TestCase):
         self.assertEqual("main", rows["o1"]["branch"])
         self.assertEqual([], rows["o1"]["files"])
         text = self.run_main("others")[1]
-        self.assertIn("C: side | background working | started by lead | branch side |", text)
+        self.assertIn("M: side | background working | started by lead | branch side |", text)
         self.assertIn("  files: a.md, b.py", text)
         self.assertIn("  task: (no transcript)", text)  # o1 has none
 
@@ -510,21 +516,21 @@ class SessionsTestCase(unittest.TestCase):
 
     def test_answers_shows_the_owner_answer_after_the_last_report(self):  # Bug
         # 2026-11-21: the owner said «Так» in a discussion after its report; the lead asked him again.
-        self.add("d1", name="Обговорення: x")
+        self.add("d1", name="Discuss: x")
         self.listing([{"sessionId": "d1", "pid": 1, "status": "idle"}])
         self.transcript("d1", [
-            self.human("old talk"), self.sent("P: x", "ПИТАННЯ old", "2026-11-21T09:00:00Z"),
-            self.human("між"), self.sent("P: x", "ЗАКРИТО plan agreed", "2026-11-21T10:11:00Z"),
+            self.human("old talk"), self.sent("L: x", "ПИТАННЯ old", "2026-11-21T09:00:00Z"),
+            self.human("між"), self.sent("L: x", "ЗАКРИТО plan agreed", "2026-11-21T10:11:00Z"),
             self.reply("Закриваю цю сесію обговорення?"),
             {"type": "user", "timestamp": "2026-11-21T10:19:16Z", "origin": {"kind": "human"},
              "message": {"role": "user", "content": "Так"}},
-            {"type": "user", "origin": {"kind": "peer", "body": "P asks something"}, "message": {"content": "x"}},
+            {"type": "user", "origin": {"kind": "peer", "body": "the Lead asks something"}, "message": {"content": "x"}},
             self.reply("Закрито."),
             self.sent("ad9edd9da0e244387", "subagent follow-up", "2026-11-21T10:20:00Z"),  # not a report
         ])
         lines = self.answers_lines()
         self.assertEqual(3, len(lines), lines)
-        self.assertTrue(lines[0].startswith("Обговорення: x | d1 | after report 2026-11-21 "), lines[0])
+        self.assertTrue(lines[0].startswith("Discuss: x | d1 | after report 2026-11-21 "), lines[0])
         self.assertTrue(lines[0].endswith(" | 1 owner message"), lines[0])
         self.assertTrue(lines[1].endswith(" owner: Так"), lines[1])
         self.assertEqual("  session after it: Закрито.", lines[2])
@@ -599,7 +605,7 @@ class SessionsTestCase(unittest.TestCase):
         self.assertEqual((0, "finished: Own idea | c1-session\n"), (code, out))
 
     def test_a_c_session_never_reports_finished(self):  # Bug
-        # A C whose last line is the marker would otherwise make every re-armed watcher exit at once.
+        # A Manager whose last line is the marker would otherwise make every re-armed watcher exit at once.
         self.add("c1-session", name="C: task")
         self.listing([{"sessionId": "c1-session", "pid": 5, "status": "idle"}])
         self.transcript("c1-session", [self.reply("Work finished")])
@@ -720,7 +726,7 @@ class SessionsTestCase(unittest.TestCase):
 
 
     # protects: Bug
-    def test_an_id_with_a_carriage_return_still_matches(self):  # P pasted `claude --bg` output with a CR
+    def test_an_id_with_a_carriage_return_still_matches(self):  # the Lead pasted `claude --bg` output with a CR
         state = dev_kit_state.project_state_dir(self.project)
         (state / "sessions.json").write_text(json.dumps([{"id": "c1-session\r", "name": "C: cr", "status": "active"}]),
                                              encoding="utf-8")
@@ -1156,7 +1162,7 @@ class SessionsTestCase(unittest.TestCase):
 
     # protects: Flow
     def test_fill_self_reads_the_own_transcript_by_env_or_by_id(self):
-        # The lead asks about its own context; the registry holds only the C sessions.
+        # The lead asks about its own context; the registry holds only the Manager sessions.
         self.transcript("me-session", [self.assistant(0, 0, 50000)])
         with mock.patch.dict(os.environ, {"CLAUDE_CODE_SESSION_ID": "me-session"}):
             self.assertEqual((0, "self | me-session | 50000 tokens | window 200000 | 25%\n"), self.run_main("fill", "--self"))
@@ -1174,7 +1180,7 @@ class SessionsTestCase(unittest.TestCase):
     # protects: Rule
     def test_fill_self_ignores_the_registry_and_honours_limit_window_and_over_only(self):
         self.add("a1")
-        self.transcript("a1", [self.assistant(0, 0, 150000)])  # a C row that must not show up
+        self.transcript("a1", [self.assistant(0, 0, 150000)])  # a Manager row that must not show up
         (dev_kit_state.project_state_dir(self.project) / "sessions.json").write_text("{nope", encoding="utf-8")
         self.transcript("me-session", [self.assistant(0, 0, 150000)])
         self.assertEqual((0, "self | me-session | 150000 tokens | window 200000 | 75% OVER\n"),

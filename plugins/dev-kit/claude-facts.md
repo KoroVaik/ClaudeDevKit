@@ -160,7 +160,7 @@ One entry per behaviour. A newer direct observation replaces an older one; the o
 - Status: doubtful
 
 ### A background session started without Remote Control does not show in the phone app
-- What happens: A background session that has no Remote Control does not show in the phone app; an «Обговорення:» session (with it) does. Stated as a consequence of having Remote Control, not tested. Leaving out `--remote-control` does not by itself mean no Remote Control: `remoteControlAtStartup: true` in the user settings gives it to every new session (see "`remoteControlAtStartup: true` gives every new session Remote Control, with or without `--remote-control`"). Since dev-kit 0.1.117 a C (task session) starts without the `--settings` no-remote-control file, so it has the link and shows in the app; only the retro and docs background sessions still start without Remote Control.
+- What happens: A background session that has no Remote Control does not show in the phone app; a «Discuss:» session (with it) does. Stated as a consequence of having Remote Control, not tested. Leaving out `--remote-control` does not by itself mean no Remote Control: `remoteControlAtStartup: true` in the user settings gives it to every new session (see "`remoteControlAtStartup: true` gives every new session Remote Control, with or without `--remote-control`"). Since dev-kit 0.1.117 a Manager (task session) starts without the `--settings` no-remote-control file, so it has the link and shows in the app; only the retro and docs background sessions still start without Remote Control.
 - Workaround: none.
 - App: phone app, Remote Control | Claude Code: unknown
 - Seen: date not stated | not tested | `docs/epics/run-all-projects-from-the-phone.md`
@@ -296,7 +296,7 @@ One entry per behaviour. A newer direct observation replaces an older one; the o
 - Status: checked
 
 ### Claude closes an idle background session after 8 h of waiting, 1 h without Remote Control
-- What happens: Claude's background service closes (retires) an unpinned background session that waits for input for 8 h, and for 1 h without Remote Control. The close shows in `~/.claude/daemon.log` as `[bg] bg retire <id>` (with `idle-prompt`) and `bg spawned <id>`. A plain `claude stop` writes no retire line. Whether a C started without `--remote-control` is closed after 1 h is not settled: one place names only 8 h.
+- What happens: Claude's background service closes (retires) an unpinned background session that waits for input for 8 h, and for 1 h without Remote Control. The close shows in `~/.claude/daemon.log` as `[bg] bg retire <id>` (with `idle-prompt`) and `bg spawned <id>`. A plain `claude stop` writes no retire line. Whether a Manager started without `--remote-control` is closed after 1 h is not settled: one place names only 8 h.
 - Workaround: pin a lead; a closed session is brought back with `claude respawn <id>`.
 - App: background sessions | Claude Code: unknown
 - Seen: date not stated | read of daemon.log, rule not tested | Pult scripts, Pult hub rules
@@ -304,7 +304,7 @@ One entry per behaviour. A newer direct observation replaces an older one; the o
 - Status: doubtful
 
 ### A low-memory spell closes idle background sessions
-- What happens: On low memory Claude Code closes idle background sessions early. On 2026-11-16 a C that waited on the owner vanished; a stopped background watcher of a lead was seen in the same spell. A long low-memory spell can close pinned sessions too.
+- What happens: On low memory Claude Code closes idle background sessions early. On 2026-11-16 a Manager that waited on the owner vanished; a stopped background watcher of a lead was seen in the same spell. A long low-memory spell can close pinned sessions too.
 - Workaround: bring the session back with `claude respawn <id>`; the Pult watcher heals leads.
 - App: background sessions | Claude Code: 2.1.331
 - Seen: 2026-11-16 | seen live; re-check 2026-11-24: `daemon.log` holds lines like `bg retire 2d9fb437: idle-prompt, idle 25m [low memory]` | ClaudeDevKit, Pult
@@ -375,8 +375,8 @@ One entry per behaviour. A newer direct observation replaces an older one; the o
 - Re-check: create a throwaway job, restart a throwaway session, run `CronList` | owner-only
 - Status: doubtful
 
-### A fresh background C in an existing worktree loads a handoff from its first prompt
-- What happens: A fresh background C started in an existing worktree loads a handoff file named in its first prompt and can write there.
+### A fresh background Manager in an existing worktree loads a handoff from its first prompt
+- What happens: A fresh background Manager started in an existing worktree loads a handoff file named in its first prompt and can write there.
 - Workaround: none needed.
 - App: background sessions | Claude Code: unknown
 - Seen: 2026-11-14 | live test | ClaudeDevKit
@@ -428,7 +428,7 @@ One entry per behaviour. A newer direct observation replaces an older one; the o
 
 ### A message between sessions in different permission modes may be held
 - What happens: Earlier sightings: a session held a message from a session in another permission mode for the owner's approval (the message may expire). The measurement of 2026-11-21 shows delivery across modes works from manual and acceptEdits to auto, and between two bypassPermissions sessions; "a held message was the earlier trouble of mixed modes". It may depend on the sender (a session's own `SendMessage` against the `-p` sender).
-- Workaround: sessions in one permission mode (see `plugins/dev-kit/skills/project-lead/SKILL.md`, "Start a C").
+- Workaround: sessions in one permission mode (see `plugins/dev-kit/skills/project-lead/SKILL.md`, "Start a Manager").
 - App: `SendMessage` tool | Claude Code: unknown
 - Seen: 2026-11-21 | measured with the `-p` sender | ClaudeDevKit, `docs/findings/idle-wake-cost.md`
 - Re-check: send between two throwaway sessions in different modes, with a session's own `SendMessage` | owner-only
@@ -453,15 +453,15 @@ One entry per behaviour. A newer direct observation replaces an older one; the o
 - Status: doubtful
 
 ### `notify_when_idle` wakes the lead on every idle notice
-- What happens: With `notify_when_idle` for a C, every idle notice woke the lead, and the host forced a visible reply each time.
+- What happens: With `notify_when_idle` for a Manager, every idle notice woke the lead, and the host forced a visible reply each time.
 - Workaround: leave `notify_when_idle` off; the lead is woken by a report, an owner message or an event message instead (see `plugins/dev-kit/skills/project-lead/SKILL.md`, "Wake-up").
 - App: background sessions | Claude Code: unknown
 - Seen: 2026-11-15 | seen in Zhratva | Zhratva
 - Re-check: none cheap | owner-only
 - Status: doubtful
 
-### A C's text in its own chat never reaches the lead
-- What happens: A session's text in its own chat never reaches another session. Seen live: without a `SendMessage` to the lead's session name, both C wrote only in their own chat and the lead waited forever.
+### A Manager's text in its own chat never reaches the Lead
+- What happens: A session's text in its own chat never reaches another session. Seen live: without a `SendMessage` to the lead's session name, both Managers wrote only in their own chat and the lead waited forever.
 - Workaround: a report goes through the `SendMessage` tool to the lead's session name.
 - App: `SendMessage` tool | Claude Code: unknown
 - Seen: date not stated | seen live | project-lead skill
@@ -631,7 +631,7 @@ One entry per behaviour. A newer direct observation replaces an older one; the o
 - What happens: Fable models, Sonnet 5+, Haiku 5.5 and Opus 4.7+ run with a 1M context by default (no `[1m]` suffix). `CLAUDE_CODE_DISABLE_1M_CONTEXT=1` makes them 200K. Older models have 200K unless the id carries `[1m]`.
 - Workaround: none.
 - App: models | Claude Code: unknown
-- Seen: date not stated | seen live (a fresh Sonnet 5.5 C at 80k showed 40% against an assumed 200K); Claude Code docs, "model-config" | ClaudeDevKit, `plugins/dev-kit/scripts/sessions.py`
+- Seen: date not stated | seen live (a fresh Sonnet 5.5 Manager at 80k showed 40% against an assumed 200K); Claude Code docs, "model-config" | ClaudeDevKit, `plugins/dev-kit/scripts/sessions.py`
 - Re-check: read the context share of a fresh session (needs a new session) | owner-only
 - Status: doubtful
 
@@ -662,7 +662,7 @@ One entry per behaviour. A newer direct observation replaces an older one; the o
 ## Windows shell
 
 ### Windows PowerShell 5.1 cuts a prompt at the first double quote
-- What happens: Windows PowerShell 5.1 does not escape a double quote inside an argument to a native command, so a prompt passed to `claude` is cut at the first `"` (C got only the first word).
+- What happens: Windows PowerShell 5.1 does not escape a double quote inside an argument to a native command, so a prompt passed to `claude` is cut at the first `"` (a Manager got only the first word).
 - Workaround: no `"` in the prompt (use «» and single quotes), a single-quoted here-string, or `start-session.ps1`, which escapes.
 - App: Windows PowerShell 5.1 | Claude Code: unknown
 - Seen: 2026-11-15 | live | Zhratva

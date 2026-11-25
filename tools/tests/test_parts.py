@@ -195,6 +195,12 @@ class TalkTestCase(unittest.TestCase):
             ("Чому тести червоні?", "Бо лінт падає."),  # a question word first: no yes/no question
             ("Робимо A чи B?", "B, бо дешевше."),  # either-or
             ("What now?", "Run the tests. Then the lint. Then report. Then wait."),  # an English owner: no language check
+            # launch lines (new «помічник:», «сесія:», English and the old «агент:») are not prose
+            ("ok", "One. Two. Three. Four. Five.\nпомічник: Coder. Sonnet. Medium."),
+            ("ok", "One. Two. Three. Four. Five.\nhelper: Coder. Sonnet. Medium."),
+            ("ok", "One. Two. Three. Four. Five.\nсесія: Coder. Sonnet. Medium."),
+            ("ok", "One. Two. Three. Four. Five.\nsession: Coder. Sonnet. Medium."),
+            ("ok", "One. Two. Three. Four. Five.\nагент: Coder. Sonnet. Medium."),
         ]
         for owner_text, reply in cases:
             with self.subTest(reply=reply):
@@ -203,9 +209,9 @@ class TalkTestCase(unittest.TestCase):
     # protects: Rule
     def test_only_turns_the_owner_opened_are_checked_on_their_last_reply(self):
         entries = numbered([
-            owner("Brief from the lead: build it."),             # 1: the first prompt (a C gets it from P)
+            owner("Brief from the lead: build it."),             # 1: the first prompt (a Manager gets it from the Lead)
             said("Working — first note."), said("Done — built."),  # 2, 3: the reply is the last text
-            owner("Status from C", origin="peer"),               # 4: another session's message
+            owner("Status from M", origin="peer"),               # 4: another session's message
             said("Noted — fine."),                               # 5: not a reply to the owner
             line("user", isMeta=True, message={"content": "Base directory for this skill: x"}),
             owner("Ну як?"),                                     # 7
@@ -347,10 +353,14 @@ class ScanPartsTestCase(RetroFixture):
         self.assertFalse(any("repeated call" in text for text in self.new_lines("repo")))
 
     # protects: Flow
-    def test_a_talk_breach_in_a_reply_to_the_owner_goes_to_the_global_set_with_its_rule_line_and_a_cs_brief_does_not(self):
+    def test_a_talk_breach_in_a_reply_to_the_owner_goes_to_the_global_set_with_its_rule_line_and_a_managers_brief_does_not(self):
         self.write("proj/s1.jsonl", [owner("Як справи?"), said("Готово — все зелене.")])
-        self.write("proj/s2.jsonl", [line("custom-title", customTitle="C: Build"), owner("Brief: build."),
+        self.write("proj/s2.jsonl", [line("custom-title", customTitle="M: Build"), owner("Brief: build."),
                                      said("Built — done.")])
+        for name, title in (("s3", "C: Old build"), ("s4", "Discuss: Topic"), ("s5", "Обговорення: Topic")):
+            # Edge: the old «C:» and «Обговорення:» titles are briefed by the lead too, like «M:» and «Discuss:»
+            self.write(f"proj/{name}.jsonl", [line("custom-title", customTitle=title), owner("Brief: build."),
+                                              said("Built — done.")])
         self.write("proj/s1/subagents/agent-a1.jsonl", [owner("Do it."), said("Done — ok.")])
         self.run_cmd("scan", "--force")
         talk_lines = [text for text in self.new_lines("global") if "| talk " in text]

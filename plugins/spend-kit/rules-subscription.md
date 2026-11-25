@@ -8,7 +8,7 @@ session as a code change. Format: `plugins/rules-kit/scripts/subscriptions.py`.
 |---|---|
 | set | spend-kit |
 | reviewed by | ClaudeDevKit |
-| lands by | branch merged by P: ClaudeDevKit; bump plugins/spend-kit version with a release mark in plugins/spend-kit/releases.json |
+| lands by | branch merged by L: ClaudeDevKit; bump plugins/spend-kit version with a release mark in plugins/spend-kit/releases.json |
 
 ## Files
 

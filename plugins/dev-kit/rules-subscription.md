@@ -7,7 +7,7 @@ that enforce them. `rules-kit` (the retro) reads this file; format: `plugins/rul
 |---|---|
 | set | dev-kit |
 | reviewed by | ClaudeDevKit |
-| lands by | branch merged by P: ClaudeDevKit; bump plugins/dev-kit version with a release mark in plugins/dev-kit/releases.json |
+| lands by | branch merged by L: ClaudeDevKit; bump plugins/dev-kit version with a release mark in plugins/dev-kit/releases.json |
 | special editor | claude-facts.md: dev-kit:facts-keeper (the retro passes findings, never edits) |
 
 ## Files
@@ -60,7 +60,7 @@ that enforce them. `rules-kit` (the retro) reads this file; format: `plugins/rul
 
 | Sign | Kind | Pattern |
 |---|---|---|
-| P asked what a rule says P decides | process | the owner is asked whether to merge, clean up a branch or commit, which "Acceptance and merge" gives to P: «(?i)(змерджит|змержит|мерджимо|мержимо|видаляємо гілку|видалити гілку|закомітит|комітимо|merge it|shall i merge|commit it)[^\n?]{0,60}\?» |
+| Lead asked what a rule says the Lead decides | process | the owner is asked whether to merge, clean up a branch or commit, which "Acceptance and merge" gives to the Lead: «(?i)(змерджит|змержит|мерджимо|мержимо|видаляємо гілку|видалити гілку|закомітит|комітимо|merge it|shall i merge|commit it)[^\n?]{0,60}\?» |
 | hook blocks the same call again | technical | a dev-kit PreToolUse hook (narrow-agents, windows-traps, long-commands) denies a call and the next calls repeat it nearly unchanged |
 
 ## May change itself

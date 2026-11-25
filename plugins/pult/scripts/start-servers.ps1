@@ -1,7 +1,10 @@
 ﻿# Starts the project leads and the hub at logon.
-# A project with Lead = $true gets a ready project lead: a background session "P: <name>" with
+# A project with Lead = $true gets a ready project lead: a background session "L: <name>" with
 # Remote Control that loads the dev-kit project-lead skill on start (no server, so the phone shows
-# one P per project). Stop it with `claude stop <id>` (ids: `claude agents`).
+# one lead per project). Stop it with `claude stop <id>` (ids: `claude agents`).
+# A lead still running under its old name "P: <name>" counts as the running lead "L: <name>" (resume-lib.ps1,
+# Test-LeadEntryName): not started again. A stopped one is resumed under the new name when no "L: <name>" session
+# exists: its job's saved name is rewritten first (Set-LeadStateName, log RENAMED <old> -> <new> <id>), so its history stays.
 # Other entries get one Remote Control server each, in its own hidden PowerShell window; the window
 # closes when the server stops.
 # Stop the servers gracefully with stop-servers.ps1 (plugins/dev-kit/claude-facts.md, "Stopping a Remote
@@ -105,7 +108,7 @@ function Stop-HandoffSession([string]$Name, [string]$JobId, [string[]]$KnownIds)
     $stopped = $false
     while ($true) {
         $list = Get-AgentList
-        $live = @($list | Where-Object { $_ -and $_.kind -eq 'background' -and $_.name -ceq $Name -and $_.pid })
+        $live = @($list | Where-Object { $_ -and $_.kind -eq 'background' -and (Test-LeadEntryName ([string]$_.name) $Name) -and $_.pid })
         if ($null -ne $list -and -not $live.Count -and -not (Get-SessionProcessIds $ids).Count) { return '' }
         if (-not $stopped -and $null -ne $list) {
             foreach ($e in @(Get-SessionEntries $list $Name $JobId)) { $null = claude stop $e.id 2>&1 }
@@ -148,7 +151,7 @@ if (-not $Only -and -not $watching) {
 }
 
 $running = Get-CimInstance Win32_Process -Filter "Name='node.exe' OR Name='claude.exe'" |
-    Where-Object { $_.CommandLine -match '\sremote-control\s' } |  # the server subcommand, not the --remote-control flag of a P
+    Where-Object { $_.CommandLine -match '\sremote-control\s' } |  # the server subcommand, not the --remote-control flag of a lead
     ForEach-Object { $_.CommandLine }
 
 # Background sessions that are still alive (not stopped or done), by name.
@@ -162,11 +165,12 @@ try {
 foreach ($p in $projects) {
     $sessionName = $p.Session
     if ($p.Lead) {
-        if ($liveLeads -ccontains $sessionName) { Write-Output "Already running: $sessionName"; continue }
+        # A lead still running under its old name counts as running (resume-lib.ps1, Test-LeadEntryName).
+        if (Test-AnyLeadEntryName $sessionName @($liveLeads | Where-Object { $_ } | ForEach-Object { [string]$_ })) { Write-Output "Already running: $sessionName"; continue }
         # Look again right before the start: the watcher or another run may have started it meanwhile.
         try {
             $now = @((claude agents --json | Out-String | ConvertFrom-Json) | ForEach-Object { $_ } |
-                Where-Object { $_.kind -eq 'background' -and $_.pid -and $_.name -ceq $sessionName })
+                Where-Object { $_.kind -eq 'background' -and $_.pid -and (Test-LeadEntryName ([string]$_.name) $sessionName) })
             if ($now) { Write-Output "Already running: $sessionName"; continue }
         } catch { }
         if (-not (Test-Path $p.Path)) { Write-Output "Folder missing, skipped: $($p.Path)"; continue }
@@ -174,7 +178,8 @@ foreach ($p in $projects) {
         # Continue the previous conversation of this lead when one exists (stopped or finished).
         $resumeId = $null
         if (-not $Handoff) {  # a handoff lead starts empty: it never resumes the full conversation
-            try { $resumeId = Get-ResumeSessionId $sessionName $p.Path } catch { Write-Output "Could not look up a session to resume: $_" }
+            # The session of this name, else the one with the lead's old name "P: <name>" (renamed below, before the resume).
+            try { $found = Get-LeadResumeEntry $sessionName $p.Path; if ($found) { $resumeId = $found.SessionId } } catch { Write-Output "Could not look up a session to resume: $_" }
             if ($resumeId) { $resumeId = Get-JobResumeId $resumeId }  # after a /clear the list shows another id than the job's
         }
         $opt = @{}  # optional per-lead Prompt, Model, Effort from the server list
@@ -196,6 +201,8 @@ foreach ($p in $projects) {
             # Resolved once, before the /clear changes the job's resumeSessionId (Invoke-HandoffClear).
             $jobId = Get-JobResumeId $HandoffSessionId
             $knownIds = @(@($HandoffSessionId) + @(Get-JobSessionIds $HandoffSessionId))
+            try { if (Set-LeadStateName $sessionName $jobId) { Write-Log "RENAMED $(Get-LegacyLeadName $sessionName) -> $sessionName $jobId" } }
+            catch { Write-Output "Could not rename the lead's job: $_" }
             try { if (Set-LeadRespawnModel $sessionName $jobId @model) { Write-Log "MODEL $sessionName $(if ($p.Model) { $p.Model } else { $LeadModel })/$(if ($p.Effort) { $p.Effort } else { $LeadEffort })/$($perm.Mode)" } }
             catch { Write-Output "Could not set the lead's model: $_" }
             $why = 'the move failed'
@@ -222,6 +229,9 @@ foreach ($p in $projects) {
             Pop-Location; continue
         }
         if ($resumeId) {
+            # A job that still has the old name "P: <name>" gets the new one first, so it resumes as "L: <name>".
+            try { if (Set-LeadStateName $sessionName $resumeId) { Write-Log "RENAMED $(Get-LegacyLeadName $sessionName) -> $sessionName $resumeId" } }
+            catch { Write-Output "Could not rename the lead's job: $_" }
             try { if (Set-LeadRespawnModel $sessionName $resumeId @model) { Write-Log "MODEL $sessionName $(if ($p.Model) { $p.Model } else { $LeadModel })/$(if ($p.Effort) { $p.Effort } else { $LeadEffort })/$($perm.Mode)" } }
             catch { Write-Output "Could not set the lead's model: $_" }
         }
@@ -296,7 +306,7 @@ if ($leadNames) {
         $pins = @()
         if (Test-Path $pinFile) { $pins = @(Get-Content -Raw $pinFile | ConvertFrom-Json) | Where-Object { $_ } }
         $ids = @((claude agents --json | Out-String | ConvertFrom-Json) | ForEach-Object { $_ } |
-            Where-Object { $_.kind -eq 'background' -and $_.pid -and $leadNames -contains $_.name } |
+            Where-Object { $_.kind -eq 'background' -and $_.pid -and (Test-AnyLeadEntryName ([string]$_.name) $leadNames) } |
             ForEach-Object { $_.id })
         $new = @($ids | Where-Object { $pins -notcontains $_ })
         if ($new) {

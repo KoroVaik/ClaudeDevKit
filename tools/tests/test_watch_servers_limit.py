@@ -43,11 +43,11 @@ class WatchServersLimitTest(unittest.TestCase):
         (registry / "sessions.json").write_text(json.dumps(
             [{"id": TASK + "\r", "name": "C: task", "status": "active"}]), encoding="utf-8")
         (self.bin / "agents.json").write_text(json.dumps([
-            {"pid": 999999, "kind": "background", "name": "P: Lead", "sessionId": LEAD, "id": LEAD[:8], "state": "blocked"},
+            {"pid": 999999, "kind": "background", "name": "L: Lead", "sessionId": LEAD, "id": LEAD[:8], "state": "blocked"},
             {"pid": 999998, "kind": "background", "name": "C: task", "sessionId": TASK, "id": TASK[:8], "state": "blocked"},
         ]), encoding="utf-8")
         self.config = self.tmp / "servers.psd1"
-        self.config.write_text("@{ Servers = @( @{ Session = 'P: Lead'; Lead = $true; Path = '%s' } ) }\n" % self.tmp,
+        self.config.write_text("@{ Servers = @( @{ Session = 'L: Lead'; Lead = $true; Path = '%s' } ) }\n" % self.tmp,
                                encoding="utf-8-sig")
 
     def transcript(self, session_id, entries):
@@ -73,7 +73,7 @@ class WatchServersLimitTest(unittest.TestCase):
         self.transcript(LEAD, [reply("x"), notice("lead-stop")])
         self.transcript(TASK, [reply("y"), notice("task-stop")])
         lines = self.run_watch(2)
-        self.assertEqual(sorted([f"LIMIT P: Lead {LEAD} (resets unknown)", f"LIMIT C: task {TASK} (resets unknown)"]),
+        self.assertEqual(sorted([f"LIMIT L: Lead {LEAD} (resets unknown)", f"LIMIT C: task {TASK} (resets unknown)"]),
                          sorted(lines))
 
     # protects: Flow

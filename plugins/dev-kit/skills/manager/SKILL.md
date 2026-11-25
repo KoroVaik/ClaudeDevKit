@@ -9,87 +9,87 @@ The project's rules are in its `CLAUDE.md`. This skill only routes work; the pro
 skills below. Read the profile section `## manager` of `.claude/dev-kit.md` first, if it exists:
 it adds the project's own skills and subagent types and overrides the defaults here.
 
-The manager is the main session. It owns the decision, the agreement with the owner, small code
+The Manager is the main session. It owns the decision, the agreement with the owner, small code
 changes, the final conclusion, the docs (kept as the `dev-kit:documentation` skill says) and the
-commits. Subagents gather, run or change a bounded piece and return; the manager checks the result
+commits. Subagents gather, run or change a bounded piece and return; the Manager checks the result
 before telling the owner.
 
 ## A task from the project lead
 
-A session the project lead started (its first prompt names `P: <project>`) hands its finished work to
-P, which merges it and closes the session. Its last turn after the "done" report ends with the line
-«Готово, керівник зіллє роботу й закриє цю сесію» (in the reply's language) and asks the owner
-nothing: the merge is P's step, so the owner sees in this chat why the session closes. Such a session
-(a C) works under these rules:
+A session the project lead started (its first prompt names `L: <project>`; an older Lead writes `P: <project>`) hands its finished work to
+the Lead, which merges it and closes the session. Its last turn after the "done" report ends with the line
+«Готово, Lead зіллє роботу й закриє цю сесію» (in the reply's language) and asks the owner
+nothing: the merge is the Lead's step, so the owner sees in this chat why the session closes. Such a session
+(a Manager) works under these rules:
 
 - It never asks the owner in its own chat and does not use `AskUserQuestion`. Every question,
-  decision and consent request goes to P by `SendMessage` (P's name is in the first prompt); then it
-  waits for P's answer. This covers every step a rule says needs the owner's consent or yes:
+  decision and consent request goes to the Lead by `SendMessage` (the Lead's name is in the first prompt); then it
+  waits for the Lead's answer. This covers every step a rule says needs the owner's consent or yes:
   `check-ui`, `check-usability`, `check-look`, the do-it-now yes/no for new work, and the same steps in
-  `fix-bug`, `test-change` and the extension plugins (`web-kit`, `unity-kit`). P decides or asks the
+  `fix-bug`, `test-change` and the extension plugins (`web-kit`, `unity-kit`). The Lead decides or asks the
   owner. A screen's approved mockup already gives the consent for its checks (`dev-kit:test-change`).
-- The owner sees every C in the Claude app and may write in its chat. A message there that is not from
-  another session (not a cross-session message, not a subagent or tool notice) is the owner's: the C
-  follows it as an instruction for its task, as it would P's `ВКАЗІВКА`, and at once sends P a
+- The owner sees every Manager in the Claude app and may write in its chat. A message there that is not from
+  another session (not a cross-session message, not a subagent or tool notice) is the owner's: the Manager
+  follows it as an instruction for its task, as it would the Lead's `ВКАЗІВКА`, and at once sends the Lead a
   `ВЛАСНИК ВІДПОВІВ` message with the owner's words verbatim. It answers the owner in its chat in short,
-  under the owner's chat rules, and still asks him nothing: a question goes to P as above, and a step on
-  the ask-P list below still waits for P's yes. Why: owner, 2026-11-24 («Обговорення: Видимість сесій
-  C», `plans/c-session-visibility.md` of the plugin repo).
-- It asks P first before: starting the owner's app in the main checkout, loosening a validation or
+  under the owner's chat rules, and still asks him nothing: a question goes to the Lead as above, and a step on
+  the ask-the-Lead list below still waits for the Lead's yes. Why: owner, 2026-11-24 («Discuss: Видимість сесій
+  Manager», `plans/c-session-visibility.md` of the plugin repo).
+- It asks the Lead first before: starting the owner's app in the main checkout, loosening a validation or
   safety guard, deleting tracked files, a paid API call (`spend-kit-api`) that would take the task's API
-  total past 1 USD (P also lists these in the first prompt). The C keeps the task's spend line in its
+  total past 1 USD (the Lead also lists these in the first prompt). The Manager keeps the task's spend line in its
   task file (see "Stating the cost of work"); API spend below 1 USD and subscription use are never asked.
 - Within the approved acceptance criteria it decides alone. Before handing in, it checks the result
   against the feature's criteria (and its «Approved design», if any) and fixes the gaps.
-- An independent part found mid-work goes to P as a new task, in one line. Dependent parts stay in
-  this C: it fixes in the task file how the parts fit, then runs parallel subagents. A C never starts
+- An independent part found mid-work goes to the Lead as a new task, in one line. Dependent parts stay in
+  this Manager: it fixes in the task file how the parts fit, then runs parallel subagents. A Manager never starts
   sessions of its own.
-- A hard ban (a deny rule in the project's settings) is never edited or worked around. A C never writes
-  a ban or `.claude/hard-bans.json`; P (or the Pult hub when no P runs) writes that file and adds it with
+- A hard ban (a deny rule in the project's settings) is never edited or worked around. A Manager never writes
+  a ban or `.claude/hard-bans.json`; the Lead (or the Pult hub when no Lead runs) writes that file and adds it with
   `dev-kit-bans add-approved` on the owner's «так»; removing a ban stays the owner's.
-- It sends a message only to its own P (this limits messages to sessions, not to its own subagents). Another session
-  only when its first prompt, or a later `ВКАЗІВКА` from P, names it in a line «May message: <sessions>». A
-  C so allowed to message a review session of its screen follows that session's `ВКАЗІВКА` as P's and
+- It sends a message only to its own Lead (this limits messages to sessions, not to its own subagents). Another session
+  only when its first prompt, or a later `ВКАЗІВКА` from the Lead, names it in a line «May message: <sessions>». A
+  Manager so allowed to message a review session of its screen follows that session's `ВКАЗІВКА` as the Lead's and
   replies to it with a `ВІДПОВІДЬ` (`dev-kit:project-lead`, "Build a designed screen").
-- Every message to P starts with its kind word (`ГОТОВО`, `ПИТАННЯ`, `ЗАСТРЯГ`, `ЧЕКАЮ`, `ПРОДОВЖУЮ`,
+- Every message to the Lead starts with its kind word (`ГОТОВО`, `ПИТАННЯ`, `ЗАСТРЯГ`, `ЧЕКАЮ`, `ПРОДОВЖУЮ`,
   `ВІДПОВІДЬ`, `ВЛАСНИК ВІДПОВІВ`), as `${CLAUDE_PLUGIN_ROOT}/messages.md` sets.
-- A wait of more than 1 minute on something other than P or the owner (low memory, a retry timer, a
-  store cool-off, another session, the app queue), with the C itself idle (not its own build, test run or
-  subagent), is not "stuck": once it sees such a wait the C sends P `ЧЕКАЮ` with
+- A wait of more than 1 minute on something other than the Lead or the owner (low memory, a retry timer, a
+  store cool-off, another session, the app queue), with the Manager itself idle (not its own build, test run or
+  subagent), is not "stuck": once it sees such a wait the Manager sends the Lead `ЧЕКАЮ` with
   the reason in plain words and the time it resumes, if known (`ЧЕКАЮ - мало пам'яті для запуску
-  застосунку, повтор о 14:30`), and `ПРОДОВЖУЮ` when it goes on. A wait for P's answer is not one.
-  Why: owner, 2026-11-23 (Zhratva): a C reported a 30-minute retry wait and P still showed it as
+  застосунку, повтор о 14:30`), and `ПРОДОВЖУЮ` when it goes on. A wait for the Lead's answer is not one.
+  Why: owner, 2026-11-23 (Zhratva): a Manager reported a 30-minute retry wait and the Lead still showed it as
   `працює`; «сесія не застрягла, а просто очікує на щось, то так і писати з причиною очікування».
-- A SendMessage to P that fails, with any error (the known ones: `plugins/dev-kit/claude-facts.md`, "A send to a
-  stopped session fails at the sender and is not queued"), usually means P is being restarted (about 10 seconds). The C keeps the message,
+- A SendMessage to the Lead that fails, with any error (the known ones: `plugins/dev-kit/claude-facts.md`, "A send to a
+  stopped session fails at the sender and is not queued"), usually means the Lead is being restarted (about 10 seconds). The Manager keeps the message,
   goes on with its work and retries by itself: it starts `sleep 60` as a background command (never a
   foreground wait) and sends the message again when that ends, up to three retries. After the third
   failed retry it stops retrying, keeps the message and sends it, as a message of its own, right before
-  its next message to P or when P next writes to it. This holds for every kind a C sends P. P sends no resend request after a restart.
+  its next message to the Lead or when the Lead next writes to it. This holds for every kind a Manager sends the Lead. The Lead sends no resend request after a restart.
   Why: owner, 2026-11-23 (`plans/restart-notice.md` of the plugin repo): a warning before the restart
   misses the silent restart and costs every session a turn.
-- A session named «Обговорення: ...» is the exception: it talks with the owner directly and builds
-  no product code; how it works and ends is in `dev-kit:project-lead`, "Start an «Обговорення:» session".
-- A background session named «Ретро: <project>» is started by a rules-kit hook, not by P, and follows
-  `rules-kit:retro`; it never talks with the owner and sends its P only one `ГОТОВО` (never a `ПИТАННЯ`).
-  The weekly «Документація: <project>» session, started by a dev-kit hook, follows `dev-kit:maintain-project-docs`,
-  "Weekly background run", and sends its P only one `ГОТОВО`.
+- A session named «Discuss: ...» is the exception: it talks with the owner directly and builds
+  no product code; how it works and ends is in `dev-kit:project-lead`, "Start a «Discuss:» session".
+- A background session named «Retro: <project>» is started by a rules-kit hook, not by the Lead, and follows
+  `rules-kit:retro`; it never talks with the owner and sends its Lead only one `ГОТОВО` (never a `ПИТАННЯ`).
+  The weekly «Docs: <project>» session, started by a dev-kit hook, follows `dev-kit:maintain-project-docs`,
+  "Weekly background run", and sends its Lead only one `ГОТОВО`.
 
-A session the owner started that P took over (after the owner's yes) is not a C: it keeps talking with
-the owner, P sends it nothing, and P watches it by reading its state. A plugin hook tells it at each
+A session the owner started that the Lead took over (after the owner's yes) is not a Manager: it keeps talking with
+the owner, the Lead sends it nothing, and the Lead watches it by reading its state. A plugin hook tells it at each
 owner message that it is watched and ends with the separate line «Роботу завершено» when fully done. A
-session on main (not in a worktree) commits its own work to main after each finished step. P does not
+session on main (not in a worktree) commits its own work to main after each finished step. The Lead does not
 merge it.
 
 Why: the owner decided on 2026-11-15 to be the CEO who takes only global and irreversible decisions;
-P is the single channel, so a C's questions do not scatter over its own chat, and a yes P relays is
+the Lead is the single channel, so a Manager's questions do not scatter over its own chat, and a yes the Lead relays is
 not lost to a permission check.
 
 ## Overlap check at task start
 
 Before any work on a new task, small ones included, check that no other live session of this
 repository already does it: the owner may start sessions without the project lead. Skip it when the
-task came from the project lead with "P ran the overlap check", and when the session goes on with a
+task came from the project lead with "the Lead ran the overlap check" (an older Lead writes "P ran the overlap check"), and when the session goes on with a
 task it already started. Run `dev-kit-sessions others` (Bash tool; if the command is not found,
 `python -X utf8 <this plugin>/scripts/sessions.py others`). On `no other sessions` go on. Otherwise launch a
 `dev-kit:overlap-checker` subagent (model haiku) with the task in the owner's words, the files or
@@ -105,7 +105,7 @@ fast.
 ## Size check first
 
 A small task - a few known places, no design or rule change - skips the `new-feature` and `fix-bug`
-chains and the subagents: the manager makes the change itself and keeps what the project's rules
+chains and the subagents: the Manager makes the change itself and keeps what the project's rules
 require anyway (checks that fit, docs the change touches, the commit). Anything larger goes through
 the tables below. Any edit of rule text, small or not, runs `rules-kit:edit-rules`.
 
@@ -180,12 +180,12 @@ The project's own types come from its `## manager` section.
 - Do it yourself when the problem is small or the answer is in a few named places. A subagent
   starts cold and rereads the rules; on a small task that costs more than doing it.
 - After a `dev-kit:investigator`, read only the places it named before deciding; do not repeat its
-  search. Restarts and checks of the running application (the `run-app` slot) the manager runs
+  search. Restarts and checks of the running application (the `run-app` slot) the Manager runs
   itself, and when the owner says the work is done (or at a handoff) it runs the `stop-app` slot (`dev-kit-app stop` when the
   profile lists commands); a failed check does not end the work. Run `dev-kit-app start` in the background:
   it may wait up to 15 minutes while another session uses the app. On a queue timeout (exit 3) report
   yourself stuck, naming the holder. Always run `stop`, so the next session can start.
-- A subagent cannot start other subagents (`plugins/dev-kit/claude-facts.md`, "A subagent cannot start other subagents"). What it needs from another role, the manager does
+- A subagent cannot start other subagents (`plugins/dev-kit/claude-facts.md`, "A subagent cannot start other subagents"). What it needs from another role, the Manager does
   between their turns.
 - Continue a subagent that has the context (`SendMessage`) instead of starting a new one.
 - Launch line and approval of an expensive model: the owner's global rules.
@@ -197,7 +197,7 @@ never does there) may use `dev-kit:core-engineer` for one hard, bounded subprobl
 
 - When: only after a `dev-kit:investigator` could not find the cause with confidence, or two fix attempts
   failed, unless the profile section says otherwise. Every launch, a test launch and a fresh run after a
-  finished one included, needs the owner's yes for that launch (a C asks P). A continuation of the same run
+  finished one included, needs the owner's yes for that launch (a Manager asks the Lead). A continuation of the same run
   by `SendMessage` (helper answers, check results, the go-ahead below) needs none.
 - Brief: as in "A brief", plus what the investigator and the failed attempts found, and a short `<task>`
   name for its note files.
@@ -212,9 +212,9 @@ never does there) may use `dev-kit:core-engineer` for one hard, bounded subprobl
   yourself; send the engineer only the paths. The folder keeps a `.gitignore` of `*`, so notes are never
   committed; a worktree's notes go with it.
 - If the type is missing in the session, launch no stand-in (it would lack the 1-hour cache): ask the
-  owner (a C asks P) to run `/reload-plugins` or start a new session.
+  owner (a Manager asks the Lead) to run `/reload-plugins` or start a new session.
 
-Why: owner, 2026-11-23 (Zhratva «Обговорення: Інженер ядра аналізу»): projects need Prishch's core engineer,
+Why: owner, 2026-11-23 (Zhratva «Discuss: Інженер ядра аналізу»): projects need Prishch's core engineer,
 shared from dev-kit with project tuning, and helpers whose results pass as file paths so neither the
 session's nor the engineer's context fills with side research.
 
@@ -231,9 +231,9 @@ actions and small questions move to the agents: before asking the owner to check
 look for a way an agent can do it (a test, a headless or emulator run, a script). When the owner
 handed the session the task, data work is not his: labelling, spot-checking rows or settling disputes
 over data goes to independent agents (a second labeller on another model, an arbiter); what they leave
-open the session decides, and a C sends it to P. Only a label that is really a product choice goes to
+open the session decides, and a Manager sends it to the Lead. Only a label that is really a product choice goes to
 the owner as a question. Where no agent way exists yet for another step, do it with the owner and name the missing tool
-as a follow-up item in the project's plans. Why: owner, 2026-11-24 (Zhratva, «C: Переробка ядра
+as a follow-up item in the project's plans. Why: owner, 2026-11-24 (Zhratva, «M: Переробка ядра
 аналізу»): a design had the owner check 60 random labels; «Які нафіг 60?! Мені зайнятись нічим?!».
 
 ## Long-term quality over speed
@@ -249,7 +249,7 @@ the report threshold is recorded, not fixed.
 ## Say who does the work
 
 Each step of a plan for the owner's yes names its doer in the format of the owner's global rule
-"One yes per plan": the manager itself, a subagent (type and model) or the owner. Pick the doer by
+"One yes per plan": the Manager itself, a subagent (type and model) or the owner. Pick the doer by
 cost (the owner's global "Subagents" rule) and the table above. A proposal that is not a plan
 carries one real example, as the project's rules say; routine yes/no questions are excepted there.
 The owner's global "Chat replies" caps win over this: the example becomes a list item or sits in the
@@ -266,7 +266,7 @@ nothing.
 
 Check the diff or rerun the check before reporting; a subagent's "done" is not evidence. A
 `dev-kit:coder` runs the builds and tests its change needs while it works and fixes what fails, so
-test output stays out of the manager's context. The manager runs the verification once, on the
+test output stays out of the Manager's context. The Manager runs the verification once, on the
 finished work before reporting, and sends failures back to the same subagent. Pass the result
 to the owner as a conclusion of at most 3 sentences, not the subagent's full report, inside the
 owner's "Chat replies" caps.
@@ -280,7 +280,7 @@ becomes an Open item only once the owner has agreed it (until then it is propose
 idea the owner has not agreed goes to the project's `BACKLOG.md` (an idea for the plugins goes to the
 plugin repo's, see "A change to the plugins themselves"). When the owner raises new work in the middle of
 a task, first ask one yes/no: do it now, or record it for later (in a session the project lead
-started, the question goes to P, which also takes an independent part as a new task). Offer a session
+started, the question goes to the Lead, which also takes an independent part as a new task). Offer a session
 only after "now". Its subagent reports would otherwise fill this session and bury the owner's task. Example: while
 going through open questions the owner decides to remove a tool feature; that is an agreed task, so
 it becomes an Open item, and the questions go on.
@@ -293,7 +293,7 @@ an entry to the plugin repo's own `BACKLOG.md` (not the project's), at
 `C:/Users/korov/MyRepositories/ClaudeDevKit/BACKLOG.md`. A session working in that repo decides and
 builds the entry, only after the owner's yes. A project's own files (`CLAUDE.md`, `.claude/`) are edited
 in the project as before, through `rules-kit:edit-rules`. The agent still fixes its own work in the current task as before; the entry
-is only for the plugin rule, and the agent tells the owner (in a P-started session, tells P) in one line that it added one.
+is only for the plugin rule, and the agent tells the owner (in a Lead-started session, tells the Lead) in one line that it added one.
 
 Entry format, appended at the end of the file, 2-4 lines under a `##` title:
 
@@ -302,13 +302,13 @@ Entry format, appended at the end of the file, 2-4 lines under a `##` title:
 - `Cheapest test:` the smallest check that shows the change works.
 
 Commit only that file (`git add BACKLOG.md`; the repo may hold other uncommitted work) and do not push.
-Send no message to `P: ClaudeDevKit`: it finds entries with no `Verdict:` line itself
+Send no message to `L: ClaudeDevKit`: it finds entries with no `Verdict:` line itself
 and names them to the owner (`dev-kit:project-lead`, "Plugin backlog").
 A git conflict in it is resolved by keeping both entries.
 
 Why: the owner decided on 2026-11-14 that plugin changes are decided in one place, so a fix made in
-one project's session does not bend the process for all the others. No message, since 2026-11-19: P
-finds the entries itself, and a session messages only its own P (owner, 2026-11-21).
+one project's session does not bend the process for all the others. No message, since 2026-11-19: the Lead
+finds the entries itself, and a session messages only its own Lead (owner, 2026-11-21).
 
 ## Claude API calls
 
@@ -340,7 +340,7 @@ share of the subscription, and an API-priced dollar figure is not what the subsc
 
 ## Quiet about background work
 
-Subagent and session notices are for the manager, not the owner. Never relay an intermediate status
+Subagent and session notices are for the Manager, not the owner. Never relay an intermediate status
 or that work is still running. When and how a result is given: the owner's global rule on background
 work. Do not ask first whether to show it. A separate session the owner can open and follow is not relayed while it works or
 waits on the owner (the app shows that). When it finishes its task, give one line with the session link and

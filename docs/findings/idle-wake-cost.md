@@ -2,7 +2,7 @@
 
 Measured 2026-11-15..20 from the session transcripts and `servers.log`. The design that followed is in
 [Start leads at logon and heal them](../features/start-leads-at-logon-and-heal-them.md) and
-[Hand work to the project lead](../features/hand-work-to-the-project-lead.md) ("P wakes only when needed").
+[Hand work to the project lead](../features/hand-work-to-the-project-lead.md) ("The Lead wakes only when needed").
 
 ## A model that re-arms a watcher burns tokens for nothing
 

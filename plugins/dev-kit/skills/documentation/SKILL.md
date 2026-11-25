@@ -35,7 +35,7 @@ describes a state that is gone.
 | Open item | Agreed work not started yet, or a defect found on the way | Owner approves a task; agents record a defect | Section "Open" of the feature or tech file the work belongs to |
 | Backlog | Ideas not agreed: 2-4 lines each, what, why and the cheapest test | Owner approves | `BACKLOG.md` |
 | Plan | Agreed work in flight, removed when done | Owner approves | `plans/<name>.md` |
-| Agent rules | How agents work in this repo | Owner approves (a «Ретро:» session's fix: the approver agent and a replay instead, `rules-kit:edit-rules` step 3) | `CLAUDE.md`, `.claude/` |
+| Agent rules | How agents work in this repo | Owner approves (a «Retro:» session's fix: the approver agent and a replay instead, `rules-kit:edit-rules` step 3) | `CLAUDE.md`, `.claude/` |
 
 Mockups are design assets under `docs/mockups/`, linked from features. A mockup is named after its
 feature; a feature with several screens adds the screen to the name (`<feature>-<screen>`).

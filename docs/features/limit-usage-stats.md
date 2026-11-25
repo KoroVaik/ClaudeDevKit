@@ -10,7 +10,7 @@ split across projects, tasks, agents and skills, with past weeks kept for compar
 
 ## Rules
 ### Shown on request, as a chat table
-- The owner asks P (any project lead) in his own words; P replies with a text table in chat. No new screen,
+- The owner asks the Lead (any project lead) in his own words; the Lead replies with a text table in chat. No new screen,
   page or push.
 - Period: the current weekly limit window (its start and end dates in the header), shares as % of the weekly
   limit, the same base the Claude app shows.
@@ -23,7 +23,7 @@ split across projects, tasks, agents and skills, with past weeks kept for compar
   turn's end. A skill works inside a session, so an exact split is not possible.
 
 ### Detailed report on request
-When the owner asks for more («детальніше», «по всіх агентах», «скільки пішло на помічників»), P shows the
+When the owner asks for more («детальніше», «по всіх агентах», «скільки пішло на помічників»), the Lead shows the
 asked group in full instead of the top 5: e.g. every subagent type with its model, share, number of runs and
 usual units per run. Same data, no new tracking. The retro does not need it: it already gets spend-kit's
 `table` (sessions, subagent types and models) with its findings.
@@ -40,11 +40,11 @@ reset spend-kit stores that week's totals (projects, tasks, agents, skills) in a
 table can then compare with past weeks («минулого тижня Zhratva 40%, цього 31%»).
 
 ## Acceptance criteria
-- The owner writes «покажи статистику витрат» to P and gets the table below for the current limit week.
+- The owner writes «покажи статистику витрат» to the Lead and gets the table below for the current limit week.
 - Shares are % of the weekly limit and add up to the header's total, give or take rounding.
 - After a weekly reset, the past week's totals stay readable after its transcripts are deleted.
 - Skills are labelled «приблизно».
-- Asked «покажи детальніше по агентах», P lists every subagent type and model with share, runs and usual units per run.
+- Asked «покажи детальніше по агентах», the Lead lists every subagent type and model with share, runs and usual units per run.
 
 ## Approved design
 Mockup (the chat reply; numbers are made up):
@@ -60,7 +60,7 @@ Mockup (the chat reply; numbers are made up):
 Задачі (топ-5)
   ClaudeDevKit · Плавна зупинка при ліміті   14%
   Zhratva · Схвалення страви                  11%
-  ClaudeDevKit · P (керівник)                  9%
+  ClaudeDevKit · Lead                          9%
   Pult · Перезапуск сесій                      7%
   Zhratva · Фото страв                         6%
 

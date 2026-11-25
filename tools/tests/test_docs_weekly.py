@@ -69,7 +69,7 @@ class DocsWeeklyTestCase(unittest.TestCase):
         """Replace the retro's run file of the project (what `plugins/rules-kit/scripts/retro.py` writes)."""
         docs_weekly.write_json(self.rules / "runs" / f"{self.name}.json", values)
 
-    def start(self, title="C: task", cwd=None, claude="fake-claude"):
+    def start(self, title="M: task", cwd=None, claude="fake-claude"):
         """hook_start with the spawn recorded; returns the recorded commands."""
         spawned = []
         with mock.patch.object(docs_weekly, "spawn", lambda argv, cwd=None: spawned.append((argv, cwd))), \
@@ -79,7 +79,7 @@ class DocsWeeklyTestCase(unittest.TestCase):
         return spawned
 
     def command(self):
-        return ["fake-claude", "--bg", "--name", "Документація: repo", "--settings",
+        return ["fake-claude", "--bg", "--name", "Docs: repo", "--settings",
                 str(docs_weekly.NO_REMOTE_CONTROL), "--model", "opus", "--effort", "medium", "--permission-mode",
                 "bypassPermissions", "--", "/dev-kit:maintain-project-docs weekly"]
 
@@ -108,8 +108,10 @@ class DocsWeeklyTestCase(unittest.TestCase):
         self.run_file(retro_started=hours(docs_weekly.START_GUARD_HOURS + 1), last_review=None, retro_due=True)
         self.assertEqual(self.start(), [])  # findings wait: the retro session starts first
         self.run_file(retro_started=hours(2), last_review=hours(1), retro_branch=None, retro_due=False)
-        self.assertEqual(self.start(title="Документація: repo"), [])  # the docs session starts nothing
-        self.assertEqual(self.start(title="Ретро: repo"), [])  # nor the retro session
+        self.assertEqual(self.start(title="Docs: repo"), [])  # the docs session starts nothing
+        self.assertEqual(self.start(title="Retro: repo"), [])  # nor the retro session
+        self.assertEqual(self.start(title="Документація: repo"), [])  # the old titles of both still count
+        self.assertEqual(self.start(title="Ретро: repo"), [])
         self.assertEqual(self.start(), started)  # after the retro ended
         self.stamps(docs_started=hours(docs_weekly.DOCS_GUARD_HOURS - 1), docs_done=hours(week + 1))
         self.assertEqual(self.start(), [])  # a run with no `done` is retried once a day, not sooner
@@ -153,7 +155,7 @@ class DocsWeeklyTestCase(unittest.TestCase):
     def test_no_start_env_stamps_but_does_not_spawn(self):
         with mock.patch.object(docs_weekly, "spawn") as spawn, mock.patch.object(sessions, "find_claude",
                                                                                     return_value="c"):
-            docs_weekly.hook_start({"cwd": str(self.repo), "session_id": "s", "session_title": "C: x"})  # env set by setUp
+            docs_weekly.hook_start({"cwd": str(self.repo), "session_id": "s", "session_title": "M: x"})  # env set by setUp
         spawn.assert_not_called()
         self.assertIn("docs_started", self.read_stamps())
 
@@ -199,7 +201,7 @@ class DocsWeeklyTestCase(unittest.TestCase):
         (fake / name).chmod(0o755)
         env = {**os.environ, "PATH": str(fake) + os.pathsep + os.environ.get("PATH", "")}
         script = PLUGIN / "hooks" / "docs-start.py"
-        payload = json.dumps({"cwd": str(self.repo), "session_id": "s-9", "session_title": "C: x"}).encode()
+        payload = json.dumps({"cwd": str(self.repo), "session_id": "s-9", "session_title": "M: x"}).encode()
         for data in (b"not json", b"", b"[1]", b"\xff\xfe", b"{}", payload):
             result = subprocess.run([sys.executable, str(script)], input=data, env=env, capture_output=True)
             self.assertEqual((result.returncode, result.stdout), (0, b""), data)

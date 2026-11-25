@@ -24,7 +24,7 @@ POWERSHELL = shutil.which("powershell.exe") or shutil.which("powershell")
 sys.path.insert(0, str(PLUGINS / "dev-kit" / "scripts"))
 import dev_kit_state  # noqa: E402
 
-LEAD = "P: Lead"
+LEAD = "L: Lead"
 LEAD_SID = "11111111-aaaa-bbbb-cccc-000000000001"
 TASK = "22222222-aaaa-bbbb-cccc-000000000002"
 PULT_SID = "33333333-aaaa-bbbb-cccc-000000000003"
@@ -32,7 +32,7 @@ SERVER = "Srv-wake-test-7f3a"  # a server row no real process matches
 OLD_TIME = 946684800  # 2000-01-01: every plugin.json is older than the "lead" process
 STALE_KEY = "2026-11-20T09:00:00.000Z"
 STALE_LINE = f"stale | C: task | {TASK} | waiting 25 min | {STALE_KEY}"
-PING = ("PING keep-warm: run dev-kit-sessions fill for your C sessions and dev-kit-sessions fill --self "
+PING = ("PING keep-warm: run dev-kit-sessions fill for your Manager sessions and dev-kit-sessions fill --self "
         "for yourself, then answer with your standard status only.")
 
 FAKE_SESSIONS = r'''import json, os, subprocess, sys
@@ -283,7 +283,7 @@ class WatchServersWakeTest(unittest.TestCase):
 
     # protects: Flow
     def test_handoff_request_reaches_the_lead_as_its_line_and_is_marked(self):
-        # A lead that is not quiet is asked to move by this event (the project-lead skill, "Restart P").
+        # A lead that is not quiet is asked to move by this event (the project-lead skill, "Restart the Lead").
         (self.bin / "check.txt").write_text("handoff | - | - | handoff-2.md | handoff-2.md\n", encoding="utf-8")
         log = self.run_watch(2)
         wakes = self.wakes()
@@ -631,8 +631,8 @@ class WatchServersWakeTest(unittest.TestCase):
         return [c for c in calls if c[0] == "notices"]
 
     def two_leads(self, second_live):
-        """A second lead 'P: Second' on the same project; listed live (like the first) or not."""
-        second, sid = "P: Second", "44444444-aaaa-bbbb-cccc-000000000004"
+        """A second lead 'L: Second' on the same project; listed live (like the first) or not."""
+        second, sid = "L: Second", "44444444-aaaa-bbbb-cccc-000000000004"
         transcript = self.projects / f"{sid}.jsonl"
         transcript.write_text(self.lead_transcript.read_text(encoding="utf-8"), encoding="utf-8")
         self.config_file.write_text("@{ Servers = @( @{ Session = '%s'; Lead = $true; Path = '%s' }, "
@@ -666,7 +666,7 @@ class WatchServersWakeTest(unittest.TestCase):
         self.notices(f"notice | week | 80 | 83 | {resets} | LIMITTEXT slow down | wind down")
         log = self.run_watch(2)
         self.assertEqual({LEAD: ["LIMITTEXT slow down | wind down"]}, self.limit_texts(), log)  # the dead lead gets none
-        self.assertIn("LIMIT-NOTICE week 80 83 leads=P: Lead", log)
+        self.assertIn("LIMIT-NOTICE week 80 83 leads=L: Lead", log)
         self.assertEqual([LEAD], json.loads((self.pult / "wake-state.json").read_text(encoding="utf-8"))["LimitNotified"][f"week|{resets}"])
         self.assertEqual([], self.marks(), "a limit line needs no sessions.py mark")
         self.assertEqual(1, len(self.notices_calls()), "a second round with an unchanged usage log makes no call")
@@ -676,7 +676,7 @@ class WatchServersWakeTest(unittest.TestCase):
         log = self.run_watch(2)
         self.assertEqual({LEAD: ["LIMITTEXT limit is back"]}, self.limit_texts(), log)
         self.assertNotIn(second, self.limit_texts())
-        self.assertIn("LIMIT-BACK week leads=P: Lead", log)
+        self.assertIn("LIMIT-BACK week leads=L: Lead", log)
         self.assertEqual({}, json.loads((self.pult / "wake-state.json").read_text(encoding="utf-8"))["LimitNotified"])
 
     # protects: Flow

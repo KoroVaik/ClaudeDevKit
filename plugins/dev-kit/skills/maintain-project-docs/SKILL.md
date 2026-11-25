@@ -1,6 +1,6 @@
 ---
 name: maintain-project-docs
-description: Use when the owner asks for documentation maintenance or a docs audit, or when the weekly background session «Документація: <project>» starts (the dev-kit SessionStart hook starts it with "/dev-kit:maintain-project-docs weekly"); not for routine documentation updates within a feature or bug fix.
+description: Use when the owner asks for documentation maintenance or a docs audit, or when the weekly background session «Docs: <project>» starts (the dev-kit SessionStart hook starts it with "/dev-kit:maintain-project-docs weekly"); not for routine documentation updates within a feature or bug fix.
 ---
 
 # Maintain project docs
@@ -79,10 +79,10 @@ uncertain, and the checks actually run. Do not claim a check, status or acceptan
 
 ## Weekly background run
 
-Started with the argument `weekly`: a dev-kit hook starts the session «Документація: <project>» in the main
-checkout of a project with a lead once a week, after that week's retro («Ретро: <project>») ended and its branch was
+Started with the argument `weekly`: a dev-kit hook starts the session «Docs: <project>» in the main
+checkout of a project with a lead once a week, after that week's retro («Retro: <project>») ended and its branch was
 merged, or on its own in a week with no retro (`dev-kit-docs`, the docstring of `scripts/docs_weekly.py`). It never asks
-the owner and never uses `AskUserQuestion`; it sends its P, `P: <project>` (the repo folder name), only one `ГОТОВО`
+the owner and never uses `AskUserQuestion`; it sends its Lead, `L: <project>` (the repo folder name), only one `ГОТОВО`
 by SendMessage (`${CLAUDE_PLUGIN_ROOT}/messages.md`). It runs steps 1-2 and 4 as above; every "after the owner's
 yes" and "proposed" in them becomes an item below, never a wait. Step 3 becomes:
 
@@ -93,7 +93,7 @@ yes" and "proposed" in them becomes an item below, never a wait. Step 3 becomes:
 - **Owner** item (`status: owner`): the change alters what a rule says (agent rules, a standard) or what the product
   description says (`docs/product.md`, an epic, a feature's rules). Only these reach the owner, so keep the bar high:
   a duplicate turned into a link or a fact moved to its home changes no rule.
-- **Open** item (`status: open`): everything else; P has it fixed later with no owner.
+- **Open** item (`status: open`): everything else; the Lead has it fixed later with no owner.
 
 Each item is one file `docs-items/<key>.md` in the project's docs folder (the folder path is the first line of
 `dev-kit-docs items`; its "Docs items" part lists the keys already there; a problem with an existing key updates
@@ -103,11 +103,11 @@ since, so the owner is never asked the same thing twice. The key is a short keba
     # <plain name of the problem, at most 6 words>
     - status: owner | open | fixed | rejected
     - seen: <YYYY-MM-DD> | <file and passage>
-    <Було / Це проблема, бо / Виправлення / Стане, one line each, in Ukrainian: the text P shows the owner>
+    <Було / Це проблема, бо / Виправлення / Стане, one line each, in Ukrainian: the text the Lead shows the owner>
 
-Then commit the trivial fixes in the worktree, run `dev-kit-docs done`, and send P one `ГОТОВО` in 3 lines:
+Then commit the trivial fixes in the worktree, run `dev-kit-docs done`, and send the Lead one `ГОТОВО` in 3 lines:
 state, result (trivial fixes made, open and owner items written), what is needed (merge branch `<branch>`, or
-nothing to merge). The session then waits; P closes it.
+nothing to merge). The session then waits; the Lead closes it.
 
 Why: owner, 2026-11-22 (`docs/features/tidy-the-docs-once-a-week.md` in the plugin repo): docs upkeep runs by itself once a week on the
 rules the retro just fixed, ends instead of staying open, and brings the owner only the truly important items.

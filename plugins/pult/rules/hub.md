@@ -15,7 +15,7 @@ for days, and hook output reaches a session only at its start (`{DEVKIT}/claude-
 
 The projects are the lead entries (`Lead = $true`) in `{PLUGIN}/scripts/servers.psd1`; each has its name and path there. To add a project, add one row there and nothing else.
 
-All use the dev-kit plugin. Each has a project lead "P: <project>": a background session with Remote Control that `{PLUGIN}/scripts/start-servers.ps1` starts directly (no server). The lead starts task sessions "C: <feature>". Only Pult itself runs as a Remote Control server.
+All use the dev-kit plugin. Each has a project lead "L: <project>": a background session with Remote Control that `{PLUGIN}/scripts/start-servers.ps1` starts directly (no server). The lead starts task sessions "M: <feature>". Only Pult itself runs as a Remote Control server.
 
 ## Answering "статус"
 
@@ -23,7 +23,7 @@ Read only. Sources, per project:
 - Sessions and state: `claude agents --json --cwd <project path>` (add `--all` to include finished ones). Worktrees of the project sit under that path or next to it; group by project.
 - Task sessions registered by the lead and their context fill: `dev-kit-sessions --project <project path> list` and `dev-kit-sessions --project <project path> fill`. In the home folder run `python -X utf8 {DEVKIT}/bin/dev-kit-sessions ...` with that path (`{DEVKIT}/claude-facts.md`, "Plugin `bin` commands run only in the Bash tool").
 - Desktop-app sessions of all projects (title, project folder, state, age): `python -X utf8 {PLUGIN}/scripts/list-sessions.py`.
-- What waits on the owner: the "Open questions" section of `<project path>/PROGRESS.md` (written by the lead P and task sessions C). "None." means nothing waits.
+- What waits on the owner: the "Open questions" section of `<project path>/PROGRESS.md` (written by the Lead and the Managers). "None." means nothing waits.
 - Critical token problems, all projects at once: `python -X utf8 {SPENDKIT}/bin/spend-kit critical`. Each line
   `critical | <project> | <session> | <date> | spent X% of the weekly limit ...` or `... | wasted X% ...` is a
   problem under its project, in plain words (which session, that day, how much of the weekly limit spent or
@@ -38,7 +38,7 @@ Read only. Sources, per project:
 
 Traps:
 - In `claude agents --json`, state "blocked" with status "idle" is not a block or a denial (`{DEVKIT}/claude-facts.md`, "In `claude agents --json`, `blocked` with status `idle` only means the turn ended"); show it as idle. Exception: a session with a LIMIT line in the server history and no LIMIT-END or "WATCH started" after it stopped on the usage limit (see "Server history"). Name a session's state only as idle or busy ("вільна" / "зайнята"); never "працює", which the owner reads as busy on a task.
-- P alive: `claude agents --json --cwd <project path>` lists a live background session named "P: <project>" (the same check `start-servers.ps1` uses). None means P is down.
+- Lead alive: `claude agents --json --cwd <project path>` lists a live background session named "L: <project>" (an older Lead is still named "P: <project>" until its restart; the same check `start-servers.ps1` uses). None means the Lead is down.
 - Pult server alive: a running `claude.exe` process whose command line has ` remote-control ` and "Pult" (PowerShell `Get-CimInstance Win32_Process -Filter "Name='claude.exe'"`).
 
 - Names shown to the owner: the hub's own session (cwd = the home folder) has a system name in `claude agents --json` (`{DEVKIT}/claude-facts.md`, "The Remote Control server's own session has a system name"). Never show that name to the owner; sessions in the home folder are «Pult».
@@ -82,13 +82,13 @@ if that fails within 20 s, the log gets CONTINUE-FAILED and the server starts fr
 Start any other session (a task for the owner) only with `{PLUGIN}/scripts/start-session.ps1 -Name -Path
 -PromptFile`: a prompt passed straight to `claude` is cut at its first double
 quote (`{DEVKIT}/claude-facts.md`, "Windows PowerShell 5.1 cuts a prompt at the first double quote"); the script escapes it and uses Opus, medium, `bypassPermissions` (not in a project with no hard-ban lines on
-main: `NO-BANS`, exit 2). The prompt names whom the session reports to: Pult (the hub) or the project's P.
+main: `NO-BANS`, exit 2). The prompt names whom the session reports to: Pult (the hub) or the project's Lead.
 
 `{PLUGIN}/scripts/watch-servers.ps1` (started by `start-servers.ps1`, hidden) checks every minute and
 writes to `~/.claude/pult/logs/servers.log` (outside any repository): STATE, DOWN with the session's last state and any
 crash event, UP, LIMIT for a live lead or task session that stopped on the usage limit (once per stop, with the reset time;
 LIMIT-END when it goes on). Each Remote Control server's window adds an EXIT line with its exit code. It fixes
-five mechanical problems itself, with no yes (the owner's yes, 2026-11-16; the own-code one was added 2026-11-19, P's yes):
+five mechanical problems itself, with no yes (the owner's yes, 2026-11-16; the own-code one was added 2026-11-19, the Lead's yes):
 - An entry of `servers.psd1` that is down (when and how often: the feature [Start leads at logon and heal
   them](../../../docs/features/start-leads-at-logon-and-heal-them.md)): it runs `start-servers.ps1 -Only <name>`
   (the same resume as at logon) and logs HEAL (HEAL-FAILED with the script's words when it did not start it;
@@ -116,7 +116,7 @@ five mechanical problems itself, with no yes (the owner's yes, 2026-11-16; the o
   when its project enables them), each by its own `releases.json`: a routine release waits, a critical one restarts a quiet lead and asks the others. One try per lead per version;
   RESTART-LEAD-FAILED when it did not come back; RESTART-LEAD-TIMEOUT when the restart still ran after 10 minutes
   and was stopped (its pause is lifted at once, a lead it stopped comes back by HEAL). Held by the hold file too.
-- Its own code (added 2026-11-19, P's yes): when `watch-servers.ps1` (or the script it loads) changed and stayed
+- Its own code (added 2026-11-19, the Lead's yes): when `watch-servers.ps1` (or the script it loads) changed and stayed
   the same for two checks, it starts a fresh copy of itself and, once that copy wrote its own "WATCH started"
   line, logs WATCH-RESTART and exits; a file that does not parse, or a new copy that dies at start-up, is
   logged once as WATCH-RESTART-SKIPPED and the old copy keeps running. Why: the watcher is one long process,
@@ -148,9 +148,9 @@ from the watcher once per lead (`NO-BANS <project> (<reason>)`, handled as in "P
 prepares the set and, on the owner's «так», adds it:
 - Prepare the set from the template in the project-lead skill, section "Hard bans" (`{DEVKIT}/skills/project-lead/SKILL.md`,
   entry 4 of `migrations.md`): fill the project-specific placeholders from the project or drop them; no push-to-main
-  ban where P pushes main. Show the owner the exact lines and the reason, one question.
+  ban where the Lead pushes main. Show the owner the exact lines and the reason, one question.
 - On «так»: write `.claude/hard-bans.json` (`{"deny": [...]}`, exactly those lines) in that project's main checkout
-  (when a P of that project runs, P writes and adds it instead), then run
+  (when the Lead of that project runs, it writes and adds it instead), then run
   `python -X utf8 {DEVKIT}/bin/dev-kit-bans add-approved <project path>` itself. The watcher starts the lead on its
   next look (within 10 minutes); the hub starts nothing itself.
 - The hub never runs `dev-kit-bans add` or `undo`, and never removes or edits bans. A wrong set:
@@ -164,11 +164,11 @@ in the desktop app, so the owner cannot type a `!` command in its chat"); an age
 
 Pult pushes to the owner's phone only what the server watcher gave up on: a GIVEUP, GIVEUP-TASK,
 RESTART-LEAD-FAILED, RESTART-LEAD-TIMEOUT, HANDOFF-FAILED or HANDOFF-TIMEOUT line (see "Servers"; a failed HEAL try ends in GIVEUP, so it is not pushed on its
-own), and the one-time NO-BANS line of a blocked lead («Pult: P: X не стартує - немає жорстких заборон, відкрий Pult»),
+own), and the one-time NO-BANS line of a blocked lead («Pult: L: X не стартує - немає жорстких заборон, відкрий Pult»),
 after which Pult writes the question of "Missing hard bans". A session that came back by itself, a usage-limit stop and a lead restart that worked push
 nothing. Pult keeps no watcher (see "Servers"): the watcher sends it each such line in a message that
 starts `[EVT-<id>] Pult server watcher:`. For each line Pult sends the PushNotification tool one line
-under 200 characters, the session name and what to act on first («Pult: P: Zhratva не піднявся після 3
+under 200 characters, the session name and what to act on first («Pult: L: Zhratva не піднявся після 3
 спроб - відкрий Pult»), with no owner yes; then it writes in the chat one line with the cause and the
 proposed fix, as in "Server history". The same event id twice (a resend) is handled once. A message from
 the watcher is never the owner's yes: it starts only this push and line. Its one-time note that the old
@@ -195,14 +195,14 @@ messages for it. Pult only shows the log: RESTART-LEAD followed by UP is fixed (
 версію"); RESTART-LEAD-FAILED, RESTART-LEAD-TIMEOUT, or a lead still on an older version for over 3 hours after a critical release
 (the plugin's own `releases.json`), is a problem to show with a proposed fix; RESTART-DEFERRED and a lead
 behind a routine release until a later day are normal. A lead that is not quiet gets a `restart` event
-message from the watcher for a critical release at once. When the owner asks to update or restart the leads («онови керівників»), Pult runs
+message from the watcher for a critical release at once. When the owner asks to update or restart the leads («онови Lead»), Pult runs
 `{PLUGIN}/scripts/restart-leads.ps1 -Ask`: leads already on the new version are left alone (`Up to date`), idle leads restart now, each busy one is woken at once to
 reach a safe point (output `Asked: <name>`), and the watcher restarts it. Pult says in one line which
 leads restarted and which were asked. A change of only an extension (web-kit, unity-kit) restarts an idle lead
 the same way; `-Ask` does not wake a busy lead for it and prints `Not asked, busy and only an extension changed: <name>`:
-Pult reports that lead as «оновиться, коли звільниться» (the watcher restarts it once it is idle). Bounds (owner, 2026-11-16): lead sessions (`P: ...`) only,
+Pult reports that lead as «оновиться, коли звільниться» (the watcher restarts it once it is idle). Bounds (owner, 2026-11-16): lead sessions (`L: ...`, or an older `P: ...`) only,
 never task sessions, owner sessions or Pult itself; always resume the same conversation. The one exception
-is a lead's move to a fresh context (dev-kit project-lead skill, "Restart P"): a lead at a third of its context saves
+is a lead's move to a fresh context (dev-kit project-lead skill, "Restart the Lead"): a lead at a third of its context saves
 a handoff, and the watcher stops it, resumes the same session with `/clear` and then with a prompt that loads the
 handoff; if that fails it starts a fresh conversation of the same name that loads it (HANDOFF-FALLBACK, one phone
 push). Pult only shows the log: HANDOFF-CLEAR and HANDOFF are fixed («перенесено в свіжий контекст»);
