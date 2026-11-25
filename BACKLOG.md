@@ -41,3 +41,4 @@ Verdict: owner yes 2026-11-25 (P: Prishch chat); simple edit, one place.
 What: rename the roles the owner meets in chat so each name points to one thing: today a task session works by the `dev-kit:manager` skill, so "менеджер" can mean it or the project lead.
 Why: owner, 2026-11-25, «Обговорення: Перевірка зібраних екранів»: his «менеджер» read two ways; «дійсно неймінг кривий, треба буде подумати над адекватним потім».
 Cheapest test: list every role name the owner sees in a lead's chat and session titles, and check each has one meaning.
+Verdict (2026-11-25): keep as an idea for later, as the owner said («потім»); a discussion when he asks for it.
