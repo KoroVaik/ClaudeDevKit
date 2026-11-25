@@ -43,3 +43,10 @@ What: rename the roles the owner meets in chat so each name points to one thing:
 Why: owner, 2026-11-25, «Обговорення: Перевірка зібраних екранів»: his «менеджер» read two ways; «дійсно неймінг кривий, треба буде подумати над адекватним потім».
 Cheapest test: list every role name the owner sees in a lead's chat and session titles, and check each has one meaning.
 Verdict (2026-11-25): owner «Можна зараз»: discussion started («Обговорення: Назви ролей сесій»).
+
+## Lead: do not end a task whose session died in a reboot
+
+What: after a PC reboot a lead starting fresh ran `dev-kit-sessions state`, got `gone` (no pid, no grace: `plugins/dev-kit/scripts/sessions.py:826-827`), checked `claude agents --json` without `--all` (dead sessions are hidden) and ended the record as `stopped` within about 40 s. The Pult watcher then skipped it (`plugins/pult/scripts/watch-servers.ps1:532` heals only `active` records), so no `claude respawn` and no `gone:` event. Fix: `state` keeps the 300 s grace of `check` (or says `no process, watcher may respawn`), and the lead skill says a lead never ends a C on `state` alone: it waits for the watcher's `gone:` event.
+Why: 2026-11-25 22:23 reboot; «C: Переробка ядра аналізу» (Zhratva) and «C: Нові назви ролей» (ClaudeDevKit) were both lost this way and restarted by hand (reported by P: Zhratva; cause found by an investigator from the System log, `~/.claude/daemon.log` and `~/.claude/pult/logs/servers.log:6103-6128`).
+Cheapest test: a registry with one active C whose process is killed; run the lead's start steps; the record stays `active` and the watcher respawns it.
+Verdict (2026-11-25): build it in one task session (a script and the lead skill); asked as P's question.
