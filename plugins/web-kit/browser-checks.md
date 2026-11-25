@@ -141,9 +141,12 @@ uses the board only to say where each fix belongs.
   - **Mockup and result: one picture.** A mockup shot and the app's shot of the same state go as one image,
     made with `web-kit-pair --left <mockup.png> --right <app.png> --title "<what the frame shows>" --out
     <file.png>` (equal height, each half one whole window, a title line of at most 60 characters drawn on
-    top; format at the top of `scripts/pair.mjs`). The title says the state in the owner's words, never
-    "mockup" or "built". Pictures that carry such a title go in one `SendUserFile` call per block, with the
-    block's caption. Never write a one-off image script for this.
+    top and under it «Мокап» over the left half, «Зроблено» over the right; format at the top of
+    `scripts/pair.mjs`). The title says the state in the owner's words, never "mockup" or "built" (the
+    half labels say that); the chat caption repeats the title. Shoot the built half at the mockup's frame
+    extent, never cropped to one block (a lone block reads as an empty screen). Pictures that carry such a
+    title go in one `SendUserFile` call per block, with the block's caption. Never write a one-off image
+    script for this.
   - **More than two items: one message per item.** When a result has more than two separate items with
     screenshots (branches of a board, variants, defects, scenarios), each item is its own message: a
     short heading and its own lines, then its own `SendUserFile` call, then the next item. No text or

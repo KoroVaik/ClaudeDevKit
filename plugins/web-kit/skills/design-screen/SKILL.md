@@ -109,7 +109,7 @@ remarks outrank the mockup walk.
   the mockups folder as it is. Do not open the browser pane yourself. Shots go **one `SendUserFile` call
   per image**, each with its own numbered caption naming what differs on screen; never one call or one
   shared caption over several images (close-ups and whole-page shots too). The one exception: a mockup and
-  its built result of one state are one picture (`web-kit-pair`) with its title drawn on it, and such
+  its built result of one state are one picture (`web-kit-pair`) with its title and half labels drawn on it, and such
   pictures go one call per block. Sending, blocks and numbering follow browser-checks.md,
   "Screenshots go to the owner".
 - **The text** is exactly one line per variant or change, one recommendation line (at most 15 words) with
