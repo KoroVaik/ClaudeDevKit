@@ -28,9 +28,3 @@ What: every retro decision (a "no, the rule is not to blame" too) becomes a loca
 Why: owner, 2026-11-21: reuse of experience between projects; today each project's retro starts from its own items only.
 Cheapest test: replay one real case, e.g. a decision of the Zhratva retro, and see whether the ClaudeDevKit retro would have found it by its cause key.
 Verdict (2026-11-22): keep as an idea; moved from the finished retro plan, the owner has not agreed it; no case yet shows it missing. Owner: yes (2026-11-23).
-
-## Project lead: the first reply of an «Обговорення:» session is an open talk
-
-What: in `plugins/dev-kit/skills/project-lead/SKILL.md`, section "Start an «Обговорення:» session" (around lines 575-576), the brief phrase "run `dev-kit:discovery-round` for the meaning and the show-idea slot for the look" becomes: "run `dev-kit:discovery-round` for the meaning, but your FIRST reply is always an open talk (its step 4: at most 4 plain sentences of facts, one open question, no numbers, no «Рекомендую»), even when his words sound decided; numbered questions start only after his answer or his explicit ask for questions; and the show-idea slot for the look;".
-Why: Zhratva «Обговорення: Логіка з коментарів», 2026-11-24: the owner's words were directives («потрібно з коментаря брати абстрактну логіку рішення. запусти обговорення»), so the session judged the direction "clear", skipped discovery-round step 4 and opened with 3 numbered questions with recommendations. Owner: «ми обговрюєм!!!!!!!!!! нащо відразцу потік питань?!». The owner approved the idea of this fix on 2026-11-25 («Так, для цього обговорення і треба»).
-Cheapest test: start a discussion session from a brief whose owner words sound decided; its first reply must be an open talk with one open question.

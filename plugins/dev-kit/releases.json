@@ -25,5 +25,6 @@
   "0.1.126": {"kind": "routine", "date": "2026-11-25", "reason": "a lead stops all its sessions at 98% of the weekly limit when the reset is over 6 hours away"},
   "0.1.127": {"kind": "routine", "date": "2026-11-25", "reason": "a coder runs on opus only after a sonnet run of the step failed, with the reason in the launch line"},
   "0.1.128": {"kind": "routine", "date": "2026-11-25", "reason": "a lead gets a note when its reply to a session or event message has free text beside the bold blocks"},
-  "0.1.129": {"kind": "routine", "date": "2026-11-25", "reason": "a lead shows the spend statistics table when the owner asks for it"}
+  "0.1.129": {"kind": "routine", "date": "2026-11-25", "reason": "the first reply of every «Обговорення:» session is an open talk with one question that never asks the owner to restate his words, even when they already name what to design and why"},
+  "0.1.130": {"kind": "routine", "date": "2026-11-25", "reason": "a lead shows the spend statistics table when the owner asks for it"}
 }
