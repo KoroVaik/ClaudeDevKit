@@ -36,6 +36,18 @@ class PairArgsTests(unittest.TestCase):
         self.assertEqual(r.returncode, 2)
         self.assertIn("keep it to 60", r.stderr)
 
+    def test_long_label_is_refused(self):
+        r = self.run_pair("--left", str(self.png), "--right", str(self.png), "--title", "Empty list",
+                          "--right-label", "x" * 21, "--out", str(self.dir / "o.png"))
+        self.assertEqual(r.returncode, 2)
+        self.assertIn("keep it to 20", r.stderr)
+
+    def test_empty_label_is_refused(self):
+        r = self.run_pair("--left", str(self.png), "--right", str(self.png), "--title", "Empty list",
+                          "--left-label", " ", "--out", str(self.dir / "o.png"))
+        self.assertEqual(r.returncode, 2)
+        self.assertIn("--left-label is empty", r.stderr)
+
     def test_not_a_png_is_refused(self):
         bad = self.dir / "b.png"
         bad.write_text("not a png", encoding="utf-8")
