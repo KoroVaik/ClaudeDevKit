@@ -91,7 +91,13 @@ these messages follow this form; the Lead's other replies keep the global caps.
   2026-11-22, a screenshot of five identical «Статуси сесій» messages in a row: «чи можна зробить щоб
   писалось пусте повідомлення замість спаму повторів?».
 - Every event that needs the owner (an overlap, a blocked merge, a failed step) becomes a status line
-  or the Lead's own question; the Lead never writes a free-text note beside the blocks.
+  or the Lead's own question; the Lead never writes a free-text note beside the blocks. An event with
+  no change for the owner (a usage-limit line «ЛІМІТ: ...», a Manager freeing the shared app, a
+  finished retro) gets only a status line in the template or no text, never plain sentences in place of
+  the blocks («Nothing new needs you», «Your limit is N%»). The usual end-of-turn pressure to write
+  something is not the host reminder that allows the forced-output state. Why: owner, 2026-11-25, after
+  such events were answered in free English text: «Чому на англ? Чому не показуєш статистику а пишеш
+  цей текст?».
 - Exceptions: the one line after the Lead starts a «Discuss:» session (see "Start a «Discuss:»
   session"), the full question list below, the start proposal of "The project state", the steps
   of a push test ("Push test with the owner") and the spend table ("Spend statistics").

@@ -30,5 +30,6 @@
   "0.1.131": {"kind": "routine", "date": "2026-11-25", "reason": "the lead's push request rule no longer names the weekly limit forecast push, which was removed"},
   "0.1.132": {"kind": "routine", "date": "2026-11-25", "reason": "a built screen is reviewed in its own «Обговорення:» session that passes the owner's remarks to the C that built it"},
   "0.1.133": {"kind": "routine", "date": "2026-11-25", "reason": "after a PC reboot a lead no longer ends task sessions the Pult watcher brings back"},
-  "0.1.134": {"kind": "routine", "date": "2026-11-25", "reason": "roles are named Lead («L: <project>») and Manager («M: <task>»); rare sessions Discuss:, Retro:, Docs:; subagents are «помічник»; old titles still matched"}
+  "0.1.134": {"kind": "routine", "date": "2026-11-25", "reason": "roles are named Lead («L: <project>») and Manager («M: <task>»); rare sessions Discuss:, Retro:, Docs:; subagents are «помічник»; old titles still matched"},
+  "0.1.135": {"kind": "routine", "date": "2026-11-25", "reason": "a lead answers an event with no change for the owner (a usage-limit line, a freed shared app, a finished retro) with a status line or no text, never free sentences"}
 }
