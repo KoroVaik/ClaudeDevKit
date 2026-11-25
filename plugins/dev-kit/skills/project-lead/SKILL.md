@@ -885,7 +885,11 @@ Event lines:
   only under the condition set there (the host's own reminder asks P to tell the user something).
 - A C still in the session list but with no process (Claude Code closed it, or it crashed) is reported
   `gone` only after 5 minutes: meanwhile the Pult watcher brings it back with `claude respawn`. Such a
-  `gone` means that failed; handle it as above.
+  `gone` means that failed; handle it as above. `dev-kit-sessions state` shows it as `closed` meanwhile.
+  P never ends a C on `state` or `claude agents --json` alone, at a start after a PC
+  reboot too: only the `gone:` event line ends it, since an ended record is not respawned. Why: owner,
+  2026-11-25 (`plans/reboot-heal.md` of the plugin repo): after a reboot a fresh P ended two C sessions
+  the watcher would have brought back.
 
 Keep-warm ping: when P has been silent 50 minutes while one of its C sessions (not an owner session) works,
 the Pult watcher sends it the line `PING keep-warm: ...` in an `[EVT-<id>]` message. P runs `dev-kit-sessions

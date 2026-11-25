@@ -47,12 +47,15 @@ state, who started it (`lead` when the registry holds its id, else `owner`), bra
 branch, plus uncommitted ones). Reads no code. Prints `no other sessions` when there are none.
 
 `state` prints one line per active registry record (or per `--id`, full or 8+ char prefix): `name | id | working|
-waiting|limited|finished|gone | gist`. The gist is the tail (at most GIST_CHARS) of the last assistant text message of the
+waiting|limited|finished|closed|gone | gist`. The gist is the tail (at most GIST_CHARS) of the last assistant text message of the
 transcript, read from the end of the file. Status comes from `claude agents --json --all` (an entry matches a
 registry id by `id`, `sessionId` or a sessionId prefix): `finished` when that last reply has a line that, trimmed and
 without trailing punctuation, is one of FINISHED_MARKERS and no owner message came after it, and only for a record
 added with `--owner` (a C never reports finished); else `gone` when no
-matching entry has a `pid` (a session with none is closed, see `watch`); `limited` when its transcript ends with
+matching entry has a `pid` (a session with none is closed, see `watch`), but `closed` (gist starting `no process,
+the watcher may respawn it;`) while such a session, not an owner one, is still in the list and `check` has not yet seen it closed for
+CLOSED_GRACE seconds (`check-closed.json`, read only): after a PC reboot the Pult watcher brings it back meanwhile,
+and a lead must not end it on `state` alone; `limited` when its transcript ends with
 Claude Code's usage-limit notice (see `usage_limit`; the gist then starts with `resets <YYYY-MM-DD HH:MM>;`, local
 time, or `resets unknown;`): the session list cannot tell it (plugins/dev-kit/claude-facts.md, "Other sessions
 listed as `blocked` or `done` in `claude agents --json`");
@@ -852,9 +855,15 @@ def cmd_state(args, path, records):
                   for given in args.id for record in [resolve(records, given)]]
     else:
         wanted = [(record.get("name"), str(record.get("id"))) for record in active(records)]
+    closed_since = read_map(path.with_name(CLOSED))  # read only: `check` alone keeps this clock
     for name, session_id in wanted:
         name = name or next((str(agent.get("name") or "") for agent in agent_entries(agents, session_id)), "")
-        state, gist = session_state(agents, session_id, is_owner(records, session_id))
+        owner = is_owner(records, session_id)
+        state, gist = session_state(agents, session_id, owner)
+        since = closed_since.get(session_id)
+        if state == "gone" and not owner and is_closed(agents, session_id) and not (  # the watcher heals no owner session
+                isinstance(since, (int, float)) and time.time() - since >= CLOSED_GRACE):
+            state, gist = "closed", f"no process, the watcher may respawn it; {gist}"
         print(f"{name or '(no name)'} | {session_id} | {state} | {gist}")
     if not wanted:
         print("no active sessions")
