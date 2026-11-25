@@ -28,3 +28,10 @@ What: every retro decision (a "no, the rule is not to blame" too) becomes a loca
 Why: owner, 2026-11-21: reuse of experience between projects; today each project's retro starts from its own items only.
 Cheapest test: replay one real case, e.g. a decision of the Zhratva retro, and see whether the ClaudeDevKit retro would have found it by its cause key.
 Verdict (2026-11-22): keep as an idea; moved from the finished retro plan, the owner has not agreed it; no case yet shows it missing. Owner: yes (2026-11-23).
+
+## Project lead: event wake-ups give a status line or no text, never a free-text note
+
+What: in `plugins/dev-kit/skills/project-lead/SKILL.md`, "Message templates" (the line "P never writes a free-text note beside the blocks") and the forced-output paragraph say it outright: an event with no change for the owner (a usage-limit line «ЛІМІТ: ...», a C freeing the shared editor, a finished retro) gets only a status line in the template, or no text. P never sends plain sentences instead of the blocks («Nothing new needs you», «Your limit is N%», «The session finished»). The usual end-of-turn pressure to write something is not the host reminder that allows the forced-output state.
+Why: P: Prishch, 2026-11-24/25, answered such events with free plain-English text; owner: «Чому на англ? Чому не показуєш статистику а пишеш цей текст?». The English part is already fixed in the owner's global rules (Reply language, 2026-11-25); this entry covers only the free-text part.
+Cheapest test: replay a usage-limit line and a finished retro to a lead; the reply is a status line in the template or empty, never a plain sentence.
+Verdict: owner yes 2026-11-25 (P: Prishch chat); simple edit, one place.
