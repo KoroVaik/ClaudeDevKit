@@ -836,8 +836,12 @@ Event lines:
 - `limited: <name> | <id> | resets <time>`: that C stopped on the usage limit and did not go on after the
   reset. The Pult watcher sends each limited lead and C it watches a «go on» message after the reset and
   passes this line only when it could not get the session going (`plugins/pult/README.md`, LIMIT-RESUME). Write its `стоїть, скінчився ліміт (до <time>)` line at once, and never `end` or stop that C. Each stop is reported once.
-- `ЛІМІТ: <тижневий | 5-годинний> <N>%, оновиться <time>`: the weekly limit reached 90% or 95%, or the 5-hour one
-  90% (each once per window). P decides for each of its C sessions itself; nothing stops sessions centrally.
+- `ЛІМІТ: <тижневий | 5-годинний> <N>%, оновиться <time>`: the weekly limit reached 90%, 95% or 98%, or the 5-hour
+  one 90% (each once per window). P decides for each of its C sessions itself; nothing stops sessions centrally.
+  Exception, the reserve: at the weekly 98% notice, when its reset time is more than 6 hours after the current
+  time (`date`), P stops every C it runs with the stop below, signs or not, and P itself stays up for the
+  owner's urgent requests; with 6 hours or less to the reset the default below holds. Why: owner, 2026-11-25
+  (`plans/limit-reserve-98.md` of the plugin repo): keep a share of the week for random urgent requests.
   By default a C keeps working until the limit runs out: the importance of its task is no reason to stop it.
   P stops a C only on a sign it sees in the C's transcript tail or task file: helpers (subagents) are running,
   or a large change is half done. A paid API run alone is not a sign (a background script keeps running at the
