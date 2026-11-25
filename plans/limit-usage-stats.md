@@ -9,3 +9,11 @@ What exists (P checked): spend-kit (`plugins/spend-kit/scripts/spend.py`) counts
 The weekly limit is at 95% now: keep the talk lean.
 
 Success criterion: the owner's «так» to the short plan, with the agreed points written in «Owner's approval» below.
+
+## Agreed so far (2026-11-25)
+
+- The owner asks P «покажи статистику витрат»; P replies with a text table in chat. No new screen.
+- Grouping: by project, by task (session title), by subagent type and model.
+- Period: the current weekly limit window, shares as % of the weekly limit.
+- Owner: «логувати треба все що тіки можна»: weekly totals kept forever; skills counted roughly. Design approved: see the feature file.
+- Detailed report on request (full lists, e.g. every agent type); the retro week-over-week jump finding dropped. All points: docs/features/limit-usage-stats.md.

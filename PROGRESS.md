@@ -10,6 +10,7 @@
 
 ## Top priorities
 
+- Statistics of where the weekly limit goes (owner «Ну ок. Непогано» to the chat table, 2026-11-25, «Обговорення: Статистика витрат ліміту»): P shows a table by projects, tasks, agents and skills for the limit week; weekly totals kept forever. Next: build. Feature: [docs/features/limit-usage-stats.md](docs/features/limit-usage-stats.md).
 - Live check of the event-only wakes and of a push relayed by a lead: [Open items](docs/features/start-leads-at-logon-and-heal-them.md#open).
 
 - P moves itself like a release (owner «так», 2026-11-23, P: ClaudeDevKit chat): no «Перезапустити мене зараз?» question and no push; quiet (owner silent 5 min, no open question) -> silent move; otherwise the CAPS warning, then the move 30 s later, as in «Restart for a plugin update». Weak spot accepted: while the owner keeps writing, the move waits. Built and merged (dev-kit 0.1.106).
