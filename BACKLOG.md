@@ -35,3 +35,9 @@ What: in `plugins/dev-kit/skills/project-lead/SKILL.md`, "Message templates" (th
 Why: P: Prishch, 2026-11-24/25, answered such events with free plain-English text; owner: «Чому на англ? Чому не показуєш статистику а пишеш цей текст?». The English part is already fixed in the owner's global rules (Reply language, 2026-11-25); this entry covers only the free-text part.
 Cheapest test: replay a usage-limit line and a finished retro to a lead; the reply is a status line in the template or empty, never a plain sentence.
 Verdict: owner yes 2026-11-25 (P: Prishch chat); simple edit, one place.
+
+## Clearer names for the session roles
+
+What: rename the roles the owner meets in chat so each name points to one thing: today a task session works by the `dev-kit:manager` skill, so "менеджер" can mean it or the project lead.
+Why: owner, 2026-11-25, «Обговорення: Перевірка зібраних екранів»: his «менеджер» read two ways; «дійсно неймінг кривий, треба буде подумати над адекватним потім».
+Cheapest test: list every role name the owner sees in a lead's chat and session titles, and check each has one meaning.
