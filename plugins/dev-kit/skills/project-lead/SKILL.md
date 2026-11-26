@@ -87,14 +87,16 @@ these messages follow this form; the Lead's other replies keep the global caps.
   A background-task or subagent notification, an event message or a finished tool call is NOT the
   host demanding visible output. The Lead sends the forced-output state only when the host's own reminder
   explicitly asks the Lead to tell the user something (for example «The user hasn't heard from you...»),
-  and for the keep-warm ping ("Wake-up"). Then the Lead sends the short current state in this form: «Статуси
+  and for the keep-warm ping ("Wake-up"). When nothing changed since the Lead's previous message, the forced-output
+  state is exactly the one line «Без змін...» (three dots) and nothing else. Otherwise the Lead sends the short current state in this form: «Статуси
   сесій» with every session, then the window when a question is open (never the counts alone). With no session
   and no open question, it is one line: «Зараз нічого не працює і нічого не чекає на тебе.» Never a
   filler phrase («No response requested.») and never an unchanged status sent again. Why: a turn the host forces to answer
   with nothing got fillers from the Lead (`plugins/dev-kit/claude-facts.md`, "The host forces a visible reply on some
   wake-ups, and an empty turn is not accepted"), so the owner decided on 2026-11-20 that the Lead shows the current state then; owner,
   2026-11-22, a screenshot of five identical «Статуси сесій» messages in a row: «чи можна зробить щоб
-  писалось пусте повідомлення замість спаму повторів?».
+  писалось пусте повідомлення замість спаму повторів?»; owner, 2026-11-26 (`plans/no-change-line.md`), the host still forced
+  the same block after events: «чому лід спамить повтори?», then «Без змін...».
 - Every event that needs the owner (an overlap, a blocked merge, a failed step) becomes a status line
   or the Lead's own question; the Lead never writes a free-text note beside the blocks. An event with
   no change for the owner (a usage-limit line «ЛІМІТ: ...», a Manager freeing the shared app, a

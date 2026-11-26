@@ -42,3 +42,8 @@ Verdict (2026-11-25): owner «Можна зараз»: discussion started («О�
 - Why: Zhratva, 2026-11-25: 4 paid-run background commands stopped this way; MyPC notes called the cause unknown.
 - Cheapest test: grep the installed claude.exe for "memory-pressure reap" and DISABLE_BG_SHELL_PRESSURE_REAP; check the next "stopped because the system is running low on memory" notice on Windows.
 
+## A `.cmd` file made for the owner was left on the desktop after use
+
+What: make the clean-up of an agent-written `.cmd` survive the session that wrote it, e.g. a Lead or Pult check that lists `.cmd` files on the desktop and in `Desktop/Claude` older than a day and removes the ones an agent wrote, or a record of written files that the next Lead start cleans up; and keep such files only in `Desktop/Claude`.
+Why: L: Zhratva, found 2026-11-26. `Zhratva - allow push main.cmd` (made 2026-11-22, lifts the push-to-main deny lines) stayed on the owner's desktop itself, not in the `Claude` folder, and nobody deleted it after the owner ran it. On 2026-11-26 the owner looked for a new script, saw only that old file and was confused. The owner's global rule says the agent writes the `.cmd` into `Desktop/Claude` and deletes it after the owner's «Готово»; neither held (wrong place, not deleted, the session that made it ended). Owner: «там тіки старий файл який ти н прибрав схоже», then «видалити і написати девкіту що ти не видалив його сам». The Lead deleted it on 2026-11-26.
+Cheapest test: write a `.cmd` in a session, end it without the owner's «Готово»; the next Lead start reports or removes it.

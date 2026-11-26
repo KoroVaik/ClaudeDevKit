@@ -14,7 +14,7 @@ Success criterion: points 1-6 of the entry are in `plugins/dev-kit/skills/projec
 - game-clip: no verdict only in the owner caption (5); scenario or recipe reaches the state; detail clips tight, real density or higher, 600-800 px, limits lifted, caption names resolution (6); a built screen's clip goes to the review session.
 - game-view-check, unity-editor, user-check: "agent does not judge the look" narrowed to the owner verdict, pointing to the Manager's reference check.
 - Docs: `docs/features/show-a-gif-of-play.md`, `docs/features/hand-work-to-the-project-lead.md`.
-- Versions: dev-kit 0.1.142, unity-kit 0.2.7, routine marks.
+- Versions: dev-kit 0.1.143, unity-kit 0.2.7, routine marks.
 - Script defaults (480 px, 5 MB) kept: the rule lifts them per clip by flags.
 - Review doubts recorded, not fixed: unity-editor permission table does not itself say the mockup «так» counts (game-clip and test-change do); `hand-work-to-the-project-lead.md` line about shots of a look question names no clip.
 - Cheapest test (replay the Prishch review prompt) not run here: needs Prishch's Unity run.

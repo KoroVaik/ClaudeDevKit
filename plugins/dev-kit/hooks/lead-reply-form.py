@@ -25,6 +25,7 @@ ONE_LINERS = (
     "⚠ ЧЕРЕЗ 30 СЕК БУДЕ ПЕРЕЗАВАНТАЖЕННЯ",  # restart lines
     "Обговорення закрите",
 )
+EXACT_LINES = ("Без змін...",)  # forced output with nothing changed: only this line, nothing after it
 TITLE_RE = re.compile(r"^\*\*(.+?)\*\*\s*$")
 LIST_LINE_RE = re.compile(r"^(\s+\S|-\s|\d+\.\s|і ще \d+ питан)")  # the last one: the window's counter line
 CLOSING_RE = re.compile(r"(\?\s*(\([^()]*\))?\s*$)|(\+ або -\s*$)|(^(Рекомендую|немає рекомендації)\b)")
@@ -127,7 +128,7 @@ def final_text(entries, start):
 def form_problem(text):
     """None when the text keeps the form, else a short reason in Ukrainian."""
     text = text.strip()
-    if not text or text.startswith(ONE_LINERS):
+    if not text or text in EXACT_LINES or text.startswith(ONE_LINERS):
         return None
     paragraphs = [p.strip("\n") for p in re.split(r"\n\s*\n", text) if p.strip()]
     first = TITLE_RE.match(paragraphs[0].splitlines()[0].strip())
