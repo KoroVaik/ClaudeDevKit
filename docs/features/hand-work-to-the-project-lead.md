@@ -115,7 +115,8 @@ researches with a read-only subagent and never puts to you.
 ### A discussion ends in the feature file
 In a «Discuss:» session you settle the meaning and the mockup with one agent, and the feature file
 ends with an «Approved design» section (acceptance criteria, the approved mockup, the user's situation).
-Then the Lead starts a Manager that builds the screen, and a new «Discuss:» session shows you its shots next to the
+Then the Lead starts a Manager that builds the screen and checks its look against photos of the real thing
+first, and a new «Discuss:» session shows you its shots (and a clip of each moving state) next to the
 mockup and passes your remarks to that Manager.
 Each question there names the screen it is about in its own words, with no block of facts before it.
 

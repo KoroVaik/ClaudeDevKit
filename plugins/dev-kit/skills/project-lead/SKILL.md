@@ -630,19 +630,33 @@ run one after another; nothing unfinished is merged.
    test-change order (`check-look`: in web-kit the designer compares headless shots with the mockup
    and layout-checker checks the widths; then `check-ui`, then `check-usability`); the done report
    carries shots of the built screen next to the mockup.
+   It also adds: before you show anything, judge each state's look yourself against 2-3 real-world
+   references (photos of the real thing; for a moving state, frames sampled across its clip), not only
+   that every mockup element is there: a mockup that is only a scheme does not decide colour, saturation,
+   size or shape, the references do. Never leave a visible look defect for the owner to name; the done
+   report names the references. For each state whose point is a change over time (eyes that narrow and
+   relax, a redness that fades, a tear that runs and dries), the done report and every later reply carry
+   a short clip of that change next to the same mockup state, besides the still: in a Unity project
+   `unity-kit:game-clip` (the profile's `## game-clip` section), saved where the review session can read
+   it, with its resolution and why that is enough to read what is judged; a project with no clip tool
+   says so in the done report. The owner's «так» to the mockup also
+   covers the clip's Play Mode run.
 2. On the Manager's done report the Lead neither merges nor stops the Manager, and puts no question or shots of the screen
    in its own queue or chat. The Lead starts a review session «Discuss: <feature>» as in "Start a
    «Discuss:» session", and in its own chat writes only that section's one launch line. Its first
    prompt replaces that section's one: the Manager's session name, which it may message; the task file and
-   feature file paths; where the Manager's shots and the mockup are; "show the owner each state's shot of the built screen
-   next to its mockup and ask «так» / «є питання»; pass each remark to the Manager (a `ВКАЗІВКА` with the
+   feature file paths; where the Manager's shots, clips and the mockup are; "judge each shot against real-world
+   references too (your own remark goes to the Manager as a `ВКАЗІВКА` with the reference, and to the owner with
+   the shot); show the owner each state's shot of the built screen next to its mockup, and for a state that is a
+   change over time its clip next to the mockup too (ask the Manager for a missing clip), and ask «так» / «є
+   питання»; pass each remark to the Manager (a `ВКАЗІВКА` with the
    owner's words and what to change), show the new shots the Manager sends back, and repeat until the
    owner's «так» to the result; then update the feature file's «Approved design» if a remark changed
    it, show the short plan and send the Lead `ЗАКРИТО` after its «так»". Then the Lead sends the Manager a `ВКАЗІВКА`:
    «May message: <the review session's name>»; wait for fixes from that session.
 3. The Manager fixes each remark on its own branch (the show-idea slot's polish stage; in web-kit,
    `web-kit:design-screen` stage 2), checks the look as in step 1 and replies to the review session
-   (a `ВІДПОВІДЬ`) with the new shots next to the mockup. Until step 4 the Manager's `ГОТОВО` is no merge
+   (a `ВІДПОВІДЬ`) with the new shots and clips next to the mockup. Until step 4 the Manager's `ГОТОВО` is no merge
    signal: the Lead shows it as `працює`, and a `gone:` line for it is a crash. When its context gets too
    full, the Lead refreshes it as in "Refresh an overfull Manager": after the new Manager's «picked up» the Lead sends it the
    same «May message» line (a `ВКАЗІВКА`) and sends the review session the new Manager's `[ref]`, since the
@@ -656,7 +670,10 @@ Why: the owner wants the design flow to go one step after another, with nothing 
 2026-11-18). Why the review session: owner, 2026-11-25 (`plans/screen-review.md` of the plugin repo):
 «Не дуже мені подобається те що через керівника я буду обговорювать мокап», then «Керівник дає дозвіл
 чайлд сесія спілкуваться»; accepted weak spots: a session for every built screen, even for a bare
-«так», and the Manager's context grows with each fix.
+«так», and the Manager's context grows with each fix. Why references and clips: owner, 2026-11-26 (Prishch,
+«Відгук на біль»; `plans/screen-review-clip.md` of the plugin repo): a wide glow that any photo of the real thing would have ruled out reached the owner
+(«чому я повинен описувать те що так очевидне»), and a mostly moving feature was shown in stills («Чому ти не
+записуєш гіфки?»).
 
 ## Push test with the owner
 

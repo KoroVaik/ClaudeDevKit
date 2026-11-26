@@ -5,8 +5,9 @@ description: Use when the `check-look` slot comes up in a Unity project, or the 
 
 # Game view check
 
-One screenshot of the Game view at its current size, sent to the owner, who judges it. The agent does
-not judge the look. Read the profile section `## game-view-check` of `.claude/dev-kit.md` first: it
+One screenshot of the Game view at its current size, sent to the owner, who judges it. The agent gives
+the owner no verdict on the look; a built screen's Manager still checks it against real-world references
+first (`dev-kit:project-lead`, "Build a designed screen"). Read the profile section `## game-view-check` of `.claude/dev-kit.md` first: it
 names the screenshot command and its folder, and overrides the defaults here. Without that section, tell
 the owner the command is missing; never guess one.
 

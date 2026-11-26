@@ -36,5 +36,6 @@
   "0.1.137": {"kind": "routine", "date": "2026-11-26", "reason": "a release that renames things a lead holds is marked clean and restarts the lead with a clean context; a discussion opens with a guess to confirm"},
   "0.1.138": {"kind": "routine", "date": "2026-11-26", "reason": "a plugin command run in PowerShell is refused with a note to use Bash, so no «Pick an app» window opens; the lead clean-up names the shell"},
   "0.1.139": {"kind": "routine", "date": "2026-11-26", "reason": "Claude facts: the app's session title is set once, at the first Remote Control connect"},
-  "0.1.140": {"kind": "routine", "date": "2026-11-26", "clean": true, "reason": "a lead shows a stable window of the 2 oldest open questions (closing line, counter, ✅ mark) and writes only when something waits on the owner or a result is ready; every question is queued first"}
+  "0.1.140": {"kind": "routine", "date": "2026-11-26", "clean": true, "reason": "a lead shows a stable window of the 2 oldest open questions (closing line, counter, ✅ mark) and writes only when something waits on the owner or a result is ready; every question is queued first"},
+  "0.1.141": {"kind": "routine", "date": "2026-11-26", "reason": "a built screen is judged against real-world references and each moving state is shown with a clip"}
 }

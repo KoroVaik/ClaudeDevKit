@@ -73,8 +73,8 @@ UI and frontend tests, and browser or scene checks, need the owner's consent und
 rules; approval to implement or preview a change does not authorize them. A check listed as its own
 line in a plan the owner approved has that consent (the owner's global rule "One yes per plan"). The
 owner's «так» to a screen's mockup (the feature's «Approved design» section, `dev-kit:documentation`)
-is consent for `check-look`, `check-ui` and `check-usability` of that screen while it is built to that
-design. Why: the build session checks the screen itself before the owner sees it (owner, 2026-11-18).
+is consent for `check-look`, `check-ui` and `check-usability` of that screen, and for the Play Mode runs of
+its clips (`dev-kit:project-lead`, "Build a designed screen"), while it is built to that design. Why: the build session checks the screen itself before the owner sees it (owner, 2026-11-18).
 After consent use the
 check slots: `check-ui` for a scenario, `check-usability` for an ordinary user's walk, `check-look` for
 mockups and layout. The skill filling a slot owns how its check runs. A check with consent is never dropped silently for want of a tool (a background

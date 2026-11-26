@@ -108,7 +108,8 @@ with a plugin block's name replaces it. A block may use other blocks.
   seen); a `FAIL` of an action means the input or command was refused. Exit 2 means nothing about the game was checked.
 - The manager concludes: a bug, a wrong recipe (a wrong point, a too-short bound) or an unclear rule. The
   recipe is corrected by its author, never by the operator, and a changed bound is said to the owner.
-- Screenshots go to the owner as files; the agents do not judge the look.
+- Screenshots go to the owner as files; the agents give the owner no verdict on the look (a built screen's
+  reference check: `dev-kit:project-lead`, "Build a designed screen").
 
 ## Profile: `## user-check`
 

@@ -32,7 +32,8 @@ the defaults here. Without that section, tell the owner which facts are missing;
 | A Play Mode run, a build, a run of the built player, a device, the Profiler | the owner's yes for the task |
 | Changing a scene, an asset or a setting (the Game view size included) | a separate yes, rules under "Scene" |
 
-- A screenshot goes to the owner as a file; the owner judges the look, the agent does not.
+- A screenshot goes to the owner as a file; the owner judges the look, the agent gives no verdict on it
+  (a built screen's own reference check: `dev-kit:project-lead`, "Build a designed screen").
 - A user check (`unity-kit:user-check`) is a Play Mode run: the owner's yes for the task, run by
   `unity-kit:unity-operator`. Input and fault commands (keys, the mouse, the project's click and fault
   commands) run only inside a user check's runner, never directly from an agent.
