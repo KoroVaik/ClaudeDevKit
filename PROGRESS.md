@@ -41,6 +41,8 @@
 
 - The Lead's questions are not lost or misdirected (owner «уже даю так» to the plan, 2026-11-26, «Discuss: Питання Lead не губляться»): every question written to PROGRESS.md first; the chat shows a stable window of the 2 oldest questions (critical first) with «і ще N питань», changed only by the owner's answer; the Lead never closes an item itself but marks it «✅ Вирішено, закрити?»; the Lead writes only when something waits on the owner or a result is ready; the handoff skill gets a verbatim section «Дослівно». Next: build. Plan: [plans/lead-questions.md](plans/lead-questions.md) «Owner's approval».
 
+- Projects edit web-kit and unity-kit themselves (owner «так», 2026-11-26, «Discuss:» on direct kit edits): a session of a project that enables the kit edits it in its own ClaudeDevKit worktree, runs the checks, gets a helper review, bumps and merges; the dev-kit part still goes to the backlog. Next: build. Plan: [plans/kit-direct-edits.md](plans/kit-direct-edits.md) «Owner's approval».
+
 Open work of the features: `dev-kit-check-docs --open`.
 
 ## Open questions

@@ -119,6 +119,14 @@ Then the Lead starts a Manager that builds the screen, and a new «Discuss:» se
 mockup and passes your remarks to that Manager.
 Each question there names the screen it is about in its own words, with no block of facts before it.
 
+### A project edits its own kit plugin
+A session of a project that uses web-kit or unity-kit changes that plugin itself and releases the new version,
+so a change you need during a talk there lands at once, with that talk's context; it no longer goes through the
+plugin backlog and the ClaudeDevKit Lead. Before the change lands, the repo checks pass and an independent helper reviews
+it; the ClaudeDevKit Lead does not check it afterwards. A part that needs a dev-kit change still goes to the plugin
+backlog. dev-kit, pult, rules-kit and spend-kit stay with the ClaudeDevKit Lead
+(owner «так», 2026-11-26, «Discuss:» on direct kit edits; details: [plans/kit-direct-edits.md](../../plans/kit-direct-edits.md)).
+
 ### A Manager asks only the Lead
 A Manager never asks you in its own chat; it asks the Lead. Every Manager shows in the Claude app with no push, and you may
 write in its chat: it follows your words, answers you in short and tells the Lead at once with your words. It messages no other session unless the Lead's brief for it
