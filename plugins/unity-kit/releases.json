@@ -1,5 +1,6 @@
 {
   "0.2.4": {"kind": "routine", "date": "2026-11-24", "reason": "a rules subscription file for the rules checks of rules-kit"},
   "0.2.5": {"kind": "routine", "date": "2026-11-25", "reason": "rule text names the Lead and Manager roles"},
-  "0.2.6": {"kind": "routine", "date": "2026-11-26", "reason": "game clips: sharp crops for graphic details, a mockup yes covers the clip run, the Manager may judge the look"}
+  "0.2.6": {"kind": "routine", "date": "2026-11-26", "reason": "a project that enables unity-kit changes and releases it from its own sessions"},
+  "0.2.7": {"kind": "routine", "date": "2026-11-26", "reason": "game clips: sharp crops for graphic details, a mockup yes covers the clip run, the Manager may judge the look"}
 }
