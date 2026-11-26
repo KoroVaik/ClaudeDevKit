@@ -1,6 +1,6 @@
 # Plan: no «Pick an app» window when a Lead closes a session
 
-Status: not started (2026-11-26).
+Status: done (2026-11-26): hook check, Lead clean-up wording, docs, Claude facts entry, dev-kit 0.1.138.
 
 Owner's words: «у мене постійно це вилазить, чому?» (a screenshot of two Windows «Pick an app» windows), then «так» to «Виправити правило Lead і додати перевірку проти таких вікон? (вікно «Pick an app» більше не вилазитиме)» (L: ClaudeDevKit, 2026-11-26).
 
@@ -12,4 +12,4 @@ Do:
 
 Success criterion: a PowerShell tool call `dev-kit-app stop --project x` is refused before it runs, with a clear message; the same in the Bash tool passes; the skill names the tool for each clean-up command; tests and lint pass; dev-kit version bumped with a routine release mark.
 
-Spend: -
+Spend: ~0.3% of the weekly limit, estimate; API: 0 USD

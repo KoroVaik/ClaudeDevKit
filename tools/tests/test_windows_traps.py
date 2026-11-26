@@ -99,6 +99,14 @@ class PowerShellBinTests(unittest.TestCase):
         self.assertBlocked("& 'C:/Users/x/.claude/plugins/cache/dev-kit/bin/dev-kit-bans' check C:/repo", "dev-kit-bans")
         self.assertBlocked("if ($?) { web-kit-shot http://x }", "web-kit-shot")
         self.assertBlocked("git pull\nunity-kit-gif a.mp4", "unity-kit-gif")
+        self.assertBlocked("$out = dev-kit-app status 2>&1", "dev-kit-app")
+        self.assertPasses("$name = 'dev-kit-app'")
+
+    def test_every_plugin_bin_file_is_covered(self):
+        bins = [p.name for p in (SCRIPT.parents[2]).glob("*/bin/*") if p.is_file() and not p.suffix]
+        self.assertTrue(bins)
+        for name in bins:
+            self.assertBlocked(name + " --help", name)
 
     def test_names_as_text_or_arguments_pass(self):
         self.assertPasses("git commit -m 'run dev-kit-app in Bash; dev-kit-sessions too'")
@@ -109,6 +117,9 @@ class PowerShellBinTests(unittest.TestCase):
         self.assertPasses("cmd /c rmdir \"C:\\repo\\.claude\\worktrees\\x\\node_modules\"")
         self.assertPasses("git worktree remove C:/repo/.claude/worktrees/dev-kit-app")
         self.assertPasses("Set-Location plugins/dev-kit; git status")
+        self.assertPasses("$p = @'\nIt's done.\ndev-kit-app stop --project x\n'@\nclaude --bg --name 'M: x' -- $p")
+        self.assertPasses("git commit -m @\"\nfix\ndev-kit-sessions end now in Bash\n\"@")
+        self.assertBlocked("$p = @'\nnote\n'@; dev-kit-app stop", "dev-kit-app")
 
     def test_bash_checks_do_not_apply_to_powershell(self):
         self.assertPasses("python x.py")

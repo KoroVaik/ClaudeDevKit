@@ -38,13 +38,15 @@ INLINE_CODE = re.compile(r'(?:python(?:3(?:\.\d+)?)?|py)(?:\.exe)?\b[^;&|\n]*?\s
                          re.DOTALL | re.IGNORECASE)
 PY_FILE = re.compile(r'\.py\b')
 HEREDOC_LIMIT = 7000
-# A plugin bin command in PowerShell command position: start, after ; | & ( { or a newline, or after the call
+# A plugin bin command in PowerShell command position: start, after ; | & ( { = or a newline, or after the call
 # operator &; optionally quoted and with a folder before it. The names are the extensionless files in plugins/*/bin.
 PS_BIN = re.compile(
-    r'(?:^|[;|&({\n])[ \t]*(?:&[ \t]*)?[\'"]?(?:[^\s\'";|&]*[/\\])?'
+    r'(?:^|[;|&({=\n])[ \t]*(?:&[ \t]*)?[\'"]?(?:[^\s\'";|&]*[/\\])?'
     r'((?:dev-kit|spend-kit|rules-kit|web-kit|unity-kit)(?:-[a-z]+)*)(?=[\'"]?(?:[ \t;|&)}\n]|$))',
     re.IGNORECASE)
-# PowerShell quoted text: '...' ('' inside) and "..." (` escapes).
+# PowerShell quoted text: a here-string @'...'@ or @"..."@ (its closing line starts with '@ or "@), then '...' ('' inside)
+# and "..." (` escapes).
+PS_HERE = re.compile(r"@(['\"])[ \t]*\r?\n.*?\r?\n\1@", re.DOTALL)
 PS_QUOTED = re.compile(r"'(?:[^']|'')*'|\"(?:[^\"`]|`.)*\"")
 
 TMP_FIX = 'use the job tmp folder as a C:/ path ($CLAUDE_JOB_DIR/tmp), not /tmp: Python and the shell see different /tmp folders'
@@ -119,10 +121,12 @@ def trap(command):
 def powershell_trap(command):
     """The fix line if the PowerShell command runs a plugin bin command, or None. Quoted text is blanked unless it
     stands in command position (a quoted path after & or at the start), so a name in a message is not a launch."""
+    text = PS_HERE.sub("''", command)
+
     def blank(match):
-        before = command[:match.start()].rstrip(' \t')
-        return match.group(0) if not before or before[-1] in ';|&({\n' else "''"
-    found = PS_BIN.search(PS_QUOTED.sub(blank, command))
+        before = text[:match.start()].rstrip(' \t')
+        return match.group(0) if not before or before[-1] in ';|&({\n' else "''"  # after = it is a value
+    found = PS_BIN.search(PS_QUOTED.sub(blank, text))
     return BIN_FIX.format(name=found.group(1)) if found else None
 
 
