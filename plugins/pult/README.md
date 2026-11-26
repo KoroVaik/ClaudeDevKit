@@ -20,7 +20,8 @@ problem it proposes a fix and acts after an explicit yes.
   `dev-kit-bans add-approved` (one commit on main, adding only). No agent runs `dev-kit-bans add` or `undo`, and
   no agent removes or edits a ban; `undo` (the latest add only) you run yourself, from a `.cmd` file the hub puts in the folder `Claude` on your desktop.
 - Logs: `~/.claude/pult/logs/servers.log` (written by `start-servers.ps1` and `watch-servers.ps1`; nothing is
-  written inside the plugin folder).
+  written inside the plugin folder). `start-servers.ps1` also sets each lead's title in the Claude app to its
+  name (`scripts/sync-app-titles.py`, log TITLE <old> -> <new> <job> or TITLE-FAILED).
 - The watcher (`scripts/watch-servers.ps1`, started at logon) checks every minute. The rules of what it
   brings back, how often, and what a stop on purpose does are in the feature
   [Start leads at logon and heal them](../../docs/features/start-leads-at-logon-and-heal-them.md); this

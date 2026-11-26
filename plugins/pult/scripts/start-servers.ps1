@@ -317,5 +317,15 @@ if ($leadNames) {
         }
         Write-Output "Pinned leads: $($ids -join ', ')"
     } catch { Write-Output "Could not pin leads: $_" }
+    # The app keeps the title a lead had when it first connected; a renamed lead ("P: X" -> "L: X") gets its title
+    # set to its name here (sync-app-titles.py; plugins/dev-kit/claude-facts.md, "The app's session title is set once,
+    # at the first Remote Control connect"). Already right: no change.
+    try {
+        $sync = Join-Path $PSScriptRoot 'sync-app-titles.py'
+        foreach ($line in @(& python -I -X utf8 $sync @leadNames 2>&1 | ForEach-Object { [string]$_ })) {
+            if ($line -cmatch '^TITLE(-FAILED)? ') { Write-Log $line }
+            Write-Output $line
+        }
+    } catch { Write-Output "Could not set the leads' app titles: $_" }
 }
 if (-not $Only -and (Test-Path $hold)) { Remove-Item -LiteralPath $hold -Force; Write-Log 'HOLD off' }

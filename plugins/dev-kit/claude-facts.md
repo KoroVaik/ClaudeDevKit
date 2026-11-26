@@ -229,6 +229,14 @@ One entry per behaviour. A newer direct observation replaces an older one; the o
 - Re-check: throwaway background session with Remote Control, `claude stop`, then resume with `/clear`, read its `state.json` and watch the phone | owner-only
 - Status: checked
 
+### The app's session title is set once, at the first Remote Control connect
+- What happens: The Claude desktop app lists a background session by the title of its Remote Control session on claude.ai (`GET https://api.anthropic.com/v1/code/sessions/<bridgeSessionId from the job's state.json>`, field `response_shape.title`); the desktop app's local files hold no such titles. The title is taken once, when the session first connects. Changing the job's `state.json` `name` and `respawnFlags` and resuming (`claude --bg --resume <id>`) keeps the old title: three leads renamed "P: X" to "L: X" this way still showed "P: X" (the server title of "L: ClaudeDevKit" was 'P: ClaudeDevKit'). `/rename <new>` as the prompt of `claude --bg --resume <id>` changes the local name (`state.json` `name`) but not the app title (that resume of a finished one-shot session made a new job and a new Remote Control session, which got the old title). `PUT https://api.anthropic.com/v1/code/sessions/<bridgeSessionId>` with JSON `{"title": "<new>"}` and the owner's Claude login token (`~/.claude/.credentials.json`, `claudeAiOauth.accessToken`; headers `anthropic-version: 2023-06-01`, `anthropic-beta: ccr-byoc-2025-07-29,oauth-2025-04-20`) returns 200; the title changed and stayed after 1 min with the session running. `PATCH` returns 405. This is the call Claude Code itself makes for a title update (seen in its code). `claude stop` then `claude rm <id>` of a background session archives its Remote Control session (status "archived"), so it leaves the app list.
+- Workaround: `plugins/pult/scripts/sync-app-titles.py` sets each lead's app title to its name; `start-servers.ps1` runs it.
+- App: desktop app, Remote Control, background sessions | Claude Code: 2.1.332
+- Seen: 2026-11-26 | live test on throwaway sessions | ClaudeDevKit, `plans/lead-app-names.md`
+- Re-check: start a throwaway background session, rename its job, read the title with GET, set it with PUT, read again (starts a session and uses the owner's login token) | owner-only
+- Status: checked
+
 ## Background sessions
 
 ### `claude --bg` with `bypassPermissions` fails until the owner accepts a disclaimer once
