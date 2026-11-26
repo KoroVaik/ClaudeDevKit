@@ -224,6 +224,17 @@ class NarrowAgentsTests(unittest.TestCase):
         reason = self.assertDenied("general-purpose")
         self.assertIn("local-coder", reason)
 
+    def test_built_in_web_fetch_is_allowed(self):
+        self.enable("project", **{"dev-kit@korov-dev": True})
+        self.assertAllowed("web-fetch")
+
+    def test_web_fetch_is_listed_in_the_reason(self):
+        self.assertIn("web-fetch", self.assertDenied("Explore"))
+
+    def test_web_fetch_lookalikes_are_denied(self):
+        self.assertDenied("web-fetch-extra")
+        self.assertDenied("dev-kit:web-fetch")
+
     def test_empty_type_is_denied(self):
         self.assertIn("(none)", self.assertDenied(""))
 

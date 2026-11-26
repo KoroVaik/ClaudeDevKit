@@ -1,6 +1,6 @@
 """PreToolUse hook for the Agent tool: only the project's own narrow agents (.claude/agents/*.md) and agents of
-enabled plugins may be launched, never a built-in or user-level agent type, except the user-level agents in
-USER_AGENTS that the owner's global rules name."""
+enabled plugins may be launched, never a built-in or user-level agent type, except the built-in agents in
+BUILT_IN_AGENTS and the user-level agents in USER_AGENTS that the owner's global rules name."""
 import json
 import os
 import sys
@@ -8,6 +8,10 @@ from pathlib import Path
 
 # User-level agents (~/.claude/agents/<name>.md) the owner's global CLAUDE.md sends work to; allowed only while the file exists.
 USER_AGENTS = ('other-repo-editor',)
+
+# Built-in agents allowed anyway: web-fetch carries only the WebFetch tool (a small cold start, unlike
+# general-purpose or Explore) and is the only way a session without its own WebFetch tool reads a page.
+BUILT_IN_AGENTS = ('web-fetch',)
 
 
 def read_json(path):
@@ -104,12 +108,12 @@ def main():
     user_agents = [name for name in USER_AGENTS if (Path.home() / '.claude' / 'agents' / f'{name}.md').is_file()]
 
     plugin, _, agent = kind.partition(':')
-    if kind in project_agents or kind in user_agents:
+    if kind in project_agents or kind in user_agents or kind in BUILT_IN_AGENTS:
         return
     if agent and any(names is None or agent in names for names in plugins.get(plugin, [])):
         return
 
-    allowed = list(project_agents) + user_agents
+    allowed = list(project_agents) + user_agents + list(BUILT_IN_AGENTS)
     for name, lists in sorted(plugins.items()):
         if None in lists:
             allowed.append(f'{name}:*')
