@@ -1,4 +1,4 @@
-"""PreToolUse hook for the Bash tool on Windows: refuses a command with one of the three known traps of the owner's
+"""PreToolUse hook for the Bash and PowerShell tools on Windows: refuses a command with one of the known traps of the owner's
 docs/tools.md (Python section) and names the working form in one line. The rule's home stays docs/tools.md; the hook
 checks the narrower forms that the 2026-11-20/21 sessions showed to fail (docs/features/stop-the-known-windows-shell-traps.md).
 
@@ -7,6 +7,9 @@ checks the narrower forms that the 2026-11-20/21 sessions showed to fail (docs/f
 (b) A large heredoc (plugins/dev-kit/claude-facts.md, "A large heredoc in the shell fails with "unexpected EOF while looking for matching quote"").
 (c) /tmp inside Python code (plugins/dev-kit/claude-facts.md, "Git Bash's `/tmp` and Python's `/tmp` are different
     folders").
+(d) PowerShell tool only: a plugin bin command (dev-kit-app, rules-kit, ...). The bin files have no extension, so
+    Windows opens the "Pick an app" window instead of running them (plugins/dev-kit/claude-facts.md, "Plugin `bin`
+    commands run only in the Bash tool"). Checks (a)-(c) are for the Bash tool only.
 """
 import json
 import re
@@ -35,10 +38,20 @@ INLINE_CODE = re.compile(r'(?:python(?:3(?:\.\d+)?)?|py)(?:\.exe)?\b[^;&|\n]*?\s
                          re.DOTALL | re.IGNORECASE)
 PY_FILE = re.compile(r'\.py\b')
 HEREDOC_LIMIT = 7000
+# A plugin bin command in PowerShell command position: start, after ; | & ( { or a newline, or after the call
+# operator &; optionally quoted and with a folder before it. The names are the extensionless files in plugins/*/bin.
+PS_BIN = re.compile(
+    r'(?:^|[;|&({\n])[ \t]*(?:&[ \t]*)?[\'"]?(?:[^\s\'";|&]*[/\\])?'
+    r'((?:dev-kit|spend-kit|rules-kit|web-kit|unity-kit)(?:-[a-z]+)*)(?=[\'"]?(?:[ \t;|&)}\n]|$))',
+    re.IGNORECASE)
+# PowerShell quoted text: '...' ('' inside) and "..." (` escapes).
+PS_QUOTED = re.compile(r"'(?:[^']|'')*'|\"(?:[^\"`]|`.)*\"")
 
 TMP_FIX = 'use the job tmp folder as a C:/ path ($CLAUDE_JOB_DIR/tmp), not /tmp: Python and the shell see different /tmp folders'
 HEREDOC_FIX = ('write the file with the Write tool, then run it: a heredoc this large fails with '
                '"unexpected EOF while looking for matching quote"')
+BIN_FIX = ('run {name} in the Bash tool, not PowerShell: plugin bin files have no extension, so Windows opens '
+           'the "Pick an app" window instead of running them')
 PYTHON_FIX = ('run Python as python -I -X utf8 ...: without UTF-8 mode, Cyrillic text fails with UnicodeEncodeError '
               '(PYTHONUTF8=1 is ignored under -I)')
 
@@ -103,6 +116,16 @@ def trap(command):
     return None
 
 
+def powershell_trap(command):
+    """The fix line if the PowerShell command runs a plugin bin command, or None. Quoted text is blanked unless it
+    stands in command position (a quoted path after & or at the start), so a name in a message is not a launch."""
+    def blank(match):
+        before = command[:match.start()].rstrip(' \t')
+        return match.group(0) if not before or before[-1] in ';|&({\n' else "''"
+    found = PS_BIN.search(PS_QUOTED.sub(blank, command))
+    return BIN_FIX.format(name=found.group(1)) if found else None
+
+
 def main():
     sys.stdout.reconfigure(encoding='utf-8')
     try:
@@ -113,7 +136,7 @@ def main():
     command = tool_input.get('command') if isinstance(tool_input, dict) else None
     if not isinstance(command, str) or sys.platform != 'win32':
         return
-    fix = trap(command)
+    fix = powershell_trap(command) if call.get('tool_name') == 'PowerShell' else trap(command)
     if fix:
         json.dump({'hookSpecificOutput': {
             'hookEventName': 'PreToolUse', 'permissionDecision': 'deny',
