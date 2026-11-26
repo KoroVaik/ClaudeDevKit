@@ -1,6 +1,8 @@
 # Plan: projects edit web-kit and unity-kit directly
 
-Status: agreed, owner «так» to the short plan (2026-11-26). Next: build.
+Status: built 2026-11-26 (dev-kit 0.1.141, web-kit 0.4.6, unity-kit 0.2.6; global rule exception committed in the owner's local `.claude` git). Next: Lead merges.
+
+Spend: ~0.5% of the weekly limit, estimate; API: 0 USD
 
 Owner's words: «давай надамо проектам які юзають плагіні веб і юніті можливість редагування напряму, щоб ти не займався цим. У сесій цих проектів кращий контекст специфіки роботи. ЗАпусти обговорення» (L: ClaudeDevKit chat, 2026-11-26).
 

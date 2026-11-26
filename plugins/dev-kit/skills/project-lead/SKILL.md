@@ -1070,7 +1070,9 @@ repo): a restart per bump cut into talks with the owner several times an hour.
 ## Plugin backlog (plugin repo only)
 
 In the plugin repo (ClaudeDevKit) the Lead also handles `BACKLOG.md`: agents in other projects commit plugin
-changes there and send no message (`dev-kit:manager`, "A change to the plugins themselves"). The Lead has no
+changes there and send no message (`dev-kit:manager`, "A change to the plugins themselves"); a project's own web-kit
+or unity-kit change lands without an entry and without this Lead (same section, "Exception: a project's own kit
+plugin"). The Lead has no
 timer. A new entry is one with no `Verdict:` line. The Lead checks the file on start (a restart included),
 and at every message to the owner. New entries reach the owner only as the Lead's questions after the review
 below.
@@ -1097,7 +1099,9 @@ A small rule edit is one place in one skill, agent or doc, with no clash with ot
 tests to run. The Lead does it itself, with no new session, whatever its source: a backlog entry, the owner's
 request in the Lead's chat or a process mistake. It edits the project's own rules (`CLAUDE.md`,
 `.claude/`, docs, in the plugin repo the plugins too); in another project a plugin rule still goes to the
-plugin repo's `BACKLOG.md` (`dev-kit:manager`, "A change to the plugins themselves"). This is the Lead's one
+plugin repo's `BACKLOG.md` (`dev-kit:manager`, "A change to the plugins themselves"), except the project's own
+web-kit or unity-kit, which the Lead changes and releases itself (same section, "Exception: a project's own kit
+plugin"). This is the Lead's one
 exception to "no task work"; any other rule edit the Lead makes follows `rules-kit:edit-rules` too.
 
 - Up to 3 items at once: one `dev-kit:reviewer`, whose brief carries steps 1-2 of `rules-kit:edit-rules`,

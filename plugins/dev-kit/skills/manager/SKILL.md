@@ -288,7 +288,8 @@ it becomes an Open item, and the questions go on.
 ## A change to the plugins themselves
 
 An agent working outside the plugin repo never edits the plugins (`dev-kit`, `web-kit`, `unity-kit`, `pult`:
-skills, agents, hooks, scripts) directly, not even to fix a process mistake or a plugin defect. It adds
+skills, agents, hooks, scripts) directly, not even to fix a process mistake or a plugin defect (one exception: the
+project's own kit, below). It adds
 an entry to the plugin repo's own `BACKLOG.md` (not the project's), at
 `C:/Users/korov/MyRepositories/ClaudeDevKit/BACKLOG.md`. A session working in that repo decides and
 builds the entry, only after the owner's yes. A project's own files (`CLAUDE.md`, `.claude/`) are edited
@@ -309,6 +310,41 @@ A git conflict in it is resolved by keeping both entries.
 Why: the owner decided on 2026-11-14 that plugin changes are decided in one place, so a fix made in
 one project's session does not bend the process for all the others. No message, since 2026-11-19: the Lead
 finds the entries itself, and a session messages only its own Lead (owner, 2026-11-21).
+
+### Exception: a project's own kit plugin
+
+Any session (Lead, Manager, «Discuss:») of a project whose `.claude/settings.json` enables `web-kit` or `unity-kit`
+changes and releases that kit itself (`plugins/web-kit` or `plugins/unity-kit` in
+`C:/Users/korov/MyRepositories/ClaudeDevKit`), with no `BACKLOG.md` entry and no message to L: ClaudeDevKit. Only
+the kit the project enables. dev-kit, pult, rules-kit, spend-kit and the repo's shared files
+(`.claude-plugin/marketplace.json`, `tools/`, `docs/` outside the kit's own feature text) stay with the backlog above.
+
+1. Make a fresh worktree of ClaudeDevKit's main (`git worktree add`, one branch per change), never the main checkout
+   (`plugins/dev-kit/claude-facts.md`, "The host's worktree guard blocks writes to the main checkout from another worktree").
+2. Read ClaudeDevKit's `CLAUDE.md` and `.claude/dev-kit.md` first. Edit rule text through `rules-kit:edit-rules`; a
+   script change goes to a `dev-kit:coder` (sonnet), its brief naming the worktree's path.
+3. Run the repo checks there: `python -I -X utf8 tools/lint.py` and `python -I -X utf8 -m unittest discover tools/tests`
+   (that repo's `README.md`, "Develop").
+4. A `rules-kit:rule-reviewer` (sonnet) reviews the diff (steps 5-6 of `rules-kit:edit-rules`); its confident problems
+   are fixed before the merge.
+5. Bump `plugins/<kit>/.claude-plugin/plugin.json` and add the release mark to `plugins/<kit>/releases.json`, as that
+   repo's `.claude/dev-kit.md` says.
+6. Commit, rebase on a newer main if there is one, merge `--ff-only` into ClaudeDevKit's main, push (that repo pushes
+   on its own) and remove the worktree. If the main checkout is not on `main`, has uncommitted changes, or the
+   merge still refuses after one rebase, do not merge: tell the owner in one line (a Manager tells its Lead). L: ClaudeDevKit does not check the change afterwards; the Pult watcher
+   restarts the leads that enable the kit as for any release.
+7. Run `/reload-plugins` so the change works in the same talk (`plugins/dev-kit/claude-facts.md`, "A running session
+   sees a new agent or skill only after `/reload-plugins`"); if it does not take, tell the owner in one line (a
+   Manager tells its Lead).
+
+A kit change that needs a dev-kit change (a slot in `plugins/dev-kit/slots.md`, a dev-kit skill, agent or command it
+relies on, a profile-section doc) lands as above only if the kit part works without it; the dev-kit part is a
+`BACKLOG.md` entry as above. The session's own task rules still hold (a Manager stays within its task and asks its
+Lead what its rules send there).
+
+Why: owner, 2026-11-26 («Discuss:» on direct kit edits, `plans/kit-direct-edits.md` of the plugin repo): «в
+обговорення тих проектів я часто потребую апдейта відразу, а сесії починають спілкуватись одна з іншой фактично
+втрачаючи контекст нашой розмови»; the review before the merge replaces L: ClaudeDevKit's check afterwards.
 
 ## Claude API calls
 

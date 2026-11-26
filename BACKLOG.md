@@ -2,7 +2,8 @@
 
 Ideas for the plugins (`dev-kit`, `web-kit`, `unity-kit`, `pult`) that the owner has not agreed yet. Agents in
 other projects add their wanted plugin changes here instead of editing the plugins; the plugin's own
-agent decides and builds them after the owner's yes. An idea leaves the backlog when the owner agrees
+agent decides and builds them after the owner's yes. A project's own web-kit or unity-kit change needs no entry:
+that project's session lands it (`dev-kit:manager`, "Exception: a project's own kit plugin"). An idea leaves the backlog when the owner agrees
 it and it is built, or when the owner drops it.
 
 Entry format: see the Backlog kind in [the documentation standard](plugins/dev-kit/skills/documentation/SKILL.md).

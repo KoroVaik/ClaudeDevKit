@@ -3,4 +3,6 @@
 - Push: auto (see `C:/Users/korov/.claude/docs/git.md`).
 - Plugin changes wanted by agents in other projects arrive as entries in `BACKLOG.md` (what, why,
   cheapest test); the plugin's own agent decides and builds them after the owner's yes (rule: the
-  `dev-kit:manager` skill, section "A change to the plugins themselves").
+  `dev-kit:manager` skill, section "A change to the plugins themselves"). Exception: a project that enables
+  `web-kit` or `unity-kit` changes and releases that kit itself from its own sessions (same section,
+  "Exception: a project's own kit plugin").
