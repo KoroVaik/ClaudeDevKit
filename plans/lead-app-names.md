@@ -13,7 +13,7 @@ Success criterion: the desktop app list shows «L: Zhratva», «L: Prishch», «
 ## Result
 
 - Cause (checked live, Claude Code 2.1.332): the app lists a background session by the title of its Remote Control session on claude.ai, set at the first connect. A job rename plus resume, and `/rename` as a resume prompt, change only the local name (fact: `plugins/dev-kit/claude-facts.md`, "The app's session title is set once, at the first Remote Control connect").
-- Fix: `plugins/pult/scripts/sync-app-titles.py` reads each lead's title (GET `/v1/code/sessions/<bridgeSessionId>`) and sets it to the name (PUT `{"title"}`, the call Claude Code makes) with the owner's Claude login token; `start-servers.ps1` runs it after pinning, so every lead start (logon, heal, restart) covers any future rename. Test: `tools/tests/test_sync_app_titles.py`. Releases: pult 0.1.39, dev-kit 0.1.138 (facts only), both routine.
+- Fix: `plugins/pult/scripts/sync-app-titles.py` reads each lead's title (GET `/v1/code/sessions/<bridgeSessionId>`) and sets it to the name (PUT `{"title"}`, the call Claude Code makes) with the owner's Claude login token; `start-servers.ps1` runs it after pinning, so every lead start (logon, heal, restart) covers any future rename. Test: `tools/tests/test_sync_app_titles.py`. Releases: pult 0.1.39, dev-kit 0.1.139 (facts only), both routine.
 - The three running leads: the script ran once by hand with no restart; their server titles are now «L: Zhratva», «L: Prishch», «L: ClaudeDevKit» (read back). Left: the owner's one look at the desktop app list.
 - Throwaway test sessions stopped and removed (their Remote Control sessions are archived).
 

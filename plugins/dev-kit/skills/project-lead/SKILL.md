@@ -974,7 +974,9 @@ merge or close the session and sends it back: «ВКАЗІВКА - Власни�
 do not count. Why: owner, 2026-11-20: «я не закінчив обговорення, і не погодив список змін» (the Lead merged
 and archived a session while he was typing).
 
-After a merge, without asking the owner, run `dev-kit-sessions end --id <id>` (the short id works),
+After a merge, without asking the owner, run in the Bash tool (in PowerShell these extensionless plugin files open the
+Windows «Pick an app» window; `plugins/dev-kit/claude-facts.md`, "Plugin `bin` commands run only in the Bash tool")
+`dev-kit-sessions end --id <id>` (the short id works),
 `dev-kit-app stop --project <that Manager's worktree>` (releases the app lock if the Manager left the app running),
 `claude rm <short id>` (the session's job state; the 8-hex `id` of its `claude agents --json` entry, not the full sessionId; any output that does not say the session was removed, such as «No session matching ...», is a failed step: the Lead runs `claude stop <short id>`, retries `claude rm <short id>`, then reads `claude agents --json`, and does not count the session as closed while it is still listed), then removes each `link` row's junction without following
 it (`cmd /c rmdir "<worktree>\<path>"`, PowerShell tool, no `/s`; never `Remove-Item`, `rm -r` or
@@ -984,7 +986,7 @@ checkout (`Set-Location <main>` first if the PowerShell tool's folder is anywher
 or the folder stays behind locked), `git worktree remove <worktree>` and
 `git branch -d c/<slug>` (`plugins/dev-kit/claude-facts.md`, "`claude rm <id>` does not remove a worktree made by hand"). If `git worktree
 remove` refuses over untracked files, the Lead looks at them: nothing from the task, `--force`; otherwise it
-asks the owner. A Manager that ended without a merge gets `dev-kit-sessions end --id <id> --status stopped`,
+asks the owner. A Manager that ended without a merge gets `dev-kit-sessions end --id <id> --status stopped` (Bash tool),
 then `claude stop <id>` (in this order, so no `gone` event reports it), and its worktree and branch stay.
 Why: 2026-11-24, L: Zhratva: «No session matching '<full id>'» was ignored, and the closed discussion stayed in the owner's app list («вона висить»).
 

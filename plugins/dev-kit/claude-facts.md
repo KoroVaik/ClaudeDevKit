@@ -686,12 +686,13 @@ One entry per behaviour. A newer direct observation replaces an older one; the o
 - Status: doubtful
 
 ### Plugin `bin` commands run only in the Bash tool
-- What happens: A plugin's `bin` folder is on the PATH of the Bash tool only. PowerShell cannot run these extensionless files, and in the home folder they are not on the PATH.
-- Workaround: run the `bin` commands (`dev-kit-sessions`, `dev-kit-app`) in the Bash tool.
-- App: Bash tool, plugins | Claude Code: unknown
-- Seen: date not stated | check not stated | project-lead skill
-- Re-check: `which dev-kit-sessions` in the Bash tool, and the same lookup in PowerShell | owner-only
-- Status: doubtful
+- What happens: A plugin's `bin` folder is on the PATH of the Bash tool only. In the PowerShell tool an extensionless bin file (e.g. `dev-kit-app stop --project ...`) is not run: Windows opens the «Pick an app» window instead, and with `2>$null` the agent sees no error. In the home folder the bin files are not on the PATH.
+- Workaround: run the `bin` commands (`dev-kit-sessions`, `dev-kit-app`) in the Bash tool. The dev-kit hook `windows-traps.py` refuses such a PowerShell call (dev-kit 0.1.138).
+- App: Bash tool, PowerShell tool, plugins | Claude Code: unknown
+- Seen: 2026-11-26 | transcript read (two PowerShell calls of `dev-kit-app stop` at 10:58:20Z and 11:11:24Z) and the owner's screenshot of two «Pick an app» windows the same day | Prishch, lead session 7f750d10; earlier: date not stated | check not stated | project-lead skill
+- Re-check: `which dev-kit-sessions` in the Bash tool, and `Get-Command dev-kit-sessions` in the PowerShell tool (a run of a bin file there opens «Pick an app», so do not run it) | safe
+- Status: checked
+- History: until 2026-11-26 the PowerShell part was not recorded (status doubtful, date not stated). The home-folder PATH part has no sighting yet.
 
 ### Git Bash may run with path conversion off in background sessions
 - What happens: Git Bash may run with path conversion off in background sessions, so a `/c/...` path reaches Windows python or node unchanged.
