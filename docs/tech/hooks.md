@@ -8,12 +8,13 @@ Code: `plugins/dev-kit/hooks`, `plugins/pult/hooks`.
 it is allowed. The rule the user sees: [Launch only the project's own agents](../features/launch-only-the-projects-own-agents.md).
 A project that had its own copy of this hook removes it.
 
-## Windows traps (dev-kit, PreToolUse on the `Bash` tool)
+## Windows traps (dev-kit, PreToolUse on the `Bash` and `PowerShell` tools)
 
 `plugins/dev-kit/hooks/windows-traps.py` runs before each shell command on Windows and denies one with a known
 trap, naming the working form in one line. It reads the shell text with heredoc bodies cut out, so a `python`
 written inside a file body is not a launch. A heredoc body or a `python -c` string counts only for the `/tmp`
-and size checks. Any error in the hook lets the command run (no `onFailure: block`), so a hook bug never stops
+and size checks. A PowerShell call gets only the plugin `bin` command check, on its text with here-strings and quoted strings
+blanked unless a quoted path stands in command position. Any error in the hook lets the command run (no `onFailure: block`), so a hook bug never stops
 the shell. On other systems it does nothing. The rule the user sees:
 [Stop the known Windows shell traps](../features/stop-the-known-windows-shell-traps.md).
 

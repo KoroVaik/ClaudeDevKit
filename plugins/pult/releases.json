@@ -5,5 +5,6 @@
   "0.1.35": {"kind": "routine", "date": "2026-11-25", "reason": "README: the watcher's weekly limit notices at 90%, 95% and 98%"},
   "0.1.36": {"kind": "routine", "date": "2026-11-25", "reason": "the watcher no longer sends the weekly limit forecast push"},
   "0.1.37": {"kind": "routine", "date": "2026-11-25", "reason": "leads are named «L: <project>»; a running «P: <project>» lead is renamed with its history at its next restart"},
-  "0.1.38": {"kind": "routine", "date": "2026-11-26", "reason": "the watcher and the update ask move a lead to a clean context for a release marked clean"}
+  "0.1.38": {"kind": "routine", "date": "2026-11-26", "reason": "the watcher and the update ask move a lead to a clean context for a release marked clean"},
+  "0.1.39": {"kind": "routine", "date": "2026-11-26", "reason": "each lead start sets the lead's title in the Claude app to its name, so renamed leads show «L: <project>»"}
 }

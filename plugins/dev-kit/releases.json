@@ -33,5 +33,7 @@
   "0.1.134": {"kind": "routine", "date": "2026-11-25", "reason": "roles are named Lead («L: <project>») and Manager («M: <task>»); rare sessions Discuss:, Retro:, Docs:; subagents are «помічник»; old titles still matched"},
   "0.1.135": {"kind": "routine", "date": "2026-11-25", "reason": "a lead answers an event with no change for the owner (a usage-limit line, a freed shared app, a finished retro) with a status line or no text, never free sentences"},
   "0.1.136": {"kind": "routine", "date": "2026-11-26", "reason": "the built-in web-fetch helper may be launched in every dev-kit project"},
-  "0.1.137": {"kind": "routine", "date": "2026-11-26", "reason": "a release that renames things a lead holds is marked clean and restarts the lead with a clean context; a discussion opens with a guess to confirm"}
+  "0.1.137": {"kind": "routine", "date": "2026-11-26", "reason": "a release that renames things a lead holds is marked clean and restarts the lead with a clean context; a discussion opens with a guess to confirm"},
+  "0.1.138": {"kind": "routine", "date": "2026-11-26", "reason": "a plugin command run in PowerShell is refused with a note to use Bash, so no «Pick an app» window opens; the lead clean-up names the shell"},
+  "0.1.139": {"kind": "routine", "date": "2026-11-26", "reason": "Claude facts: the app's session title is set once, at the first Remote Control connect"}
 }

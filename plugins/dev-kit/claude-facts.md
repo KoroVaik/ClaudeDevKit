@@ -229,6 +229,14 @@ One entry per behaviour. A newer direct observation replaces an older one; the o
 - Re-check: throwaway background session with Remote Control, `claude stop`, then resume with `/clear`, read its `state.json` and watch the phone | owner-only
 - Status: checked
 
+### The app's session title is set once, at the first Remote Control connect
+- What happens: The Claude desktop app lists a background session by the title of its Remote Control session on claude.ai (`GET https://api.anthropic.com/v1/code/sessions/<bridgeSessionId from the job's state.json>`, field `response_shape.title`); the desktop app's local files hold no such titles. The title is taken once, when the session first connects. Changing the job's `state.json` `name` and `respawnFlags` and resuming (`claude --bg --resume <id>`) keeps the old title: three leads renamed "P: X" to "L: X" this way still showed "P: X" (the server title of "L: ClaudeDevKit" was 'P: ClaudeDevKit'). `/rename <new>` as the prompt of `claude --bg --resume <id>` changes the local name (`state.json` `name`) but not the app title (that resume of a finished one-shot session made a new job and a new Remote Control session, which got the old title). `PUT https://api.anthropic.com/v1/code/sessions/<bridgeSessionId>` with JSON `{"title": "<new>"}` and the owner's Claude login token (`~/.claude/.credentials.json`, `claudeAiOauth.accessToken`; headers `anthropic-version: 2023-06-01`, `anthropic-beta: ccr-byoc-2025-07-29,oauth-2025-04-20`) returns 200; the title changed and stayed after 1 min with the session running. `PATCH` returns 405. This is the call Claude Code itself makes for a title update (seen in its code). `claude stop` then `claude rm <id>` of a background session archives its Remote Control session (status "archived"), so it leaves the app list.
+- Workaround: `plugins/pult/scripts/sync-app-titles.py` sets each lead's app title to its name; `start-servers.ps1` runs it.
+- App: desktop app, Remote Control, background sessions | Claude Code: 2.1.332
+- Seen: 2026-11-26 | live test on throwaway sessions | ClaudeDevKit, `plans/lead-app-names.md`
+- Re-check: start a throwaway background session, rename its job, read the title with GET, set it with PUT, read again (starts a session and uses the owner's login token) | owner-only
+- Status: checked
+
 ## Background sessions
 
 ### `claude --bg` with `bypassPermissions` fails until the owner accepts a disclaimer once
@@ -678,12 +686,13 @@ One entry per behaviour. A newer direct observation replaces an older one; the o
 - Status: doubtful
 
 ### Plugin `bin` commands run only in the Bash tool
-- What happens: A plugin's `bin` folder is on the PATH of the Bash tool only. PowerShell cannot run these extensionless files, and in the home folder they are not on the PATH.
-- Workaround: run the `bin` commands (`dev-kit-sessions`, `dev-kit-app`) in the Bash tool.
-- App: Bash tool, plugins | Claude Code: unknown
-- Seen: date not stated | check not stated | project-lead skill
-- Re-check: `which dev-kit-sessions` in the Bash tool, and the same lookup in PowerShell | owner-only
-- Status: doubtful
+- What happens: A plugin's `bin` folder is on the PATH of the Bash tool only. In the PowerShell tool an extensionless bin file (e.g. `dev-kit-app stop --project ...`) is not run: Windows opens the «Pick an app» window instead, and with `2>$null` the agent sees no error. In the home folder the bin files are not on the PATH.
+- Workaround: run the `bin` commands (`dev-kit-sessions`, `dev-kit-app`) in the Bash tool. The dev-kit hook `windows-traps.py` refuses such a PowerShell call (dev-kit 0.1.138).
+- App: Bash tool, PowerShell tool, plugins | Claude Code: unknown
+- Seen: 2026-11-26 | transcript read (two PowerShell calls of `dev-kit-app stop` at 10:58:20Z and 11:11:24Z) and the owner's screenshot of two «Pick an app» windows the same day | Prishch, lead session 7f750d10; earlier: date not stated | check not stated | project-lead skill
+- Re-check: `which dev-kit-sessions` in the Bash tool, and `Get-Command dev-kit-sessions` in the PowerShell tool (a run of a bin file there opens «Pick an app», so do not run it) | safe
+- Status: checked
+- History: until 2026-11-26 the PowerShell part was not recorded (status doubtful, date not stated). The home-folder PATH part has no sighting yet.
 
 ### Git Bash may run with path conversion off in background sessions
 - What happens: Git Bash may run with path conversion off in background sessions, so a `/c/...` path reaches Windows python or node unchanged.

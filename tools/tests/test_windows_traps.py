@@ -82,10 +82,53 @@ class TrapTests(unittest.TestCase):
         self.assertPasses("ls C:/repo/tmp_unused")
 
 
+class PowerShellBinTests(unittest.TestCase):
+    """The failed shape comes from L: Prishch, 2026-11-26: a merge clean-up ran dev-kit-app in PowerShell."""
+
+    def assertBlocked(self, command, name):
+        self.assertEqual(wt.BIN_FIX.format(name=name), wt.powershell_trap(command))
+
+    def assertPasses(self, command):
+        self.assertIsNone(wt.powershell_trap(command))
+
+    def test_plugin_bin_commands_are_blocked(self):
+        self.assertBlocked("dev-kit-app stop --project C:/repo/.claude/worktrees/x 2>$null", "dev-kit-app")
+        self.assertBlocked("Set-Location C:/repo; dev-kit-sessions end --id ab12", "dev-kit-sessions")
+        self.assertBlocked("rules-kit parts x", "rules-kit")
+        self.assertBlocked("spend-kit-api report | Select-Object -First 3", "spend-kit-api")
+        self.assertBlocked("& 'C:/Users/x/.claude/plugins/cache/dev-kit/bin/dev-kit-bans' check C:/repo", "dev-kit-bans")
+        self.assertBlocked("if ($?) { web-kit-shot http://x }", "web-kit-shot")
+        self.assertBlocked("git pull\nunity-kit-gif a.mp4", "unity-kit-gif")
+        self.assertBlocked("$out = dev-kit-app status 2>&1", "dev-kit-app")
+        self.assertPasses("$name = 'dev-kit-app'")
+
+    def test_every_plugin_bin_file_is_covered(self):
+        bins = [p.name for p in (SCRIPT.parents[2]).glob("*/bin/*") if p.is_file() and not p.suffix]
+        self.assertTrue(bins)
+        for name in bins:
+            self.assertBlocked(name + " --help", name)
+
+    def test_names_as_text_or_arguments_pass(self):
+        self.assertPasses("git commit -m 'run dev-kit-app in Bash; dev-kit-sessions too'")
+        self.assertPasses('Write-Output "x; dev-kit-app stop"')
+        self.assertPasses("Get-ChildItem plugins/dev-kit/bin")
+        self.assertPasses("Get-Content plugins/dev-kit/bin/dev-kit-app")
+        self.assertPasses("python -X utf8 plugins/dev-kit/scripts/sessions.py others")
+        self.assertPasses("cmd /c rmdir \"C:\\repo\\.claude\\worktrees\\x\\node_modules\"")
+        self.assertPasses("git worktree remove C:/repo/.claude/worktrees/dev-kit-app")
+        self.assertPasses("Set-Location plugins/dev-kit; git status")
+        self.assertPasses("$p = @'\nIt's done.\ndev-kit-app stop --project x\n'@\nclaude --bg --name 'M: x' -- $p")
+        self.assertPasses("git commit -m @\"\nfix\ndev-kit-sessions end now in Bash\n\"@")
+        self.assertBlocked("$p = @'\nnote\n'@; dev-kit-app stop", "dev-kit-app")
+
+    def test_bash_checks_do_not_apply_to_powershell(self):
+        self.assertPasses("python x.py")
+
+
 @unittest.skipUnless(sys.platform == "win32", "the hook acts only on Windows")
 class HookTests(unittest.TestCase):
-    def run_hook(self, command):
-        call = {"tool_name": "Bash", "tool_input": {"command": command}}
+    def run_hook(self, command, tool="Bash"):
+        call = {"tool_name": tool, "tool_input": {"command": command}}
         result = subprocess.run([sys.executable, str(SCRIPT)], input=json.dumps(call).encode("utf-8"),
                                 capture_output=True)
         self.assertEqual(0, result.returncode, result.stderr.decode("utf-8", "replace"))
@@ -98,6 +141,13 @@ class HookTests(unittest.TestCase):
 
     def test_silent_on_a_working_command(self):
         self.assertEqual("", self.run_hook("python -I -X utf8 x.py"))
+
+    def test_denies_a_plugin_bin_command_in_powershell_only(self):
+        output = json.loads(self.run_hook("dev-kit-app stop --project x", "PowerShell"))["hookSpecificOutput"]
+        self.assertEqual("deny", output["permissionDecision"])
+        self.assertIn("Bash tool", output["permissionDecisionReason"])
+        self.assertEqual("", self.run_hook("dev-kit-app stop --project x"))
+        self.assertEqual("", self.run_hook("python x.py", "PowerShell"))
 
     def test_silent_on_bad_input(self):
         result = subprocess.run([sys.executable, str(SCRIPT)], input=b"not json", capture_output=True)

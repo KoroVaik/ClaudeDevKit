@@ -57,6 +57,10 @@ minutes, logged, and its pause lifted at once; a lead it had stopped comes back 
 a full start runs. A lead stopped only with `claude stop` is not a stop on purpose: it comes back; to retire
 one project, remove its row from the project list.
 
+### The app shows each lead under its current name
+Each start of the leads sets every lead's title in the Claude app (desktop and phone) to its name, so a renamed
+lead («P: X» became «L: X») shows the new name; a title that is already right is left.
+
 ## Acceptance criteria
 - Windows starts: each project's lead and the Pult server are running without you starting them.
 - A lead is killed: after about two checks it is back.
@@ -67,6 +71,7 @@ one project, remove its row from the project list.
 - A lead's start hangs: after 5 minutes it is cut, logged, and the watcher goes on; the next try follows as usual.
 - A lead restart crashes halfway: at the watcher's next check the pause is lifted and the stopped leads come back.
 - A lead restart hangs: after 10 minutes it is cut, logged, the pause is lifted, and the watcher goes on.
+- A lead was renamed: after the next start of the leads the Claude app lists it under the new name.
 - A lead's move to a fresh context hangs: after 10 minutes it is cut, logged, the old lead comes back, and the watcher goes on.
 
 ## Built in
@@ -76,6 +81,8 @@ one project, remove its row from the project list.
 - `plugins/pult/scripts/watch-servers.ps1`
 - `plugins/pult/scripts/servers.psd1`
 - `plugins/pult/scripts/resume-lib.ps1`
+- `plugins/pult/scripts/sync-app-titles.py`
+- `tools/tests/test_sync_app_titles.py`
 - `tools/tests/test_watch_servers_restart.py`
 - `tools/tests/test_watch_servers_limit.py`
 - `tools/tests/test_watch_servers_handoff.py`
