@@ -35,3 +35,8 @@ What: rename the roles the owner meets in chat so each name points to one thing:
 Why: owner, 2026-11-25, «Обговорення: Перевірка зібраних екранів»: his «менеджер» read two ways; «дійсно неймінг кривий, треба буде подумати над адекватним потім».
 Cheapest test: list every role name the owner sees in a lead's chat and session titles, and check each has one meaning.
 Verdict (2026-11-25): owner «Можна зараз»: discussion started («Обговорення: Назви ролей сесій»).
+
+## Claude fact: background commands stopped on low memory (Windows too)
+- What: add a claude-facts entry: Claude Code (2.1.332) stops a background shell command when the OS signals "critical" memory pressure, the session has been idle 30 min and no turn or subagent runs; on Windows it takes the OS signal as is (the /proc/meminfo scarcity check is Linux-only), so it can fire with several GB free; the task gets "Background command ... was stopped because the system is running low on memory". Off switch: env CLAUDE_CODE_DISABLE_BG_SHELL_PRESSURE_REAP=1 in Claude Code's own start environment (set from a shell command it has no effect); the official env-vars doc says it has no effect on Windows, but the shipped 2.1.332 code runs the listener on Windows and the variable disables it.
+- Why: Zhratva, 2026-11-25: 4 paid-run background commands stopped this way; MyPC notes called the cause unknown.
+- Cheapest test: grep the installed claude.exe for "memory-pressure reap" and DISABLE_BG_SHELL_PRESSURE_REAP; check the next "stopped because the system is running low on memory" notice on Windows.
