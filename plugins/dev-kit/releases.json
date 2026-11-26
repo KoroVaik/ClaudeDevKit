@@ -37,5 +37,6 @@
   "0.1.138": {"kind": "routine", "date": "2026-11-26", "reason": "a plugin command run in PowerShell is refused with a note to use Bash, so no «Pick an app» window opens; the lead clean-up names the shell"},
   "0.1.139": {"kind": "routine", "date": "2026-11-26", "reason": "Claude facts: the app's session title is set once, at the first Remote Control connect"},
   "0.1.140": {"kind": "routine", "date": "2026-11-26", "clean": true, "reason": "a lead shows a stable window of the 2 oldest open questions (closing line, counter, ✅ mark) and writes only when something waits on the owner or a result is ready; every question is queued first"},
-  "0.1.141": {"kind": "routine", "date": "2026-11-26", "reason": "a project's session edits and releases its own web-kit or unity-kit itself"}
+  "0.1.141": {"kind": "routine", "date": "2026-11-26", "reason": "a project's session edits and releases its own web-kit or unity-kit itself"},
+  "0.1.142": {"kind": "routine", "date": "2026-11-27", "reason": "a lead forced to reply with nothing changed writes only «Без змін...»"}
 }

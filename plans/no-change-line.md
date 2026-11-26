@@ -1,6 +1,6 @@
 # Plan: a forced reply with nothing new is the one line «Без змін...»
 
-Status: not started (2026-11-26).
+Status: done (2026-11-27), dev-kit 0.1.142.
 
 Owner's words (L: ClaudeDevKit chat, 2026-11-26): «чому лід спамить повтори?» (screenshot of L: Prishch: the same «Статуси сесій» block after every event), then to «Замінити повтор статусів на один рядок «Без змін»?» - «Без змін....», «Без змін...», and «3 крапки додай».
 
@@ -10,4 +10,4 @@ Do: in "Forced output", when nothing changed since the Lead's previous message, 
 
 Success criterion: a forced reply with no change is «Без змін...»; the hook passes it; tests and lint pass; dev-kit bumped with a release mark.
 
-Spend: -
+Spend: ~0.1% of the weekly limit, estimate; API: 0 USD
