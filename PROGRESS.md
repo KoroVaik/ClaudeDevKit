@@ -39,6 +39,8 @@
 
 - Clean restart of a lead on a renaming release (owner «Так», 2026-11-26, «Discuss:» on lead context clearing): a release that renames terms or formats gets the mark `"clean": true`; the watcher then restarts the Lead with a fresh context via handoff + /clear; small fixes keep the plain resume. Next: build. Plan: [plans/lead-early-clear.md](plans/lead-early-clear.md) «Owner's approval».
 
+- The Lead's questions are not lost or misdirected (owner «уже даю так» to the plan, 2026-11-26, «Discuss: Питання Lead не губляться»): every question written to PROGRESS.md first; the chat shows a stable window of the 2 oldest questions (critical first) with «і ще N питань», changed only by the owner's answer; the Lead never closes an item itself but marks it «✅ Вирішено, закрити?»; the Lead writes only when something waits on the owner or a result is ready; the handoff skill gets a verbatim section «Дослівно». Next: build. Plan: [plans/lead-questions.md](plans/lead-questions.md) «Owner's approval».
+
 Open work of the features: `dev-kit-check-docs --open`.
 
 ## Open questions
