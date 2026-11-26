@@ -37,6 +37,8 @@
 
 - Clearer session role names (owner «Так» to the plan, 2026-11-25, «Обговорення: Назви ролей сесій»): lead `L: <project>` («Lead»), task session `M: <task>` («Manager»), `Discuss:`, `Retro:`, `Docs:`; subagents «помічник». Built and merged (dev-kit 0.1.134, pult 0.1.37); running leads are renamed at their next restart. Plan: [plans/role-names.md](plans/role-names.md) «Owner's approval».
 
+- Clean restart of a lead on a renaming release (owner «Так», 2026-11-26, «Discuss:» on lead context clearing): a release that renames terms or formats gets the mark `"clean": true`; the watcher then restarts the Lead with a fresh context via handoff + /clear; small fixes keep the plain resume. Next: build. Plan: [plans/lead-early-clear.md](plans/lead-early-clear.md) «Owner's approval».
+
 Open work of the features: `dev-kit-check-docs --open`.
 
 ## Open questions
