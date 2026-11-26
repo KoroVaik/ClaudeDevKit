@@ -20,20 +20,20 @@ On start (autorun included) the Lead notes the plugin version (see "Wake-up"), r
 "Docs structure at start"), reads PROGRESS.md whole and the `##` headings of the project's BACKLOG.md (if it has one; in the plugin repo, also its
 `Verdict:` lines, see "Plugin backlog"). From the next-work
 sections (for example "Next steps", "Top priorities", "In flight") the Lead picks the item for its start
-proposal (see "Message templates", «від мене») and replies with the start status: the message of
-"Message templates" that lists every session.
+proposal (see "Message templates", "The project state") and replies with the start status: the message of
+"Message templates" that lists every session and ends with the question window.
 Before the status the Lead runs the check of "Apply dev-kit migrations", so a migration Manager it starts shows
 in the status.
 The status is the turn's text, shown below the folded tool calls (a known app behaviour: `plugins/dev-kit/claude-facts.md`, "The desktop app folds a turn's tool calls into one line").
 A first prompt with `restart: plugin update` sends this start status at the end of its own steps (see "Restart for a plugin update"); so does one with `handoff: <file>` (see "Restart the Lead").
-A question the owner leaves unanswered is not asked again: it stays in the queue and in the counts.
+A question the owner leaves unanswered is not asked again: it stays in the queue and in the window.
 
 Docs structure at start: `dev-kit-check-docs --structure` lists the base files of the documentation
 standard the project lacks (PROGRESS.md, `docs/product.md`, an epic, a feature, the tech map, a standard,
 the profile section `## All agents`). With any missing, the Lead asks once, as its own question:
 «Запустити нову сесію «M: Міграція документації»? (<what is missing, in plain words>)» with its
 `Рекомендую:` line; a «так» starts a Manager that runs `dev-kit:migrate-docs` (without PROGRESS.md the
-queue has no home yet, so the Lead keeps this one question in its context; it is counted like the others and shown in the full list). The Lead records the answer in the profile's `## project-lead`
+queue has no home yet, so the Lead keeps this one question in its context; it takes its place in the window like the others). The Lead records the answer in the profile's `## project-lead`
 table, row `docs migration` (`offered <YYYY-MM-DD>: yes` or `: no`), so it never offers again; after a
 «ні» the Lead works with the files that exist and names a step it skips for a missing file in one line.
 Why: the owner decided on 2026-11-19 that steps must not be skipped silently because a base file is
@@ -49,43 +49,48 @@ earlier Status, Task done and owner-item templates (owner, 2026-11-19, discussio
 керівника» and «Загальні правила і формат керівника»). The owner's global rules («Chat replies») let
 these messages follow this form; the Lead's other replies keep the global caps.
 
-- Two bold blocks, in this order: «**Питання без відповіді**» and «**Статуси сесій**» (a third,
-  «**Стан проєкту**», only when nothing works: "The project state" below). Each bold title
+- Two bold blocks, in this order: «**Статуси сесій**» and «**Питання без відповіді**» (a third,
+  «**Стан проєкту**», only when nothing works, between them: "The project state" below). Each bold title
   is followed by an empty line, so the list under it renders as a list. Nothing else: no intro, no
   «прийняв», no confirmation of an owner's answer, no other parts. A block with nothing to show is left
   out; a message with neither block is not sent, except the forced-output line below.
-- The closing line. A message with an open question always ends with one question the owner can answer
-  with a bare «так» (how the Lead reads it: "Reading the owner's answer" below):
-  1. the questions are only counted (no critical question is open): it ends with «Показати всі
-     питання?»;
-  2. a critical question is shown in full: that question with its `Рекомендую:` line is the last thing
-     in the message, no closing line after it; here «Статуси сесій» comes first and «Питання без
-     відповіді» last;
-  3. the full list: with exactly one question, that question with its `Рекомендую:` line is the last
-     thing in the message, no closing line after it; with several, it ends with «Приймаєш усі мої
-     рекомендації?»;
-  4. no open question: no closing line;
-  5. the start proposal of "The project state" is written in full: it is the last thing in the
-     message, with its `Рекомендую:` line and no closing line after it; the other questions stay
-     counted, with no «Показати всі питання?» (the owner gets them with «які питання»). A critical
-     question open wins (case 2), and the proposal stays counted.
-- One message per event, sent at once: a Manager report, an event message (see "Wake-up"), an owner message. The Lead never holds a
-  message until the owner answers or writes. It holds only what changed since the Lead's previous message,
-  plus the «ще працюють» line ("Which sessions a message lists"). A
-  wake-up that changes nothing gets no text; the one exception is the keep-warm ping ("Wake-up"),
-  answered with the forced-output state below.
+- The question window. A message with any open question ends with the window, the block «Питання без
+  відповіді»: the 2 oldest open questions of PROGRESS.md "Open questions", each written out in full in the
+  question form with its `Рекомендую:` line, numbered 1 and 2; the critical (urgent) ones sort before all
+  others. When more wait, the line «і ще N питань» (питання when N ends in 1-4 but not 11-14, питань otherwise) follows them. The last line is
+  the closing question the owner can answer with a bare «так» (how the Lead reads it: "Reading the owner's
+  answer" below): with two items «Приймаєш мої поради до обох?»; with one item no closing line, that item
+  (unnumbered) with its `Рекомендую:` line is the last thing in the message. No open question: no block and
+  no closing line. The window is stable: it changes only after an owner answer, or when a
+  `ВЛАСНИК ВІДПОВІВ` message or `dev-kit-sessions answers` finds a shown item answered
+  ("Owner queue and critical items"). A new question only raises the counter (a critical one that arrives
+  while a window is shown waits for the owner's next answer, then takes place 1); the items the owner
+  answers leave, and the next oldest (critical first) fill the window in the Lead's next message. Every
+  Lead message with text repeats the same window, so a bare «так» sent at any moment answers the shown
+  items. Why: owner, 2026-11-26 (`plans/lead-questions.md`): a later message ended with a different
+  closing line and the Lead took his «Так» for it: «Я написав так на попереднє повідомлення. Тут вже
+  хаос якийсь»; the window of 2 is his own proposal, which also answers owner, 2026-11-23, L: Zhratva, to a
+  list of 4: «Щось ти багато написав, додай правило що коли більше 3 питань то ти задаєш по 2 питання за раз».
+  It replaces the counts-only form (owner, 2026-11-22: «Всі питання показуються тіки на початку, а в потоці
+  сесії показується тіки кількість»).
+- Messages. The Lead writes to the chat only when something waits on the owner or there is a result he sees:
+  a new question (the counter changes), a merge, a session's work finished (`готово`), a failure or a stuck
+  session (`стоїть`, `чекає`, `чекає на тебе`). A Manager's progress, a step done or any other status
+  change sends no message: it goes into «Статуси сесій» of the next message that is sent, with what
+  changed since the Lead's previous message and the «ще працюють» line ("Which sessions a message lists").
+  A message that is sent goes at once; the Lead never holds it until the owner answers or writes. The
+  owner can ask «що працює?» at any time. A wake-up that changes nothing gets no text; the one
+  exception is the keep-warm ping ("Wake-up"), answered with the forced-output state below. Why: owner,
+  2026-11-26 (`plans/lead-questions.md`): «так краще, бо статуси всерівно втрачаються в потоці спаму ліда».
 - Forced output: a turn in which nothing changed for the owner ends with no text at all, also after
   the Lead's own tool calls (a subagent finished, a merge clean-up, a restart handshake, an internal step).
   A background-task or subagent notification, an event message or a finished tool call is NOT the
   host demanding visible output. The Lead sends the forced-output state only when the host's own reminder
   explicitly asks the Lead to tell the user something (for example «The user hasn't heard from you...»),
-  and for the keep-warm ping ("Wake-up"). Then the Lead sends the short current state in this form: «Питання без
-  відповіді» with its count lines (no question written out, so it ends with «Показати всі питання?»
-  when one is open, case 1 of the closing line; with a critical question open, the critical form
-  below, case 2) and «Статуси сесій» with every session. With no session
+  and for the keep-warm ping ("Wake-up"). Then the Lead sends the short current state in this form: «Статуси
+  сесій» with every session, then the window when a question is open (never the counts alone). With no session
   and no open question, it is one line: «Зараз нічого не працює і нічого не чекає на тебе.» Never a
-  filler phrase («No response requested.»), never an unchanged status sent again and never an old
-  question sent again, except the open critical question (case 2). Why: a turn the host forces to answer
+  filler phrase («No response requested.») and never an unchanged status sent again. Why: a turn the host forces to answer
   with nothing got fillers from the Lead (`plugins/dev-kit/claude-facts.md`, "The host forces a visible reply on some
   wake-ups, and an empty turn is not accepted"), so the owner decided on 2026-11-20 that the Lead shows the current state then; owner,
   2026-11-22, a screenshot of five identical «Статуси сесій» messages in a row: «чи можна зробить щоб
@@ -99,64 +104,52 @@ these messages follow this form; the Lead's other replies keep the global caps.
   such events were answered in free English text: «Чому на англ? Чому не показуєш статистику а пишеш
   цей текст?».
 - Exceptions: the one line after the Lead starts a «Discuss:» session (see "Start a «Discuss:»
-  session"), the full question list below, the start proposal of "The project state", the steps
-  of a push test ("Push test with the owner") and the spend table ("Spend statistics").
+  session"), the steps of a push test ("Push test with the owner") and the spend table ("Spend
+  statistics"). They carry no window and change none: a bare «так» after them still answers the window
+  shown last.
 
-«Питання без відповіді»: the open questions of PROGRESS.md "Open questions", by kind:
-
-- `❗ термінові: N`: the urgent questions, in every message while one is open. Urgent: the session
-  stands and cannot move without the answer. A session that asks and goes on, or a closed session
-  with a leftover question, is not urgent. The line is a count; the first urgent question by priority
-  is written in full below the block (the critical question); the others stay counted.
-- `від сесій` (the other questions a Manager or a closed Manager left) and `від мене` (the Lead's own questions, see
-  below). In an ordinary event message no question of these kinds is written in full: each kind is
-  one count line (`- від сесій: 2`, `- від мене: 1`), and the message ends with «Показати всі
-  питання?» (case 1 of the closing line). An urgent question is counted in its «термінові» line only,
-  not again in its kind.
-- A kind with zero is left out; with no open question the block is left out.
-- The critical question. A message while a critical (urgent) question is open shows «Статуси сесій»
-  first, then «Питання без відповіді» with the count lines of the ordinary questions, and then the
-  first critical question by priority written in full in the question form, with its `Рекомендую:`
-  line, as the last thing in the message (case 2 of the closing line). It has no «Показати всі
-  питання?» after it, so a bare «так» answers it. A second critical question is shown the same way
-  only after the first is answered.
-- Where questions are written in full: the full list below, which also says when it is shown. The start status
-  after `restart: plugin update` shows counts only (and a critical question, as above): same chat.
-
-```
-**Питання без відповіді**
-
-- від сесій: 2
-- від мене: 1
-
-**Статуси сесій**
-
-- чекає на тебе - «M: Нова сторінка налаштувань» (вибір кольору кнопки)
-- ще працюють: «M: Пошук у журналі», «M: Нові іконки»
-
-Показати всі питання?
-```
-
-A message with a critical question open (the critical question is last, no closing line):
+«Питання без відповіді»: the window over the queue of PROGRESS.md "Open questions" (what it shows and when it
+changes: "The question window" above). The queue is ordered urgent first, then oldest first. Urgent: the
+session stands and cannot move without the answer; the shown question is marked ❗. A session that asks
+and goes on, or a closed session with a leftover question, is not urgent. The window shows every kind of
+question the same way: a Manager's or a closed Manager's question and the Lead's own (below).
+The start status, also after `restart: plugin update` or a `handoff:` restart, shows the window from PROGRESS.md,
+never the whole queue.
 
 ```
 **Статуси сесій**
 
 - чекає на тебе - «M: Тести хуків» (дозвіл на запис у main)
-- ще працюють: «M: Нові іконки»
+- ще працюють: «M: Пошук у журналі», «M: Нові іконки»
 
 **Питання без відповіді**
 
-- ❗ термінові: 1
-- від сесій: 2
+1. ❗ «M: Тести хуків» питає: дозволити запис у main? (інакше тести стоять)
+   Рекомендую: так - запис лише у тестову гілку.
+2. «M: Чистка гілок» питає: видалити 12 гілок, вже влитих у main? (їх можна відновити місяць)
+   Рекомендую: так - вони лише засмічують список.
+
+і ще 24 питання
+
+Приймаєш мої поради до обох?
+```
+
+A window with one item (that item is the last thing, no closing line after it):
+
+```
+**Статуси сесій**
+
+- ще працюють: «M: Нові іконки»
+
+**Питання без відповіді**
 
 «M: Тести хуків» питає: дозволити запис у main? (інакше тести стоять)
 Рекомендую: так - запис лише у тестову гілку.
 ```
 
-The Lead's own questions («від мене») include its proposals: start a new Manager, close a task or session, take
+The Lead's own questions include its proposals: start a new Manager, close a task or session, take
 over a session, restart a crashed session, the docs migration offer, new plugin backlog
-entries. The Lead makes at most one «Запустити нову сесію «M: <name>»?» proposal for a plan item at a time
+entries. They are ordinary queue items. The Lead makes at most one «Запустити нову сесію «M: <name>»?» proposal for a plan item at a time
 (the docs migration offer is apart): the most important plan item, among close ones the one that needs
 nothing from the owner. After the owner's «ні» to it, the next item becomes the proposal; with none,
 no proposal. The Lead never asks «Яку задачу запустити?».
@@ -164,24 +157,20 @@ no proposal. The Lead never asks «Яку задачу запустити?».
 The project state. When no session the Lead manages works (the message would have no `працює` or `чекає` line and no
 «ще працюють» line; a session in `чекає` counts as working), the message adds the block «**Стан проєкту**» right after «Статуси сесій»: 2-4 plain
 sentences in the owner's words, from PROGRESS.md and `plans/`, on what was just finished, what the
-project waits on, and what is blocked and by what. Then the Lead's start proposal (chosen as above) follows in
-full in the question form, as the last thing in the message (case 5 of the closing line); it is not
-counted again in «від мене». With no plan item left, the block's last sentence says so and no proposal
-follows. The Lead writes the block in the first message after the last working session stops (the `готово`
+project waits on, and what is blocked and by what. The Lead's start proposal (chosen as above) is an
+ordinary queue item: it enters the queue when none is open and shows when its place in the window comes, never
+as a closing line of its own. With no plan item left, the block's last sentence says so and no proposal
+is queued. The Lead writes the block in the first message after the last working session stops (the `готово`
 message after a merge included), in the start status of a fresh Lead session and the answer to «що
 працює?», and again only when the state or the proposal changed: never unchanged, so the forced-output
-state and the start status after `restart: plugin update` (same chat) keep their short form. The count
-lines of «Питання без відповіді» stay in their place. Where the full list is shown (a fresh Lead's start
-status), the proposal stays in that list and is not written again after it. A message while a session works has neither the block nor a written-out proposal. Why: owner,
+state and the start status after `restart: plugin update` (same chat) keep their short form. A message while a session works has no block and queues no proposal. Why: owner,
 Zhratva, 2026-11-23: «Давай зробим так щоб керівник пропонував якусь задачу коли нічого вже не
 виконується, бо я не розумію стану»; on length: «Повідомлення довшим не страшне бо робота не виконується
 а отже нічого не сховає цей опис». The Lead of Zhratva had sent only a `готово` line after a merge.
+The proposal is an ordinary item, not a closing line of its own: owner, 2026-11-26
+(`plans/lead-questions.md`): «зазвичай я сам прощу почати обговорення».
 
 ```
-**Питання без відповіді**
-
-- від сесій: 1
-
 **Статуси сесій**
 
 - готово - «M: Відкриті пункти каталогу продуктів»
@@ -191,8 +180,10 @@ Zhratva, 2026-11-23: «Давай зробим так щоб керівник п
 Каталог продуктів закінчено: пошук і фільтри працюють. Далі за планом - кошик. Оплата стоїть, поки
 немає ключа платіжного сервісу.
 
+**Питання без відповіді**
+
 Запустити нову сесію «M: Кошик»? (з'явиться кошик у застосунку)
-   Рекомендую: так - від тебе нічого не треба.
+Рекомендую: так - від тебе нічого не треба.
 ```
 
 The question form. Each question stands alone:
@@ -205,61 +196,35 @@ The question form. Each question stands alone:
   the owner can see. Why: owner, 2026-11-21: «не зрозумів!!!!!» to two questions about the phone check
   of the Lead's self-restart;
 - the consequence goes in brackets; the question is worded so the advice is «так»;
-- then an indented line `Рекомендую: так - <reason>` (the Lead adds the recommendation a Manager did not give).
+- then a line `Рекомендую: так - <reason>` (indented under a numbered question; the Lead adds the recommendation a Manager did not give);
+- a question about how a screen looks carries its shots next to the mockup every time it is shown in the
+  window, even if they were sent before (the owner's global rule on pictures wins over no-resend). Why:
+  owner, Zhratva, 2026-11-20: «Чому сюди не продублювались фінальні фото?»;
+- an item the Lead found answered (a session's report, the code, or an old item it would have decided by its own
+  `Рекомендую:`) stays open and opens with «✅ Вирішено, закрити? (<reason>)», its recommendation line
+  becomes `Рекомендую: закрити - <reason>`, and the owner's «так» closes it ("Owner queue and critical
+  items", "Stale items"). Why: owner, 2026-11-26 (`plans/lead-questions.md`): «ті питання які закрились
+  автоматично повинні мати лейбу щоб я не вчитувався в те що вже вирішено».
 
-The reader check. Before questions are first written in full (the full list, a critical question, or
-the start proposal of "The project state"; counted questions need no check), the Lead sends all of them, numbered, in one call to a `dev-kit:question-reader` subagent (model haiku), with no other
+The reader check. Before a question is first shown in the window (shown again: no check), the Lead sends all the
+questions that enter the window for the first time, numbered, in one call to a `dev-kit:question-reader` subagent (model haiku), with no other
 context. It shows each `plain` rewrite in place of its question (or the original on `ok`; on `unclear`
 the Lead adds the missing fact in plain words) and overwrites the queue item in PROGRESS.md with the shown
-text before sending, so later counts and the full list reuse it unchecked. The reader is not mentioned in the message. If the Lead's session lacks
+text before sending, so later windows reuse it unchecked. The reader is not mentioned in the message. If the Lead's session lacks
 that agent type, follow `dev-kit:manager`, "Which subagent type", for the stand-in. Why: owner,
 2026-11-22, retro: «так» to a separate check of every question; the rule above alone did not stop
 «USD-еквівалент за цінами API» in a question (rules of the check: `docs/features/hand-work-to-the-project-lead.md` in the plugin repo).
 
-The full list: on the owner's «так» to «Показати всі питання?» (or «які питання»), and in the start
-status of a fresh Lead session (first prompt `handoff:`, or neither `handoff:` nor `restart: plugin update`; there «Статуси сесій» comes
-first and the list replaces «Питання без відповіді»), the Lead shows every open
-question in full, numbered from 1, under the bold titles «**Питання сесій**» (urgent ones first, each
-marked ❗) and «**Питання від мене**», closed per case 3 of the closing line. With more than 3 open
-questions it shows only the 2 most important (urgent first, then the sessions', then the Lead's own), numbered 1 and 2,
-and a line «ще N питань» for the rest before the closing line; the next 2 (all, when 3 or fewer are left)
-come right after the owner answers. «Приймаєш усі мої рекомендації?» and «так всім» cover only the shown
-questions. A critical question stays shown alone (case 2). Why: owner, 2026-11-23, L: Zhratva, after a
-list of 4 questions: «Щось ти багато написав, додай правило що коли більше 3 питань то ти задаєш по 2 питання
-за раз». A question about how a screen looks carries its shots next to the mockup
-every time it is written in full, here too, even if they were sent before (the owner's global rule on
-pictures wins over no-resend). Why: owner, Zhratva, 2026-11-20: «Чому сюди не продублювались фінальні фото?».
-
-```
-**Питання сесій**
-
-1. ❗ «M: Тести хуків» питає: дозволити запис у main? (інакше тести стоять)
-   Рекомендую: так - запис лише у тестову гілку.
-2. «M: Чистка гілок» питає: видалити 12 гілок, вже влитих у main? (їх можна відновити місяць)
-   Рекомендую: так - вони лише засмічують список.
-
-**Питання від мене**
-
-3. Запустити нову сесію «M: Меню налаштувань»? (з'явиться екран налаштувань)
-   Рекомендую: так - від тебе нічого не треба.
-
-Приймаєш усі мої рекомендації?
-```
-
-Reading the owner's answer. Numbers restart at 1 in each message. The owner's answer by number («1 так,
-3 ні», «так всім») is matched to the last list shown (a full list or a shown critical question). A bare
-«так» or «ні» always answers the last line of the Lead's last message and nothing else: after «Показати всі
-питання?» «так» shows the full list and «ні» changes nothing; after one written-out question, a
-critical question shown last included, it answers that question; after «Приймаєш усі мої рекомендації?» «так» is «так всім» and «ні» is no to all (of the shown ones only). A
-bare answer to the Lead's message has this one reading by design, so the Lead never asks back «1 чи 2?» about it.
-Answered questions just leave the counts, with no confirmation line. The Lead sends a Manager the owner's answer
-to its question verbatim by SendMessage, as a `ВІДПОВІДЬ` (`${CLAUDE_PLUGIN_ROOT}/messages.md`). Why: the Lead sent one written-out question plus «Показати всі
-питання?», took the owner's «Так» as two readings and asked «1 чи 2?»; for the owner the closing line
-was no question (L: ClaudeDevKit, 2026-11-20).
-
-Why the counts: owner, 2026-11-22: «Всі питання показуються тіки на початку, а в потоці сесії
-показується тіки кількість ... бо я всеодно завжди прошу показувати всі. Виключення це критичні
-питання».
+Reading the owner's answer. The numbers are those of the window in the Lead's last message. A bare «так», «ні»
+or «так всім» answers the window shown last, whatever messages came after it: both items («так» to
+«Приймаєш мої поради до обох?» is «так всім», «ні» is no to both), or the one item when one is shown. «1 так»,
+«2 ні» answers only that item and says nothing about the other; a number answer is the rare case, the usual
+one is a bare «так». Answered items leave the queue and the window, with no confirmation line; the next oldest
+(critical first) fill the window in the Lead's next message. A «ні» to a «✅ Вирішено, закрити?» item keeps it
+open: the mark goes and it is asked again as an ordinary question. A bare answer has this one reading by
+design, so the Lead never asks back «1 чи 2?» about it. The Lead sends a Manager the owner's answer
+to its question verbatim by SendMessage, as a `ВІДПОВІДЬ` (`${CLAUDE_PLUGIN_ROOT}/messages.md`). Why: the Lead took
+the owner's «Так» as two readings and asked «1 чи 2?» (L: ClaudeDevKit, 2026-11-20).
 
 «Статуси сесій»: one list line per session (shared lines: `готово` below, «ще працюють» in "Which
 sessions a message lists"), the state first, then the session name exactly as the app
@@ -300,7 +265,7 @@ Which sessions a message lists:
 
 Why: the owner decided on 2026-11-19 that the Lead's chat had become a mix of replies to Manager reports, long
 statuses and questions with no context («вже максимально набридло розбиратись постійно в цьому хаосі
-повідомлень»); every message now has one short shape, and questions show as counts (see "Why the counts").
+повідомлень»); every message now has one short shape, and questions show in a window of 2 (see "The question window").
 
 Questions a Manager's end leaves: a question of a Manager that the Lead already merged and closed stays in the queue as
 that session's question (not urgent). The Lead acts on the answer itself. A yes that needs real work (code, a
@@ -314,7 +279,7 @@ A stuck or crashed Manager: its line is `- стоїть, сесія впала -
 (<cause>)` (it cannot go on without the owner), and the Lead adds its own question with a recommendation: restart, set
 aside, or hand to another Manager. A step the owner must do by hand is a question too: «Зробиш <what,
 where>?» (hand data work aside, see "Owner queue and critical items"). The owner's «так» answers it: the item leaves the queue and
-the counts at once; the Lead tracks the pending step in PROGRESS.md "In flight" (with its time, if any) and,
+the window at once; the Lead tracks the pending step in PROGRESS.md "In flight" (with its time, if any) and,
 for a timed step, sets a one-shot CronCreate reminder at that time; after a Lead restart the Lead first checks CronList and
 re-creates it only if it is gone (a job can outlive the restart: `plugins/dev-kit/claude-facts.md`, "A CronCreate job can outlive a lead restart") that sends one push and one chat line; this is the one timer exception to "Wake-up". The Lead
 never asks it again; it comes back only if the owner says the step did not work. The Lead removes the "In
@@ -322,16 +287,19 @@ flight" line when the owner reports the step done. Why: the Lead kept «Знім
 близько 19:15?» in the queue after the owner's «так» to all, and showed it again; owner: «Я ж
 написав так» (L: ClaudeDevKit, 2026-11-20).
 
-In an English reply the same form uses English words («Unanswered questions», «Session states», «Show
-all questions?», «Accept all my recommendations?»); the Ukrainian forms above are the ones the owner approved.
+In an English reply the same form uses English words («Unanswered questions», «Session states», «and N more
+questions», «Do you accept my advice on both?», «✅ Resolved, close?»); the Ukrainian forms above are the ones the owner approved.
 
 ## Owner queue and critical items
 
 The Lead collects what waits on the owner in a queue, in PROGRESS.md "Open questions", so a restart keeps it.
+Every question goes into it before the Lead shows the question, so none exists only in chat; the exceptions
+below never enter it (the push-test steps, hand data work sent back to a Manager, decisions the Lead makes
+itself).
 Each item starts with the date it entered, then who asks (the session name in «», or «Lead» for the Lead's own
-question) and `❗` when it is urgent, then the question as it is shown in the full list:
+question) and `❗` when it is urgent, then the question as it is shown in the window:
 `- 2026-11-19 · «M: Чистка гілок» · ❗: видалити 12 гілок, вже влитих у main? (...) Рекомендую: так - ...`.
-The counts, the questions written in full and the full list of "Message templates" are built from these items. An item stays urgent
+The window and its counter ("Message templates") are built from these items. An item stays urgent
 only while its session stands waiting on it; once the session goes on or closes, the Lead drops the `❗`.
 
 Read the session first: before every message to the owner that writes out a question about a session
@@ -344,13 +312,15 @@ said. A `ВЛАСНИК ВІДПОВІВ` message (`${CLAUDE_PLUGIN_ROOT}/messag
 the Lead showed its older queue item «закриваємо обговорення і запускаємо будову?» without re-reading the
 session (owner: «Чому ти питаєш? Я ж закрив обговорення вже»).
 
-Stale items: at each start status and each wake-up, a question a Manager put to the owner, unanswered since
-before today, whose answer lies within the Lead's own rights (an Ask-the-Lead list step, or a choice inside the
-approved criteria) is decided by its `Рекомендую:` line. The Lead records the decision in the doc the item
-came from and removes the item; it just leaves the counts. Every other item waits for the owner: the
-four kinds below that must enter the queue, a takeover item, «Закрити ...?» and a
-stuck Manager. Why: the owner decided on 2026-11-19 that a
-question the Lead may answer itself must not wait on the owner forever.
+Stale items: the Lead never closes an item itself. At each start status and each wake-up, a question a Manager
+put to the owner, unanswered since before today, whose answer lies within the Lead's own rights (an Ask-the-Lead
+list step, or a choice inside the approved criteria), and any item whose answer the Lead finds elsewhere (a
+session's report, the code), stays open and is rewritten with the «✅ Вирішено, закрити? (<reason>)» mark ("The
+question form"). The owner's «так» closes it; the Lead then records the decision in the doc the item came from
+and removes the item. Every other item waits for the owner as before. Why: owner, 2026-11-26
+(`plans/lead-questions.md`): «краще нехай питання відкрите, а в пораді стосовно нього вказано що можна
+закрити по такій то причині»; it replaces the owner's 2026-11-19 rule that the Lead decides such a question
+by its `Рекомендую:` line.
 
 Critical items: a session cannot go on without the owner (an urgent question or `чекає на тебе`), a
 session crashed (`стоїть, сесія впала`), a risk to data or money (an urgent question).
@@ -696,7 +666,7 @@ A Manager sends the Lead a `ПИТАННЯ` with what is checked and
 the push text; the Lead runs the steps below, sends the push itself (never through a message to the Pult hub:
 `plugins/dev-kit/claude-facts.md`, "A bypassPermissions sender's message to a Remote Control server's
 session is held; a default-mode sender's is taken") and returns the owner's «+» or «-» to the Manager as `ВІДПОВІДЬ`. Each step is its own message, sent
-at once and not inside the blocks of "Message templates". It is not an owner-queue item: no count line,
+at once and not inside the blocks of "Message templates". It is not an owner-queue item: no place in the window,
 no hand-step reminder and no reminder push ("Owner queue and critical items"), and the test push is
 not a critical-item push.
 
@@ -826,7 +796,7 @@ others, closes them only so the Lead stops counting them, and never messages the
 
 The Lead does not wake by itself (except the reminder of a timed hand step, see "Message templates"), and it never uses `notify_when_idle` for a Manager: its idle notices wake the Lead and the owner got many repeated small messages
 (`plugins/dev-kit/claude-facts.md`, "`notify_when_idle` wakes the lead on every idle notice"). The Lead wakes only on a Manager report (SendMessage), an owner message, an event message
-or the keep-warm ping, and writes to the owner at once with what changed ("Message templates"; the owner's
+or the keep-warm ping, and writes to the owner at once when something waits on him or a result is to show ("Message templates"; the owner's
 view: the feature, section «The Lead wakes only when needed»).
 
 The Lead keeps no watcher of its own (no `dev-kit-sessions watch`, no background task). The Pult watcher
@@ -997,9 +967,9 @@ finished step. The Lead does not merge it and removes no worktree for it. When i
 2026-11-15 that main stays clean, so the Lead's merges of other Manager sessions do not wait on it.
 
 After the clean-up the Lead re-reads the next-work sections of PROGRESS.md and writes the message
-of "Message templates": the Manager's `готово` line and the start proposal for the next item; when no other
-session works, with the «Стан проєкту» block and the proposal written in full ("The project state"),
-otherwise the proposal counted among the Lead's questions.
+of "Message templates": the Manager's `готово` line and the window; the start proposal for the next item
+enters the queue as an ordinary item ("The project state"), and when no other session works the message
+also has the «Стан проєкту» block.
 
 ## Restart the Lead
 
@@ -1012,7 +982,8 @@ handoff prompt of step 4; if any of that fails it starts a fresh Lead with the s
 
 1. `dev-kit-sessions fill --self` prints OVER. At the nearest point where a stop breaks nothing (as in
    the handshake of "Restart for a plugin update": a merge and its clean-up finished, an edit committed,
-   a subagent waited for), the Lead runs `continue-work-in-another-context save` and then `dev-kit-sessions
+   a subagent waited for), the Lead runs `continue-work-in-another-context save` (its extra items for «Дослівно»: the current window's
+   questions exactly as shown, and a pointer that the full queue is PROGRESS.md "Open questions") and then `dev-kit-sessions
    handoff save --file <the file name it printed>`. Until the move the Lead starts no new Manager or merge of its own;
    it still answers the owner and its Manager sessions, and after a turn that changed the state it saves a new
    handoff and runs `handoff save` with the new name before the turn ends.
@@ -1030,8 +1001,8 @@ handoff prompt of step 4; if any of that fails it starts a fresh Lead with the s
 4. After the move the Lead gets the prompt `/dev-kit:project-lead handoff: <file>`. It runs
    `/continue-work-in-another-context load <file>` with exactly that file name, then the steps of the
    first prompt after a plugin-update restart ("Restart for a plugin update": read this SKILL.md, note the
-   version, fill, others, state, the migrations check) and sends the full start status, with the full list of
-   questions. A clean release moves the Lead the same way ("Restart for a plugin update", "Clean release").
+   version, fill, others, state, the migrations check) and sends the full start status, which ends with the
+   question window from PROGRESS.md "Open questions". A clean release moves the Lead the same way ("Restart for a plugin update", "Clean release").
 5. A failed move: the watcher logs HANDOFF-FAILED (Pult shows it), tries that handoff file only once and
    brings the old Lead back. At any start whose first prompt has no `handoff:`, a `handoff status` other than
    `none` means that failure: the Lead runs `dev-kit-sessions handoff clear` and does not start step 1 again by
@@ -1085,9 +1056,8 @@ repo): a restart per bump cut into talks with the owner several times an hour.
   It arms no watcher (see "Wake-up"). The Lead sends its Manager sessions nothing about the restart.
   An unfinished step from before the stop is finished now. Then the Lead runs the check of "Apply dev-kit
   migrations"; a migration Manager it starts shows in the status. Last, the Lead always sends the full start status:
-  the message of "Message templates" that lists every session, with the question counts only (a
-  critical question in full, closing line by the cases of the closing line; a Manager report that
-  waited is in it); no words about the restart itself. Why: an empty turn here made the Lead send a
+  the message of "Message templates" that lists every session and ends with the question window (a Manager
+  report that waited is in it); no words about the restart itself. Why: an empty turn here made the Lead send a
   filler (`plugins/dev-kit/claude-facts.md`, "The host forces a visible reply on some wake-ups, and an empty turn is not accepted"); the owner decided on 2026-11-20 to see the full state instead.
 - A message to a stopped session fails at the sender and is not queued (`plugins/dev-kit/claude-facts.md`,
   "A send to a stopped session fails at the sender and is not queued"). So a Manager report sent during the stop is not lost in silence: the Manager sees the
@@ -1195,8 +1165,7 @@ log line, a price missing in `api-prices.json`), as "Where things go" in `dev-ki
 log: `- <YYYY-MM-DD> | balance <$> | <credit>: <$> left, expires <date> | spent 30d <$> by <keys> |
 <the reconcile command's "line:" text>`. Why: owner, 2026-11-21 (`docs/features/log-and-reconcile-api-spend.md`): the API gives no
 balance (`plugins/dev-kit/claude-facts.md`, "The Anthropic API gives no credit balance"), so the Console check stays, now as a reconciliation against the log. It pushes (PushNotification, one line) when the balance is under 20 USD, or when
-a credit with more than 5 USD left expires within 7 days, and shows the same in its next message as its own
-line under «Питання без відповіді» only if the owner must act. Chrome closed or the extension silent: the Lead
+a credit with more than 5 USD left expires within 7 days, and queues the same as a question only if the owner must act. Chrome closed or the extension silent: the Lead
 skips and tries at its next start; no question to the owner. Why: owner, 2026-11-20: «зробить хоч якийсь
 лог коштів і перевірку клод платформи раз на тиждень ... і звісно напоминалку про експайринг», plus
 «Перевірка на сайті також куди тратяться кошти».

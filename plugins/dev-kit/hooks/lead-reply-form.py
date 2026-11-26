@@ -3,8 +3,8 @@
 Scope is narrow on purpose (plans/lead-reply-hook.md): only a lead session (its title starts with «L: », or the old «P: », see `scripts/session_titles.py`), only a
 turn not woken by the owner (a session's message, a Pult event, a subagent notice, a timer), and only the turn's
 final text. That text must be empty, one of the named one-line exceptions of `dev-kit:project-lead`, or the bold
-blocks of "Message templates" with no free text before, between or after them (a closing question or a written-out
-question with its `Рекомендую:` line may end the message). A miss is a soft nudge: the hook asks for one short
+blocks of "Message templates" with no free text before, between or after them (the question window's closing
+question, or its one item with its `Рекомендую:` line, may end the message). A miss is a soft nudge: the hook asks for one short
 extra step that sends no new text, so the owner never sees the message twice. The hook never blocks twice in a row
 (`stop_hook_active`) and any error ends it with exit code 0 and no output."""
 import json
@@ -15,7 +15,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
 import session_titles  # noqa: E402  the new and the old lead and discussion prefixes
 
-TITLES = ("Питання без відповіді", "Статуси сесій", "Стан проєкту", "Питання сесій", "Питання від мене")
+TITLES = ("Питання без відповіді", "Статуси сесій", "Стан проєкту")
 PROSE_TITLES = ("Стан проєкту",)  # blocks whose body is sentences, not a list
 ONE_LINERS = (
     "Зараз нічого не працює і нічого не чекає на тебе.",  # forced output with nothing running
@@ -26,7 +26,7 @@ ONE_LINERS = (
     "Обговорення закрите",
 )
 TITLE_RE = re.compile(r"^\*\*(.+?)\*\*\s*$")
-LIST_LINE_RE = re.compile(r"^(\s+\S|-\s|\d+\.\s|ще \d+ питан)")
+LIST_LINE_RE = re.compile(r"^(\s+\S|-\s|\d+\.\s|і ще \d+ питан)")  # the last one: the window's counter line
 CLOSING_RE = re.compile(r"(\?\s*(\([^()]*\))?\s*$)|(\+ або -\s*$)|(^(Рекомендую|немає рекомендації)\b)")
 
 NUDGE = ("Хук форми повідомлень Lead: остання відповідь на подію не тримає форму «Message templates» "

@@ -35,11 +35,3 @@ What: rename the roles the owner meets in chat so each name points to one thing:
 Why: owner, 2026-11-25, «Обговорення: Перевірка зібраних екранів»: his «менеджер» read two ways; «дійсно неймінг кривий, треба буде подумати над адекватним потім».
 Cheapest test: list every role name the owner sees in a lead's chat and session titles, and check each has one meaning.
 Verdict (2026-11-25): owner «Можна зараз»: discussion started («Обговорення: Назви ролей сесій»).
-
-## Lead: an open question list is not replaced by a later message
-
-What: while a full list or a written-out question waits for the owner, a later Lead message (a merge, a forced-output state, a start proposal of "The project state") ends with a different closing line, and the owner's bare «так» goes to that line. Reviewer's proposal (L: Prishch): a case 6 of the closing line: the open shown items stay the last thing, with the same closing question, until answered; a start proposal stays counted meanwhile; the critical question still wins; an exception in forced output for this list. Doubts: repeats may become spam in forced output (alternative: repeat only in messages with a change); whether «Стан проєкту» stays; a partial answer «1 так».
-Why: owner, 2026-11-26, L: Prishch: he answered «Так» to a list of 2 questions, but a later message ended with a «Discuss:» proposal and the Lead started it: «Я написав так на попереднє повідомлення. Тут вже хаос якийсь». Causes in `plugins/dev-kit/skills/project-lead/SKILL.md`: closing-line cases 1-5, forced output, «Reading the owner's answer». The owner wants to discuss it.
-Cheapest test: replay that sequence (full list, then a ЗАКРИТО and a merge) to a Lead; the owner's «так» still answers the list.
-Verdict (2026-11-26): the owner wants a talk; proposed as a «Discuss:» session.
-

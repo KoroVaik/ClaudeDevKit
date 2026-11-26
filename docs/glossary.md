@@ -29,5 +29,5 @@ approved by the owner on 2026-11-19.
 | Tidy the docs once a week | Feature: a background session audits a project's docs weekly, fixes the trivial and leaves the rest as items. | - |
 | Project lead (Lead) | The one session per project that starts task sessions and merges their work; it does no task work itself. | - |
 | Task session (Manager) | A session the project lead starts for one task, in its own worktree. | - |
-| Owner queue | What waits on the owner, kept in PROGRESS.md "Open questions"; the Lead's messages only count the open questions and write one in full on «так» to «Показати всі питання?», at the start of a new Lead session, when it is critical, or when it is the Lead's next-task proposal while nothing works. | - |
+| Owner queue | What waits on the owner, kept in PROGRESS.md "Open questions"; the Lead's messages show the 2 oldest open questions in full (urgent first) with a counter «і ще N питань» for the rest, and the window changes only after the owner's answer. | - |
 | Discussion session («Discuss:») | A session where the owner settles the meaning and the mockup of a feature with one agent. | - |

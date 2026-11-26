@@ -11,29 +11,33 @@ the task sessions, merges their work and tells you the result. You are the CEO a
 The Lead is one session per project. It starts task sessions (Managers), each in its own worktree, merges their
 finished work into main and tells you the result. It does no task work itself.
 
-### The Lead's messages: session states and question counts
-Every status message from the Lead has two short blocks (a third when nothing works, below): «Питання без відповіді» (only the counts: how many
-questions from sessions, how many from the Lead, how many urgent) and «Статуси сесій» (each session's state
-and name). A message with open questions ends with «Показати всі питання?» (except the next-task proposal below); on your «так» the Lead lists every
-question in full, numbered, after a separate cheap check that each reads in your own words with no
-agent terms. The one exception is a critical question (a session stands and cannot move without your
-answer): it is shown in full as the last thing in the message, with no closing line, so a bare «так»
-answers it; the next critical question is shown the same way only after you answer the first. The full
-list also opens the start status of a fresh Lead session, but not the one after a plugin-update restart
-(same chat, you saw the questions); the list ends with the question itself when it is the only one, or
-«Приймаєш усі мої рекомендації?» when several are listed. With more than 3 open questions the list shows only 2 at a time, with «ще N питань» for the rest, and the next 2 come after you answer. A bare «так» or «ні» answers the Lead's last line;
-the Lead never asks back which one you meant.
-You can still answer by number («1 так, 3 ні»). The Lead writes at once on each event, only
-what changed; the other sessions still at work share one last line «ще працюють: «A», «B»». After a plugin-update restart, or when Claude Code demands a reply where the Lead has nothing new,
-the Lead shows the current state in this form, never a filler phrase; with nothing running and nothing
-waiting, it is one line saying so.
-When no session works any more (for example after the last one is merged), the message adds a third
-block «Стан проєкту»: 2-4 plain sentences on what was just finished, what the project waits on and what
-is blocked, then the Lead's one proposal of the next task («Запустити нову сесію «M: ...»?» with its
-`Рекомендую:` line) as the last thing, so a bare «так» starts it. The Lead writes it again only when the state
-or the proposal changed. The other questions stay counted, with no «Показати всі питання?»; an open
-critical question still comes last, and the proposal then stays counted. While a session works, the
-message has neither.
+### The Lead's messages: session states and the question window
+Every message from the Lead has up to two short blocks (a third when nothing works, below): «Статуси сесій» (each
+session's state and name) and, last, «Питання без відповіді». That block is a window: the 2 oldest open questions,
+written out in full and numbered 1 and 2 (urgent ones first, marked ❗), each after a separate cheap check that it
+reads in your own words with no agent terms. Every other open question waits behind one line «і ще N питань». The
+window changes only after you answer: answered questions leave and the next oldest come in; a new question only raises
+the counter, and an urgent one that arrives meanwhile takes the first place in the next window. Every Lead message
+that has text repeats the same window, and it also opens the Lead's first message after any restart, so your bare
+«так», sent at any moment, answers the same two questions. The window ends with «Приймаєш мої поради до обох?»;
+with one question open, that question itself is the last thing. A bare «так» or «ні» answers the shown questions; «1 так»
+or «2 ні» answers only that one and says nothing about the other (the next oldest then takes its place). The Lead never
+asks back which one you meant. A question the Lead finds already answered (in a session or in the code) is not dropped:
+it stays and opens with «✅ Вирішено, закрити? (причина)», so you need not read it again; your «так» closes it.
+The Lead writes to the chat only when something waits on you or there is a result you see: a new question, a merge, a
+finished session, a failure or a stuck session. A session's progress or a step done sends no message; it appears in
+«Статуси сесій» of the next message, and you can ask «що працює?» at any time. The other sessions still at work share
+one last status line «ще працюють: «A», «B»». When Claude Code demands a reply where the Lead has nothing new, the Lead
+shows the current state in this form, never a filler phrase; with nothing running and nothing waiting, it is one line
+saying so.
+When no session works any more (for example after the last one is merged), the message adds a block
+«Стан проєкту» between the statuses and the question: 2-4 plain sentences on what was just finished, what the project
+waits on and what is blocked. The Lead's proposal of the next task («Запустити нову сесію «M: ...»?» with its
+`Рекомендую:` line) is an ordinary open question that takes its turn in the window; you usually start a discussion
+yourself. The Lead writes the block again only when the state changed. While a session works, the message has neither.
+Why: owner, 2026-11-26 ([the plan](../../plans/lead-questions.md)): a later Lead message ended with a different
+question and his «так» went to the wrong one («Я написав так на попереднє повідомлення. Тут вже хаос якийсь»); a question
+the Lead showed only in chat was lost when the Lead restarted, so every question is written to the queue first.
 A check at the end of each Lead turn keeps this form: when a session's message, an event or a finished
 helper woke the Lead (not your own message, and not while the Lead still owes you a reply), the Lead's reply must be empty,
 one of the named one-line steps (a discussion start, a push test, a restart notice) or only the blocks.
@@ -41,15 +45,16 @@ On free text before, between or after the blocks, the Lead gets a note to write 
 message you saw is not sent again.
 
 ### How a question and a state are written
-The counts are three lines: «❗ термінові» (a session stands and cannot move without your answer; a session
-that asks and goes on, or a closed session with a leftover question, is not urgent), «від сесій» and «від
-мене» (the Lead's own: start a new task session, close a session, take one over, restart a crashed one,
-new plugin backlog entries (the retro asks nothing: it fixes by itself and shows a passive list in Pult's status); the Lead never asks «Яку задачу запустити?»). A kind with zero is left out. A
+An urgent question is one where a session stands and cannot move without your answer; a session that asks and goes
+on, or a closed session with a leftover question, is not urgent. The window shows questions from sessions and the
+Lead's own the same way (the Lead's own: start a new task session, close a session, take one over, restart a crashed
+one, new plugin backlog entries (the retro asks nothing: it fixes by itself and shows a passive list in Pult's status);
+the Lead never asks «Яку задачу запустити?»). A
 question stands alone: a session's question starts with its name and «питає:»; it is in your words (what you
 see or do on your side, never the Lead's own mechanisms), with the consequence in brackets, worded so the advice is
 «так», then an indented `Рекомендую: так - <reason>` (the Lead adds one a session did not give). A question about
-how a screen looks carries its shots next to the mockup every time it is written in full. An answered
-question just leaves the counts, with no confirmation line.
+how a screen looks carries its shots next to the mockup every time it is shown in the window. An answered
+question just leaves the window, with no confirmation line.
 
 Each line of «Статуси сесій» is the state first, then the session name exactly as the app shows it, in «»:
 `працює`, `чекає на тебе` (with the reason in brackets), `чекає` (a session waits more than a minute on
@@ -95,7 +100,8 @@ spend line in its task file and asks the Lead before a paid call that would pass
 session you started
 ([Take over a session I started](take-over-a-session-i-started.md)) always enters the queue. A question a Manager put to you, unanswered
 since before today, whose answer lies in the Lead's own rights (a step the Manager may ask the Lead, a choice inside the
-criteria), the Lead decides by its recommendation, records in the doc it came from and drops from the queue.
+criteria), the Lead no longer decides itself: it stays open with «✅ Вирішено, закрити? (причина)» and the Lead
+records the decision in the doc it came from after your «так».
 
 ### The Lead sorts each task
 The Lead sorts each task and says the branch in one line: the Manager alone (a small change with no new screen or user
@@ -204,10 +210,14 @@ format instead of removing them. Those rules live outside this repo and change o
 
 ## Acceptance criteria
 - You give the Lead a task whose outcome is not agreed: the Lead asks up to 3 questions through the queue, or proposes a «Discuss:» session when there are more or a screen is involved.
-- A new question arrives: the Lead's message only counts it and ends with «Показати всі питання?» (when nothing works, the Lead's next-task proposal ends it instead); on «так» all are listed in full, numbered, in your own words with no agent terms (a separate checker rewrites them first). A critical question is the exception: it is shown in full as the last message line with no closing line, and the next one only after you answer it.
-- You answer a Lead message with a bare «так»: the Lead takes it as the answer to the message's last line and acts, never asking «1 чи 2?».
+- A new question arrives: the Lead's message shows the 2 oldest open questions in full, numbered, in your own words with no agent terms (a separate checker rewrites them first), and «і ще N питань» for the rest; the new question only raises the counter, unless it is urgent (then it takes the first place after your next answer).
+- You answer a Lead message with a bare «так»: the Lead takes it as the answer to the questions shown in the window, whatever it wrote since, and acts, never asking «1 чи 2?». «1 так» answers only the first.
+- Several Lead messages come one after another (a merge, a finished session): each repeats the same two questions, so your «так» is never taken for another line.
+- The Lead restarts: its first message shows the two oldest open questions again, read from PROGRESS.md "Open questions"; none was kept only in the chat.
+- The Lead finds a question already answered: it stays in the window with «✅ Вирішено, закрити? (причина)» and leaves only on your «так».
+- A session's progress changes, nothing else: the Lead sends no message; the change is in the next one, or on your «що працює?».
 - A session finishes while you are away: the Lead writes at once, and its message lists the session as «готово».
-- The last working session finishes: the Lead's message adds 2-4 sentences on the project's state and ends with one proposal of the next task; while a session still works, it has neither.
+- The last working session finishes: the Lead's message adds 2-4 sentences on the project's state and queues one proposal of the next task, which shows in the window in its turn; while a session still works, it has neither.
 - A task session crashes: you get it at once, also as a push to your phone.
 - A session waits on your answer for 20 minutes: you get one reminder push for that wait; a session waiting on the Lead pushes nothing.
 - A second question arrives while one already waits on you: no second push until you write.
@@ -241,4 +251,3 @@ format instead of removing them. Those rules live outside this repo and change o
 
 ## Open
 - [ ] Run the first phone push test in the form of «A push test asks you twice at most» with the owner and confirm the steps read clearly (`plans/push-test-flow.md`)
-- [ ] Defect: a question the Lead shows only in chat, not in PROGRESS.md "Open questions", is lost when the Lead restarts; `plugins/dev-kit/skills/project-lead/SKILL.md`

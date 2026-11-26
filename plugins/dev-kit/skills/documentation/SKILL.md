@@ -102,9 +102,9 @@ is recorded where its code lives.
   experiment journal.
 - **Open question:** a question that waits for the owner goes to "Open questions" in `PROGRESS.md` with
   the date it was added and links its feature. Before recording it, read that feature and the plan it links: a question they
-  already answer is not recorded. It is closed only when the owner's answer settles it, or when the
-  project lead decides a stale one it may decide itself (`dev-kit:project-lead`, "Owner queue and
-  critical items").
+  already answer is not recorded. It is closed only when the owner's answer settles it; the project
+  lead never closes one itself, it marks a stale one «✅ Вирішено, закрити?» for the owner's «так»
+  (`dev-kit:project-lead`, "Owner queue and critical items").
 - **Open item:** agreed work not started goes to the "Open" section of its feature or tech file as a
   `[ ]` item. Out-of-scope work that surfaced is proposed in chat and added only after the owner agrees.
   An item is ticked `[x]` only for what was actually run and checked, and removed once finished; never

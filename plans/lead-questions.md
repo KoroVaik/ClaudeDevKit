@@ -1,6 +1,6 @@
 # Plan: the Lead's questions are not lost or misdirected
 
-Status: approved (2026-11-26), next: build.
+Status: built (2026-11-26, dev-kit 0.1.140, a clean release); next: the Lead merges.
 
 Owner's words: «гадаю ці 2 можна обєднать в 1 діскас», then «+» to «Відкрити одне обговорення «Discuss: Питання Lead не губляться» на обидві проблеми?» (L: ClaudeDevKit, 2026-11-26).
 
@@ -58,3 +58,10 @@ Generic for all sessions; the calling skill may add items. Technical, from the a
 Update `docs/features/hand-work-to-the-project-lead.md` (the owner's view of the window, the ✅ mark, fewer messages) and close its defect; remove the BACKLOG.md entry «Lead: an open question list is not replaced by a later message»; release note per the plugin's versioning. A release that changes the Lead's message form is marked `"clean": true` (`plans/lead-early-clear.md`) if that is built by then.
 
 Success criterion: an «Owner's approval» section here with every agreed point in builder detail, and the owner's «так» to the short plan. Remove the backlog entry and close the defect when built.
+
+## Build notes (2026-11-26)
+
+- Technical choices: a one-item window is unnumbered with no closing line; a one-item window does not grow until the owner answers (stable window); a «ні» to a «✅ Вирішено» item keeps it open as an ordinary question; «які питання» (show the full list) is gone with the full list; `sessions.py quiet` still treats the repeated window as an open question, as the old counts line already did, so routine restarts wait as before.
+- The handoff skill is local and ignored by the `.claude` git repo, so its edit has no commit.
+
+Spend: ~0.4% of the weekly limit, estimate; API: 0 USD
