@@ -1,6 +1,6 @@
 # Plan: projects edit web-kit and unity-kit directly
 
-Status: agreed, waiting for the owner's «так» to the short plan (2026-11-26).
+Status: agreed, owner «так» to the short plan (2026-11-26). Next: build.
 
 Owner's words: «давай надамо проектам які юзають плагіні веб і юніті можливість редагування напряму, щоб ти не займався цим. У сесій цих проектів кращий контекст специфіки роботи. ЗАпусти обговорення» (L: ClaudeDevKit chat, 2026-11-26).
 
