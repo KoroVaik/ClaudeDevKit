@@ -22,7 +22,7 @@ is listed below.
 - `plugins/pult/scripts` - PowerShell and Python of the hub: start, stop, watch and restart of the leads, the status page, the session list.
 - `plugins/pult/hooks`, `plugins/pult/rules` - the SessionStart hook and the hub rules it adds in the home folder.
 - `.claude-plugin`, `plugins/dev-kit/.claude-plugin`, `plugins/web-kit/.claude-plugin`, `plugins/unity-kit/.claude-plugin`, `plugins/pult/.claude-plugin`, `plugins/spend-kit/.claude-plugin`, `plugins/rules-kit/.claude-plugin` - the marketplace and plugin manifests.
-- `releases.json` in each plugin folder (dev-kit, pult, web-kit, unity-kit, rules-kit, spend-kit) - the critical or routine mark of each release of that plugin, read by the Pult watcher (it asks `sessions.py release --file` per changed plugin; rules-kit and spend-kit count for every lead, web-kit and unity-kit for the projects that enable them).
+- `releases.json` in each plugin folder (dev-kit, pult, web-kit, unity-kit, rules-kit, spend-kit) - the critical or routine mark (and the optional `clean` flag) of each release of that plugin, read by the Pult watcher (it asks `sessions.py release --file` per changed plugin; rules-kit and spend-kit count for every lead, web-kit and unity-kit for the projects that enable them).
 - `tools/enable-rules-spend-kit.py` - run once after the merge: enables spend-kit and rules-kit in the user's settings and points the status line at spend-kit (it backs the file up first).
 - `tools/lint.py` - checks this repo: plugin manifests, skill and agent front matter, slot tables, hook config, the `rules-subscription.md` of every plugin, project profiles ([repo checks](repo-checks.md)).
 - `tools/tests` - the tests of the scripts and hooks.

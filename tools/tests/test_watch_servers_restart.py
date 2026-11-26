@@ -190,10 +190,12 @@ class WatcherEnv:
                              env=self.env(), check=True, capture_output=True, text=True, timeout=240)
         return out.stdout.splitlines()
 
-    def releases(self, marks, plugin="dev-kit"):
-        """plugins/<plugin>/releases.json of the temp plugin: version -> kind (dated today)."""
+    def releases(self, marks, plugin="dev-kit", clean=()):
+        """plugins/<plugin>/releases.json of the temp plugin: version -> kind (dated today); the versions in `clean`
+        are marked "clean": true."""
         (self.plugins / plugin / "releases.json").write_text(json.dumps(
-            {v: {"kind": k, "date": day(0), "reason": "test"} for v, k in marks.items()}), encoding="utf-8")
+            {v: dict({"kind": k, "date": day(0), "reason": "test"}, **({"clean": True} if v in clean else {}))
+             for v, k in marks.items()}), encoding="utf-8")
 
     def lead_chat(self, *entries):
         """The lead's transcript in the projects folder sessions.py reads (`quiet`)."""
@@ -609,6 +611,40 @@ class RestartLeadsAskTest(WatcherEnv, unittest.TestCase):
         self.lead_record("0.9.0", {"web-kit": "1.0.0"})
         self.run_ask()
         self.assertEqual([f"Restarted={LEAD}"], self.starts())
+
+    # protects: Rule
+    def test_idle_lead_behind_a_clean_release_is_asked_with_clean_and_not_restarted(self):
+        # A restart would resume the old conversation, which still holds the names the release changed.
+        self.releases({"1.0.0": "routine"}, clean=("1.0.0",))
+        self.lead_record("0.9.0", {"web-kit": "1.0.0"})
+        lines = self.run_ask()
+        self.assertIn(f"Asked: {LEAD}", lines)
+        self.assertEqual({"version": "1.0.0", "clean": True},
+                         {k: v for k, v in self.restart_file().items() if k in ("version", "clean")})
+        self.assertEqual(["Restarted="], self.starts(), "nothing was stopped or restarted")
+        self.assertEqual(1, len(json.loads((self.bin / "agents.json").read_text(encoding="utf-8"))))
+
+    # protects: Rule
+    def test_lead_that_cannot_get_event_messages_is_restarted_plainly_even_behind_a_clean_release(self):
+        # A lead from before the wake messages never sees the clean request: it is handled as without the mark.
+        self.releases({"1.0.0": "routine"}, clean=("1.0.0",))
+        self.lead_record("0.1.50", {"web-kit": "1.0.0"})
+        lines = self.run_ask()
+        self.assertNotIn(f"Asked: {LEAD}", lines)
+        self.assertEqual([f"Restarted={LEAD}"], self.starts())
+        self.assertIsNone(self.restart_file())
+
+    # protects: Rule
+    def test_busy_lead_behind_a_clean_extension_release_is_asked_with_clean(self):
+        # A busy lead behind a plain extension release is not asked (a paid turn); a clean one is, as the watcher does.
+        self.agents("busy")
+        self.releases({"1.1.0": "routine"}, "web-kit", clean=("1.1.0",))
+        self.set_version("web-kit", "1.1.0")
+        self.lead_record("1.0.0", {"web-kit": "1.0.0"})
+        lines = self.run_ask()
+        self.assertIn(f"Asked: {LEAD}", lines)
+        self.assertEqual(("1.0.0", True), (self.restart_file()["version"], self.restart_file().get("clean")))
+        self.assertEqual(["Restarted="], self.starts())
 
 
 if __name__ == "__main__":

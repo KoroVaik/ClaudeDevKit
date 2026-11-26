@@ -10,6 +10,11 @@
 # `dev-kit-sessions restart request --version V` (V from <DevKitDir>\.claude-plugin\plugin.json) and prints
 # `Asked: <name>`; watch-servers.ps1 sends it to the lead as a `restart` event message (an older lead's own
 # session watcher reads it), and restarts that lead when it marks itself ready.
+# A lead whose pending versions include a clean release (`"clean": true` in a plugin's releases.json, asked with
+# `sessions.py release` as the watcher does; see watch-servers.ps1, "Clean") is not restarted directly by -Ask, idle or
+# busy: it is asked with `restart request --version V --clean` and `Asked: <name>` is printed. It answers with a
+# handoff, which the watcher moves to a fresh context; the watcher's clean fallbacks apply (a ready mark is honoured).
+# A lead that cannot get event messages (it started on dev-kit before 0.1.78) is handled plainly, as without the mark.
 # -Ask also counts the other plugins a lead loads (rules-kit, spend-kit and the ones its project enables: web-kit,
 # unity-kit; see plugin-versions.ps1): a lead
 # stale only in an extension is restarted now when idle, and a busy one is not asked (the watcher restarts it
@@ -54,7 +59,7 @@ $sessions = @(claude agents --json | Out-String | ConvertFrom-Json) | ForEach-Ob
 $stopped = @()
 
 # -Ask: writes the restart request of a busy lead's project; returns the line to print.
-function Request-LeadRestart($Row) {
+function Request-LeadRestart($Row, [switch]$Clean) {
     if (-not $Row.Path -or -not (Test-Path -LiteralPath $Row.Path)) { return "Not asked, folder missing: $($Row.Session)" }
     $v = $null
     try {
@@ -65,7 +70,9 @@ function Request-LeadRestart($Row) {
     $old = $env:DEV_KIT_STATE_DIR
     if ($DevKitStateDir) { $env:DEV_KIT_STATE_DIR = $DevKitStateDir }
     try {
-        $out = & python (Join-Path $DevKitDir 'scripts\sessions.py') --project $Row.Path restart request --version $v 2>&1 | Out-String
+        $words = @('restart', 'request', '--version', $v)
+        if ($Clean) { $words += '--clean' }
+        $out = & python (Join-Path $DevKitDir 'scripts\sessions.py') --project $Row.Path @words 2>&1 | Out-String
     } catch { $out = "$_" } finally { $env:DEV_KIT_STATE_DIR = $old }
     $said = ($out.Trim() -replace '\s+', ' ')
     if ($said -ceq "asked $v") { return "Asked: $($Row.Session)" }
@@ -98,6 +105,45 @@ function Get-LeadStaleness([string]$Lead, $ProcId, $Row) {
     } catch { return 'devkit' }
 }
 
+# -Ask: whether a release this lead process lacks is marked clean ("clean": true in a releases.json; dev-kit up to the
+# installed version, every changed extension up to its own), asked per changed plugin with `sessions.py release` as the
+# watcher does (watch-servers.ps1, Get-ReleaseKind). Nothing known about the lead process, or any failure: not clean.
+$WakeMinDevKit = '0.1.78'  # as in watch-servers.ps1: a lead that started on this dev-kit or later is woken by message
+function Test-LeadCleanChange([string]$Lead, $ProcId, $Row) {
+    try {
+        $dev = Get-PluginInfo $DevKitDir
+        $all = Get-Content -Raw -Encoding UTF8 -LiteralPath (Join-Path $StateDir 'lead-versions.json') -ErrorAction Stop |
+            ConvertFrom-Json
+        $e = $all.$Lead
+        $old = Get-LegacyLeadName $Lead
+        if (-not $e -and $old) { $e = $all.$old }
+        if (-not ($dev -and $e -and [int]$e.pid -eq [int]$ProcId)) { return $false }
+        # A lead that cannot get event messages (it started on dev-kit before $WakeMinDevKit, or an unknown one) never
+        # sees the clean request: it is restarted plainly, as without a clean mark.
+        $ver = $null
+        if (-not [version]::TryParse([string]$e.version, [ref]$ver) -or $ver -lt [version]$WakeMinDevKit) { return $false }
+        $items = @()
+        if ([string]$e.version -cne $dev.Version) { $items += @{ From = [string]$e.version; To = $dev.Version; File = (Join-Path $dev.Dir 'releases.json') } }
+        if ($e.PSObject.Properties['ext']) {
+            $stored = @{}
+            if ($e.ext) { foreach ($q in $e.ext.PSObject.Properties) { $stored[$q.Name] = [string]$q.Value } }
+            $now = Get-LeadExtensions $Row.Path $DevKitDir
+            foreach ($c in @(Get-ExtChangeList $stored $now)) { $items += @{ From = $c.From; To = $c.To; File = (Join-Path $now[$c.Name].Dir 'releases.json') } }
+        }
+        foreach ($item in $items) {
+            $words = @('release', '--from', $item.From, '--to', $item.To, '--file', $item.File)
+            if ($e.started) {
+                $started = $e.started
+                if ($started -is [datetime]) { $started = $started.ToUniversalTime().ToString('o', [Globalization.CultureInfo]::InvariantCulture) }
+                $words += @('--started', [string]$started)
+            }
+            $out = & python (Join-Path $DevKitDir 'scripts\sessions.py') @words 2>$null | Out-String
+            if (@($out -split "`r?`n" | ForEach-Object { $_.Trim() }) -ccontains 'clean') { return $true }
+        }
+    } catch { }
+    return $false
+}
+
 foreach ($lead in $leads) {
     # The running session may still have the old name "P: X" (resume-lib.ps1, Test-LeadEntryName); start-servers.ps1 renames it.
     $s = $sessions | Where-Object { $_.kind -eq 'background' -and (Test-LeadEntryName ([string]$_.name) $lead) -and $_.pid } |
@@ -106,11 +152,15 @@ foreach ($lead in $leads) {
     $row = $rows | Where-Object { $_.Session -ceq $lead } | Select-Object -First 1
     $stale = if ($Ask) { Get-LeadStaleness $lead $s.pid $row } else { '' }
     if ($stale -eq 'current') { Write-Output "Up to date: $lead"; continue }
+    # A clean release (a pending version marked "clean": true) is never restarted directly: the lead is asked, busy or
+    # idle, with `restart request --version V --clean`; it answers with a handoff and the watcher moves it.
+    $clean = $Ask -and -not $Force -and -not $Ready -and (Test-LeadCleanChange $lead $s.pid $row)
     if ($s.status -eq 'busy' -and $Ask -and -not $Force -and -not $Ready) {
-        if ($stale -eq 'ext') { Write-Output "Not asked, busy and only an extension changed: $lead"; continue }
-        Write-Output (Request-LeadRestart ($rows | Where-Object { $_.Session -ceq $lead } | Select-Object -First 1))
+        if ($stale -eq 'ext' -and -not $clean) { Write-Output "Not asked, busy and only an extension changed: $lead"; continue }
+        Write-Output (Request-LeadRestart $row -Clean:$clean)
         continue
     }
+    if ($clean) { Write-Output (Request-LeadRestart $row -Clean); continue }
     if ($s.status -eq 'busy' -and -not $Force -and -not $Ready) { Write-Output "Busy, skipped: $lead"; continue }
     # start-servers.ps1 starts a lead only with hard bans on main: without them a stopped lead would stay down.
     $gate = @{ Start = $false; Reason = 'the hard-ban check failed' }

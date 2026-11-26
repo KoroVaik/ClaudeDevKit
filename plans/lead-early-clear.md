@@ -1,6 +1,8 @@
 # Plan: a lead clears its context earlier
 
-Status: in discussion (2026-11-26).
+Status: built (2026-11-26), dev-kit 0.1.137 and pult 0.1.38.
+
+Spend: ~1% of the weekly limit, estimate; API: 0 USD
 
 Owner's words (via L: Zhratva, 2026-11-26): «Напиши щоб очищення відбувалось раніше ніж ліміт токенів для лідів. Нехай запустить дев кіт обговорення для мене».
 

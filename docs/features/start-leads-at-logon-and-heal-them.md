@@ -33,7 +33,8 @@ last message to you is not an open question and you wrote nothing to it for 5 mi
 restarts a quiet lead the same day with no warning; a lead in a talk with you first finishes its step,
 writes «⚠ ЧЕРЕЗ 30 СЕК БУДЕ ПЕРЕЗАВАНТАЖЕННЯ (ОНОВЛЕННЯ ІНСТРУМЕНТІВ)» and restarts 30 seconds later; a
 message you send in those 30 seconds is answered after the restart. Any restart takes every waiting
-update with it. A lead whose extension plugin (web-kit, unity-kit) changed version is restarted when it is
+update with it. An update that renames things moves the lead to a clean context instead, with the warning even
+when it is quiet ([hand work to the Lead](hand-work-to-the-project-lead.md), «The Lead moves itself to a fresh session»). A lead whose extension plugin (web-kit, unity-kit) changed version is restarted when it is
 idle. Why: owner, 2026-11-23 (`plans/update-timing.md`): updates restarted the leads several times an hour,
 in the middle of talks.
 

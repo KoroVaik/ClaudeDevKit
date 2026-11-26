@@ -675,6 +675,19 @@ class SessionsTestCase(unittest.TestCase):
         self.run_main("restart", "request", "--version", "0.1.48")
         self.assertTrue(self.restart_status().startswith("asked 0.1.48 "))
 
+    # protects: Rule
+    def test_clean_restart_request_reaches_the_lead_as_an_event_line_with_clean(self):
+        # The Pult watcher builds `restart requested: <V> clean` from this line and tells it from a plain request.
+        self.run_main("restart", "request", "--version", "0.1.47", "--clean")
+        self.assertRegex(self.restart_status(), r"^asked 0\.1\.47 \d+ clean\n$")
+        self.assertEqual((0, "restart | - | - | 0.1.47 clean | 0.1.47\n"), self.run_main("check"))
+        self.assertEqual(0, self.run_main("restart", "ready")[0])  # an old skill's plain answer: still ready, still clean
+        self.assertRegex(self.restart_status(), r"^ready 0.1.47 \d+ clean\n$")
+        self.run_main("restart", "clear")
+        self.run_main("restart", "request", "--version", "0.1.47")
+        self.assertRegex(self.restart_status(), r"^asked 0\.1\.47 \d+\n$")
+        self.assertEqual((0, "restart | - | - | 0.1.47 | 0.1.47\n"), self.run_main("check"))
+
     # protects: Flow
     def test_restart_ready_with_a_version_needs_no_request(self):
         # The lead notices the bump itself, so no request exists when it marks itself ready.
@@ -1234,6 +1247,33 @@ class SessionsTestCase(unittest.TestCase):
             "release", "--from", "older", "--to", "0.1.12", "--started", datetime_local(2026, 11, 23, 9), "--file", marks))
         self.assertEqual((0, "routine\n"), self.run_main("release", "--from", "older", "--to", "0.1.12", "--file", marks),
                          "no start time either: nothing is known, so routine")
+
+    # protects: Rule
+    def test_release_tells_a_clean_mark_in_the_range_whatever_the_kind(self):
+        # A clean mark (a rename a running lead holds in its context) comes as a second line after the kind line.
+        marks = self.releases({
+            "0.1.9": {"kind": "routine", "date": "2026-11-20", "reason": "old", "clean": True},
+            "0.1.10": {"kind": "critical", "date": "2026-11-21", "reason": "a"},
+            "0.1.11": {"kind": "routine", "date": "2026-11-22", "reason": "r", "clean": True},
+            "0.1.12": {"kind": "routine", "date": "2026-11-23", "reason": "n", "clean": False}})
+        for start, to, said in (("0.1.9", "0.1.10", "critical 0.1.10: a\n"),  # 0.1.9 is not lacked: not clean
+                                ("0.1.9", "0.1.11", "critical 0.1.10: a\nclean\n"),
+                                ("0.1.10", "0.1.12", "routine\nclean\n"),
+                                ("0.1.11", "0.1.12", "routine\n")):  # false and a missing field mean not clean
+            with self.subTest(start=start, to=to):
+                self.assertEqual((0, said), self.run_main("release", "--from", start, "--to", to, "--file", marks))
+        started = datetime_local(2026, 11, 22, 12)  # unknown start version: by the start day, as for critical
+        self.assertEqual((0, "routine\nclean\n"), self.run_main(
+            "release", "--from", "older", "--to", "0.1.12", "--started", started, "--file", marks))
+
+    # protects: Edge
+    def test_release_counts_a_clean_value_that_is_not_true_as_not_clean_with_a_warning(self):
+        marks = self.releases({"0.1.2": {"kind": "routine", "date": "2026-11-23", "reason": "x", "clean": "yes"}})
+        code, out = self.run_main("release", "--from", "0.1.1", "--to", "0.1.2", "--file", marks)
+        self.assertEqual(0, code)
+        self.assertIn("routine\n", out)
+        self.assertNotIn("\nclean\n", out)
+        self.assertIn("dev-kit-sessions: ", out)
 
     # protects: Edge
     def test_release_with_a_missing_or_broken_mark_counts_as_routine(self):

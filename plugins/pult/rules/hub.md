@@ -113,7 +113,10 @@ five mechanical problems itself, with no yes (the owner's yes, 2026-11-16; the o
   itself ready (`dev-kit-sessions restart ready`); the watcher restarts it 30 seconds after that mark (a
   mark older than 10 minutes is dropped, READY-EXPIRED, and for the current version the lead is asked once
   more as with `-Ask`). A lead counts as not quiet while one of its task sessions works. The same rules hold for every plugin the lead loads (rules-kit, spend-kit, and web-kit, unity-kit
-  when its project enables them), each by its own `releases.json`: a routine release waits, a critical one restarts a quiet lead and asks the others. One try per lead per version;
+  when its project enables them), each by its own `releases.json`: a routine release waits, a critical one restarts a quiet lead and asks the others.
+  A release marked `"clean": true` is never restarted directly: when due by its kind, the lead is asked, quiet or not,
+  and moved to a clean context (dev-kit project-lead skill, "Restart for a plugin update", "Clean release"; CLEAN-FALLBACK
+  when that fails and the plain restart follows). One try per lead per version;
   RESTART-LEAD-FAILED when it did not come back; RESTART-LEAD-TIMEOUT when the restart still ran after 10 minutes
   and was stopped (its pause is lifted at once, a lead it stopped comes back by HEAL). Held by the hold file too.
 - Its own code (added 2026-11-19, the Lead's yes): when `watch-servers.ps1` (or the script it loads) changed and stayed
@@ -197,12 +200,16 @@ messages for it. Pult only shows the log: RESTART-LEAD followed by UP is fixed (
 behind a routine release until a later day are normal. A lead that is not quiet gets a `restart` event
 message from the watcher for a critical release at once. When the owner asks to update or restart the leads («онови Lead»), Pult runs
 `{PLUGIN}/scripts/restart-leads.ps1 -Ask`: leads already on the new version are left alone (`Up to date`), idle leads restart now, each busy one is woken at once to
-reach a safe point (output `Asked: <name>`), and the watcher restarts it. Pult says in one line which
+reach a safe point (output `Asked: <name>`), and the watcher restarts it. A lead behind a release marked `"clean": true` in
+a `releases.json` (a rename or format change) is not restarted at once, idle or busy: it is asked too (`Asked: <name>`),
+saves a handoff, and the watcher moves it to a clean context (HANDOFF-CLEAR; a failed move falls back to the plain restart,
+CLEAN-FALLBACK). Pult says in one line which
 leads restarted and which were asked. A change of only an extension (web-kit, unity-kit) restarts an idle lead
 the same way; `-Ask` does not wake a busy lead for it and prints `Not asked, busy and only an extension changed: <name>`:
 Pult reports that lead as «оновиться, коли звільниться» (the watcher restarts it once it is idle). Bounds (owner, 2026-11-16): lead sessions (`L: ...`, or an older `P: ...`) only,
-never task sessions, owner sessions or Pult itself; always resume the same conversation. The one exception
-is a lead's move to a fresh context (dev-kit project-lead skill, "Restart the Lead"): a lead at a third of its context saves
+never task sessions, owner sessions or Pult itself; always resume the same conversation. The exception
+is a lead's move to a fresh context (dev-kit project-lead skill, "Restart the Lead", and for a clean release "Restart for a
+plugin update", "Clean release"): a lead at a third of its context, or asked for a clean release, saves
 a handoff, and the watcher stops it, resumes the same session with `/clear` and then with a prompt that loads the
 handoff; if that fails it starts a fresh conversation of the same name that loads it (HANDOFF-FALLBACK, one phone
 push). Pult only shows the log: HANDOFF-CLEAR and HANDOFF are fixed («перенесено в свіжий контекст»);

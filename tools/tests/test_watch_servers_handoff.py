@@ -14,7 +14,7 @@ import unittest
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))  # also when run by module name, not only by discover
-from test_watch_servers_restart import LEAD, POWERSHELL, WatcherEnv, owner_said  # noqa: E402
+from test_watch_servers_restart import LEAD, POWERSHELL, WatcherEnv, day, owner_said  # noqa: E402
 
 
 def pid_alive(pid):
@@ -52,6 +52,13 @@ if ($env:TEST_START_OUTPUT -notlike 'Started lead*') {  # a failed start, or the
     Copy-Item -LiteralPath (Join-Path $env:TEST_BIN 'agents.bak') -Destination (Join-Path $env:TEST_BIN 'agents.json') -Force
 }
 Write-Output ($env:TEST_START_OUTPUT -replace '\\{name\\}', ($Only -join ','))
+'''
+
+
+# Stands in for restart-leads.ps1 (a plain restart of a lead that left no handoff): records the call.
+STUB_PLAIN_RESTART = '''param($Name, $Ready, $ConfigFile, $StateDir)
+Add-Content -LiteralPath $env:TEST_CALLS_FILE -Value "restart Name=$Name Ready=$Ready"
+Write-Output "Resumed lead: $($Name -join ',')"
 '''
 
 
@@ -305,6 +312,130 @@ class WatchServersHandoffTest(WatcherEnv, unittest.TestCase):
         log = self.run_watch(2)
         self.assertEqual([], self.stops())
         self.assertFalse([line for line in log if "HANDOFF" in line], log)
+
+    def clean_release(self, kind="routine", stale_since=None):
+        """dev-kit 1.1.0 installed and marked clean; the lead started on 1.0.0 (stale since `stale_since`, default: a
+        day ago); a restart-leads.ps1 stub that records a plain restart."""
+        (self.scripts / "restart-leads.ps1").write_text(STUB_PLAIN_RESTART, encoding="ascii")
+        self.set_version("dev-kit", "1.1.0", old=False)
+        self.releases({"1.1.0": kind}, clean=("1.1.0",))
+        self.lead_record("1.0.0", {"web-kit": "1.0.0"}, stale_since=stale_since or day(-1))
+
+    def plain_restarts(self):
+        return [line for line in self.restart_calls() if line.startswith("restart ")]
+
+    # protects: Flow
+    def test_clean_routine_release_asks_a_quiet_lead_on_a_later_day_and_the_handoff_moves_it(self):
+        self.start_output = "Resumed lead: {name}"
+        self.clean_release()
+        log = self.run_watch(1)
+        self.assertEqual([], self.plain_restarts(), "a clean release is never a direct restart")
+        saved = self.restart_file()
+        self.assertEqual(("1.1.0", True), (saved["version"], saved.get("clean")))
+        asked = [line for line in log if " RESTART-ASKED " in line]
+        self.assertEqual(1, len(asked), log)
+        self.assertTrue(asked[0].endswith(f" RESTART-ASKED {LEAD} (dev-kit 1.0.0 -> 1.1.0, routine, clean, quiet)"), asked)
+        self.assertTrue(any(line.endswith(f"RELEASE-KIND {LEAD} (dev-kit 1.0.0 -> 1.1.0): routine, clean") for line in log), log)
+        self.assertTrue(any(f"WAKE {LEAD} " in line and "kinds=restart" in line for line in log), log)
+        # The lead answers with a handoff: the restart check waits and the handoff move does the move.
+        self.handoff("save", "--file", FILE, "--go")
+        log = self.run_watch(2, "-ReadyWarnSec", "1")
+        self.assertEqual([], self.plain_restarts())
+        self.assertEqual(["11111111"], self.stops())
+        self.assertEqual([f"start Only={LEAD} Handoff={FILE} Session={SID}"], self.starts())
+        self.assertTrue(any(line.endswith(f" HANDOFF-CLEAR {LEAD} {SID} {FILE}") for line in log), log)
+        self.assertFalse([line for line in log if "CLEAN-FALLBACK" in line or "RESTART-LEAD" in line], log)
+
+    # protects: Rule
+    def test_clean_routine_release_waits_for_a_later_day_like_a_plain_one(self):
+        self.clean_release(stale_since=day(0))
+        log = self.run_watch(2)
+        self.assertEqual([], self.plain_restarts())
+        self.assertIsNone(self.restart_file(), "not due on the day the lead turned stale: no request")
+        self.assertEqual(1, len([line for line in log if " RESTART-DEFERRED " in line]), log)
+
+    # protects: Rule
+    def test_clean_request_with_no_answer_falls_back_to_the_plain_restart(self):
+        # Fallback: no handoff marker and no ready mark within the wait: the lead is restarted as for a plain release.
+        self.clean_release()
+        log = self.run_watch(3, "-CleanWaitSec", "0")
+        self.assertEqual(1, len([line for line in log if " RESTART-ASKED " in line]), log)
+        fallback = [line for line in log if " CLEAN-FALLBACK " in line]
+        self.assertEqual(1, len(fallback), log)
+        self.assertTrue(fallback[0].endswith(f" CLEAN-FALLBACK {LEAD} (no handoff and no ready mark in 0 s)"), fallback)
+        self.assertEqual([f"restart Name={LEAD} Ready="], self.plain_restarts())
+        self.assertTrue(any(line.endswith(f"RESTART-LEAD {LEAD} (dev-kit 1.0.0 -> 1.1.0, quiet)") for line in log), log)
+
+    # protects: Rule
+    def test_failed_handoff_move_of_a_clean_request_falls_back_to_the_plain_restart(self):
+        # Fallback: the move failed (HANDOFF-FAILED, the marker stays): the lead is never worse off than today.
+        self.clean_release()
+        self.run_watch(1)
+        self.start_output = "Start failed, exit 1: {name}: boom"
+        self.handoff("save", "--file", FILE, "--go")
+        log = self.run_watch(3, "-ReadyWarnSec", "1")
+        self.assertEqual(1, len([line for line in log if " HANDOFF-FAILED " in line]), log)
+        fallback = [line for line in log if " CLEAN-FALLBACK " in line]
+        self.assertEqual(1, len(fallback), log)
+        self.assertTrue(fallback[0].endswith(f" CLEAN-FALLBACK {LEAD} (the handoff move failed)"), fallback)
+        self.assertEqual([f"restart Name={LEAD} Ready="], self.plain_restarts())
+
+    # protects: Rule
+    def test_ready_mark_of_a_clean_request_is_honoured_as_a_plain_restart(self):
+        # Fallback: an old skill answers the clean request the plain way.
+        self.clean_release()
+        self.run_watch(1)
+        subprocess.run([sys.executable, str(self.plugins / "dev-kit" / "scripts" / "sessions.py"), "--project",
+                        str(self.project), "restart", "ready", "--version", "1.1.0"],
+                       env=dict(os.environ, DEV_KIT_STATE_DIR=str(self.state)), check=True, capture_output=True, timeout=60)
+        log = self.run_watch(2, "-ReadyWarnSec", "1")
+        self.assertEqual([f"restart Name= Ready={LEAD}"], self.plain_restarts())
+        self.assertTrue(any(f"RESTART-LEAD {LEAD} (dev-kit 1.0.0 -> 1.1.0, ready)" in line for line in log), log)
+        self.assertFalse([line for line in log if "CLEAN-FALLBACK" in line], log)
+
+    # protects: Bug
+    def test_late_handoff_marker_beside_a_ready_mark_is_moved_not_restarted_too(self):
+        # The lead marks itself ready and also saves a handoff (a late answer): the move takes the pending versions
+        # with it, so the version check must not restart it plainly in the same round.
+        self.agents("busy")  # the move waits for an idle lead; only the version check is looked at
+        self.clean_release(kind="critical")  # a busy lead is asked at once
+        self.run_watch(1)
+        self.assertTrue(self.restart_file().get("clean"))
+        subprocess.run([sys.executable, str(self.plugins / "dev-kit" / "scripts" / "sessions.py"), "--project",
+                        str(self.project), "restart", "ready", "--version", "1.1.0"],
+                       env=dict(os.environ, DEV_KIT_STATE_DIR=str(self.state)), check=True, capture_output=True, timeout=60)
+        self.handoff("save", "--file", FILE)
+        log = self.run_watch(2, "-ReadyWarnSec", "1", "-CleanWaitSec", "0")
+        self.assertEqual([], self.plain_restarts(), log)
+        self.assertFalse([line for line in log if "RESTART-LEAD" in line or "CLEAN-FALLBACK" in line], log)
+
+    # protects: Bug
+    def test_plain_restart_after_a_clean_fallback_drops_the_undelivered_clean_request_line(self):
+        # The resumed lead would otherwise get `restart requested: V clean` and start a handoff nobody needs.
+        self.clean_release()
+        (self.tmp / "pult").mkdir(exist_ok=True)
+        (self.tmp / "pult" / "wake-pending.json").write_text(json.dumps([{
+            "Id": "1123000000-abcd", "Target": LEAD, "Kind": "lead", "Cause": "event",
+            "Lines": ["restart requested: 1.1.0 clean"], "Kinds": ["restart"], "EventKeys": [f"{LEAD}|restart|-|1.1.0"],
+            "Marks": [{"Project": str(self.project), "Kind": "restart", "Id": "", "Key": "1.1.0"}], "Tries": 1,
+            "Created": time.time(), "Sent": time.time(), "FirstSent": time.time(), "SessionId": SID}]), encoding="utf-8")
+        log = self.run_watch(3, "-CleanWaitSec", "0")
+        self.assertEqual([f"restart Name={LEAD} Ready="], self.plain_restarts(), log)
+        pending = json.loads((self.tmp / "pult" / "wake-pending.json").read_text(encoding="utf-8"))
+        lines = [line for item in (pending if isinstance(pending, list) else [pending]) if item for line in item["Lines"]]
+        self.assertEqual([], [line for line in lines if line.startswith("restart requested: ")], pending)
+
+    # protects: Rule
+    def test_restart_check_waits_while_a_clean_lead_has_a_handoff_marker(self):
+        # A critical release asks a busy lead plainly, and restarts it when it marks itself ready; with a clean one the
+        # lead's own handoff marker is the answer, so neither happens meanwhile.
+        self.agents("busy")
+        self.clean_release(kind="critical")
+        self.handoff("save", "--file", FILE)
+        log = self.run_watch(2)
+        self.assertEqual([], self.plain_restarts())
+        self.assertIsNone(self.restart_file())
+        self.assertFalse([line for line in log if "RESTART-ASKED" in line or "CLEAN-FALLBACK" in line], log)
 
 
 if __name__ == "__main__":

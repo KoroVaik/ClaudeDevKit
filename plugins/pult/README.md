@@ -44,7 +44,11 @@ problem it proposes a fix and acts after an explicit yes.
   sends it to the lead as a `restart requested: <V>` event message; the lead reaches a safe point, runs
   `dev-kit-sessions restart ready --version <V>` right after its 30-second warning; the watcher restarts it 30
   seconds after the mark (RESTART-LEAD with `ready`) if the mark is under 10 minutes old, else it clears it
-  (READY-EXPIRED). A lead on dev-kit before 0.1.78 is restarted only when quiet. `scripts/restart-leads.ps1 -Ask`
+  (READY-EXPIRED). A lead on dev-kit before 0.1.78 is restarted only when quiet. A release marked `"clean": true` (a rename or
+  format change) is never a plain restart: when due by its kind, the watcher writes a clean request, also for a
+  quiet lead (`restart requested: <V> clean`); the lead saves a handoff and runs `handoff go`, and the watcher
+  moves it to a clean context as for its own move (HANDOFF-CLEAR). A failed move, or no answer in 10 minutes,
+  falls back to the plain restart (CLEAN-FALLBACK). `scripts/restart-leads.ps1 -Ask`
   is the fast path on your ask: it restarts the idle leads now and writes a request for each busy one
   (`Asked: <name>`), which reaches the lead the same way (an older lead: its session watcher exits 7 once with
   `restart requested: <V>`). One try per lead per version; a

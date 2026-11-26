@@ -884,7 +884,8 @@ Event lines:
   No text. Each wait is reported once.
 - `fill: <name> | <id> | <percent> of <window>`: that Manager passed the fill limit below; refresh it ("Refresh an
   overfull Manager"). Each Manager is reported once.
-- `restart requested: <version>`: the handshake of "Restart for a plugin update".
+- `restart requested: <version>`: the handshake of "Restart for a plugin update"; with a trailing ` clean`, its
+  "Clean release" bullet.
 - `handoff requested: <file>`: the handshake of "Restart the Lead".
 - "No text" for `stale` means no news about the event (seen in L: Zhratva, 2026-11-15:
   text on watcher exits confused the owner); the Lead sends the forced-output state of "Message templates"
@@ -1026,8 +1027,9 @@ handoff prompt of step 4; if any of that fails it starts a fresh Lead with the s
    waiting for OVER). The `go` mark covers only this move.
 4. After the move the Lead gets the prompt `/dev-kit:project-lead handoff: <file>`. It runs
    `/continue-work-in-another-context load <file>` with exactly that file name, then the steps of the
-   first prompt after a plugin-update restart ("Restart for a plugin update": read this SKILL.md, fill,
-   others, state, the migrations check) and sends the full start status, with the full list of questions.
+   first prompt after a plugin-update restart ("Restart for a plugin update": read this SKILL.md, note the
+   version, fill, others, state, the migrations check) and sends the full start status, with the full list of
+   questions. A clean release moves the Lead the same way ("Restart for a plugin update", "Clean release").
 5. A failed move: the watcher logs HANDOFF-FAILED (Pult shows it), tries that handoff file only once and
    brings the old Lead back. At any start whose first prompt has no `handoff:`, a `handoff status` other than
    `none` means that failure: the Lead runs `dev-kit-sessions handoff clear` and does not start step 1 again by
@@ -1051,7 +1053,7 @@ would lose that Manager's reports), its last message to the owner is not an open
 written nothing to it for 5 minutes; then the watcher restarts the Lead silently. A critical release when the Lead is not
 quiet gets the event line `restart requested: <version>` ("Wake-up"); so does every busy Lead when the owner
 asks Pult to update the leads. Any restart takes every pending version with it. The restart resumes the
-same conversation; only the session process is new. Why: the owner chose on 2026-11-16 to restart a busy Lead
+same conversation; only the session process is new, except for a clean release (below). Why: the owner chose on 2026-11-16 to restart a busy Lead
 only at a safe point; since the Lead keeps no watcher (2026-11-20, see "Wake-up"), the event message replaces the
 watcher's 2-hourly wake that found the version. Owner, 2026-11-23 (`plans/update-timing.md` of the plugin
 repo): a restart per bump cut into talks with the owner several times an hour.
@@ -1064,6 +1066,17 @@ repo): a restart per bump cut into talks with the owner several times an hour.
   `dev-kit-sessions restart ready --version <the new version>` right after it and ends the turn with no
   more text; the watcher restarts the Lead 30 seconds after `ready`. An owner message that arrives before the restart is answered after it (`plugins/dev-kit/claude-facts.md`, "The owner's message in a lead's chat during a restart is not lost"). The hold ends by itself 10 minutes after `ready` with no restart
   (the Pult watcher drops an older `ready` too); the Lead then works as usual and says nothing about it.
+- Clean release: a pending version marked `"clean": true` in its `releases.json` (it renames or changes
+  something the Lead holds in its context; `.claude/dev-kit.md` of the plugin repo) makes the restart a move to a
+  clean context, so the Lead forgets the old names. When it is due by its kind, the watcher sends the line
+  `restart requested: <version> clean`, also to a quiet Lead. The Lead does the handshake above, but in place of
+  `restart ready` it does step 1 of "Restart the Lead" at once (`continue-work-in-another-context save`, then
+  `dev-kit-sessions handoff save --file <the file name it printed>`), writes exactly the line «⚠ ЧЕРЕЗ 30 СЕК БУДЕ
+  ПЕРЕЗАВАНТАЖЕННЯ (ОНОВЛЕННЯ ІНСТРУМЕНТІВ)», runs `dev-kit-sessions handoff go` right after it and ends the turn
+  with no more text. The watcher moves it 30 seconds later as in step 3 of "Restart the Lead"; after the move
+  step 4 there applies. A failed move falls back as step 5 there, and the watcher then restarts the Lead the plain
+  way above. Why: owner, 2026-11-26 (`plans/lead-early-clear.md` of the plugin repo): a resumed Lead kept the
+  session prefixes a release had renamed; small fixes keep the conversation.
 - First prompt after the restart: `/dev-kit:project-lead restart: plugin update`. The Lead goes on where it
   stopped: it reads this SKILL.md whole, notes the new version (see
   "Wake-up") and runs `dev-kit-sessions fill`, `dev-kit-sessions others` and `dev-kit-sessions state`.

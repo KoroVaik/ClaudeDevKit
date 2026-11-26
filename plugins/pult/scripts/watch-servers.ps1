@@ -74,7 +74,8 @@
 #   version adds it; missing counts as routine). Per lead, pid and installed versions the watcher asks, for each
 #   changed plugin, `sessions.py release --from <started version> --to <installed> --file <its releases.json>
 #   --started <process start>` once (RELEASE-KIND <name> (dev-kit X -> V; web-kit X -> Y): critical <version>:
-#   <reason> | routine); one critical mark makes the change critical. The entry keeps
+#   <reason> | routine, with `, clean` after it for a clean one, below); one critical mark makes the change critical,
+#   and one `"clean": true` mark (the `clean` line of the answer) makes it clean. The entry keeps
 #   "staleSince", the local date this watcher first saw that pid stale in any plugin (a new pid starts fresh).
 #   - A `ready V <seconds>` mark for the installed V (the lead itself, or restart-leads.ps1 -Ask) is honoured
 #     whatever the kind, with less than 10 minutes: the lead wrote its 30-second warning into its chat just before
@@ -94,6 +95,24 @@
 #     exits 7 on a request of -Ask) is restarted only when quiet.
 #   - A critical release of any plugin (rules-kit, spend-kit, web-kit, unity-kit too) is asked of a lead that is not
 #     quiet the same way; any restart takes the pending versions of every plugin with it.
+#   - Clean (owner's rule, plans/lead-early-clear.md): a pending release of any plugin marked `"clean": true` in its
+#     releases.json (it renames or changes something a running lead holds in its context) makes the change clean.
+#     The timing stays by the kind above (routine: not on the staleSince day, then at the first quiet round; critical:
+#     the same day), but when the change is due the lead is never restarted directly: it is asked with `restart request
+#     --version V --clean` also when it is quiet (RESTART-ASKED <name> (<changes>, <kind>, clean, <quiet | why it is not
+#     quiet>), once per lead and V; the `restart` event of the wakes then reaches it as `restart requested: V clean`)
+#     and answers with a handoff (`handoff save`, then `handoff go`) in place of `restart ready`; the handoff move below
+#     does the rest, a new process on the new plugin versions with a clean context. While the lead has a handoff
+#     marker the version check waits (Invoke-CleanRestart). Fallbacks, so the lead is never worse off than with a plain
+#     restart: CLEAN-FALLBACK <name> (<reason>) drops clean for that lead process and those versions and the rules above
+#     go on, when (a) the handoff move failed (a marker whose move was tried: HANDOFF-FAILED / HANDOFF-TIMEOUT), (c) no
+#     handoff marker and no ready mark came $CleanWaitSec s (600) after the request, or the lead gets no event messages
+#     (dev-kit before $WakeMinDevKit, which has no wake). A dropped clean request is cleared, so a critical release asks
+#     again the plain way. (b) A `ready V` mark (an old skill that answers the plain way, or restart-leads.ps1 -Ask on
+#     its own) is honoured as above whatever the clean mark. While a handoff marker waits for its move (not tried yet)
+#     the version check does nothing for a clean change, even after a fallback or with a ready mark: either the move
+#     or the plain restart acts, never both. A handoff move and a plain restart after a clean change also drop the
+#     pending `restart requested` lines of the lead (Remove-RequestLines), so the new process starts no needless handoff.
 #   restart.json is cleared after a restart and after a failure, and a lead already on the installed versions has a
 #   left-over one cleared (RESTART-CLEARED; checked once per pid). One try per lead per combined version (dev-kit
 #   plus extensions); a failure is logged as RESTART-LEAD-FAILED (RESTART-LEAD-TIMEOUT for a run cut at its bound, see
@@ -106,7 +125,8 @@
 #     $WakeMinDevKit or later (lead-versions.json; "older" counts as below), `sessions.py --project <Path> check`
 #     (the round's session list passed in env DEV_KIT_AGENTS_JSON) prints the events not delivered yet (gone,
 #     finished, limited, stale, fill, restart, handoff); each becomes a line for that lead (as the old watcher printed
-#     it, `<kind>: <name> | <id> | <detail>`, or `restart requested: <V>`, or `handoff requested: <file>`) with a
+#     it, `<kind>: <name> | <id> | <detail>`, or `restart requested: <V>` (`<V> clean` for a clean request), or
+#     `handoff requested: <file>`) with a
 #     `sessions.py mark` call run after delivery. A lead below that version keeps its own watcher and is skipped.
 #   - Pult events: each GIVEUP, GIVEUP-TASK, RESTART-LEAD-FAILED, RESTART-LEAD-TIMEOUT, HANDOFF-FAILED and HANDOFF-TIMEOUT line also goes to Pult (the session list entry
 #     named exactly Pult, kind interactive). Once ever (wake-state.json), when Pult is live, it is told that its
@@ -191,7 +211,7 @@
 #   any failure it logs HANDOFF-FALLBACK <name> <reason> and starts a fresh lead (one push; see start-servers.ps1). No
 #   session id: HANDOFF-FALLBACK <name> no session id, and the fresh start at once. `Resumed lead: <name>` (moved) or
 #   `Started lead: <name>` (fresh): `handoff clear`, LastWake of the lead set to now, the `handoff requested` lines of
-#   its pending messages dropped, sent but not seen ones too (Remove-HandoffLines), then HANDOFF-CLEAR <name> <session id before the move> <file> (moved; the
+#   its pending messages dropped, sent but not seen ones too (Remove-RequestLines; the `restart requested` lines too), then HANDOFF-CLEAR <name> <session id before the move> <file> (moved; the
 #   size push mark of that id is dropped, the list shows a new id from now on) or HANDOFF <name> <old session id> <file>
 #   (fresh). Lookups by the list's sessionId (transcripts, size, quiet, limits) follow the new id through the job state.
 #   `NO-BANS <name> `: Register-NoBans. Any other output: Write-Critical HANDOFF-FAILED <name>: <output> (Pult gets it);
@@ -237,6 +257,8 @@
 # dev-kit state folder and Claude Code daemon log (for tests with a throwaway lead).
 # -LimitGraceSec: the wait after a usage-limit reset before the resume message (default 180; the reset time is cut to
 # the minute); -LimitRetrySec: the wait after a resume send the sender could not make (default 900; both for tests).
+# -CleanWaitSec: the wait for a lead's handoff or ready mark after a clean request before clean is dropped (default 600;
+# for tests).
 # -DevKitDir: the dev-kit plugin folder (default: ..\..\dev-kit next to this plugin); it holds
 # .claude-plugin\plugin.json (the installed version) and scripts\sessions.py.
 # -SpendKitDir: the spend-kit plugin folder (default: ..\..\spend-kit next to this plugin); it holds
@@ -248,7 +270,7 @@ param([int]$IntervalSec = 60, [switch]$Once, [int]$Rounds = 0, [int]$MaxHeals = 
     [string]$SpendKitDir, [string]$RestartExe = 'powershell.exe', [string]$WakeExe, [string]$SessionsPy,
     [int]$WakeConfirmSec = 120, [int]$WakeCooldownSec = 120, [int]$WakeDownSec = 600, [int]$HandoffStopWaitSec = 60,
     [int]$ReadyWarnSec = 30, [int]$HandoffClearWaitSec = 120, [int]$HealWaitSec = 300, [int]$LeadRestartWaitSec = 600,
-    [int]$HandoffMoveWaitSec = 600, [int]$LimitGraceSec = 180, [int]$LimitRetrySec = 900)
+    [int]$HandoffMoveWaitSec = 600, [int]$LimitGraceSec = 180, [int]$LimitRetrySec = 900, [int]$CleanWaitSec = 600)
 
 . (Join-Path $PSScriptRoot 'plugin-versions.ps1')
 . (Join-Path $PSScriptRoot 'resume-lib.ps1')  # Get-SessionProcessIds, Get-JobState, Get-LeadPermissionMode, $HandoffNamePattern
@@ -762,14 +784,16 @@ function Invoke-LeadRestart([string]$LeadName, [switch]$IsReady) {
 # critical or routine: the kind of the releases a lead process ($St, its lead-versions.json entry) lacks. $Items: one
 # @{ Plugin; From; To; File } per changed plugin (dev-kit up to the installed version, an extension up to its own);
 # each is asked with `sessions.py release` against that plugin's own releases.json (see the header), and one critical
-# one makes the whole change critical. Asked once per lead, pid and $Key (the installed versions): RELEASE-KIND <name>
-# (<changes>): <answer>. A failed call counts as routine (WARN once) and is asked again next round.
+# one makes the whole change critical, and one `clean` line (a release marked "clean": true) makes it clean. Returns
+# @{ Kind; Clean }. Asked once per lead, pid and $Key (the installed versions): RELEASE-KIND <name>
+# (<changes>): <answer>[, clean]. A failed call counts as routine (WARN once) and is asked again next round.
 function Get-ReleaseKind([string]$Name, $St, [string]$Key, $Items) {
     $key = "$Name|$($St.Pid)|$Key"
     if ($releaseKinds.ContainsKey($key)) { return $releaseKinds[$key] }
     $label = (@($Items | ForEach-Object { "$($_.Plugin) $($_.From) -> $($_.To)" })) -join '; '
     $verdict = 'routine'
     $failed = $false
+    $clean = $false
     foreach ($item in @($Items)) {
         $words = @('release', '--from', [string]$item.From, '--to', [string]$item.To, '--file', [string]$item.File)
         if ($St.Started) { $words += @('--started', [string]$St.Started) }  # an empty argument would be dropped
@@ -783,12 +807,14 @@ function Get-ReleaseKind([string]$Name, $St, [string]$Key, $Items) {
             continue
         }
         if ($one -clike 'critical *' -and $verdict -ceq 'routine') { $verdict = $one }
+        if ($lines -ccontains 'clean') { $clean = $true }
     }
     $kind = if ($verdict -clike 'critical *') { 'critical' } else { 'routine' }
-    if ($failed -and $kind -ceq 'routine') { return 'routine' }  # asked again next round
-    $releaseKinds[$key] = $kind
-    Write-Log "RELEASE-KIND $Name ($label): $verdict"
-    return $kind
+    if ($failed -and $kind -ceq 'routine') { return @{ Kind = 'routine'; Clean = $clean } }  # asked again next round
+    $info = @{ Kind = $kind; Clean = $clean }
+    $releaseKinds[$key] = $info
+    Write-Log "RELEASE-KIND $Name ($label): $verdict$(if ($clean) { ', clean' })"
+    return $info
 }
 
 # Why a lead ($Entry: its session list entry) is not quiet enough for a silent restart, '' when it is: 'busy' (status
@@ -814,18 +840,21 @@ function Get-LeadActivity($Entry, [string]$BusyTask) {
 # Stop; Ask; Defer; Kind; Said }: How 'ready', 'quiet' or 'critical, quiet' to restart now, '' to wait; Stop when a
 # ready mark expired (READY-EXPIRED, nothing else this round); Ask the reason a lead is not quiet for a critical
 # release; Defer for a routine release on the day the lead turned stale; Kind 'critical' or 'routine' (empty before
-# it was asked); Said the lead's `restart status`.
+# it was asked); Clean when a pending release is marked clean (for a ready mark: when its request was clean; it is
+# honoured as it is, unless a handoff marker waits for its move);
+# Said the lead's `restart status`. A clean change is due when How or Ask is set (Invoke-CleanRestart).
 function Get-RestartPlan($s, $m, $St, [string]$V, [string]$BusyTask, [string]$Key, $Items) {
-    $plan = @{ How = ''; Stop = $false; Ask = ''; Defer = $false; Kind = ''; Said = '' }
+    $plan = @{ How = ''; Stop = $false; Ask = ''; Defer = $false; Kind = ''; Clean = $false; Said = '' }
     $said = Invoke-LeadRestartFile $s.Path @('status')
     $plan.Said = $said
-    if ($said -match '^ready (\S+) (\d+)$') {
+    if ($said -match '^ready (\S+) (\d+)( clean)?$') {
         # Honoured whatever the kind (the owner may have asked with restart-leads.ps1 -Ask). The lead wrote its
         # 30-second warning into its chat just before it marked itself ready.
-        $readyFor = $Matches[1]; $age = [int]$Matches[2]
+        $readyFor = $Matches[1]; $age = [int]$Matches[2]; $wasClean = [bool]$Matches[3]
         if ($readyFor -ceq $V -and $age -lt $ReadyMaxAgeSec) {
             if ($age -lt $ReadyWarnSec) { Start-Sleep -Seconds ($ReadyWarnSec - $age) }
             $plan.How = 'ready'
+            $plan.Clean = $wasClean  # a clean request answered with ready: still waits for a handoff marker (Invoke-CleanRestart)
             return $plan
         }
         $null = Invoke-LeadRestartFile $s.Path @('clear')
@@ -837,7 +866,9 @@ function Get-RestartPlan($s, $m, $St, [string]$V, [string]$BusyTask, [string]$Ke
         $plan.Stop = $true
         return $plan
     }
-    $plan.Kind = Get-ReleaseKind $s.Session $St $Key $Items
+    $info = Get-ReleaseKind $s.Session $St $Key $Items
+    $plan.Kind = $info.Kind
+    $plan.Clean = $info.Clean
     if ($plan.Kind -ceq 'routine') {
         $today = (Get-Date).ToString('yyyy-MM-dd', [Globalization.CultureInfo]::InvariantCulture)
         if ($St.StaleSince -ceq $today) { $plan.Defer = $true }
@@ -847,6 +878,51 @@ function Get-RestartPlan($s, $m, $St, [string]$V, [string]$BusyTask, [string]$Ke
     $why = Get-LeadActivity $m $BusyTask
     if ($why) { $plan.Ask = $why } else { $plan.How = 'critical, quiet' }
     return $plan
+}
+
+# A clean change (a pending release marked "clean": true, see the header): instead of a quiet restart the lead is asked
+# with `restart request --version V --clean` (also when it is quiet; once per lead and V) and answers with a handoff,
+# which the handoff move then does; while the lead has a handoff marker whose move was not tried yet the version check
+# waits, whatever the plan (even after clean was dropped, or with a ready mark). $Plan: Get-RestartPlan's
+# (a clean change is due when its How or Ask is set), $Changes the text of the log lines. Returns $true when this round
+# is handled (asked, or waiting for the lead's answer or the handoff move) and $false when the plain rules go on: the
+# change is not due yet, or clean was dropped for this lead process and these versions (CLEAN-FALLBACK <name>
+# (<reason>), once): the lead gets no event messages (dev-kit before $WakeMinDevKit), its handoff move failed (the
+# marker is still there and the move was tried), or no handoff marker and no ready mark came $CleanWaitSec s after the
+# request. A dropped clean request is cleared, so the plain rules start from nothing (a critical release asks again).
+function Invoke-CleanRestart($s, $Plan, [string]$Name, $ProcId, [string]$Key, [string]$V, [string]$Changes, [bool]$WokenByMessage) {
+    $id = "$Name|$ProcId|$Key"
+    $h = Invoke-Sessions @('--project', $s.Path, 'handoff', 'status')
+    $marker = ''
+    if ($h.Code -eq 0 -and $h.Out -cmatch '^(saved|go) (\S+) \d+$') { $marker = $Matches[2] }
+    $moveFailed = $marker -and $handoffTried[$Name] -ceq "$Name|$marker"
+    # A handoff marker whose move was not tried yet: the move takes the pending versions with it, so the version check
+    # never acts meanwhile (no plain restart either, a dropped clean or a ready mark included): one of them acts.
+    if ($marker -and -not $moveFailed) { return $true }
+    if ($cleanDropped[$id] -or $Plan.How -ceq 'ready') { return $false }
+    if (-not ($Plan.How -or $Plan.Ask)) { return $false }
+    $drop = ''
+    if ($moveFailed) {
+        $drop = 'the handoff move failed'
+    } elseif (-not $WokenByMessage) {
+        $drop = 'the lead gets no event messages'
+    } else {
+        $said = $Plan.Said
+        if ($said -match '^asked (\S+) (\d+)( clean)?$' -and $Matches[1] -ceq $V -and $Matches[3]) {
+            if ([int]$Matches[2] -lt $CleanWaitSec) { return $true }
+            $drop = "no handoff and no ready mark in $CleanWaitSec s"
+        } else {
+            if ($said -cne 'none') { $null = Invoke-LeadRestartFile $s.Path @('clear') }  # a plain request for V, or one for another version
+            $null = Invoke-LeadRestartFile $s.Path @('request', '--version', $V, '--clean')
+            $why = if ($Plan.Ask) { $Plan.Ask } else { 'quiet' }
+            Write-Log "RESTART-ASKED $Name ($Changes, $($Plan.Kind), clean, $why)"
+            return $true
+        }
+    }
+    $cleanDropped[$id] = $true
+    if ($Plan.Said -cmatch ' clean$') { $null = Invoke-LeadRestartFile $s.Path @('clear'); $Plan.Said = 'none' }
+    Write-Log "CLEAN-FALLBACK $Name ($drop)"
+    return $false
 }
 
 # One live lead ($s: its servers.psd1 row, $m: its entry in the session list, $V: the installed dev-kit
@@ -935,6 +1011,8 @@ function Invoke-LeadVersionCheck($s, $m, [string]$V) {
     foreach ($c in $extList) { $items += @{ Plugin = $c.Name; From = $c.From; To = $c.To; File = (Join-Path $ext[$c.Name].Dir 'releases.json') } }
     $plan = Get-RestartPlan $s $m $st $V $busyTask $tryKey $items
     if ($plan.Stop) { return }  # a ready mark that expired (READY-EXPIRED)
+    # A clean change that is due goes the handoff way instead of a restart (a ready mark is honoured as it is).
+    if ($plan.Clean -and (Invoke-CleanRestart $s $plan $name $procId $tryKey $V ($changed -join '; ') $wokenByMessage)) { return }
     $how = $plan.How
     if (-not $how) {
         # A critical release of any plugin and a lead that is not quiet: a lead woken by message is asked (the request
@@ -955,6 +1033,7 @@ function Invoke-LeadVersionCheck($s, $m, [string]$V) {
     if ($result -eq 'busy') { return }  # turned busy meanwhile: the busy path handles it next round
     if ($result -eq 'nobans') { return }  # no hard bans on main: the lead was left running; tried again later (Register-NoBans)
     $leadTried[$name] = $tryKey
+    if ($plan.Clean -and $result -eq 'ok') { Remove-RequestLines $name 'restart' }  # a clean request not delivered yet: the resumed lead must not start a handoff for it
     $cleared = Invoke-LeadRestartFile $s.Path @('clear')  # also after a failure: no stale ready mark stays
     if ($cleared -cne 'restart cleared') { Write-Log "WARN restart clear for $name failed: $($cleared -replace '\s+', ' ')" }
 }
@@ -1526,16 +1605,16 @@ function Get-HandoffWhy($s, $Entry, [string]$Kind) {
     return (Get-LeadActivity $Entry (Get-BusyTask $s.Path))
 }
 
-# Drops the `handoff requested` lines of a lead's pending messages, sent but not seen yet ones too (the lead was moved:
-# its fresh context must not get the request of the old one, so none is sent again), and their marks; a message left
-# with no line is dropped.
-function Remove-HandoffLines([string]$Name) {
+# Drops the `<kind> requested` lines (kind handoff or restart) of a lead's pending messages, sent but not seen yet ones
+# too (the lead was moved: its fresh context must not get the request of the old one, so none is sent again), and
+# their marks; a message left with no line is dropped.
+function Remove-RequestLines([string]$Name, [string]$Kind) {
     foreach ($item in @($wakePending)) {
-        if ($item.Target -cne $Name -or $item.Kinds -cnotcontains 'handoff') { continue }
-        $item.Lines = @($item.Lines | Where-Object { -not ([string]$_).StartsWith('handoff requested: ', [StringComparison]::Ordinal) })
-        $item.Marks = @($item.Marks | Where-Object { $_.Kind -cne 'handoff' })
-        $item.EventKeys = @($item.EventKeys | Where-Object { -not ([string]$_).StartsWith("$Name|handoff|", [StringComparison]::Ordinal) })
-        $item.Kinds = @($item.Kinds | Where-Object { $_ -cne 'handoff' })
+        if ($item.Target -cne $Name -or $item.Kinds -cnotcontains $Kind) { continue }
+        $item.Lines = @($item.Lines | Where-Object { -not ([string]$_).StartsWith("$Kind requested: ", [StringComparison]::Ordinal) })
+        $item.Marks = @($item.Marks | Where-Object { $_.Kind -cne $Kind })
+        $item.EventKeys = @($item.EventKeys | Where-Object { -not ([string]$_).StartsWith("$Name|$Kind|", [StringComparison]::Ordinal) })
+        $item.Kinds = @($item.Kinds | Where-Object { $_ -cne $Kind })
         if (-not $item.Lines.Count) { $wakePending.Remove($item) }
         $script:wakeDirty = $true
     }
@@ -1629,7 +1708,8 @@ function Invoke-HandoffCheck($s, $m) {
             # The old id's size push mark is of no use any more: the list shows the new transcript's id from now on.
             if ($moved) { $wakeState.SizePushed.Remove($sid) }
             Save-WakeState
-            Remove-HandoffLines $name
+            Remove-RequestLines $name 'handoff'
+            Remove-RequestLines $name 'restart'  # a moved lead is on the installed versions: a clean restart request is moot
             $handoffWaited.Remove($name)  # the tried mark stays: a marker left by a failed clear is not moved again
             $handoffAsked.Remove($name)
             $noBansTold.Remove($name)
@@ -1756,7 +1836,8 @@ foreach ($row in @($servers | Where-Object { $_.Lead })) {
 $leadSeen = @{}    # lead name -> the pid whose start time was checked in this run
 $ReadyMaxAgeSec = 600  # a ready mark older than this is not acted on (READY-EXPIRED)
 $leadTried = @{}    # lead name -> the version a restart was tried for
-$releaseKinds = @{} # "<lead>|<pid>|<installed dev-kit>" -> critical or routine (Get-ReleaseKind)
+$releaseKinds = @{} # "<lead>|<pid>|<installed versions>" -> @{ Kind; Clean }, critical or routine and clean or not (Get-ReleaseKind)
+$cleanDropped = @{} # "<lead>|<pid>|<installed versions>" -> $true once clean was dropped for it (Invoke-CleanRestart)
 $deferLogged = @{}  # lead name -> "<pid>|<installed dev-kit>" RESTART-DEFERRED was logged for
 $handoffTried = @{}   # lead name -> "<name>|<file>" of the handoff a move was tried for (one try per marker)
 $handoffWaited = @{}  # lead name -> "<name>|<file>" of the handoff HANDOFF-WAIT was logged for

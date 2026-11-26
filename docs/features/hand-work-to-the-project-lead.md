@@ -167,6 +167,14 @@ in the phone app.
 Why: owner, 2026-11-23 ([the plan](../../plans/lead-self-move.md), [the pushes](../../plans/push-noise.md)): the
 restart question and the push of a new session were noise.
 
+A plugin update that renames things (a session prefix, a role, a command, a message format) restarts the Lead the
+same way, with a clean context, so it forgets the old names: it writes «⚠ ЧЕРЕЗ 30 СЕК БУДЕ ПЕРЕЗАВАНТАЖЕННЯ
+(ОНОВЛЕННЯ ІНСТРУМЕНТІВ)» and is moved 30 seconds later. Small fixes keep the Lead's conversation, as before. The
+plugin itself tells which update needs it: the agent that releases it marks it. If the clean move fails, the Lead
+is restarted the old way.
+Why: owner, 2026-11-26 ([the plan](../../plans/lead-early-clear.md)): after an update renamed the session
+prefixes, a resumed Lead still used the old ones; small fixes come all the time and must not start a Lead from scratch.
+
 How the Lead does it: [project lead tools](../tech/project-lead.md).
 
 Known limits: what the plugin covers and what lives in the `pult` plugin: see the epics
@@ -209,6 +217,7 @@ format instead of removing them. Those rules live outside this repo and change o
 - A task is finished: the Lead merges it into main and tells you the result; you need not start or watch the Manager.
 - You write in a Manager's chat: it follows your words and the Lead is told at once; it asks you nothing there.
 - A second session already works on the same task: the Lead does not start another one.
+- A plugin update renames a session prefix: the restarted Lead starts its next session with the new prefix; after a small fix the Lead keeps its conversation.
 - A session's message wakes the Lead and the Lead writes a note beside the blocks: the Lead gets a reminder of the form and you do not get the message twice; the Lead's answer to your own question is not checked.
 
 ## Built in
@@ -224,6 +233,9 @@ format instead of removing them. Those rules live outside this repo and change o
 - `plugins/dev-kit/bin/dev-kit-bans`
 - `tools/tests/test_hard_bans.py`
 - `plugins/pult/scripts/watch-servers.ps1`
+- `plugins/pult/scripts/restart-leads.ps1`
+- `tools/tests/test_watch_servers_handoff.py`
+- `tools/tests/test_watch_servers_restart.py`
 - `plugins/dev-kit/hooks/lead-reply-form.py`
 - `tools/tests/test_lead_reply_form.py`
 

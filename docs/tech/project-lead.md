@@ -21,7 +21,8 @@ Code: `plugins/dev-kit/scripts/sessions.py`, `plugins/dev-kit/scripts/migrations
   `--stale-minutes` (20) since its last reply.
 - `fill --self` prints the caller's own fill (the lead's move to a fresh context); `handoff save|go|request|status|clear`
   keeps the lead's handoff marker that the Pult watcher acts on (`request` is the watcher's ask that reaches the lead
-  as `handoff requested: <file>`).
+  as `handoff requested: <file>`). `restart request --version V --clean` asks for a move to a clean context (a release marked
+  `"clean": true`; the event line ends with ` clean`), and `release` prints a second line `clean` for such a range.
 - `fill --over-only` prints only the sessions past the fill limit; `size --id ...` prints a session's
   conversation size and window (the Pult watcher's 0.7 push and its size log).
 - `state` prints each registered session as working, waiting, limited, finished, closed (no process yet, the Pult watcher may respawn it) or gone with the gist of its last reply.

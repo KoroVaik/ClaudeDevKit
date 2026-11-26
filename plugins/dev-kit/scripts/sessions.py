@@ -13,10 +13,10 @@ full their context is.
     dev-kit-sessions mark --kind gone|finished|limited|stale|fill|restart|handoff [--id <id>] --key <key>
     dev-kit-sessions size --id <id> [--id <id> ...] [--wakes <state file>]
     dev-kit-sessions limited --id <id> [--id <id> ...]
-    dev-kit-sessions restart request --version <V> | ready [--version <V>] | status | clear
+    dev-kit-sessions restart request --version <V> [--clean] | ready [--version <V>] | status | clear
     dev-kit-sessions handoff save --file <name.md> [--go] | go | request | status | clear
     dev-kit-sessions fill --self [<id>] [--limit 0.33] [--window N] [--over-only]
-    dev-kit-sessions release --from <V|older> --to <V> [--started <ISO time>] [--file <releases.json>]
+    dev-kit-sessions release --from <V|older> --to <V> [--started <ISO time>] [--file <releases.json>]  (prints a `clean` line too)
     dev-kit-sessions quiet --id <session id> [--minutes 5]
 
 The registry is `sessions.json` in the project state folder (see dev_kit_state.py; the same folder for all worktrees
@@ -111,7 +111,7 @@ sessions; key = timestamp of the last assistant reply); `limited` (detail `reset
 key; delivered when LIMITS holds it); `stale` (detail `waiting <N> min`; key = wait start; delivered when STALE holds
 it); `fill` (an active registry record that is not an owner session and whose context reaches `--fill-limit` of its
 window; detail like `65% of 1000000`; key `fill`, so once per id); `restart` (an open, not ready, not notified
-request of `restart.json`: `restart | - | - | <version> | <version>`); `handoff` (a saved handoff that was asked for
+request of `restart.json`: `restart | - | - | <version> | <version>`; the detail reads `<version> clean` for a clean request); `handoff` (a saved handoff that was asked for
 with `handoff request`, is not `go` and not notified: `handoff | - | - | <file> | <file>`). `check` never writes LIMITS,
 STALE, the delivered marks, the restart file or the handoff file. `mark --kind K [--id X] --key KEY` records the
 delivery after the caller got the message: limited writes LIMITS and stale writes STALE (the same files `watch` keeps),
@@ -134,13 +134,16 @@ Pult watcher calls it once per round with the live leads and task sessions). Exi
 
 `restart` is the file handshake for a lead's restart on a new dev-kit version (the Pult watcher does the restart).
 `restart.json` in the project state folder holds `{"version": V, "asked": <epoch>, "ready": <epoch>, "notified":
-<epoch>}`; the last three keys are optional. The lead itself runs `ready --version V` when it sees a newer version
+<epoch>, "clean": true}`; the last four keys are optional. The lead itself runs `ready --version V` when it sees a newer version
 than its own and is at a safe point; `restart-leads.ps1 -Ask` writes a request for a busy lead with `request
 --version V`. `request --version V` writes `{"version", "asked"}` (a request for another version replaces the old
-one, the same version keeps it, ready and notified marks included); `ready` marks the open request ready (exit 1
+one, the same version keeps it, ready and notified marks included); `--clean` adds `"clean": true`: the release
+needs a clean context (see `release`), so the lead answers with `handoff save` and `handoff go` instead of `ready`
+(a request that is already open for V keeps its own mark, `--clean` or not); `ready` marks the open request ready (exit 1
 and a message when none is open); `ready --version V` needs no request: it creates one that is ready, or marks
 the open one ready when it is for V (one for another version is replaced); `status` prints `none`, `asked <V>
-<seconds>` or `ready <V> <seconds>` (the seconds since the request was asked or marked ready); `clear` removes the
+<seconds>` or `ready <V> <seconds>` (the seconds since the request was asked or marked ready), with ` clean` after
+the seconds for a clean request; `clear` removes the
 file (fine when absent). A ready, notified or absent request does not stop `watch`.
 
 `fill --self [<id>]` reports the caller's own context instead of the registry rows (the id defaults to env
@@ -166,9 +169,12 @@ version adds its entry in the same commit. It prints `critical <version>: <reaso
 with `--from` < version <= `--to` (versions compared as dotted numbers), else `routine`. `--from older` (or any
 `--from` that is not a version: the watcher does not know the version the process started on) counts a critical
 entry with version <= `--to` whose date is on or after the local date of `--started` (the process start, ISO time);
-with no `--started` as well nothing is known about the start, so it prints `routine`. A missing file counts as routine;
-a file or an entry that is not as above counts as routine with a one-line warning on stderr (an entry: that entry
-only). Exit 0 always.
+with no `--started` as well nothing is known about the start, so it prints `routine`. An entry may also hold
+`"clean": true` (missing or false: not clean; any other value counts as not clean, with a warning): the release renames
+or changes something a running lead holds in its context, so the lead restarts with a clean context. When any entry
+in the same range as above (any kind) is clean, a second line `clean` follows the kind line. A missing file counts as
+routine; a file or an entry that is not as above counts as routine with a one-line warning on stderr (an entry: that
+entry only). Exit 0 always.
 
 `quiet --id <session id>` tells whether a lead's chat is quiet enough for a silent restart (transcript only, no
 registry, no session list). It prints `active no transcript` when the session has none; `active owner <N>s ago` when
@@ -1183,7 +1189,10 @@ def cmd_restart(args, path, records):
     request = read_restart(path)
     if args.restart_action == "request":
         if request is None or str(request["version"]) != args.version:
-            save(target, {"version": args.version, "asked": time.time()})
+            data = {"version": args.version, "asked": time.time()}
+            if args.clean:
+                data["clean"] = True
+            save(target, data)
         print(f"asked {args.version}")
     elif args.restart_action == "ready":
         if args.version and (request is None or str(request["version"]) != args.version):
@@ -1201,7 +1210,8 @@ def cmd_restart(args, path, records):
             ready = request.get("ready")
             since = ready if ready else request.get("asked")
             age = int(max(0, time.time() - float(since))) if isinstance(since, (int, float)) else 0
-            print(f"{'ready' if ready else 'asked'} {request['version']} {age}")
+            clean = " clean" if request.get("clean") is True else ""
+            print(f"{'ready' if ready else 'asked'} {request['version']} {age}{clean}")
     else:
         try:
             target.unlink()
@@ -1347,7 +1357,8 @@ def cmd_check(args, path, records):
     lines = []
     request = read_restart(path)
     if request is not None and not request.get("ready") and not request.get("notified"):
-        lines.append(f"restart | - | - | {request['version']} | {request['version']}")
+        clean = " clean" if request.get("clean") is True else ""
+        lines.append(f"restart | - | - | {request['version']}{clean} | {request['version']}")
     handoff = read_handoff(path)
     if handoff is not None and handoff.get("asked") and not handoff.get("go") and not handoff.get("notified"):
         lines.append(f"handoff | - | - | {handoff['file']} | {handoff['file']}")
@@ -1546,9 +1557,9 @@ def version_key(text):
 
 
 def read_releases(path):
-    """(entries, warnings) of the release marks file: entries are (version key, version, kind, date, reason) of the
-    valid entries; a missing file gives none and no warning, a file or entry that is not valid a warning (it counts
-    as routine)."""
+    """(entries, warnings) of the release marks file: entries are (version key, version, kind, date, reason, clean) of
+    the valid entries; a missing file gives none and no warning, a file or entry that is not valid a warning (it counts
+    as routine). `clean` is true only for `"clean": true`; another value than true or false is a warning."""
     if not path.exists():
         return [], []
     try:
@@ -1568,7 +1579,10 @@ def read_releases(path):
         if key is None or mark.get("kind") not in RELEASE_KINDS or day is None:
             warnings.append(f"{path}: the entry {version!r} is not valid, counted as routine")
             continue
-        entries.append((key, version, mark["kind"], day, " ".join(str(mark.get("reason") or "").split())))
+        if "clean" in mark and not isinstance(mark["clean"], bool):
+            warnings.append(f"{path}: the entry {version!r} has a clean value that is not true or false, counted as not clean")
+        entries.append((key, version, mark["kind"], day, " ".join(str(mark.get("reason") or "").split()),
+                        mark.get("clean") is True))
     return entries, warnings
 
 
@@ -1591,10 +1605,11 @@ def cmd_release(args, path, records):
         entries = []
     start = version_key(args.from_version)
     if start is not None:
-        hits = [entry for entry in entries if entry[2] == "critical" and start < entry[0] <= to]
-    else:  # the start version is unknown: a critical release dated on or after the start day may be missing
+        pending = [entry for entry in entries if start < entry[0] <= to]
+    else:  # the start version is unknown: a release dated on or after the start day may be missing
         day = local_day(args.started)
-        hits = [entry for entry in entries if entry[2] == "critical" and entry[0] <= to and entry[3] >= day] if day else []
+        pending = [entry for entry in entries if entry[0] <= to and entry[3] >= day] if day else []
+    hits = [entry for entry in pending if entry[2] == "critical"]
     for warning in warnings:
         print(f"dev-kit-sessions: {warning}", file=sys.stderr)
     if hits:
@@ -1602,6 +1617,8 @@ def cmd_release(args, path, records):
         print(f"critical {newest[1]}: {newest[4]}")
     else:
         print("routine")
+    if any(entry[5] for entry in pending):
+        print("clean")
     return 0
 
 
@@ -1784,7 +1801,9 @@ def main(argv=None):
     limited.add_argument("--id", action="append", default=[], help="a full session id (repeatable)")
     restart = sub.add_parser("restart", help="the restart request the Pult watcher leaves for a lead")
     restart_sub = restart.add_subparsers(dest="restart_action", required=True)
-    restart_sub.add_parser("request").add_argument("--version", required=True)
+    restart_request = restart_sub.add_parser("request")
+    restart_request.add_argument("--version", required=True)
+    restart_request.add_argument("--clean", action="store_true", help="the release needs a clean context (a handoff move)")
     restart_sub.add_parser("ready").add_argument("--version", help="mark ready even with no open request")
     for action in ("status", "clear"):
         restart_sub.add_parser(action)

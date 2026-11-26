@@ -8,7 +8,7 @@ description: Use when the owner answers numbered questions, says "continue" ("п
 One round of product discovery: reflect the owner's answers, record accepted product decisions in the
 feature, epic, standard or `docs/product.md` they belong to and open questions in `PROGRESS.md`, then ask
 the next numbered questions with recommendations (the first reply of a «Discuss:» session, or a talk on an idea he is still
-weighing, opens with an open question first, step 4). The owner shapes the idea deliberately before any
+weighing, opens with a guess of what he wants for him to confirm, step 4). The owner shapes the idea deliberately before any
 plan. Your job is to keep the thread, record every answer, and move one step forward per round. The
 project's `CLAUDE.md` sets the language rules. Read the profile section `## discovery-round` of
 `.claude/dev-kit.md` if it exists; it adds to these steps and overrides them.
@@ -71,19 +71,21 @@ not agreed go to `BACKLOG.md`. Use the existing headings, in the project's docum
 
 The first reply of every «Discuss:» session, and the first message of any talk about an idea the owner is still
 weighing (his own words doubt whether to do it, e.g. «думаю над тим, щоб...», «не знаю, чи...»; no question of yours
-open), is an open talk, not a round. This holds even when his words already name what to design and why (the goal plus
-a reason or an example). The question never asks him to restate what his message already says (goal, reason,
-example): it asks about what is still unknown. Why: owner, 2026-11-24, ClaudeDevKit, «Discuss: Плавна зупинка
-при вичерпанні ліміту»: an open question that made him restate his task got «якесь тупе питання ти задав»; owner,
+open), is a guess to confirm, not a round. In at most 4 plain sentences it says how things are now and states in one
+concrete sentence what he wants, read from his words, the task file and the backlog entry, then asks him to confirm
+it with one yes/no question («Правильно розумію, що ...?») after those sentences; it checks a guess, so it has no
+«Рекомендую» (a named exception to the owner's global question format). The guess is never vague, since a wrong one may get a
+quick «так». It never asks him to restate what his words already say (goal, reason, example). Only when those
+sources do not say what he wants does it ask one open question on what is still unknown instead; that question
+asks his view, not a decision, so it has no «Рекомендую» either.
+The first reply never holds numbered questions. Numbered questions with recommendations start once the direction is
+confirmed, or when he asks for them; until then each reply is one plain sentence on what he said plus one more
+guess or open question of the same kind. Why: owner, 2026-11-24, ClaudeDevKit, «Discuss: Плавна зупинка при
+вичерпанні ліміту»: a question that made him restate his task got «якесь тупе питання ти задав»; owner,
 2026-11-25, Zhratva, «Discuss: Логіка з коментарів»: three numbered questions opened it, «ми обговрюєм!!!!!!!!!!
-нащо відразцу потік питань?!»; decision 2026-11-25: the first reply is the open talk with no restating. The open talk is
-at most 4 plain sentences on what he weighs and how it is now, then one open question on what is still unknown (his
-reason or what bothers him, if his message does not say it). That question asks his view, not a
-decision, so it has no «Рекомендую» (a named exception to the owner's global question format) and no
-numbered batch. Numbered questions with recommendations start once his answer makes the direction clear,
-or when he asks for them; until then each reply is one plain sentence on what he said plus one more
-open question of the same kind. Why: owner, 2026-11-24, ClaudeDevKit, «Discuss» on separating Pult: «Нашо
-відраду купу питань і рекомендацій, миж обговрбєм».
+нащо відразцу потік питань?!»; owner, 2026-11-24, «Discuss» on separating Pult: «Нашо відраду купу питань і
+рекомендацій, миж обговрбєм»; decision 2026-11-26 (`plans/lead-early-clear.md` of the plugin repo), replacing the
+open question of 2026-11-25: «ти маєш з контексту зрозуміть що я хочу, щоб я просто підтвердив».
 
 Every other reply: one line on what was recorded, then **at most 3 numbered questions** per round, numbering continuing
 from the last round. Each question is at most 30 words: the question, its example (one real example
