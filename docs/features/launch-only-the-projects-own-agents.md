@@ -9,17 +9,20 @@ stray agent type.
 ## Rules
 ### Allowed agents
 A project may launch only its own agents (`.claude/agents/*.md`), the agents of its enabled plugins
-(`<plugin>:<agent>`) and the user-level `other-repo-editor` that the owner's global rules name.
+(`<plugin>:<agent>`), the user-level `other-repo-editor` that the owner's global rules name, and the
+built-in `web-fetch` helper, which carries only the page-reading tool and is the only way a session without
+that tool reads a web page.
 
 ### Everything else is denied
-Built-in and user agent types are denied.
+Other built-in and user agent types are denied.
 
 How the hook works: [hooks](../tech/hooks.md).
 
 ## Acceptance criteria
 - A session launches `dev-kit:coder` in a project that enables dev-kit: allowed.
 - A session launches an agent of the project's `.claude/agents`: allowed.
-- A session launches a built-in agent type: denied.
+- A session launches the built-in `web-fetch` helper: allowed.
+- A session launches another built-in agent type: denied.
 
 ## Built in
 - `plugins/dev-kit/hooks/narrow-agents.py`
