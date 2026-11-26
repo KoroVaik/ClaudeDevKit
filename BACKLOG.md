@@ -36,3 +36,9 @@ Why: owner, 2026-11-25, «Обговорення: Перевірка зібра�
 Cheapest test: list every role name the owner sees in a lead's chat and session titles, and check each has one meaning.
 Verdict (2026-11-25): owner «Можна зараз»: discussion started («Обговорення: Назви ролей сесій»).
 
+
+## A lead clears its context earlier than the fill limit, and on plugin updates that rename things
+
+What: a lower fill limit for leads (the self-move of "Restart the Lead" with /clear), and/or a clean-context restart (handoff + /clear, like the self-move) for plugin releases that rename terms or change message formats. The owner asked for a «Discuss:» session on it with him.
+Why: owner, 2026-11-26, L: Zhratva, after a plugin-update restart (dev-kit 0.1.135 renamed session prefixes C: -> M: and Обговорення: -> Discuss:): the lead read the new SKILL.md but still started two sessions with the old prefixes «C:» and «Обговорення:». The plugin-update restart resumes the same conversation, so the old names in the lead's context outweighed the new rule text; its fill was about 18% of the window, below the 0.33 self-move limit. Owner: «Напиши щоб очищення відбувалось раніше ніж ліміт токенів для лідів».
+Cheapest test: after a release that renames a prefix, a restarted lead starts its next session with the new prefix.
