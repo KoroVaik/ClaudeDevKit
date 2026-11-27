@@ -37,9 +37,8 @@ Why: owner, 2026-11-25, «Обговорення: Перевірка зібра�
 Cheapest test: list every role name the owner sees in a lead's chat and session titles, and check each has one meaning.
 Verdict (2026-11-25): owner «Можна зараз»: discussion started («Обговорення: Назви ролей сесій»).
 
-## Claude fact: background commands stopped on low memory (Windows too)
-- What: add a claude-facts entry: Claude Code (2.1.332) stops a background shell command when the OS signals "critical" memory pressure, the session has been idle 30 min and no turn or subagent runs; on Windows it takes the OS signal as is (the /proc/meminfo scarcity check is Linux-only), so it can fire with several GB free; the task gets "Background command ... was stopped because the system is running low on memory". Off switch: env CLAUDE_CODE_DISABLE_BG_SHELL_PRESSURE_REAP=1 in Claude Code's own start environment (set from a shell command it has no effect); the official env-vars doc says it has no effect on Windows, but the shipped 2.1.332 code runs the listener on Windows and the variable disables it.
-- Why: Zhratva, 2026-11-25: 4 paid-run background commands stopped this way; MyPC notes called the cause unknown.
-- Cheapest test: grep the installed claude.exe for "memory-pressure reap" and DISABLE_BG_SHELL_PRESSURE_REAP; check the next "stopped because the system is running low on memory" notice on Windows.
-Verdict (2026-11-27): add as one claude-facts entry via facts-keeper (simple); reviewer found both strings in claude.exe 2.1.332 and the Linux-only scarcity check; the 30 min idle value is unchecked; cross-link "A low-memory spell closes idle background sessions". Asked as the Lead's question.
+## Review session: the screen question alone, in its own message
 
+What: in `plugins/dev-kit/skills/project-lead/SKILL.md`, the first prompt of a review «Discuss:» session of a built screen (the «так» / «є питання» ask) should say: ask «екран прийнято?» in a message of its own with only the screen pictures and no other question; the user-walk design questions come in later messages, one at a time (`web-kit:design-screen`, "Show to the owner"), never as a batch beside it.
+Why: owner, 2026-11-27 (Zhratva review session «Discuss: Огляд картки типу страви»): the session put the screen question, a defect note and a 5-question batch in one message; the owner's bare «Так» was ambiguous, the session asked «1 чи 2?», owner: «Знову каша з питань». Idea approved by the owner 2026-11-27.
+Cheapest test: replay that review prompt; the first owner-facing message holds the pictures and only the screen question.
