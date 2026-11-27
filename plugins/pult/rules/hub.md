@@ -130,7 +130,7 @@ five mechanical problems itself, with no yes (the owner's yes, 2026-11-16; the o
   so a merged change never ran before.
 - A dev-kit lock file whose owner is gone (`~/.claude/dev-kit/*/watch.lock`, `app.lock` of a removed
   worktree, leftover `app.lock.takeover` and `*.tmp`): removed, log UNLOCK.
-Everything else (GIVEUP, GIVEUP-TASK, HEAL-FAILED, HEAL-TIMEOUT, HEAL-TASK-FAILED, HEAL-TASK-TIMEOUT, RESTART-LEAD-FAILED, RESTART-LEAD-TIMEOUT, HANDOFF-FAILED, HANDOFF-TIMEOUT, START-FAILED, WATCH-RESTART-SKIPPED, a lead that comes back and falls again) stays a problem Pult
+Everything else (GIVEUP, GIVEUP-TASK, HEAL-FAILED, HEAL-TIMEOUT, HEAL-TASK-FAILED, HEAL-TASK-TIMEOUT, RESTART-LEAD-FAILED, RESTART-LEAD-TIMEOUT, HANDOFF-FAILED, HANDOFF-TIMEOUT, MOVE-FAILED, START-FAILED, WATCH-RESTART-SKIPPED, a lead that comes back and falls again) stays a problem Pult
 shows and proposes a fix for. A project with no hard-ban lines (NO-BANS) is shown too, as blocked, with the question of "Missing hard bans". A stop with only `claude stop` is undone by the watcher; to retire one entry,
 remove its row from `servers.psd1` (the watcher reads the list when it starts).
 
@@ -170,7 +170,7 @@ in the desktop app, so the owner cannot type a `!` command in its chat"); an age
 ## Phone push
 
 Pult pushes to the owner's phone only what the server watcher gave up on: a GIVEUP, GIVEUP-TASK,
-RESTART-LEAD-FAILED, RESTART-LEAD-TIMEOUT, HANDOFF-FAILED or HANDOFF-TIMEOUT line (see "Servers"; a failed HEAL try ends in GIVEUP, so it is not pushed on its
+RESTART-LEAD-FAILED, RESTART-LEAD-TIMEOUT, HANDOFF-FAILED, HANDOFF-TIMEOUT or MOVE-FAILED line (see "Servers"; a failed HEAL try ends in GIVEUP, so it is not pushed on its
 own), and the one-time NO-BANS line of a blocked lead («Pult: L: X не стартує - немає жорстких заборон, відкрий Pult»),
 after which Pult writes the question of "Missing hard bans". A session that came back by itself, a usage-limit stop and a lead restart that worked push
 nothing. Pult keeps no watcher (see "Servers"): the watcher sends it each such line in a message that
@@ -218,7 +218,10 @@ a handoff, and the watcher stops it, resumes the same session with `/clear` and 
 handoff; if that fails it starts a fresh conversation of the same name that loads it (HANDOFF-FALLBACK, one phone
 push). Pult only shows the log: HANDOFF-CLEAR and HANDOFF are fixed («перенесено в свіжий контекст»);
 HANDOFF-FAILED, and HANDOFF-TIMEOUT (a move still running after 10 minutes, stopped), are a problem to show with a
-proposed fix (the watcher brings the old lead back).
+proposed fix (the watcher brings the old lead back). A Manager or «Discuss:» session idle 50 minutes is moved the
+same way after its own handoff (MOVE-ASKED, then MOVE, or MOVE-FALLBACK when only its handoff was loaded: both fixed,
+«перенесено в свіжий контекст»); MOVE-FAILED (the session stopped and did not come back) is a problem: the Lead
+restarts it from its handoff.
 
 Why: on 2026-11-16 the hub got a merge message but restarted nobody: it acts only when someone writes
 in its chat. `-Ask` writes a request file (`dev-kit-sessions restart`); the watcher sends it to the lead as

@@ -60,6 +60,11 @@ nothing: the merge is the Lead's step, so the owner sees in this chat why the se
   застосунку, повтор о 14:30`), and `ПРОДОВЖУЮ` when it goes on. A wait for the Lead's answer is not one.
   Why: owner, 2026-11-23 (Zhratva): a Manager reported a 30-minute retry wait and the Lead still showed it as
   `працює`; «сесія не застрягла, а просто очікує на щось, то так і писати з причиною очікування».
+- A `MOVE idle: ...` line from the Pult watcher (the session idle 50 minutes, its cache about to expire) is done as
+  it says, at a safe point, with no message to the Lead: `continue-work-in-another-context save`, then `dev-kit-sessions
+  handoff save --session <id> --file <file> --go`; the watcher resumes the session with `/clear` and that handoff. A
+  refusal only when the move would lose work or a decision the handoff cannot carry (`handoff refuse --reason`). A
+  «Discuss:» session does the same. Why: owner, 2026-11-27 (`plans/limit-spend.md`, points 10 and 11).
 - A SendMessage to the Lead that fails, with any error (the known ones: `plugins/dev-kit/claude-facts.md`, "A send to a
   stopped session fails at the sender and is not queued"), usually means the Lead is being restarted (about 10 seconds). The Manager keeps the message,
   goes on with its work and retries by itself: it starts `sleep 60` as a background command (never a

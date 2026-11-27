@@ -128,13 +128,35 @@
 #     it, `<kind>: <name> | <id> | <detail>`, or `restart requested: <V>` (`<V> clean` for a clean request), or
 #     `handoff requested: <file>`) with a
 #     `sessions.py mark` call run after delivery. A lead below that version keeps its own watcher and is skipped.
-#   - Pult events: each GIVEUP, GIVEUP-TASK, RESTART-LEAD-FAILED, RESTART-LEAD-TIMEOUT, HANDOFF-FAILED and HANDOFF-TIMEOUT line also goes to Pult (the session list entry
+#   - Pult events: each GIVEUP, GIVEUP-TASK, RESTART-LEAD-FAILED, RESTART-LEAD-TIMEOUT, HANDOFF-FAILED, HANDOFF-TIMEOUT and MOVE-FAILED line also goes to Pult (the session list entry
 #     named exactly Pult, kind interactive). Once ever (wake-state.json), when Pult is live, it is told that its
 #     log watcher (watch-log.py) is retired and must not be armed again.
 #   - Keep-warm ping: a lead (version as above) that is live and idle, has a non-owner task session of its registry
 #     that is live and busy (status busy or state working), whose transcript was last written $PingQuietMin or
 #     more minutes ago and that got no wake for as long, gets `$PingLine`. Not when a wake for it is pending: an
 #     event message wakes it anyway.
+#   - Move ask (plans/limit-spend.md, points 10 and 11): every other live session the watcher knows, except Pult (a
+#     Remote Control server session, not a `--bg` job), is asked to move to a fresh context when it has been idle
+#     $MoveQuietMin (50) minutes, before its one-hour prompt cache expires. Targets: (a) a lead (version as above) that is
+#     live and idle with no non-owner task session of its registry busy (the opposite of the ping's condition: a lead
+#     gets the ping or the ask, never both) and (b) a live registry session (an active record that is not a lead and not
+#     an owner session, as HEAL-TASK walks them; a Manager, a `Discuss:` session) that the list shows idle. Both: the
+#     transcript's last write and the last wake sent to it are older than $MoveQuietMin minutes, no wake for or from it
+#     is pending, no handoff marker (the lead's `handoff status`, a registry session's `handoff status --session`, not
+#     saved or go) and it was not asked in this idle period (wake-state.json MoveAsked: the lead's name or the
+#     registry id -> the transcript's last write time when it was asked; a session that took the ask or spoke since
+#     writes the transcript again, and a new idle period may ask again). The ask is a wake item (cause move, kinds move)
+#     with `$MoveLine`: at a safe point (no helper, background job or build running) the session runs
+#     `continue-work-in-another-context save`, then `dev-kit-sessions handoff save [--session <its session id>] --file
+#     <name> --go`, or refuses with `dev-kit-sessions handoff refuse [--session <id>] --reason "<critical reason>"`
+#     (sessions.py logs the refusal in refusals.jsonl and reports it as critical to the retro; the watcher does nothing
+#     for a refusal). Logged: MOVE-ASKED <name> <short id> idle <N> min, then WAKE ... cause=move kinds=move and the
+#     usual WAKE-SENT / WAKE-TAKEN. A session whose name more than one live session has is not asked (a message names
+#     the session): MOVE-SKIPPED <name> <id> once. An ask not taken after $WakeMaxTries sends is dropped, never pushed to
+#     the phone (as a ping). A lead answers with `handoff save --go` and the lead move below runs unchanged. TIMING: the
+#     round is 60 s plus its work, so the ask goes out at 50-51 minutes idle and the session's handoff turn must start
+#     before the cache expires at about 60; lower $MoveQuietMin if real moves do not start their handoff turn before
+#     60 minutes (not measured yet).
 #   - Size: each round one `sessions.py size` call for the live leads, live task sessions and Pult. A session at
 #     $SizePushShare of its window or more gets one phone push (once per session id, wake-state.json):
 #     PUSH-SIZE; all the sessions that pass it in one round share one push. Every $SizeLogMin minutes the call takes `--wakes <StateDir>\size-state.json` and each session
@@ -199,7 +221,7 @@
 #   - `go` (the lead after its warning, or on the owner's word): moved once the lead is idle and $ReadyWarnSec s have
 #     passed since the go (the rest is waited out inside the round); the message quiet does not apply and a go never
 #     expires.
-#   Not moved yet: HANDOFF-WAIT <name> <file> once per marker. To move: the hard-ban gate is checked first (resume-lib.ps1
+#   Not moved yet: HANDOFF-WAIT <name> <file> (<reason: the why above>) once per marker. To move: the hard-ban gate is checked first (resume-lib.ps1
 #   Get-LeadPermissionMode; a lead that could not be started again is not stopped: NO-BANS as for a restart), then the
 #   session list is read again right before the stop (a local copy; the lead must still be live with the same short id,
 #   the job's, which stays while the sessionId the list shows changes with each move, and pass the same check), then
@@ -222,6 +244,28 @@
 #   marker that was cleared and saved again, is a new try); the next round's HEAL brings an old lead that is down
 #   back as for any dead lead. After the stop the round's session list is read again, so the rest of the round sees
 #   the new lead.
+# - A registry session (Manager, `Discuss:` session) that left a marker (`sessions.py handoff save --session <id> --file
+#   <name.md> [--go]`, `handoff-<id>.json` in its registry's folder; the answer to the move ask above, or its own wish) is
+#   moved to a fresh context the same way, as a plain `--bg` job, by Invoke-TaskMoveCheck (once per round, after the
+#   leads; not with -Once, not on hold or during a full start). Read under the registry id and under the id the list
+#   shows (Get-TaskMarker; sessions.py runs for the record's worktree). Moved when the list shows it idle: `go` at once
+#   (no 30-second warning, nobody talks to it), `saved` unless a message was sent to it less than $HandoffWakeQuietSec s
+#   ago; else HANDOFF-WAIT <name> <file> (<busy | just woken>) once per marker. Then, the lead's way (the session list is
+#   read again right before the stop: the same short id, still idle): `claude stop <short id>` and the wait
+#   (Wait-HandoffStopped, bounded by $HandoffStopWaitSec), `claude --bg --resume <job id> -- /clear`, a wait up to
+#   $HandoffClearWaitSec s until that turn ended (Test-ClearEnded), stop and wait again, `claude --bg --resume <job id> --
+#   "/continue-work-in-another-context load <file>"` (Get-TaskLoadArgs; no other flag on a resume; each resume bounded by
+#   $TaskResumeWaitSec s, a copy `claude` started instead is stopped and removed), and the job must show in the session
+#   list again within $TaskComeBackWaitSec s. Then `sessions.py rekey --old <registry id> --new <session id the list shows
+#   now>` (a /clear gives the job a new session id), `handoff clear --session` for each id the marker may be under, its
+#   LastWake set to now, the move asks still pending for it dropped, and MOVE <name> <old session id> <file>. The /clear
+#   step failing (no job state, the resume failed, its turn did not end, the stop after it did not finish): MOVE-FALLBACK
+#   <name> <reason>, the job is stopped and resumed with the load prompt only, so its old context stays and nothing is lost.
+#   The first stop not finishing, the load resume failing or the job not coming back: Write-Critical MOVE-FAILED <name>:
+#   <why> (Pult gets it) and, once per marker, the Lead of the session's project (the servers.psd1 lead whose registry
+#   folder is the session's) gets the event line `move failed: <session name> | <handoff file>` like its other event
+#   lines (Write-MoveFailed), so it starts a fresh session from that handoff; the marker stays and is not tried again for that marker until the watcher restarts (in memory,
+#   key registry id and file). A lead's move needs no change: it answers the move ask with `handoff save --go`.
 # - Its own code: it takes a fingerprint (SHA-256) of this script and the scripts it dot-sources
 #   (plugin-versions.ps1, resume-lib.ps1) at start. When the fingerprint differs and was the same in the previous round
 #   (the file is stable, not in the middle of a git merge), the new files are parse-checked: with a parse
@@ -258,7 +302,9 @@
 # -LimitGraceSec: the wait after a usage-limit reset before the resume message (default 180; the reset time is cut to
 # the minute); -LimitRetrySec: the wait after a resume send the sender could not make (default 900; both for tests).
 # -CleanWaitSec: the wait for a lead's handoff or ready mark after a clean request before clean is dropped (default 600;
-# for tests).
+# for tests). -TaskResumeWaitSec: the longest one `claude --bg --resume` of a task session move may take (default 120);
+# -TaskComeBackWaitSec: how long a task session resumed with its load prompt may take to show in the session list again
+# (default 30; both for tests).
 # -DevKitDir: the dev-kit plugin folder (default: ..\..\dev-kit next to this plugin); it holds
 # .claude-plugin\plugin.json (the installed version) and scripts\sessions.py.
 # -SpendKitDir: the spend-kit plugin folder (default: ..\..\spend-kit next to this plugin); it holds
@@ -270,7 +316,8 @@ param([int]$IntervalSec = 60, [switch]$Once, [int]$Rounds = 0, [int]$MaxHeals = 
     [string]$SpendKitDir, [string]$RestartExe = 'powershell.exe', [string]$WakeExe, [string]$SessionsPy,
     [int]$WakeConfirmSec = 120, [int]$WakeCooldownSec = 120, [int]$WakeDownSec = 600, [int]$HandoffStopWaitSec = 60,
     [int]$ReadyWarnSec = 30, [int]$HandoffClearWaitSec = 120, [int]$HealWaitSec = 300, [int]$LeadRestartWaitSec = 600,
-    [int]$HandoffMoveWaitSec = 600, [int]$LimitGraceSec = 180, [int]$LimitRetrySec = 900, [int]$CleanWaitSec = 600)
+    [int]$HandoffMoveWaitSec = 600, [int]$LimitGraceSec = 180, [int]$LimitRetrySec = 900, [int]$CleanWaitSec = 600,
+    [int]$TaskResumeWaitSec = 120, [int]$TaskComeBackWaitSec = 30)
 
 . (Join-Path $PSScriptRoot 'plugin-versions.ps1')
 . (Join-Path $PSScriptRoot 'resume-lib.ps1')  # Get-SessionProcessIds, Get-JobState, Get-LeadPermissionMode, $HandoffNamePattern
@@ -308,6 +355,13 @@ $SizePushShare = 0.7       # a conversation at this share of its window gets one
 $SizeLogMin = 10           # minutes between the SIZE lines
 $LimitNoticeSec = 300      # the limit notices script is called at least this often (its `back` lines are time based)
 $PingLine = 'PING keep-warm: run dev-kit-sessions fill for your Manager sessions and dev-kit-sessions fill --self for yourself, then answer with your standard status only.'
+# A session idle this long is asked to move to a fresh context before its one-hour prompt cache expires (plugins/dev-kit/
+# claude-facts.md, "A main session's prompt cache lives about one hour"). The ask starts at 50-51 minutes (the round is
+# 60 s plus its work); the session's handoff turn must start before the 60. Lower this when real moves do not start
+# their handoff turn before 60 minutes (plans/limit-spend.md; not measured yet). {S}: empty for a lead, ` --session <id>`
+# for a registry session.
+$MoveQuietMin = 50
+$MoveLine = 'MOVE idle: you have been idle 50 min and your cache expires at 60. At a safe point (no helper, background job or build running) run continue-work-in-another-context save, then dev-kit-sessions handoff save{S} --file <its file name> --go. Refuse only when the move would lose work or a decision the handoff cannot carry: dev-kit-sessions handoff refuse{S} --reason "<that reason>".'
 $NoteLine = 'Note: your log watcher (watch-log.py) is retired. Events now arrive as messages from the server watcher, like this one, so do not arm it again.'
 
 if (-not $ConfigFile) { $ConfigFile = Join-Path $PSScriptRoot 'servers.psd1' }
@@ -348,7 +402,7 @@ function Write-WarnOnce([string]$Key, [string]$Text) {
     if ($warnedOnce[$Key] -cne $Text) { Write-Log "WARN $Text"; $warnedOnce[$Key] = $Text }
 }
 
-# Logs a critical line (GIVEUP, GIVEUP-TASK, RESTART-LEAD-FAILED, RESTART-LEAD-TIMEOUT, HANDOFF-FAILED, HANDOFF-TIMEOUT); the wake pass of the round sends it to Pult.
+# Logs a critical line (GIVEUP, GIVEUP-TASK, RESTART-LEAD-FAILED, RESTART-LEAD-TIMEOUT, HANDOFF-FAILED, HANDOFF-TIMEOUT, MOVE-FAILED); the wake pass of the round sends it to Pult.
 function Write-Critical([string]$Msg) {
     Write-Log $Msg
     [void]$pultEvents.Add($Msg)
@@ -1435,6 +1489,98 @@ function Find-PultAgent($List) {
     return @{ Agent = $pick; Name = [string]$pick.name }
 }
 
+# How long a session has been idle, for the keep-warm ping and the move ask: @{ Minutes; Written } or $null (woken or
+# written to less than $PingQuietMin and $MoveQuietMin minutes ago, or no transcript). Minutes is the smaller of the
+# minutes since the last wake sent to $Key (a lead's or task session's name; the wake-state.json key) and since its
+# transcript's last write (Find-Transcript); Written is that write time as epoch seconds (the key of "asked in this
+# idle period": a session that took the ask or spoke since writes the transcript again).
+function Get-IdleInfo([string]$Key, [string]$SessionId) {
+    $sinceWake = (Get-Age ([double]$wakeState.LastWake[$Key])) / 60
+    if ($sinceWake -lt [Math]::Min($PingQuietMin, $MoveQuietMin)) { return $null }
+    $tr = Find-Transcript $SessionId
+    if (-not $tr) { return $null }
+    $sinceWrite = ([datetime]::UtcNow - $tr.LastWriteTimeUtc).TotalMinutes
+    return @{ Minutes = [Math]::Min($sinceWake, $sinceWrite); Written = ([DateTimeOffset]$tr.LastWriteTimeUtc).ToUnixTimeSeconds() }
+}
+
+# The live task sessions of the dev-kit registries (the set Invoke-TaskHeal walks, only the live ones): active records
+# that are not leads and not owner sessions, with a background entry of this round's list that has a pid. Each:
+# @{ Record; Dir (the registry's folder); Id (the registry id, trimmed); Entry (the list entry); Name (the entry's
+# name, which a message must name) }.
+function Get-RegistrySessions {
+    $found = @()
+    if ($null -eq $agents -or -not (Test-Path -LiteralPath $DevKitStateDir)) { return $found }
+    foreach ($dir in Get-ChildItem -LiteralPath $DevKitStateDir -Directory -ErrorAction SilentlyContinue) {
+        $f = Join-Path $dir.FullName 'sessions.json'
+        if (-not (Test-Path -LiteralPath $f)) { continue }
+        try { $records = @(Get-Content -Raw -Encoding UTF8 -LiteralPath $f | ConvertFrom-Json | ForEach-Object { $_ }) }
+        catch { Write-WarnOnce "registry read $f" "cannot read $f : $_"; continue }
+        foreach ($r in $records) {
+            if ($r.status -cne 'active' -or -not $r.id -or $r.owner -eq $true -or (Test-LeadName ([string]$r.name))) { continue }
+            $wid = ([string]$r.id).Trim()
+            $entry = $agents | Where-Object { $_ -and $_.kind -eq 'background' -and $_.pid -and $_.sessionId -and
+                ((Test-IdMatch ([string]$_.sessionId) $wid) -or (Test-IdMatch ([string]$_.id) $wid)) } | Select-Object -First 1
+            if (-not $entry) { continue }
+            $found += @{ Record = $r; Dir = $dir.FullName; Id = $wid; Entry = $entry; Name = [string]$entry.name }
+        }
+    }
+    return $found
+}
+
+# The handoff marker of a task session ($X: an item of Get-RegistrySessions), under its registry id or the sessionId its
+# list entry shows (`handoff-<id>.json` of the registry's folder, sessions.py `handoff --session`): @{ Id (the one it
+# is kept under); Kind (saved | go); File; Age; Project }, or $null when there is none. The marker file is looked for
+# first, so a session without one costs no python call. sessions.py runs for the project of the record's worktree.
+function Get-TaskMarker($X) {
+    foreach ($id in @($X.Id, [string]$X.Entry.sessionId | Where-Object { $_ } | Select-Object -Unique)) {
+        if ($id -cnotmatch '^[0-9A-Za-z-]+$' -or -not (Test-Path -LiteralPath (Join-Path $X.Dir "handoff-$id.json"))) { continue }
+        $project = [string]$X.Record.worktree
+        if (-not $project -or -not (Test-Path -LiteralPath $project)) {
+            Write-WarnOnce "marker $($X.Id)" "$($X.Name) has a handoff marker but its worktree $project is gone: cannot read it"
+            continue
+        }
+        $r = Invoke-Sessions @('--project', $project, 'handoff', 'status', '--session', $id)
+        if ($r.Code -eq 0 -and $r.Out -cmatch '^(saved|go) (\S+) (\d+)$') {
+            return @{ Id = $id; Kind = $Matches[1]; File = $Matches[2]; Age = [int]$Matches[3]; Project = $project }
+        }
+    }
+    return $null
+}
+
+# The live task sessions as targets of this round (key: the session's name; a name that more than one live session has
+# is no target and gets no ask: a message names the session, MOVE-SKIPPED once), and the move ask for each one that is
+# idle, silent for $MoveQuietMin minutes (Get-IdleInfo), has nothing pending, no handoff marker and was not asked in
+# this idle period (wake-state.json MoveAsked, keyed by the registry id). The ask is a wake item (cause move) that the
+# send loop of Invoke-WakePass delivers; one not taken after the usual tries is dropped, never pushed to the phone.
+function Invoke-TaskMoveAsks($Targets) {
+    foreach ($x in @(Get-RegistrySessions)) {
+        $same = @($agents | Where-Object { $_.pid -and $_.kind -eq 'background' -and [string]$_.name -ceq $x.Name }).Count
+        if ($same -gt 1) {
+            if ($taskMoveSkipped[$x.Id] -cne $x.Name) {
+                $taskMoveSkipped[$x.Id] = $x.Name
+                Write-Log ("MOVE-SKIPPED {0} {1} ({2} live sessions have this name)" -f $x.Name, $x.Id, $same)
+            }
+            continue
+        }
+        $taskMoveSkipped.Remove($x.Id)
+        $Targets[$x.Name] = @{ Kind = 'task'; Live = $true; SessionId = [string]$x.Entry.sessionId; Idle = ($x.Entry.status -eq 'idle')
+            Row = $null; Agent = $x.Entry; Name = $x.Name }
+        if ($x.Entry.status -ne 'idle') { continue }
+        if ($wakePending | Where-Object { $_.Target -ceq $x.Name -or $_.From -ceq $x.Name }) { continue }
+        $idle = Get-IdleInfo $x.Name ([string]$x.Entry.sessionId)
+        if (-not $idle -or $idle.Minutes -lt $MoveQuietMin) { continue }
+        if ($wakeState.MoveAsked[$x.Id] -eq $idle.Written) { continue }
+        if (Get-TaskMarker $x) { continue }
+        $item = New-WakeItem $x.Name 'task' 'move'
+        $item.Lines = @($MoveLine.Replace('{S}', " --session $([string]$x.Entry.sessionId)")); $item.Kinds = @('move')
+        [void]$wakePending.Add($item)
+        $script:wakeDirty = $true
+        $wakeState.MoveAsked[$x.Id] = $idle.Written
+        Save-WakeState
+        Write-Log ("MOVE-ASKED {0} {1} idle {2:N0} min" -f $x.Name, ([string]$x.Entry.id), $idle.Minutes)
+    }
+}
+
 # The wake pass of a round (see the header).
 function Invoke-WakePass {
     $script:wakeDirty = $false
@@ -1462,6 +1608,9 @@ function Invoke-WakePass {
     # Pult events of this round: queued even when the session list is unknown.
     foreach ($e in $pultEvents) { Add-WakeLine 'Pult' 'pult' $e (([string]$e -split ' ')[0]) '' $null }
     $pultEvents.Clear()
+    # `move failed:` lines for the Lead of a task session whose move failed (Write-MoveFailed): queued even when the list is unknown.
+    foreach ($e in $moveFailedEvents) { Add-WakeLine $e.Lead 'lead' $e.Text 'movefailed' $e.Key $null }
+    $moveFailedEvents.Clear()
 
     if ($null -ne $agents) {
         $agentsFile = $null
@@ -1491,19 +1640,30 @@ function Invoke-WakePass {
                 $mark = @{ Project = $s.Path; Kind = $kind; Id = $(if ($p[2] -ceq '-') { '' } else { $p[2] }); Key = $key }
                 Add-WakeLine $name 'lead' $text $kind "$name|$kind|$($p[2])|$key" $mark
             }
-            # Keep-warm ping: idle, nothing pending for it, silent and not woken for $PingQuietMin minutes, a task works.
+            # Idle, nothing pending for it, silent and not woken for 50 minutes: with a task session of its registry
+            # working it gets the keep-warm ping, else the ask to move to a fresh context (never both).
             if (-not $t.Idle -or ($wakePending | Where-Object { $_.Target -ceq $name -or $_.From -ceq $name })) { continue }
-            if ((Get-Age ([double]$wakeState.LastWake[$name])) -lt $PingQuietMin * 60) { continue }
-            $tr = Find-Transcript $t.SessionId
-            if (-not $tr -or ([datetime]::UtcNow - $tr.LastWriteTimeUtc).TotalMinutes -lt $PingQuietMin) { continue }
-            if (-not (Get-BusyTask $s.Path -NonOwner)) { continue }
+            $idle = Get-IdleInfo $name $t.SessionId
+            if (-not $idle) { continue }
+            $ping = [bool](Get-BusyTask $s.Path -NonOwner)
+            if ($idle.Minutes -lt $(if ($ping) { $PingQuietMin } else { $MoveQuietMin })) { continue }
+            if (-not $ping -and $wakeState.MoveAsked[$name] -eq $idle.Written) { continue }  # asked in this idle period already
             # A lead that left a handoff is about to be replaced (or the move failed): its context is not kept warm.
             if ((Invoke-Sessions @('--project', $s.Path, 'handoff', 'status')).Out -cmatch '^(saved|go) ') { continue }
-            $item = New-WakeItem $name 'lead' 'ping'
-            $item.Lines = @($PingLine); $item.Kinds = @('ping')
+            if ($ping) {
+                $item = New-WakeItem $name 'lead' 'ping'
+                $item.Lines = @($PingLine); $item.Kinds = @('ping')
+            } else {
+                $item = New-WakeItem $name 'lead' 'move'
+                $item.Lines = @($MoveLine.Replace('{S}', '')); $item.Kinds = @('move')
+                $wakeState.MoveAsked[$name] = $idle.Written
+                Save-WakeState
+                Write-Log ("MOVE-ASKED {0} {1} idle {2:N0} min" -f $name, ([string]$t.Agent.id), $idle.Minutes)
+            }
             [void]$wakePending.Add($item)
             $script:wakeDirty = $true
         }
+        try { Invoke-TaskMoveAsks $targets } catch { Write-Log "WARN move asks failed: $_" }
         if ($targets['Pult'].Live -and -not $wakeState.PultNote) {
             $item = New-WakeItem 'Pult' 'pult' 'note'
             $item.Lines = @($NoteLine); $item.Kinds = @('note')
@@ -1580,15 +1740,17 @@ function Remove-RequestLines([string]$Name, [string]$Kind) {
 # Waits up to $HandoffStopWaitSec s until no background entry with this name has a pid and no claude.exe process of
 # the session is left (a start in the gap would find the session still "running", see resume-lib.ps1
 # Get-SessionProcessIds; every id of the session, Get-JobSessionIds). $true when gone. The round's $agents and
-# $agentsText are left as they were.
-function Wait-HandoffStopped([string]$Name, [string]$SessionId) {
-    $ids = @(Get-JobSessionIds $SessionId)
+# $agentsText are left as they were. A task session (Invoke-TaskMove) passes -ShortId (only the entry of that job counts:
+# another session may share the name) and -KnownIds (ids it carried before a /clear, which a process may still hold).
+function Wait-HandoffStopped([string]$Name, [string]$SessionId, [string]$ShortId = '', [string[]]$KnownIds = @()) {
+    $ids = @(@(Get-JobSessionIds $SessionId) + @($KnownIds) | Where-Object { $_ } | Select-Object -Unique)
     $until = (Get-Date).AddSeconds($HandoffStopWaitSec)
     while ($true) {
         $keep = $script:agentsText
         $list = Get-Agents -All
         $script:agentsText = $keep
-        $listed = $null -eq $list -or @($list | Where-Object { $_.kind -eq 'background' -and (Test-LeadEntryName ([string]$_.name) $Name) -and $_.pid }).Count
+        $listed = $null -eq $list -or @($list | Where-Object { $_.kind -eq 'background' -and (Test-LeadEntryName ([string]$_.name) $Name) -and $_.pid -and
+            (-not $ShortId -or [string]$_.id -ceq $ShortId) }).Count
         if (-not $listed -and -not (Get-SessionProcessIds $ids).Count) { return $true }
         if ((Get-Date) -gt $until) { return $false }
         Start-Sleep -Milliseconds 500
@@ -1631,7 +1793,7 @@ function Invoke-HandoffCheck($s, $m) {
                 if ($asked.Out -clike 'handoff asked:*') { Write-Log "HANDOFF-ASKED $name $file ($why)" }
             } else { Write-WarnOnce "handoff request $name" "cannot ask $name for its handoff: $($asked.Out -replace '\s+', ' ')" }
         }
-        if ($handoffWaited[$name] -cne $key) { $handoffWaited[$name] = $key; Write-Log "HANDOFF-WAIT $name $file" }
+        if ($handoffWaited[$name] -cne $key) { $handoffWaited[$name] = $key; Write-Log "HANDOFF-WAIT $name $file ($why)" }
         return
     }
     # As restart-leads.ps1: a lead that could not be started again is not stopped.
@@ -1683,6 +1845,172 @@ function Invoke-HandoffCheck($s, $m) {
     }
     # The list of the round is out of date now: the old lead is gone and a new one may run.
     $script:agents = Get-Agents -All
+}
+
+# ---- Move of an idle task session (see the header) ----
+
+# The parsed session list as `claude agents --json --all` shows it now ($null when unreadable); the round's $agents and
+# $agentsText are left as they were.
+function Get-AgentsQuiet {
+    $keep = $script:agentsText
+    $list = Get-Agents -All
+    $script:agentsText = $keep
+    return $list
+}
+
+# Why a task session ($Entry: its list entry) cannot be moved for a marker of kind $Kind now, '' when it can: 'busy' (the
+# list does not show it idle: a turn, a helper or a background shell is running; also for go) or, for saved, 'just woken'
+# (a message was sent to it less than $HandoffWakeQuietSec s ago, not handled yet). Nobody is talking to a task session
+# at this hour, so there is no owner-active or open-question check and no 30-second warning, as for a lead.
+function Get-TaskMoveWhy($Entry, [string]$Kind, [string]$Name) {
+    if (-not $Entry -or $Entry.status -ne 'idle') { return 'busy' }
+    if ($Kind -ne 'go' -and (Get-Age ([double]$wakeState.LastWake[$Name])) -lt $HandoffWakeQuietSec) { return 'just woken' }
+    return ''
+}
+
+# One `claude --bg --resume` of a task session, bounded by $TaskResumeWaitSec: '' when it woke the session, else why not
+# (a timeout, an exit code, or a copy it started instead, which is stopped and removed: plugins/dev-kit/claude-facts.md,
+# "A just-stopped session keeps its processes for about 1 s").
+function Invoke-TaskResume([string]$Name, [string[]]$ResumeArgs) {
+    $res = Invoke-Bounded $ClaudeExe $ResumeArgs $TaskResumeWaitSec
+    $copy = Get-ResumeCopyId $res.Out
+    if ($copy) {
+        $null = claude stop $copy 2>&1
+        $until = (Get-Date).AddSeconds(20)
+        do { Start-Sleep -Seconds 1; $rm = (claude rm $copy 2>&1 | Out-String) } while ($rm -notmatch 'removed' -and (Get-Date) -lt $until)
+        Write-Log "COPY-REMOVED $Name $copy (task move)"
+        return "claude started a copy $copy"
+    }
+    if ($res.TimedOut) { return "no end in $TaskResumeWaitSec s" }
+    if ($res.Code) {
+        $first = @($res.Out -split "`r?`n" | Where-Object { $_.Trim() -and $_ -notlike 'note:*' }) | Select-Object -First 1
+        return "exit $($res.Code) ($first)"
+    }
+    return ''
+}
+
+# Stops the task session of the job with this short id and waits until it is gone. $true when stopped.
+function Stop-TaskSession([string]$Name, [string]$JobId, [string]$Short, [string[]]$KnownIds) {
+    $null = claude stop $Short 2>&1
+    return (Wait-HandoffStopped $Name $JobId $Short $KnownIds)
+}
+
+# The /clear of a stopped task session's move, as start-servers.ps1 Invoke-HandoffClear does it for a lead: a resume with
+# `/clear` as its prompt, a wait until that turn ended (Test-ClearEnded), then the stop. $JobId: the job's first sessionId
+# (Get-JobResumeId), the one id that stays across moves. '' when done, else why not.
+function Invoke-TaskClear([string]$Name, [string]$JobId, [string[]]$KnownIds, [string]$Short) {
+    $job = Get-JobState $JobId
+    if (-not $job) { return 'no job state for the session' }
+    $scanBefore = [string]$job.linkScanPath
+    $why = Invoke-TaskResume $Name (Get-LeadClearArgs $JobId)
+    if ($why) { return "the /clear resume failed: $why" }
+    $until = (Get-Date).AddSeconds($HandoffClearWaitSec)
+    while (-not (Test-ClearEnded $Name $JobId $scanBefore (Get-AgentsQuiet))) {
+        if ((Get-Date) -gt $until) { return "the /clear turn did not end in $HandoffClearWaitSec s" }
+        Start-Sleep -Seconds 1
+    }
+    if (-not (Stop-TaskSession $Name $JobId $Short $KnownIds)) { return 'after the /clear: still running after the stop' }
+    return ''
+}
+
+# A failed move of a task session ($X: an item of Get-RegistrySessions): Write-Critical MOVE-FAILED <name>: <why> (Pult
+# gets it) and, once per marker, the event line `move failed: <session name> | <handoff file>` for the Lead of the
+# session's project (the servers.psd1 lead whose registry folder is the session's), which then starts a fresh session
+# from that handoff. The line waits in $moveFailedEvents until the wake pass queues it like the other lead event lines.
+function Write-MoveFailed($X, [string]$File, [string]$Why) {
+    Write-Critical "MOVE-FAILED $($X.Name): $Why"
+    $key = "$($X.Id)|$File"
+    if ($moveFailedTold[$X.Id] -ceq $key) { return }
+    $moveFailedTold[$X.Id] = $key
+    $dirKey = Get-FolderKey $X.Dir
+    $lead = @($servers | Where-Object { $_.Lead -and $_.Path -and (Get-FolderKey (Get-RegistryDir ([string]$_.Path))) -ceq $dirKey }) | Select-Object -First 1
+    if (-not $lead) { return }
+    [void]$moveFailedEvents.Add(@{ Lead = [string]$lead.Session; Text = "move failed: $($X.Name) | $File"; Key = "$($lead.Session)|movefailed|$($X.Id)|$File" })
+}
+
+# Moves one live task session ($X: an item of Get-RegistrySessions, $Mk: its marker, Get-TaskMarker) to a fresh context
+# of the same job, as a plain `--bg` job: stop, `/clear` resume, stop, resume with `/continue-work-in-another-context
+# load <file>` (no other flag on a resume). The /clear step failing: MOVE-FALLBACK, the job is resumed with the load
+# prompt only (its old context stays, nothing is lost). The stop or the load resume failing, or the job not coming back:
+# Write-Critical MOVE-FAILED (Pult gets it), the marker stays, no new try for it in this run. Moved: the registry record
+# takes the session id the list shows now (sessions.py rekey), the markers are cleared, MOVE.
+function Invoke-TaskMove($X, $Mk) {
+    $name = $X.Name; $file = $Mk.File; $oldSid = [string]$X.Entry.sessionId
+    # Right before the stop: look again (a message may have woken the session since the round's list was read).
+    $fresh = Get-AgentsQuiet
+    $cur = $fresh | Where-Object { $_.kind -eq 'background' -and [string]$_.id -ceq [string]$X.Entry.id -and $_.pid } | Select-Object -First 1
+    if (-not $cur -or (Get-TaskMoveWhy $cur $Mk.Kind $name)) { return }
+    $taskMoveTried[$X.Id] = "$($X.Id)|$file"
+    $short = [string]$cur.id
+    $jobId = Get-JobResumeId $oldSid
+    $known = @(@($oldSid) + @(Get-JobSessionIds $oldSid))
+    if (-not (Stop-TaskSession $name $oldSid $short $known)) {
+        Write-MoveFailed $X $file 'still running after the stop'
+    } else {
+        $why = Invoke-TaskClear $name $jobId $known $short
+        $stopped = $true
+        if ($why) {
+            Write-Log "MOVE-FALLBACK $name $why"
+            $stopped = Stop-TaskSession $name $jobId $short $known  # the /clear step may have left it running
+        }
+        if (-not $stopped) {
+            Write-MoveFailed $X $file 'still running after the stop that follows the failed /clear'
+        } else {
+            $why = Invoke-TaskResume $name (Get-TaskLoadArgs $jobId $file)
+            $back = $null
+            if (-not $why) {
+                $until = (Get-Date).AddSeconds($TaskComeBackWaitSec)
+                while ($true) {
+                    $back = @(Get-AgentsQuiet | Where-Object { $_ -and $_.kind -eq 'background' -and [string]$_.id -ceq $short -and $_.pid }) | Select-Object -First 1
+                    if ($back -or (Get-Date) -gt $until) { break }
+                    Start-Sleep -Milliseconds 500
+                }
+            }
+            if ($why) { Write-MoveFailed $X $file "the load resume failed: $why" }
+            elseif (-not $back) { Write-MoveFailed $X $file 'the session did not come back after the load resume' }
+            else {
+                $newSid = [string]$back.sessionId
+                if ($newSid -and $newSid -cne $X.Id) {
+                    $rk = Invoke-Sessions @('--project', $Mk.Project, 'rekey', '--old', $X.Id, '--new', $newSid)
+                    if ($rk.Code -ne 0) { Write-Log "WARN rekey of $name failed: $($rk.Out -replace '\s+', ' ')" }
+                }
+                foreach ($id in @($Mk.Id, $X.Id, $newSid | Where-Object { $_ } | Select-Object -Unique)) {
+                    $cleared = Invoke-Sessions @('--project', $Mk.Project, 'handoff', 'clear', '--session', $id)
+                    if ($cleared.Out -cne 'handoff cleared') { Write-Log "WARN handoff clear for $name ($id) failed: $($cleared.Out -replace '\s+', ' ')" }
+                }
+                $wakeState.LastWake[$name] = Get-Now
+                $wakeState.SizePushed.Remove($oldSid); $wakeState.SizePushed.Remove($X.Id)
+                $wakeState.MoveAsked.Remove($X.Id)
+                Save-WakeState
+                foreach ($item in @($wakePending | Where-Object { $_.Target -ceq $name -and $_.Cause -eq 'move' })) { Remove-WakeItem $item }  # the old context's ask
+                $taskMoveWaited.Remove($X.Id)
+                Write-Log "MOVE $name $oldSid $file"
+            }
+        }
+    }
+    # The list of the round is out of date now.
+    $script:agents = Get-Agents -All
+}
+
+# The per-round check of the task sessions that left a handoff marker (`sessions.py handoff save --session`): a live one
+# the list shows idle (go: at once; saved: not just woken, Get-TaskMoveWhy) is moved (Invoke-TaskMove); one that is not
+# yet gets one HANDOFF-WAIT <name> <file> (<why>) per marker. Not with -Once, not on hold or during a full start. One
+# try per marker (registry id and file) in this run.
+function Invoke-TaskMoveCheck {
+    if ($null -eq $agents -or $Once -or $onHold -or $starting -or (Test-Path -LiteralPath $hold)) { return }
+    foreach ($x in @(Get-RegistrySessions)) {
+        $mk = Get-TaskMarker $x
+        if (-not $mk) { $taskMoveTried.Remove($x.Id); $taskMoveWaited.Remove($x.Id); continue }
+        if ($mk.File -cnotmatch $HandoffNamePattern) { continue }  # goes on a command line: only a bare .md name
+        $key = "$($x.Id)|$($mk.File)"
+        if ($taskMoveTried[$x.Id] -ceq $key) { continue }
+        $why = Get-TaskMoveWhy $x.Entry $mk.Kind $x.Name
+        if ($why) {
+            if ($taskMoveWaited[$x.Id] -cne $key) { $taskMoveWaited[$x.Id] = $key; Write-Log "HANDOFF-WAIT $($x.Name) $($mk.File) ($why)" }
+            continue
+        }
+        Invoke-TaskMove $x $mk
+    }
 }
 
 # SHA-256 (hex) over the files of $CodeFiles, or $null when one cannot be read (mid-merge, locked).
@@ -1798,6 +2126,11 @@ $deferLogged = @{}  # lead name -> "<pid>|<installed dev-kit>" RESTART-DEFERRED 
 $handoffTried = @{}   # lead name -> "<name>|<file>" of the handoff a move was tried for (one try per marker)
 $handoffWaited = @{}  # lead name -> "<name>|<file>" of the handoff HANDOFF-WAIT was logged for
 $handoffAsked = @{}   # lead name -> "<name>|<file>" of the handoff `handoff request` was run for
+$taskMoveTried = @{}  # task session registry id -> "<id>|<file>" of the marker its move was tried for (one try per marker)
+$taskMoveWaited = @{} # task session registry id -> "<id>|<file>" of the marker HANDOFF-WAIT was logged for
+$taskMoveSkipped = @{} # task session registry id -> the name MOVE-SKIPPED was logged for
+$moveFailedTold = @{}  # task session registry id -> "<id>|<file>" of the marker its `move failed:` line was queued for
+$moveFailedEvents = New-Object System.Collections.ArrayList  # @{ Lead; Text; Key } of this round, for the wake pass (Write-MoveFailed)
 $lastVersion = $null
 $versionWarned = $null
 $pluginTime = $null
@@ -1826,8 +2159,9 @@ $wakeStateFile = Join-Path $StateDir 'wake-state.json'
 $wakePending = New-Object System.Collections.ArrayList  # messages not delivered yet (New-WakeItem)
 $lastNoticeWrite = $null  # the usage log's last write time at the last limit notices call (Invoke-LimitNotices)
 $lastNoticeCall = 0.0     # epoch of that call
-# SizePushed: session id -> tokens; LastWake: target -> epoch; LimitNotified: "<week|five>|<reset epoch>" -> lead names told
-$wakeState = @{ PultNote = $false; SizePushed = @{}; LastWake = @{}; LimitNotified = @{} }
+# SizePushed: session id -> tokens; LastWake: target -> epoch; LimitNotified: "<week|five>|<reset epoch>" -> lead names told;
+# MoveAsked: lead name or task session registry id -> epoch of the transcript's last write when its move ask was queued
+$wakeState = @{ PultNote = $false; SizePushed = @{}; LastWake = @{}; LimitNotified = @{}; MoveAsked = @{} }
 try {
     if (Test-Path -LiteralPath $wakePendingFile) {
         $saved = Get-Content -Raw -Encoding UTF8 -LiteralPath $wakePendingFile -ErrorAction Stop | ConvertFrom-Json
@@ -1838,7 +2172,7 @@ try {
     if (Test-Path -LiteralPath $wakeStateFile) {
         $saved = Get-Content -Raw -Encoding UTF8 -LiteralPath $wakeStateFile -ErrorAction Stop | ConvertFrom-Json
         $wakeState.PultNote = [bool]$saved.PultNote
-        foreach ($k in 'SizePushed', 'LastWake') {
+        foreach ($k in 'SizePushed', 'LastWake', 'MoveAsked') {
             if ($saved.$k) { foreach ($q in $saved.$k.PSObject.Properties) { $wakeState[$k][$q.Name] = [double]$q.Value } }
         }
         if ($saved.LimitNotified) {
@@ -1953,6 +2287,7 @@ while ($true) {
         $downRounds[$name] = 0  # give the start two rounds before the next try
     }
 
+    try { Invoke-TaskMoveCheck } catch { Write-Log "WARN task move check failed: $_" }
     try { Invoke-TaskHeal } catch { Write-Log "WARN task session check failed: $_" }
     if ($null -ne $agents) {
         try { Invoke-LimitCheck } catch { Write-Log "WARN usage-limit check failed: $_" }

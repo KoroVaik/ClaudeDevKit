@@ -1162,6 +1162,100 @@ class SessionsTestCase(unittest.TestCase):
         self.run_main("handoff", "go")  # the lead answered before the event reached it
         self.assertEqual((0, ""), self.run_main("check"))
 
+    def session_marker(self, session_id):
+        return dev_kit_state.project_state_dir(self.project) / f"handoff-{session_id}.json"
+
+    # protects: Flow
+    def test_handoff_marker_of_a_registry_session_is_kept_apart_from_the_leads(self):
+        # The watcher asks an idle Manager to move; its marker must not be taken for the lead's, nor another Manager's.
+        sid = "aaaa1111-2222-3333-4444-555566667777"
+        self.assertEqual((0, "none\n"), self.run_main("handoff", "status", "--session", sid))
+        self.assertEqual((0, "handoff saved: m-1.md\n"),
+                         self.run_main("handoff", "save", "--session", sid, "--file", "m-1.md", "--go"))
+        self.assertRegex(self.run_main("handoff", "status", "--session", sid)[1], r"^go m-1\.md \d+\n$")
+        self.assertEqual("none\n", self.run_main("handoff", "status")[1], "the lead's marker is its own")
+        self.assertEqual("none\n", self.run_main("handoff", "status", "--session", "bbbb")[1])
+        self.assertTrue(self.session_marker(sid).exists())
+        self.assertFalse(self.handoff_file().exists())
+        self.assertEqual((0, "handoff cleared\n"), self.run_main("handoff", "clear", "--session", sid))
+        self.assertFalse(self.session_marker(sid).exists())
+
+    # protects: Rule
+    def test_handoff_session_id_must_be_a_plain_id(self):
+        # It becomes part of a file name: no path may come in through it.
+        for bad in ("..\\x", "a/b", "a b", "x.json"):
+            code, out = self.run_main("handoff", "save", f"--session={bad}", "--file", "a.md")
+            self.assertEqual(1, code, bad)
+        self.assertEqual([], [p.name for p in dev_kit_state.project_state_dir(self.project).glob("handoff*")])
+
+    def stub_rules_kit(self, exit_code=0):
+        """A rules-kit that records its arguments (env RULES_KIT_BIN); the file of the calls."""
+        calls = self.tmp / "rules-kit-calls.jsonl"
+        stub = self.tmp / "stub_rules_kit.py"
+        stub.write_text("import json, sys\nopen(%r, 'a', encoding='utf-8').write(json.dumps(sys.argv[1:]) + '\\n')\n"
+                        "print('added to x')\nsys.exit(%d)\n" % (str(calls), exit_code), encoding="utf-8")
+        env = mock.patch.dict(os.environ, {"RULES_KIT_BIN": str(stub)})
+        env.start()
+        self.addCleanup(env.stop)
+        return calls
+
+    # protects: Rule
+    def test_handoff_refuse_logs_the_reason_and_reports_it_as_critical_to_the_retro(self):
+        calls = self.stub_rules_kit()
+        self.add("aaaa1111-2222", name="M: ship it")
+        code, out = self.run_main("handoff", "refuse", "--session", "aaaa1111-2222", "--reason", "a  build\nruns")
+        self.assertEqual((0, "refusal logged: M: ship it\n"), (code, out))
+        log = dev_kit_state.project_state_dir(self.project) / "refusals.jsonl"
+        entry = json.loads(log.read_text(encoding="utf-8"))
+        self.assertEqual(("aaaa1111-2222", "M: ship it", "a build runs"), (entry["session"], entry["name"], entry["reason"]))
+        self.assertTrue(entry["time"])
+        argv = json.loads(calls.read_text(encoding="utf-8"))
+        self.assertEqual(["add", "--set", "pult", "--critical", "--from", "M: ship it", "--text",
+                          "move refusal | M: ship it: a build runs"], argv)
+
+    # protects: Rule
+    def test_handoff_refuse_with_an_empty_reason_is_refused_and_logs_nothing(self):
+        calls = self.stub_rules_kit()
+        for reason in ("", "   "):
+            self.assertEqual(2, self.run_main("handoff", "refuse", "--reason", reason)[0])
+        self.assertFalse((dev_kit_state.project_state_dir(self.project) / "refusals.jsonl").exists())
+        self.assertFalse(calls.exists())
+
+    # protects: Rule
+    def test_handoff_refuse_still_logs_when_the_retro_report_fails(self):
+        # The report is a courtesy of the command, never its failure: the log line is what the retro reads later.
+        self.stub_rules_kit(exit_code=2)
+        code, out = self.run_main("handoff", "refuse", "--reason", "a decision is only in my head")
+        self.assertEqual(0, code)
+        self.assertIn("not reported to the retro", out)
+        self.assertEqual(1, len((dev_kit_state.project_state_dir(self.project) / "refusals.jsonl").read_text().splitlines()))
+        with mock.patch.dict(os.environ, {"RULES_KIT_BIN": str(self.tmp / "missing.py"), "PATH": ""}), \
+                mock.patch.object(sessions.rules_kit_client, "sibling_script", return_value=None):
+            code, out = self.run_main("handoff", "refuse", "--reason", "again")
+        self.assertEqual(0, code)
+        self.assertIn("not reported to the retro", out)
+
+    # protects: Flow
+    def test_rekey_gives_the_record_the_new_session_id_and_keeps_the_rest(self):
+        # A /clear move gives the job a new session id: the registry must follow it or the Manager looks gone.
+        self.add("abcd1234-0000", name="M: x", parent="p0")
+        self.add("zzzz9999-0000", name="M: y")
+        before = self.records()[0]
+        self.assertEqual(0, self.run_main("rekey", "--old", "abcd1234", "--new", "ffff0000-1111")[0])  # short id as in `end`
+        after = self.records()[0]
+        self.assertEqual("ffff0000-1111", after["id"])
+        self.assertEqual({k: v for k, v in before.items() if k != "id"}, {k: v for k, v in after.items() if k != "id"})
+        self.assertEqual("zzzz9999-0000", self.records()[1]["id"])
+
+    # protects: Edge
+    def test_rekey_refuses_an_unknown_old_id_and_a_new_id_of_another_record(self):
+        self.add("aaaa1111-0000")
+        self.add("bbbb2222-0000")
+        self.assertEqual(1, self.run_main("rekey", "--old", "nope", "--new", "cccc3333-0000")[0])
+        self.assertEqual(1, self.run_main("rekey", "--old", "aaaa1111-0000", "--new", "bbbb2222-0000")[0])
+        self.assertEqual(0, self.run_main("rekey", "--old", "aaaa1111-0000", "--new", "aaaa1111-0000")[0])
+        self.assertEqual(["aaaa1111-0000", "bbbb2222-0000"], [r["id"] for r in self.records()])
+
     def job(self, short, session_id, link, resume_id=None):
         folder = self.jobs / short
         folder.mkdir(parents=True, exist_ok=True)

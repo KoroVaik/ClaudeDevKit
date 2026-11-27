@@ -214,6 +214,12 @@ class WatchServersWakeTest(unittest.TestCase):
         log = (self.pult / "logs" / "servers.log").read_text(encoding="utf-8-sig")
         return [line.split(" ", 1)[1] for line in log.splitlines() if " " in line]
 
+    def reset_wakes(self):
+        """Forget what the sender recorded and the watcher's wake files (a new case of one test)."""
+        for f in (self.bin / "wakes.jsonl", self.pult / "wake-pending.json"):
+            f.unlink(missing_ok=True)
+        self.wake_state(PultNote=True)
+
     def wakes(self):
         f = self.bin / "wakes.jsonl"
         return [json.loads(line) for line in f.read_text(encoding="utf-8").splitlines()] if f.exists() else []
@@ -407,12 +413,15 @@ class WatchServersWakeTest(unittest.TestCase):
                             ("owner session", lambda: self.registry_task(owner=True)),
                             ("lead spoke 10 min ago", lambda: self.age_transcript(10))):
             with self.subTest(case):
+                self.reset_wakes()
                 self.agents(lead="idle", task="busy")
                 self.registry_task()
                 self.age_transcript(60)
                 setup()
                 self.run_watch(1)
-                self.assertEqual([], self.wakes())
+                # (an idle lead with no working task gets the move ask instead, see the tests of it below)
+                self.assertEqual([], [w for w in self.wakes() if self.message(w).split("\n")[1] == PING])
+        self.reset_wakes()
         self.agents(lead="idle", task="busy")
         self.registry_task()
         self.age_transcript(60)
@@ -442,6 +451,144 @@ class WatchServersWakeTest(unittest.TestCase):
                        timeout=60)
         self.run_watch(1)
         self.assertEqual(1, len(self.wakes()), "without the marker the same lead is pinged")
+
+    # ---- the move ask (plans/limit-spend.md, points 10 and 11) ----
+
+    def sessions_py(self, *words):
+        subprocess.run([sys.executable, str(self.plugins / "dev-kit" / "scripts" / "sessions.py"), "--project",
+                        str(self.project), *words], env=dict(os.environ, DEV_KIT_STATE_DIR=str(self.state)), check=True,
+                       capture_output=True, timeout=60)
+
+    def task_chat(self, minutes):
+        """The registered task session's transcript, last written `minutes` ago; the sender may deliver into it."""
+        self.task_transcript = self.projects / f"{TASK}.jsonl"
+        self.task_transcript.write_text(json.dumps({"type": "assistant", "message": {"role": "assistant", "content": "x"}})
+                                        + "\n", encoding="utf-8")
+        when = time.time() - minutes * 60
+        os.utime(self.task_transcript, (when, when))
+        (self.bin / "wake-plan.json").write_text(json.dumps({"deliver": True, "transcripts": {
+            LEAD: str(self.lead_transcript), "Pult": str(self.pult_transcript), "C: task": str(self.task_transcript)}}),
+            encoding="utf-8")
+
+    def move_asked(self, log):
+        return [line for line in log if line.startswith("MOVE-ASKED ")]
+
+    # protects: Flow
+    def test_idle_lead_with_no_busy_task_is_asked_once_to_move_and_not_pinged(self):
+        # Owner, 2026-11-27: every idle session moves to a fresh context before its cache expires; a lead whose Manager
+        # works keeps the ping (a move would lose that Manager's reports), any other idle lead gets the move ask.
+        self.agents(lead="idle", task="idle")
+        self.registry_task()
+        self.age_transcript(51)
+        log = self.run_watch(1)
+        wakes = self.wakes()
+        self.assertEqual(1, len(wakes), log)
+        self.assertEqual(LEAD, self.to(wakes[0]))
+        line = self.message(wakes[0]).split("\n")[1]
+        self.assertTrue(line.startswith("MOVE idle: you have been idle 50 min and your cache expires at 60."), line)
+        self.assertIn("dev-kit-sessions handoff save --file <its file name> --go", line)
+        self.assertIn('dev-kit-sessions handoff refuse --reason "<that reason>"', line)
+        self.assertNotIn("--session", line, "a lead has the project's own marker")
+        self.assertTrue(any(re.match(rf"WAKE {LEAD} \S+ cause=move kinds=move$", entry) for entry in log), log)
+        self.assertFalse([entry for entry in log if "cause=ping" in entry], log)
+        asked = self.move_asked(log)
+        self.assertEqual(1, len(asked), log)
+        self.assertRegex(asked[0], rf"^MOVE-ASKED {LEAD} 11111111 idle 5[12] min$")
+        self.age_transcript(60)  # the delivered ask wrote the transcript; a lead that stays silent is not asked again
+        self.run_watch(1)
+        self.assertEqual(1, len(self.wakes()), "no second ask within 50 minutes of the last wake")
+
+    # protects: Rule
+    def test_lead_asked_to_move_in_an_idle_period_is_not_asked_again_in_it(self):
+        # A move ask the lead did not take (dropped after its tries) must not come back every round: the key is the
+        # transcript's last write, which only a new turn changes.
+        self.wake_plan(deliver=False)
+        self.agents(lead="idle", task="idle")
+        self.registry_task()
+        self.age_transcript(55)
+        self.run_watch(1)
+        self.assertEqual(1, len(self.wakes()))
+        (self.pult / "wake-pending.json").write_text("[]", encoding="utf-8")  # the ask was dropped
+        state = json.loads((self.pult / "wake-state.json").read_text(encoding="utf-8"))
+        self.assertTrue(state["MoveAsked"][LEAD], state)
+        state["LastWake"] = {}  # an hour of silence since
+        (self.pult / "wake-state.json").write_text(json.dumps(state), encoding="utf-8")
+        log = self.run_watch(1)
+        self.assertEqual(1, len(self.wakes()), log)
+        self.assertEqual(1, len(self.move_asked(log)), "the log of the first run only")
+        self.age_transcript(55)  # the lead spoke since (a new write time): a new idle period
+        self.run_watch(1)
+        self.assertEqual(2, len(self.wakes()))
+
+    # protects: Rule
+    def test_lead_is_asked_to_move_only_when_idle_silent_and_without_a_marker(self):
+        for case, setup in (("lead busy", lambda: self.agents(lead="busy", task="idle")),
+                            ("lead spoke 10 min ago", lambda: self.age_transcript(10)),
+                            ("a manager works", lambda: self.agents(lead="idle", task="busy")),
+                            ("handoff marker", lambda: self.sessions_py("handoff", "save", "--file", "h.md"))):
+            with self.subTest(case):
+                self.reset_wakes()
+                self.agents(lead="idle", task="idle")
+                self.registry_task()
+                self.age_transcript(60)
+                setup()
+                log = self.run_watch(1)
+                self.assertEqual([], self.move_asked(log))
+                self.assertFalse([w for w in self.wakes() if self.message(w).split("\n")[1].startswith("MOVE")])
+                if case == "handoff marker":
+                    self.sessions_py("handoff", "clear")
+
+    # protects: Flow
+    def test_idle_registry_session_is_asked_to_move_with_its_own_session_id(self):
+        # A Manager idle for 51 minutes gets the ask with `--session <its id>`: its marker is its own, not the lead's.
+        self.registry_task()
+        for case, setup in (("task busy", lambda: self.agents(lead="busy", task="busy")),
+                            ("owner session", lambda: self.registry_task(owner=True)),
+                            ("spoke 10 min ago", lambda: self.task_chat(10)),
+                            ("handoff marker", lambda: self.sessions_py("handoff", "save", "--session", TASK, "--file", "m.md"))):
+            with self.subTest(case):
+                self.reset_wakes()
+                self.agents(lead="busy", task="idle")
+                self.registry_task()
+                self.task_chat(51)
+                setup()
+                # (with a marker the watcher tries the move itself; this fake `claude` cannot stop, so the lead is told)
+                self.assertEqual([], self.move_asked(self.run_watch(1)))
+                if case == "handoff marker":
+                    self.sessions_py("handoff", "clear", "--session", TASK)
+        self.reset_wakes()
+        self.agents(lead="busy", task="idle")
+        self.registry_task()
+        self.task_chat(51)
+        log = self.run_watch(1)
+        wakes = self.wakes()
+        self.assertEqual(1, len(wakes), log)
+        self.assertEqual("C: task", self.to(wakes[0]))
+        line = self.message(wakes[0]).split("\n")[1]
+        self.assertIn(f"dev-kit-sessions handoff save --session {TASK} --file <its file name> --go", line)
+        self.assertIn(f'dev-kit-sessions handoff refuse --session {TASK} --reason "<that reason>"', line)
+        self.assertEqual(1, len(self.move_asked(log)), log)
+        self.assertRegex(self.move_asked(log)[0], r"^MOVE-ASKED C: task 22222222 idle 5[12] min$")
+        self.assertTrue(any(re.match(r"WAKE C: task \S+ cause=move kinds=move$", entry) for entry in log), log)
+        self.assertTrue(any(entry.startswith("WAKE-TAKEN C: task ") for entry in log), log)
+        self.run_watch(1)
+        self.assertEqual(1, len(self.wakes()), "not asked again in the same idle period")
+
+    # protects: Edge
+    def test_registry_session_that_shares_its_name_is_not_asked_to_move(self):
+        # A message names the session: with two live sessions of one name (a Manager refresh) it could reach the wrong one.
+        self.registry_task()
+        self.agents(lead="busy", task="idle")
+        items = json.loads((self.bin / "agents.json").read_text(encoding="utf-8"))
+        items.append({"pid": 999996, "kind": "background", "name": "C: task", "sessionId": "44444444-aaaa-bbbb-cccc-000000000004",
+                      "id": "44444444", "state": "idle", "status": "idle"})
+        (self.bin / "agents.json").write_text(json.dumps(items), encoding="utf-8")
+        self.task_chat(60)
+        log = self.run_watch(2)
+        self.assertEqual([], self.wakes())
+        skipped = [entry for entry in log if entry.startswith("MOVE-SKIPPED ")]
+        self.assertEqual(1, len(skipped), log)
+        self.assertIn("(2 live sessions have this name)", skipped[0])
 
     # protects: Rule
     def test_conversation_past_0_7_of_its_window_gets_one_phone_push(self):

@@ -105,6 +105,16 @@ function Get-LeadClearArgs([string]$SessionId) {
     return @('--bg', '--resume', $SessionId, '--', '/clear')
 }
 
+# The resume that makes a stopped task session (a Manager, a Discuss: session) load a handoff file: the prompt is
+# `/continue-work-in-another-context load <file>` and no other flag (same rule as above). Used by the watcher's move of an
+# idle task session after its /clear, or alone when the /clear failed (watch-servers.ps1 Invoke-TaskMove). A name that is
+# not a bare .md file name throws.
+$TaskLoadPrompt = '/continue-work-in-another-context load'
+function Get-TaskLoadArgs([string]$SessionId, [string]$Handoff) {
+    if ($Handoff -cnotmatch $HandoffNamePattern) { throw "the handoff file name is not a bare .md file name: $Handoff" }
+    return @('--bg', '--resume', $SessionId, '--', ($TaskLoadPrompt + ' ' + $Handoff))
+}
+
 # The background jobs folder: env DEV_KIT_JOBS_DIR (tests), else ~\.claude\jobs.
 function Get-JobsDir {
     if ($env:DEV_KIT_JOBS_DIR) { return $env:DEV_KIT_JOBS_DIR }

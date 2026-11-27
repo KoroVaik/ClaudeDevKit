@@ -455,8 +455,10 @@ it; that is why it only starts triage. Why: owner, 2026-11-27 (`plans/pult-relay
   On the `--bg` start error of the disclaimer (exit 1; `plugins/dev-kit/claude-facts.md`, "`claude --bg` with `bypassPermissions` fails until the owner accepts a disclaimer once") the Lead starts nothing and asks the owner once, as a hand
   action, to run `claude --dangerously-skip-permissions` interactively and accept. With no prompts,
   the deny rules are the lock and the ask-the-Lead list is the discipline.
-- `--model` and `--effort` are always given. A Manager runs on `--model opus --effort medium` (it decides
-  without the owner, so judgment matters). `sonnet` or `haiku` only for a mechanical batch with no
+- `--model` and `--effort` are always given. A Manager runs on `--model opus` (it decides without the owner, so
+  judgment matters) with the effort `spend-kit experiment next --type manager --task "<its name>"` prints (`low` or
+  `medium`, every other task while that experiment runs; `medium` when it prints nothing or fails). Why: owner,
+  2026-11-27 (`plans/limit-spend.md`, point 13). `sonnet` or `haiku` only for a mechanical batch with no
   decisions; a Fable model only after the owner's yes. Without the flags the Manager inherits the default
   model, which may be the most expensive one. The launch line names the same model and level.
 - A fresh worktree has only tracked files. Before starting the Manager, bring in from the main checkout the
@@ -906,6 +908,16 @@ changed: the named exception to "a wake-up that changes nothing gets no text". W
 2026-11-20 (`docs/findings/idle-wake-cost.md` of the plugin repo): the prompt cache runs out, and a
 Manager report after that re-reads the Lead's whole context at full price (`plugins/dev-kit/claude-facts.md`, "A main session's prompt cache lives about one hour").
 
+Move ask: when the Lead has been idle 50 minutes with no working Manager, the watcher sends the line `MOVE idle:
+...` instead of a ping, before the Lead's cache expires. The Lead moves as in "Restart the Lead" step 1 at once (no
+OVER needed), with `handoff save --file <file> --go`; the watcher then moves it silently. The Lead refuses only when
+the move would lose work or a decision the handoff cannot carry, with `dev-kit-sessions handoff refuse --reason
+"<that reason>"`; the refusal is reported to the plugin retro as critical. Its Manager and «Discuss:» sessions get the
+same ask with their own `--session <id>` and move the same way; the event line `move failed: <name> | <file>` (the
+session stopped and did not come back) has the Lead start a fresh one from that handoff as in "Refresh an overfull
+Manager" step 2, with no owner ask. Why: owner, 2026-11-27 (`plans/limit-spend.md`,
+points 10 and 11): «відмова від стискання має чітко пояснюватись і мати критичний ефект. Все інше стискається.»
+
 Push request: an `[EVT-<id>]` message whose first line ends with `phone push request.` asks the Lead to push for the
 Pult watcher (when Pult is down or did not take a message; a size push comes the same way). The Lead calls the PushNotification tool once with
 exactly the text line of the message, with no owner yes, and writes nothing else: the named exception to
@@ -1161,6 +1173,9 @@ rules-kit's `scripts/retro.py`). That session fixes, checks and reverts rules by
   check, then closes the session as after any merge; with nothing to merge, the Lead only closes it. Each `task:` line
   in it (a hook, script or check the retro does not build itself) becomes a Manager started with no owner ask. The Lead shows the owner nothing about the retro unless he asks
   (Pult's «статус» lists what it did).
+- The owner's «ретро тижня» or «покажи ретро» (the main retro he talks with, `rules-kit:weekly-retro`): the Lead runs
+  `rules-kit weekly --start` and says in one line that the session «Retro: тиждень» is open in the Claude app. It
+  also starts by itself once a week; it is not the Lead's session and sends it nothing.
 - The owner's «поверни <що>» about a retro change: the Lead finds its key in `rules-kit list` and runs `rules-kit
   revert-request <key>`; the next retro run reverts it.
 - `ГОТОВО` from `Docs: <project>` (the weekly docs session, `dev-kit:maintain-project-docs`, "Weekly
