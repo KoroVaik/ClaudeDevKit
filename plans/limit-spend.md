@@ -67,6 +67,19 @@ subagents (~23%), Zhratva catalogue-next with a Sonnet judge loop (~19%), L: Pri
    three goes back to high when the rework count (point 3) shows its runs led to rework; the retro raises that as
    an item, with the rework tokens behind it.
 
+2026-11-27, owner «Так» to question 10, after the short plan was first shown (reopened the talk). Owner's own
+picture: «автозапуски службових ретросесій в проектах на регулярній основі і запуск основной ретро сесії з якой я
+можу комунікцвать раз на тиждень або за вимогой»; on the content: «Має вказуватись основна статистика і важливі
+ретроайтеми як пофікшені так і заплановані».
+
+7. A main retro session the owner can talk with: started once a week and on his request. It opens with the main
+   statistics (the rework share of point 5 with last week's, the token spend summary from `spend-kit stats`, the
+   counts of re-asks and flagged model / reasoning / duplicated-work cases) and the important retro items, both
+   fixed (what changed, and whether later sessions confirmed it) and planned (waiting for a repeat or a fix),
+   costliest first. It asks the owner nothing on its own (the 2026-11-24 rule of `plans/retro-auto-rules-check.md`
+   stays: the retro fixes by itself); he reads it and may ask. The per-project service retro sessions stay as they
+   are. Point 5's weekly number is shown here.
+
 ## Goal of the talk
 
 Agree with the owner what changes so the 5-hour limit lasts (for example a cap on parallel Opus sessions, cheaper
