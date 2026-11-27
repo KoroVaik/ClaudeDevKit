@@ -500,8 +500,8 @@ class WatchServersWakeTest(unittest.TestCase):
 
     # protects: Rule
     def test_lead_asked_to_move_in_an_idle_period_is_not_asked_again_in_it(self):
-        # A move ask the lead did not take (dropped after its tries) must not come back every round: the key is the
-        # transcript's last write, which only a new turn changes.
+        # A move ask the lead did not take (dropped after its tries) must not come back every round: the ask time is
+        # kept in wake-state.json (Test-MoveAskDue).
         self.wake_plan(deliver=False)
         self.agents(lead="idle", task="idle")
         self.registry_task()
@@ -516,9 +516,42 @@ class WatchServersWakeTest(unittest.TestCase):
         log = self.run_watch(1)
         self.assertEqual(1, len(self.wakes()), log)
         self.assertEqual(1, len(self.move_asked(log)), "the log of the first run only")
-        self.age_transcript(55)  # the lead spoke since (a new write time): a new idle period
-        self.run_watch(1)
-        self.assertEqual(2, len(self.wakes()))
+
+    def asked_before(self, key, asked_ago_min, written_after_min):
+        """wake-state.json: `key` was asked `asked_ago_min` minutes ago and no wake has been sent since; returns the minutes
+        since the transcript was written, `written_after_min` minutes after that ask."""
+        self.wake_state(PultNote=True, MoveAsked={key: time.time() - asked_ago_min * 60})
+        return asked_ago_min - written_after_min
+
+    # protects: Bug
+    def test_lead_that_was_moved_or_answered_the_ask_is_not_asked_again_while_it_stays_idle(self):
+        # Live review: a lead that refused (or was moved) and sat idle was asked again every 50 minutes. The ask counts
+        # from the last ask or move; only real work 10+ minutes after it, then 50 idle minutes, asks again.
+        for case, written_after, asked in (("idle for 3 hours after its answer", 2, False),
+                                           ("wrote 9 minutes after the ask", 9, False),
+                                           ("worked 11 minutes after the ask, idle again", 11, True)):
+            with self.subTest(case):
+                self.reset_wakes()
+                self.agents(lead="idle", task="idle")
+                self.registry_task()
+                self.age_transcript(self.asked_before(LEAD, 180, written_after))
+                log = self.run_watch(1)
+                self.assertEqual(1 if asked else 0, len(self.wakes()), log)
+
+    # protects: Bug
+    def test_task_session_that_was_moved_or_answered_the_ask_is_not_asked_again_while_it_stays_idle(self):
+        self.registry_task()
+        for case, written_after, asked in (("idle for 3 hours after its answer", 2, False),
+                                           ("worked 11 minutes after the ask, idle again", 11, True)):
+            with self.subTest(case):
+                self.reset_wakes()
+                self.agents(lead="busy", task="idle")
+                self.registry_task()
+                self.task_chat(self.asked_before(TASK, 180, written_after))
+                log = self.run_watch(1)
+                self.assertEqual(1 if asked else 0, len(self.wakes()), log)
+                if asked:
+                    self.assertEqual("C: task", self.to(self.wakes()[0]))
 
     # protects: Rule
     def test_lead_is_asked_to_move_only_when_idle_silent_and_without_a_marker(self):

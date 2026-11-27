@@ -143,9 +143,11 @@
 #     an owner session, as HEAL-TASK walks them; a Manager, a `Discuss:` session) that the list shows idle. Both: the
 #     transcript's last write and the last wake sent to it are older than $MoveQuietMin minutes, no wake for or from it
 #     is pending, no handoff marker (the lead's `handoff status`, a registry session's `handoff status --session`, not
-#     saved or go) and it was not asked in this idle period (wake-state.json MoveAsked: the lead's name or the
-#     registry id -> the transcript's last write time when it was asked; a session that took the ask or spoke since
-#     writes the transcript again, and a new idle period may ask again). The ask is a wake item (cause move, kinds move)
+#     saved or go) and it is not still covered by an earlier ask or move (wake-state.json MoveAsked: the lead's name or
+#     the registry id -> the epoch of the last ask, or of the end of the last move; Test-MoveAskDue): a session asked
+#     again only when its transcript got a write more than $MoveWorkAfterSec (10 minutes) after that, real work after
+#     the ask's own turn, and it has then been idle $MoveQuietMin minutes again. So a session that was moved, or
+#     answered the ask (moved or refused) and stays idle, is not asked every 50 minutes. The ask is a wake item (cause move, kinds move)
 #     with `$MoveLine`: at a safe point (no helper, background job or build running) the session runs
 #     `continue-work-in-another-context save`, then `dev-kit-sessions handoff save [--session <its session id>] --file
 #     <name> --go`, or refuses with `dev-kit-sessions handoff refuse [--session <id>] --reason "<critical reason>"`
@@ -361,6 +363,7 @@ $PingLine = 'PING keep-warm: run dev-kit-sessions fill for your Manager sessions
 # their handoff turn before 60 minutes (plans/limit-spend.md; not measured yet). {S}: empty for a lead, ` --session <id>`
 # for a registry session.
 $MoveQuietMin = 50
+$MoveWorkAfterSec = 600  # a session asked or moved is asked again only after a transcript write this long after that (real work), then 50 idle minutes again
 $MoveLine = 'MOVE idle: you have been idle 50 min and your cache expires at 60. At a safe point (no helper, background job or build running) run continue-work-in-another-context save, then dev-kit-sessions handoff save{S} --file <its file name> --go. Refuse only when the move would lose work or a decision the handoff cannot carry: dev-kit-sessions handoff refuse{S} --reason "<that reason>".'
 $NoteLine = 'Note: your log watcher (watch-log.py) is retired. Events now arrive as messages from the server watcher, like this one, so do not arm it again.'
 
@@ -1489,11 +1492,19 @@ function Find-PultAgent($List) {
     return @{ Agent = $pick; Name = [string]$pick.name }
 }
 
+# Whether a session ($Key: a lead's name or a task session's registry id; $Idle: Get-IdleInfo) may be asked to move now:
+# it never was, or its transcript got a write more than $MoveWorkAfterSec s after the last ask or move (wake-state.json
+# MoveAsked: epoch of that ask, or of the end of a move), i.e. it did real work after the ask's own turn. So a session
+# that was moved, or answered the ask (moved or refused) and stays idle, is not asked every 50 minutes.
+function Test-MoveAskDue([string]$Key, $Idle) {
+    $asked = [double]$wakeState.MoveAsked[$Key]
+    return ($asked -le 0) -or ($Idle.Written -gt $asked + $MoveWorkAfterSec)
+}
+
 # How long a session has been idle, for the keep-warm ping and the move ask: @{ Minutes; Written } or $null (woken or
 # written to less than $PingQuietMin and $MoveQuietMin minutes ago, or no transcript). Minutes is the smaller of the
 # minutes since the last wake sent to $Key (a lead's or task session's name; the wake-state.json key) and since its
-# transcript's last write (Find-Transcript); Written is that write time as epoch seconds (the key of "asked in this
-# idle period": a session that took the ask or spoke since writes the transcript again).
+# transcript's last write (Find-Transcript); Written is that write time as epoch seconds.
 function Get-IdleInfo([string]$Key, [string]$SessionId) {
     $sinceWake = (Get-Age ([double]$wakeState.LastWake[$Key])) / 60
     if ($sinceWake -lt [Math]::Min($PingQuietMin, $MoveQuietMin)) { return $null }
@@ -1569,13 +1580,13 @@ function Invoke-TaskMoveAsks($Targets) {
         if ($wakePending | Where-Object { $_.Target -ceq $x.Name -or $_.From -ceq $x.Name }) { continue }
         $idle = Get-IdleInfo $x.Name ([string]$x.Entry.sessionId)
         if (-not $idle -or $idle.Minutes -lt $MoveQuietMin) { continue }
-        if ($wakeState.MoveAsked[$x.Id] -eq $idle.Written) { continue }
+        if (-not (Test-MoveAskDue $x.Id $idle)) { continue }
         if (Get-TaskMarker $x) { continue }
         $item = New-WakeItem $x.Name 'task' 'move'
         $item.Lines = @($MoveLine.Replace('{S}', " --session $([string]$x.Entry.sessionId)")); $item.Kinds = @('move')
         [void]$wakePending.Add($item)
         $script:wakeDirty = $true
-        $wakeState.MoveAsked[$x.Id] = $idle.Written
+        $wakeState.MoveAsked[$x.Id] = Get-Now
         Save-WakeState
         Write-Log ("MOVE-ASKED {0} {1} idle {2:N0} min" -f $x.Name, ([string]$x.Entry.id), $idle.Minutes)
     }
@@ -1647,7 +1658,7 @@ function Invoke-WakePass {
             if (-not $idle) { continue }
             $ping = [bool](Get-BusyTask $s.Path -NonOwner)
             if ($idle.Minutes -lt $(if ($ping) { $PingQuietMin } else { $MoveQuietMin })) { continue }
-            if (-not $ping -and $wakeState.MoveAsked[$name] -eq $idle.Written) { continue }  # asked in this idle period already
+            if (-not $ping -and -not (Test-MoveAskDue $name $idle)) { continue }  # asked or moved lately and not at work since
             # A lead that left a handoff is about to be replaced (or the move failed): its context is not kept warm.
             if ((Invoke-Sessions @('--project', $s.Path, 'handoff', 'status')).Out -cmatch '^(saved|go) ') { continue }
             if ($ping) {
@@ -1656,7 +1667,7 @@ function Invoke-WakePass {
             } else {
                 $item = New-WakeItem $name 'lead' 'move'
                 $item.Lines = @($MoveLine.Replace('{S}', '')); $item.Kinds = @('move')
-                $wakeState.MoveAsked[$name] = $idle.Written
+                $wakeState.MoveAsked[$name] = Get-Now
                 Save-WakeState
                 Write-Log ("MOVE-ASKED {0} {1} idle {2:N0} min" -f $name, ([string]$t.Agent.id), $idle.Minutes)
             }
@@ -1823,6 +1834,7 @@ function Invoke-HandoffCheck($s, $m) {
             $cleared = Invoke-Sessions @('--project', $s.Path, 'handoff', 'clear')
             if ($cleared.Out -cne 'handoff cleared') { Write-Log "WARN handoff clear for $name failed: $($cleared.Out -replace '\s+', ' ')" }
             $wakeState.LastWake[$name] = Get-Now
+            $wakeState.MoveAsked[$name] = $wakeState.LastWake[$name]  # a moved lead is not asked to move again until it works (Test-MoveAskDue)
             # The old id's size push mark is of no use any more: the list shows the new transcript's id from now on.
             if ($moved) { $wakeState.SizePushed.Remove($sid) }
             Save-WakeState
@@ -1980,7 +1992,8 @@ function Invoke-TaskMove($X, $Mk) {
                 }
                 $wakeState.LastWake[$name] = Get-Now
                 $wakeState.SizePushed.Remove($oldSid); $wakeState.SizePushed.Remove($X.Id)
-                $wakeState.MoveAsked.Remove($X.Id)
+                $wakeState.MoveAsked[$X.Id] = Get-Now  # counted from the end of the move (Test-MoveAskDue), under both ids
+                if ($newSid) { $wakeState.MoveAsked[$newSid] = $wakeState.MoveAsked[$X.Id] }
                 Save-WakeState
                 foreach ($item in @($wakePending | Where-Object { $_.Target -ceq $name -and $_.Cause -eq 'move' })) { Remove-WakeItem $item }  # the old context's ask
                 $taskMoveWaited.Remove($X.Id)

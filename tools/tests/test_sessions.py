@@ -1214,6 +1214,28 @@ class SessionsTestCase(unittest.TestCase):
                           "move refusal | M: ship it: a build runs"], argv)
 
     # protects: Rule
+    def test_handoff_refuse_again_within_12_hours_is_logged_but_not_reported_again(self):
+        # A session asked every hour and refusing every time is one finding for the retro, not one per ask.
+        calls = self.stub_rules_kit()
+        self.add("aaaa1111-2222", name="M: ship it")
+        self.add("bbbb1111-2222", name="M: other")
+        log = dev_kit_state.project_state_dir(self.project) / "refusals.jsonl"
+        old = time.strftime("%Y-%m-%dT%H:%M:%S%z", time.localtime(time.time() - 13 * 3600))
+        old = old[:-2] + ":" + old[-2:]  # +0300 -> +03:00
+        log.write_text(json.dumps({"time": old, "session": "aaaa1111-2222", "name": "M: ship it", "reason": "r"}) + "\n"
+                       + "not json\n", encoding="utf-8")
+        self.assertEqual(0, self.run_main("handoff", "refuse", "--session", "aaaa1111-2222", "--reason", "13 h later")[0])
+        self.assertEqual(1, len(calls.read_text(encoding="utf-8").splitlines()), "13 hours old: reported again")
+        code, out = self.run_main("handoff", "refuse", "--session", "aaaa1111-2222", "--reason", "an hour later")
+        self.assertEqual(0, code)
+        self.assertIn("within the last 12 hours", out)
+        self.assertEqual(1, len(calls.read_text(encoding="utf-8").splitlines()), "within 12 hours: not reported again")
+        self.assertEqual(3, len([line for line in log.read_text(encoding="utf-8").splitlines() if line.startswith("{")]),
+                         "every refusal is still logged")
+        self.run_main("handoff", "refuse", "--session", "bbbb1111-2222", "--reason", "another session")
+        self.assertEqual(2, len(calls.read_text(encoding="utf-8").splitlines()), "another session is its own finding")
+
+    # protects: Rule
     def test_handoff_refuse_with_an_empty_reason_is_refused_and_logs_nothing(self):
         calls = self.stub_rules_kit()
         for reason in ("", "   "):
@@ -1228,7 +1250,9 @@ class SessionsTestCase(unittest.TestCase):
         code, out = self.run_main("handoff", "refuse", "--reason", "a decision is only in my head")
         self.assertEqual(0, code)
         self.assertIn("not reported to the retro", out)
-        self.assertEqual(1, len((dev_kit_state.project_state_dir(self.project) / "refusals.jsonl").read_text().splitlines()))
+        log = dev_kit_state.project_state_dir(self.project) / "refusals.jsonl"
+        self.assertEqual(1, len(log.read_text().splitlines()))
+        log.unlink()  # (a second refusal within 12 hours is not reported at all)
         with mock.patch.dict(os.environ, {"RULES_KIT_BIN": str(self.tmp / "missing.py"), "PATH": ""}), \
                 mock.patch.object(sessions.rules_kit_client, "sibling_script", return_value=None):
             code, out = self.run_main("handoff", "refuse", "--reason", "again")

@@ -8,6 +8,7 @@ import json
 import os
 import subprocess
 import sys
+import time
 import unittest
 from pathlib import Path
 
@@ -120,6 +121,10 @@ class WatchServersTaskMoveTest(WatcherEnv, unittest.TestCase):
         self.assertEqual(1, len(moved), log)
         self.assertTrue(moved[0].endswith(f" MOVE {NAME} {TASK_SID} {FILE}"), moved)
         self.assertFalse([line for line in log if "FALLBACK" in line or "FAILED" in line], log)
+        # Counted from the end of the move, under both ids: an idle moved session is not asked to move again at once.
+        state = json.loads((self.tmp / "pult" / "wake-state.json").read_text(encoding="utf-8"))
+        for key in (TASK_SID, new):
+            self.assertLess(abs(time.time() - state["MoveAsked"][key]), 300, state)
 
     # protects: Rule
     def test_saved_marker_of_an_idle_manager_moves_it_but_a_busy_one_waits_with_the_reason(self):

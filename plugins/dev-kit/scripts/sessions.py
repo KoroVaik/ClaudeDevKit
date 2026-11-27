@@ -174,7 +174,9 @@ a decision the handoff cannot carry. It appends `{"time", "session", "name", "re
 folder (name: the registry record of `--session`, else `L: <repository folder name>` for a lead) and reports it as
 critical to the retro by running rules-kit as a process (rules_kit_client.py: `rules-kit add --set pult --critical --from
 <name> --text "move refusal | <name>: <reason>"`); a failure of that report prints a warning on stderr and never fails the
-command. An empty reason is refused (exit 2). The reason is one line (white space folded).
+command. When `refusals.jsonl` already holds a refusal of the same session (and name) from the last REFUSAL_REPEAT_HOURS
+(12) hours, the line is still appended but the retro is not told again. An empty reason is refused (exit 2). The reason
+is one line (white space folded).
 
 `rekey --old <session id> --new <session id>` gives the registry record of the old id (full, or 8+ char short id as in
 `end`) the new id, keeping every other field: a `/clear` resume gives the background job a new session id (plugins/dev-kit/claude-facts.md,
@@ -234,6 +236,7 @@ HANDOFF_NAME = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]*\.md")  # a bare file name
 SESSION_ID = re.compile(r"[0-9A-Za-z-]+")  # a session id: part of a marker file name and of a command line
 REFUSALS = "refusals.jsonl"  # the move refusals of the state folder (`handoff refuse`)
 RULES_KIT_TIMEOUT = 60  # seconds the report of a refusal to rules-kit may take
+REFUSAL_REPEAT_HOURS = 12  # a session refusing again within this is logged but not reported to the retro again
 PROJECTS_ENV = "DEV_KIT_PROJECTS_DIR"
 JOBS_ENV = "DEV_KIT_JOBS_DIR"
 DEFAULT_WINDOW = 200000
@@ -1294,6 +1297,25 @@ def refuse_name(args, path):
     return f"L: {main.name}" if main else "lead"
 
 
+def refused_lately(log, session, name):
+    """Whether `log` (refusals.jsonl) already holds a refusal of this session (and name) from the last
+    REFUSAL_REPEAT_HOURS hours; unreadable lines and times are skipped."""
+    try:
+        lines = log.read_text(encoding="utf-8").splitlines()
+    except OSError:
+        return False
+    limit = datetime.now().astimezone().timestamp() - REFUSAL_REPEAT_HOURS * 3600
+    for line in lines:
+        try:
+            entry = json.loads(line)
+            when = datetime.fromisoformat(entry["time"]).timestamp()
+        except (ValueError, KeyError, TypeError):
+            continue
+        if isinstance(entry, dict) and entry.get("session") == session and entry.get("name") == name and when >= limit:
+            return True
+    return False
+
+
 def cmd_refuse(args, path):
     """`handoff refuse`: log the refusal and report it as critical to the retro (see the module doc)."""
     reason = " ".join(str(args.reason).split())
@@ -1302,8 +1324,12 @@ def cmd_refuse(args, path):
         return 2
     name = refuse_name(args, path)
     entry = {"time": now(), "session": args.session, "name": name, "reason": reason}
+    repeated = refused_lately(path.with_name(REFUSALS), args.session, name)
     with open(path.with_name(REFUSALS), "a", encoding="utf-8") as handle:
         handle.write(json.dumps(entry, ensure_ascii=False) + "\n")
+    if repeated:  # the retro has this session's refusal already: a session asked again and refusing again is not a new finding
+        print(f"refusal logged: {name} (reported to the retro within the last {REFUSAL_REPEAT_HOURS} hours)")
+        return 0
     done = rules_kit_client.run(["add", "--set", "pult", "--critical", "--from", name, "--text",
                                  f"move refusal | {name}: {reason}"], RULES_KIT_TIMEOUT)
     if done is None or done.returncode != 0:
