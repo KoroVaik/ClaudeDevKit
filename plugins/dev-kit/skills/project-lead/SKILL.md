@@ -943,7 +943,7 @@ with the worktree that holds the app as the reason.
 ## Acceptance and merge
 
 The Manager owns all doc updates. On "done", the Lead checks only the list of changed doc files (a reviewer subagent if
-there are many). Then, in the main checkout: if it is not on `main` or `git status --porcelain` is not
+there are many). Then, in the main checkout: if it is not on `main` or `git status --porcelain -- . ':!.claude/worktrees'` (the worktrees folder never counts) is not
 empty, the Lead does not merge and adds its own question (merge after the owner tidies the main checkout). The Lead commits its own edits in the main checkout (PROGRESS.md,
 BACKLOG.md `Verdict:` lines) right after making them, so a dirty checkout is never the Lead's own (that is the owner's work in progress, not the Manager's conflict).
 Otherwise `git merge --ff-only c/<slug>`. A designed screen's Manager is merged only on its review
