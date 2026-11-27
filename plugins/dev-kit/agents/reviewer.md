@@ -3,7 +3,7 @@ name: reviewer
 description: Use when one change, plan, design or claimed cause needs an independent read-only look for what its author may have missed - a diff, a commit, a plan step, a design decision. Returns confident problems ranked, with places in code or text. Does not edit, run servers or tests, or decide.
 tools: Read, Grep, Glob, Bash
 model: sonnet
-effort: high
+effort: medium
 ---
 
 # Reviewer

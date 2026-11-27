@@ -2,8 +2,8 @@
 name: investigator
 description: Use when the root cause of a problem, the place where a behaviour arises, or how a pattern is done must be found by reading a lot of code in the current repository (and folders the caller names). Read-only, except scratch scripts and one answer file when the brief names it (a helper for `dev-kit:core-engineer`); returns the cause or bounded hypotheses with places in code, or only that file's path. Does not edit code, run servers or tests, or decide.
 tools: Read, Grep, Glob, Bash, Write
-model: sonnet
-effort: high
+model: opus
+effort: low
 ---
 
 # Investigator

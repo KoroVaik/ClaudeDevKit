@@ -177,6 +177,39 @@ picture: «автозапуски службових ретросесій в п�
    already shows. The retro's own spend cap (2% of the weekly limit per run) stays; at most one out-of-turn retro
    runs at a time.
 
+## Build (M: token-waste, 2026-11-27)
+
+Spend: ~0% of the weekly limit, estimate; API: 0 USD (updated per step).
+
+Surveys (local, agents only): C:/Users/korov/.claude/jobs/fd86cac7/tmp/survey-{rules,spend,pult}.md.
+
+How the parts fit (one owner of each signal, no plugin imports another's code):
+
+- spend-kit owns every token signal, in its scan (run daily by the retro's full scan through `spend-kit findings`):
+  re-asks (point 1; its own copy of the re-ask pattern, a test keeps it equal to rules-kit's), rework units from a
+  re-ask to the next owner message, main chain plus helpers launched in that range (3), model / reasoning flags (2),
+  duplicated work (4), the experiment counts and alarms (13-14). They reach the retro as `spend-kit findings` lines
+  (new kinds `rework`, `model mismatch`, `duplicate work`, `experiment alarm`, `experiment result`) with the share of
+  the weekly limit in the detail, and reach the owner through `spend-kit stats` grouped by cause with last week next
+  to it (9), saved in `weekly.jsonl` (new key `causes`).
+- rules-kit: `parts` uses the same wider pattern and never drops a re-ask part for the 20-packet cap (1); `items`
+  orders items by the summed share in their seen lines, then sightings, and the retro skill fixes costliest first (3);
+  a critical line (spend-kit `critical`, `experiment alarm`, a refusal to move) starts an out-of-turn ClaudeDevKit
+  retro past the 20 h / 6 h gaps, one at a time, with a done-list line Pult's status shows (15); `rules-kit weekly`
+  prints the main retro summary and a weekly / on-request owner session reads it (7).
+- Experiments (13): a spend-kit PreToolUse hook on `Agent` sets `model` and `effort` of `dev-kit:coder`,
+  `dev-kit:reviewer`, `rules-kit:rule-reviewer` to the next variant (Sonnet high / Opus low, every other run) unless
+  the caller chose a model other than the agent file's; it logs each pick. A stopped variant stops the override (the
+  agent file's lines apply). Managers alternate Opus low / Opus medium per task at their start. Early look (14): the
+  daily count writes a packet of the alarming runs; the out-of-turn retro has a cheap reader (haiku) judge it.
+- Agent files (6, 8, 12): investigator `model: opus`, `effort: low`; reviewer and rule-reviewer `effort: medium`;
+  the same hook resets a caller's Opus / Fable override of context-heavy, not hard helpers to the file's model.
+- Session moves (10, 11): after the Pult survey.
+
+Steps (each committed): 1 agent files and manager text; 2 spend-kit signals and stats by cause; 3 rules-kit parts
+cap, pattern, item order; 4 experiments hook, daily count, reader; 5 out-of-turn retro; 6 main retro session;
+7 session moves; 8 docs, versions, review.
+
 ## Goal of the talk
 
 Agree with the owner what changes so the 5-hour limit lasts (for example a cap on parallel Opus sessions, cheaper

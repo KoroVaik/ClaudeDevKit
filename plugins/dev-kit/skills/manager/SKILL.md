@@ -167,7 +167,7 @@ Why: the Zhratva lead could not launch `dev-kit:overlap-checker` on 2026-11-15 a
 
 | Type | Model | When | Returns |
 |---|---|---|---|
-| `dev-kit:investigator` | sonnet | the cause is unknown, or a survey of code needs reading a lot | cause or ranked hypotheses, `file:line`, confirmed vs assumed |
+| `dev-kit:investigator` | opus (reasoning low, from its file) | the cause is unknown, or a survey of code needs reading a lot | cause or ranked hypotheses, `file:line`, confirmed vs assumed |
 | `dev-kit:reviewer` | sonnet | an independent read-only look at a change, plan, claimed cause or changed feature rules | ranked problems with places, doubts that need a run |
 | `dev-kit:coder` | sonnet; opus only after a sonnet run of this step failed, with the one-line reason in the launch line | a step with a lot of code to read or write | the change, rationale, risks, checks to run |
 | `dev-kit:overlap-checker` | haiku | at task start, when `dev-kit-sessions others` lists sessions (see "Overlap check at task start") | "no overlap" or the overlapping sessions with the reason |
@@ -176,6 +176,13 @@ Why: the Zhratva lead could not launch `dev-kit:overlap-checker` on 2026-11-15 a
 | `dev-kit:core-engineer` | fable (in its file) | only in a project whose profile has a `## core-engineer` section, and only after the owner's yes for that launch (see "A core engineer and its helpers") | the change or an approach described without code, its rationale, risks, checks to run, helper questions |
 
 The project's own types come from its `## manager` section.
+
+spend-kit's hook on every helper launch may change the model you pass; pass it as usual
+(`docs/features/catch-wasted-work.md` in the plugin repo). For `dev-kit:coder`, `dev-kit:reviewer` and
+`rules-kit:rule-reviewer` it sets the model and reasoning of its running experiment, unless you chose a model other
+than the one in the table. A choice of Opus or Fable for a helper whose work fills a large context but is not hard
+(overlap checks, question reads, mechanical edits, part reads, replays) goes back to the helper's own model. Why:
+owner, 2026-11-27 (`plans/limit-spend.md`, points 8 and 13): «Не хочу мікроменеджити опус і сонет».
 
 - Do it yourself when the problem is small or the answer is in a few named places. A subagent
   starts cold and rereads the rules; on a small task that costs more than doing it.
@@ -206,7 +213,7 @@ never does there) may use `dev-kit:core-engineer` for one hard, bounded subprobl
   and stop (the owner's global rules on Fable subagents).
 - A new approach or an architecture change comes back described without code. Check it, get the owner's
   yes, then send the go-ahead to the same run by `SendMessage` within the hour while its cache is warm.
-- Helper questions: for each, launch a `dev-kit:investigator` (haiku for a lookup, sonnet for a cause) with
+- Helper questions: for each, launch a `dev-kit:investigator` (haiku for a lookup, its own model for a cause) with
   the question and a note file `.claude/helper-notes/<task>-<n>.md`; it writes there only its conclusions,
   about 2k tokens at most, never raw logs or results, and returns only the path. Read none of the note
   yourself; send the engineer only the paths. The folder keeps a `.gitignore` of `*`, so notes are never

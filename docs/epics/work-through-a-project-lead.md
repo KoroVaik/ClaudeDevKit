@@ -23,6 +23,7 @@ all your sessions belong to [Run all projects from the phone](run-all-projects-f
 - [Fix agent problems in the retro](../features/fix-agent-problems-in-the-retro.md)
 - [Keep Claude app facts](../features/keep-claude-app-facts.md)
 - [Show where the weekly limit went](../features/limit-usage-stats.md)
+- [Catch wasted work](../features/catch-wasted-work.md)
 
 ## Not written yet
 
