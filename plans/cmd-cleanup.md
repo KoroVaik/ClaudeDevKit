@@ -23,3 +23,14 @@ owner action; an agent never writes such a file outside `Desktop/Claude`; a file
 
 The owner's global rule on these files lives in his local `.claude/CLAUDE.md` («Chat replies», the `.cmd` bullet); a
 change there is a rule edit of the owner's global files (`rules-kit:edit-rules`), asked through the Lead.
+
+## Done (2026-11-27)
+
+- Built in pult (user-scope, so it runs in every session, the hub included): `plugins/pult/hooks/owner-scripts.py`.
+  `pre` refuses a Write of a `.cmd`/`.bat` on the desktop outside `Desktop/Claude`; `post` records files written into
+  `Desktop/Claude` (time, text hash) in `~/.claude/pult/owner-scripts.json`; `start` (SessionStart) deletes a recorded
+  file over a day old whose hash still matches. Unrecorded (owner's) and changed files stay.
+- Feature: `docs/features/clean-up-scripts-made-for-the-owner.md`; pult 0.1.40 (routine).
+- Owner's global `.cmd` rule needs no edit: it already says `Desktop/Claude` and delete after «Готово»; the hook is the backstop.
+- Not covered: a `.cmd` written by a shell command (not the Write tool) is not guarded or recorded.
+- Spend: ~0.1% of the weekly limit, estimate; API: 0 USD

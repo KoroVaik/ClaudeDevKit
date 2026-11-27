@@ -28,6 +28,7 @@ tables, not skill descriptions. A project may override a slot in its profile
 - [Stop the known Windows shell traps](../features/stop-the-known-windows-shell-traps.md)
 - [Run long commands in the background](../features/run-long-commands-in-the-background.md)
 - [Solve a hard core problem](../features/solve-a-hard-core-problem.md)
+- [Clean up scripts made for the owner](../features/clean-up-scripts-made-for-the-owner.md)
 
 ## Not written yet
 

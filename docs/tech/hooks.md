@@ -71,3 +71,11 @@ when it is not there yet (`spend-kit stats`). It runs in every project, prints n
 
 `plugins/pult/hooks/hub-rules.py` adds the hub rules to a session whose cwd is exactly the home folder and
 prints nothing elsewhere; see [the plugin README](../../plugins/pult/README.md).
+
+## Scripts made for the owner (pult, PreToolUse, PostToolUse, SessionStart)
+
+`plugins/pult/hooks/owner-scripts.py` runs in every session on the machine, one mode per event: `pre` refuses a Write of
+a `.cmd` or `.bat` file on the desktop outside the folder `Claude`; `post` records such a file written there (time,
+text hash) in `~/.claude/pult/owner-scripts.json`; `start` deletes a recorded file older than a day whose hash still
+matches, logging to `~/.claude/pult/logs/owner-scripts.log`. Rules:
+[Clean up scripts made for the owner](../features/clean-up-scripts-made-for-the-owner.md). It always exits 0.
