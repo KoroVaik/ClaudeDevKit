@@ -3,7 +3,9 @@ reader agent (`agents/part-reader.md`, model haiku). No model here.
 
 Signs are counted for body parts (`parts.body`: the session, a skill part, a subagent file); a hook event or an Agent
 call inside one counts for it, and their sets join its candidates. A part has a sign when
-- a general sign fires (GENERAL, the same for every set): `owner correction` (an owner message matches CORRECTION),
+- a general sign fires (GENERAL, the same for every set): `owner correction` (a re-ask: an owner message with a strong
+  word of REASK_STRONG, a bare «?», «що?» or «ще раз» of REASK_SHORT, or a question that repeats one of his last
+  REPEAT_LOOKBACK messages, `repeated_question`; the three are a copy of spend-kit's `signals.py`, kept equal by a test),
   `failed calls` (ERRORS_MIN error results in a main session; in a subagent's file one error repeated ERRORS_MIN
   times, `failed_calls`), `repeated call` (one tool with one input REPEAT_MIN times; background
   calls and the plugins' own commands left out, as in the scan), `hook refusal` (REFUSALS_MIN hook refusals),
@@ -42,8 +44,18 @@ MANY_CALLS = 150
 WAITING_TOOLS = {"AskUserQuestion"}
 OWN_COMMAND = ("dev-kit-", "rules-kit", "spend-kit")
 GENERAL = ("owner correction", "failed calls", "repeated call", "hook refusal", "slow call", "many calls")
-CORRECTION = re.compile(r"не так|я ж (казав|просив|писав)|не зрозумів|я заплутався|вгадуєш|навіщо ти|чому ти|"
-                        r"\?\?|!!!|that's wrong|i said", re.IGNORECASE)
+# The re-ask check (the sign `owner correction`): a copy of spend-kit signals.py, keep equal
+# (tools/tests/test_parts.py compares them). The owner re-asks when he repeats himself, which means the reply before
+# was built badly.
+REASK_STRONG = (r"не так|я ж (казав|просив|писав)|не зрозумів|я заплутався|вгадуєш|навіщо ти|чому ти|"
+                r"\?\?|!!!|that's wrong|i said")  # strong words, searched in the owner's message (IGNORECASE)
+REASK_SHORT = r"^\s*(?:\?+|(?:що|шо|what)\s*[?!]*|(?:ще раз|again)\b.*)\s*$"  # a bare «?», «що?», «ще раз» (IGNORECASE | DOTALL)
+REPEAT_MIN_WORDS = 3  # a repeated question has at least this many words of 3 or more letters
+REPEAT_LOOKBACK = 3  # and is compared with this many owner messages before it
+REPEAT_JACCARD = 0.6  # the share of the same words (Jaccard) from which it counts as the same question
+REASK_STRONG_RE = re.compile(REASK_STRONG, re.IGNORECASE)
+REASK_SHORT_RE = re.compile(REASK_SHORT, re.IGNORECASE | re.DOTALL)
+REASK_WORD = re.compile(r"[^\W\d_]{3,}")
 EXCERPT_CHARS = 12000
 LINE_CHARS = 400
 NEAR = 4  # entries kept around each sign line when the excerpt is cut
@@ -156,6 +168,40 @@ def failed_calls(part, errors):
     return repeated if len(repeated) >= ERRORS_MIN else []
 
 
+def reask_words(text):
+    """The set of the lower-cased words of 3 or more letters of a text."""
+    return set(REASK_WORD.findall(str(text).lower()))
+
+
+def repeated_question(text, previous_texts):
+    """Whether `text` (cleaned) is a question the owner asked again: it has a `?`, at least REPEAT_MIN_WORDS words of 3 or
+    more letters, and one of the last REPEAT_LOOKBACK of `previous_texts` (his earlier messages, oldest first, each with
+    that many words too) has a Jaccard share of the same words of REPEAT_JACCARD or more. Copy of spend-kit signals.py,
+    keep equal."""
+    words = reask_words(text)
+    if "?" not in text or len(words) < REPEAT_MIN_WORDS:
+        return False
+    for earlier in previous_texts[-REPEAT_LOOKBACK:]:
+        before = reask_words(earlier)
+        if len(before) >= REPEAT_MIN_WORDS and len(words & before) / len(words | before) >= REPEAT_JACCARD:
+            return True
+    return False
+
+
+def reask(text, previous_texts):
+    """The regular expression of the words that show a re-ask in the cleaned `text` (the strong words, a bare short
+    one, a repeated question of `previous_texts`), or None when it is no re-ask."""
+    text = text.strip()
+    found = REASK_STRONG_RE.search(text)
+    if found:
+        return re.escape(found.group(0))
+    if REASK_SHORT_RE.match(text):
+        return re.escape(text)
+    if repeated_question(text, previous_texts):
+        return pattern_of(text)
+    return None
+
+
 def pattern_of(text, length=40):
     """A regular expression for a sign that would catch this text: its first words, escaped."""
     words = " ".join(str(text).split())[:length].strip()
@@ -166,7 +212,13 @@ def mark(entries, found, registry=None, own=None, skip_first=False):
     """`[Marks]` of the body parts of one transcript that show a sign (module doc), in file order. `skip_first`: the
     first owner message is another session's brief (`talk.STARTED_BY_SESSION`), not the owner's words."""
     data = collect(entries, found)
-    first_owner = next((number for number, entry in entries if parts.prompt_kind(entry) == "owner"), None)
+    owner_lines = [(number, talk.cleaned(parts.text_of((entry.get("message") or {}).get("content"))))
+                   for number, entry in entries if parts.prompt_kind(entry) == "owner"]
+    first_owner = owner_lines[0][0] if owner_lines else None
+    earlier = {}  # owner line -> his messages before it (the first one left out when it is a brief), for repeated questions
+    for index, (number, _) in enumerate(owner_lines):
+        before = [text for line, text in owner_lines[:index] if not (skip_first and line == first_owner)]
+        earlier[number] = before[-REPEAT_LOOKBACK:]
     marked = []
     for part in found:
         if parts.body(part) is not part or id(part) not in data:
@@ -176,9 +228,9 @@ def mark(entries, found, registry=None, own=None, skip_first=False):
         for number, text in item["owner"]:
             if skip_first and number == first_owner:
                 continue
-            match = CORRECTION.search(talk.cleaned(text))
-            if match:
-                marks.general.setdefault("owner correction", ("process", re.escape(match.group(0)), text))
+            pattern = reask(talk.cleaned(text), earlier.get(number, []))
+            if pattern is not None:
+                marks.general.setdefault("owner correction", ("process", pattern, text))
                 marks.lines.add(number)
                 marks.evidence.append(text)
         errors = failed_calls(part, item["errors"])

@@ -34,7 +34,10 @@ Read only. Sources, per project:
   words, with no question; nothing printed: show nothing. The owner's «поверни <що>» about one of them: Pult finds
   its key in that list and runs `python -X utf8 {RULESKIT}/bin/rules-kit revert-request <key>` (the next retro of
   its project reverts it), and says so in one line. Why: owner, 2026-11-24 (`plans/retro-auto-rules-check.md` of
-  the dev-kit repo): the retro asks him nothing, everything it did is a passive list here.
+  the dev-kit repo): the retro asks him nothing, everything it did is a passive list here. A line with the action
+  `out-of-turn retro` (a critical finding started a retro before its turn) is shown in the same block. The owner's
+  «ретро тижня» or «покажи ретро»: Pult runs `python -X utf8 {RULESKIT}/bin/rules-kit weekly --start` and says in one
+  line that the session «Retro: тиждень» is open in the Claude app (it starts by itself once a week too).
 
 Traps:
 - In `claude agents --json`, state "blocked" with status "idle" is not a block or a denial (`{DEVKIT}/claude-facts.md`, "In `claude agents --json`, `blocked` with status `idle` only means the turn ended"); show it as idle. Exception: a session with a LIMIT line in the server history and no LIMIT-END or "WATCH started" after it stopped on the usage limit (see "Server history"). Name a session's state only as idle or busy ("вільна" / "зайнята"); never "працює", which the owner reads as busy on a task.

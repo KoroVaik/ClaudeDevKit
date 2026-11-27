@@ -12,8 +12,12 @@ default one when it has no file, is reviewed by that project).
     rules-kit done [--branch NAME] [--project DIR]
                                                   move the findings the last `items` showed to `seen/`; NAME: the
                                                   branch the retro session left for its lead to merge
-    rules-kit add --text LINE [--from NAME] [--project DIR | --set NAME] [--packet PATH]
-                                                  add a finding to a set's `new/` (any session, any project); with
+    rules-kit add --text LINE [--from NAME] [--project DIR | --set NAME] [--packet PATH] [--critical]
+                                                  add a finding to a set's `new/` (any session, any project);
+                                                  --critical: it counts as a critical line (see "Out-of-turn retro"),
+                                                  e.g. `add --critical --set pult --from "L: Zhratva" --text "move
+                                                  refusal | <reason>"` for a session's refusal to move to a fresh
+                                                  context; with
                                                   --project, to the sets that project reviews which the text names (a
                                                   file, or a skill or agent `plugin:name`; a line that starts
                                                   `claude app` or `owner check`: FACTS_SET), else to its own set; with
@@ -43,6 +47,8 @@ default one when it has no file, is reviewed by that project).
                                                   files (`git commit -- <files>`) and prints the hash, `restore` undoes
                                                   the edit of only those files (a rejected fix)
     rules-kit list [--days N]                     the done list, one plain line per action (Pult's «статус»)
+    rules-kit weekly [--start]                    the main retro summary of the week (see "Weekly"); --start: start the
+                                                  session the owner talks with now
     rules-kit budget --session-id ID              the run's spend against the cap: `under`, `over` or `unknown`
                                                   (exit 0 for `under`, 1 otherwise: an unknown spend stops the run)
     rules-kit hook-start | hook-end               SessionStart and SessionEnd hooks of the plugin (JSON on stdin)
@@ -74,8 +80,11 @@ of every project); one laid to a project's own set only from a retro project, as
 transcripts (with --session, the main files whose id starts with ID and their subagents; else those changed since
 DATE, default yesterday; the newest first; «Retro:» and «Docs:» sessions left out, the old «Ретро:» and «Документація:» too), marks the parts with a sign
 and writes their packets (`scripts/packets.py`) to `<retro folder>/packets/` (older than SEEN_DAYS days deleted), at
-most `--limit` (PACKETS_MAX); it prints one line per packet `<path> | <session> | <part> lines <a>-<b> | signs: ... |
-sets: ...` and then the parts counted by kind.
+most `--limit` (PACKETS_MAX) packets that are no re-ask: a packet whose part has the sign `owner correction` (the
+owner re-asked: strong words, a bare «?», «що?» or «ще раз», or a repeated question, `packets.reask`) is always written
+and never counted by the limit; the first owner message of an `M:` / `Discuss:` session is the task and stays skipped;
+it prints one line per packet `<path> | <session> | <part> lines <a>-<b> | signs: ... | sets: ...` and then the parts
+counted by kind.
 
 Retro projects: a project counts when its main checkout (the parent of the git common dir) has `.claude/dev-kit.md`
 with a line `## project-lead`, or its own `.claude/rules-subscription.md`. A transcript belongs to the project of the
@@ -95,7 +104,7 @@ Folders: the retro folder is env RULES_KIT_DIR, else `~/.claude/rules-kit` (loca
 used `~/.claude/dev-kit/retro` before, which `scripts/rules_dir.py` copies here once on the first run and leaves as it
 is). It holds the global `state.json` (byte offsets, `claude_version`: the
 highest Claude Code version seen in the transcripts, a string like `2.1.330`; `facts_recheck`: the day of the
-last weekly facts re-check line; the token keys an older version kept there, `daily`, `fit` and the like, are
+last weekly facts re-check line; `weekly_started`: the time the main retro session last started; the token keys an older version kept there, `daily`, `fit` and the like, are
 left alone: spend-kit copied them once), `scan.lock`, the human
 log `scan-<date>.md` (all findings of a full scan and the `## Spend` tables) and the owner's `notes.md`. Each rule set
 has `<retro folder>/sets/<set name>/` with:
@@ -164,13 +173,16 @@ time of last_review, or never>`; `claude code: <claude_version>` when the global
 `new/` of those sets (token problems first, under "Priority"; each set under a `### <set>` heading; a line that names a
 file of a recent fix ends `| possible breakage: <key>`, `fixes.breakage`); the revert requests of those sets
 (`## Revert requests`, `<set> | <key>`); for each set under `### <set> (<its items folder>)` one line per `items/*.md`
-file `<cause-key> | <status> | <kind> | sightings <N>` (N = the lines starting `- seen:`); and per set `landed fixes in
+file `<cause-key> | <status> | <kind> | sightings <N> | cost <X.Y>%` (N = the lines starting `- seen:`; cost = the sum of
+the numbers `<X>% of the weekly limit` in those lines, which spend-kit's findings carry, `cost 0%` for none), the
+costliest first, then the most seen, then by key (the retro fixes in that order); and per set `landed fixes in
 the last 7 days (<set>): <N> of FIXES_PER_WEEK` (`fixes.landed`). It records the `new/` file names it
 showed (`<set>/<file>`); `done` moves exactly those to `seen/` of their set, sets `last_review`, records `retro_branch`
 (`--branch`, else none) and deletes what is older than SEEN_DAYS in `seen/`. Findings that came after `items` stay
 new. `items`, `add` and `done` print the work of the first run (the migration) on stderr.
-`hook-start` (never fails, exit 0): in a retro project, a session titled `Retro:` or `Docs:` (or the old `Ретро:`, `Документація:`) does nothing; a
-full scan is spawned
+`hook-start` (never fails, exit 0): a session titled `Retro:` or `Docs:` (or the old `Ретро:`, `Документація:`; the weekly
+`Retro: тиждень` too) does nothing; any other session first starts the weekly session when it is due ("Weekly"); in a
+retro project a full scan is spawned
 (detached) when none ran today and the scan lock is free; then, under the project lock, when a retro is due
 (`retro_due`: `new/` of a set the project reviews has files, a revert request, a `reverted` item or a fixed item with
 new sessions to check waits) and `last_review` is older than REVIEW_HOURS (or missing),
@@ -219,7 +231,36 @@ Token findings (owner, 2026-11-20, docs/features/fix-agent-problems-in-the-retro
 units, the waste kinds, the thresholds and the line formats). Each line is routed like the other findings (a
 `Retro:` or `Docs:` session's lines are dropped, the old titles too); `token ...` lines are the "Priority" part of `items`. The
 scan file also gets spend-kit's `## Spend` section of `| `-table lines (not findings; they stay in the scan files
-only).
+only). Spend-kit's lines of the kinds `experiment alarm` and `experiment result` go to the set SPEND_SET (`spend-kit`)
+whatever their `cwd` (the experiments belong to the plugins); a critical token line (below) also gets a copy in that
+set besides the own set of its project. Its other kinds (`rework`, `model mismatch`, `duplicate work`) are routed by
+the `cwd` like the first four.
+
+Out-of-turn retro (owner, 2026-11-27, plans/limit-spend.md point 15): a critical line is a finding line that has
+`| experiment alarm |` or `| move refusal |` (a session's refusal to move to a fresh context; `add --critical` marks
+any added line the same way), or a `| token spend |` / `| token waste |` line whose detail has `critical` (spend-kit's
+`critical (shown in Pult's status)`). After a scan (the full one and a transcript's) and after `add --critical`, for
+every retro project that reviews a set which just got a critical line, the retro starts now, with no question to the
+owner: it skips REVIEW_HOURS and START_GUARD_HOURS (and `retro_due`) but not the docs-session gate, a missing `claude`,
+env RULES_KIT_NO_START (the stamp is made, nothing starts), and "one at a time": not when a retro of that project
+started less than OUT_OF_TURN_GUARD_HOURS ago and has not finished (its `retro_started` is newer than its `last_review`).
+The project is found by the `root` of its state folder (one with none is skipped); the command line and the
+`retro_started` stamp are those of `retro_start_command`. The done list gets `Позачергове ретро <project>: <kind and
+title of the first critical line>` (action `out-of-turn retro`, `scripts/fixes.py`), which Pult's «статус» shows through
+`rules-kit list`. The retro's own spend cap stays.
+
+Weekly (owner, 2026-11-27, point 7): `rules-kit weekly` prints the main retro summary as plain text under four Ukrainian
+headings: `Витрати` (the output of `spend-kit stats`, or `spend-kit недоступний`), `Експерименти` (the output of
+`spend-kit experiments` when that exits 0, else no block), `Виправлено за тиждень` (the done-list lines of the last
+WEEKLY_DAYS days with the actions `fixed`, `sign added`, `worked`, `reverted` and `out-of-turn retro`, grouped by item,
+a fixed item marked `підтверджено` when a later `worked` line has it, else `ще не підтверджено`; the costliest first,
+WEEKLY_LIST_MAX at most) and `Заплановано` (the items with status `waiting` or `second-try` in every set, the costliest
+first, WEEKLY_LIST_MAX at most, `<title> (<set>) - бачили N раз, X% тижневого ліміту`). `weekly --start` starts the
+session `Retro: тиждень` now (`claude --bg --permission-mode bypassPermissions --model opus --effort medium --
+/rules-kit:weekly-retro`; no Remote Control file: the owner talks with it) in the checkout of the project named
+ClaudeDevKit (the `root` of its state folder; none: it prints why and exits 1), stamps `weekly_started` of the global
+state under `scan.lock` and prints `started` (env RULES_KIT_NO_START: the stamp, nothing starts). The SessionStart hook
+does the same once in WEEKLY_DAYS days (the stamp missing or that old), from a session of any project.
 
 Findings and item files are read as UTF-8 with a BOM allowed and bad bytes replaced. `notes.md` holds what only a
 session can see; sessions append one line per case (the owner's global `docs/process-mistakes.md`):
@@ -231,6 +272,7 @@ Exit codes: 0 done, 2 bad arguments.
 import argparse
 import contextlib
 import datetime
+import io
 import json
 import os
 import re
@@ -265,10 +307,25 @@ PROFILE_LINE = "## project-lead"  # the line of `.claude/dev-kit.md` that makes 
 FIXES_PER_WEEK = fixes.FIXES_PER_WEEK  # the cap of landed fixes per set per week, shown by `items`
 REVIEW_HOURS = 20  # no new retro session while the last review is younger
 START_GUARD_HOURS = 6  # no new retro session while the last start is younger (a session that is still running)
+OUT_OF_TURN_GUARD_HOURS = 2  # no out-of-turn retro while one that started this recently has not finished
+OUT_OF_TURN_ACTION = "out-of-turn retro"  # its done-list action (`fixes.ACTIONS`)
+OUT_OF_TURN_LABEL_CHARS = 100  # the critical line's kind and title in the done-list text
+SPEND_SET = "spend-kit"  # the set that gets the experiment lines and a copy of every critical token line
+SPEND_SET_KINDS = ("experiment alarm", "experiment result")  # spend-kit's kinds that go to SPEND_SET whatever their cwd
+CRITICAL_KINDS = ("experiment alarm", "move refusal")  # a finding of these kinds starts an out-of-turn retro
+WEEKLY_DAYS = 7  # the SessionStart hook starts the main retro session when the last start is this old
+WEEKLY_TITLE = f"{session_titles.RETRO} тиждень"  # its title; a `Retro:` title is skipped like every retro session
+WEEKLY_ACTIONS = ("fixed", "sign added", "worked", "reverted", OUT_OF_TURN_ACTION)  # the done-list lines of the summary
+WEEKLY_WORDS = {"fixed": "виправлено", "sign added": "додано ознаку", "worked": "спрацювало",
+                "reverted": "повернуто", OUT_OF_TURN_ACTION: "позачергове ретро"}
+WEEKLY_WAITING = ("waiting", "second-try")  # the item statuses the summary lists as planned
+WEEKLY_LIST_MAX = 10  # lines in each list of the summary
+SPEND_STATS_TIMEOUT_S = 120  # the `spend-kit stats` and `experiments` calls of the summary
 SEEN_DAYS = 30  # `done` deletes what is older in `seen/`
 LOCK_NAME = "scan.lock"
 LOCK_STALE_S = 600
 LOCK_WAIT_TRANSCRIPT_S = 5
+LOCK_WAIT_WEEKLY_S = 2  # the weekly stamp is made in a SessionStart hook (10 s limit): it waits less than a scan does
 LOCK_WAIT_FULL_S = 60
 PROJECT_LOCK_NAME = "state.lock"  # in a project's item folder, for its state.json
 PROJECT_LOCK_STALE_S = 60
@@ -283,6 +340,8 @@ CREATE_BREAKAWAY_FROM_JOB = 0x01000000
 HEAD_LINES = 200  # the lines of a transcript's start searched for its `cwd`
 WORKTREES = re.compile(r"[\\/]\.claude[\\/]worktrees[\\/]", re.IGNORECASE)
 URGENT_LINE = re.compile(r" \| token (spend|waste) \| ")
+CRITICAL_TOKEN = re.compile(r" \| token (?:spend|waste) \| .*critical")  # spend-kit: `critical (shown in Pult's status)`
+WEEKLY_SHARE = re.compile(r"([\d.]+)% of the weekly limit")  # the cost spend-kit puts into a finding's detail
 Project = namedtuple("Project", "root name folder")  # main checkout, its folder name, the retro folder name
 REPEAT_MIN = 3
 ERRORS_MIN = 3
@@ -293,7 +352,8 @@ SCRIPT_SESSIONS = 3
 HOOK_REFUSALS_MIN = 2  # one refusal is the hook doing its work; a second one of the same reason is a call repeated
 PART_FINDINGS = ("repeated call", "failed calls", "hook refusal")  # the technical findings laid to a part's set
 PACKETS_FOLDER = "packets"  # in the retro folder: the packets of `rules-kit parts`
-PACKETS_MAX = 20  # the packets one `parts` run writes at most (each costs one part reader)
+PACKETS_MAX = 20  # the packets one `parts` run writes at most (each costs one part reader); a re-ask packet is not counted
+REASK_SIGN = "owner correction"  # the general sign of an owner's re-ask (packets.GENERAL): its packets are always written
 WAITING_TOOLS = {"AskUserQuestion"}
 OWN_COMMAND = ("dev-kit-", "rules-kit", "spend-kit")  # the plugins' own commands, run by rules at fixed moments (the Lead's checks)
 SCRIPT_MIN_CHARS = 30  # shorter Bash commands (git status, ls) are not worth a script
@@ -970,6 +1030,70 @@ def spend_kit_findings(transcript=None):
                                                    if isinstance(table, list) else [])
 
 
+def finding_kind(line):
+    """The kind of a finding line `- <project> | <title> | <kind> | <detail>` ('' when it has none)."""
+    fields = line.split(" | ")
+    return fields[2].strip() if len(fields) > 2 else ""
+
+
+def is_critical(line):
+    """Whether a finding line is critical (module doc, "Out-of-turn retro"): an experiment alarm, a refusal to move to a
+    fresh context, or a token line spend-kit marked `critical`."""
+    return any(f" | {kind} | " in line for kind in CRITICAL_KINDS) or bool(CRITICAL_TOKEN.search(line))
+
+
+def critical_lines(routed):
+    """`{set name: its first critical line}` of the lines just routed (`set name -> lines`)."""
+    found = {}
+    for name, lines in routed.items():
+        line = next((line for line in lines if is_critical(line)), None)
+        if line:
+            found[name] = line
+    return found
+
+
+def critical_label(line):
+    """A critical line in a few words for the done list: its kind and its session title (else the line itself)."""
+    fields = [field.strip() for field in (line[2:] if line.startswith("- ") else line).split(" | ")]
+    text = f"{fields[2]}: {fields[1]}" if len(fields) > 2 else line
+    return " ".join(text.split())[:OUT_OF_TURN_LABEL_CHARS]
+
+
+def start_out_of_turn(critical, registry, out):
+    """Start the retro of every retro project that reviews a set in `critical` (`{set name: critical line}`) now,
+    past REVIEW_HOURS and START_GUARD_HOURS (`retro_start_command(out_of_turn=True)`), with a done-list line for each;
+    the project's `root` comes from its state folder, one with none is skipped. Returns the project names started."""
+    started = []
+    if not critical:
+        return started
+    for state_file in sorted(retro_dir(create=False).glob("*/state.json")):
+        folder = state_file.parent
+        root = load_project(folder).get("root")
+        if not isinstance(root, str) or not root or not is_retro_project(root):
+            continue
+        project = Project(Path(root), Path(root).name, folder.name)
+        names = reviewed_sets(registry, project)
+        hit = next((name for name in names if name in critical), None)
+        if hit is None:
+            continue
+        command = None
+        with project_lock(folder) as held:
+            if not held:
+                continue
+            state = load_project(folder)
+            before = state.get("retro_started")
+            command = retro_start_command(project, folder, state, names, registry, out_of_turn=True)
+            if state.get("retro_started") != before:  # stamped: a retro starts (or would, with RULES_KIT_NO_START)
+                fixes.record(retro_dir(), hit, f"out-of-turn-{project.name.lower()}", OUT_OF_TURN_ACTION,
+                             f"Позачергове ретро {project.name}: {critical_label(critical[hit])}")
+                write_run_file(project, state, names, registry)
+                started.append(project.name)
+        if command:
+            spawn(command, cwd=str(project.root))
+            print(f"out-of-turn retro started: {project.name}", file=out)
+    return started
+
+
 def scan(days=1, force=False, out=None, transcript=None):
     """The full scan, or with `transcript` only that transcript and its subagents (see the module doc)."""
     out = out or sys.stdout
@@ -1134,9 +1258,15 @@ def scan_locked(folder, days, force, out, transcript):
         if str(entry.get("title") or "").strip().startswith(SKIP_TITLES):
             continue
         out_lines.append(entry["line"])
+        if finding_kind(entry["line"]) in SPEND_SET_KINDS and SPEND_SET in registry.sets:
+            routed[SPEND_SET].append(entry["line"])  # the experiments belong to the plugins, not to the session's project
+            continue
         owner = mapper.project_of_cwd(entry.get("cwd"))
         if owner:
             routed[own_set(owner)].append(entry["line"])
+        if CRITICAL_TOKEN.search(entry["line"]) and SPEND_SET in registry.sets and not (
+                owner and own_set(owner) == SPEND_SET):
+            routed[SPEND_SET].append(entry["line"])  # a critical token problem is also spend-kit's to look at
     if not transcript:
         newest = max(filter(None, (result["version"] for result in windows.values())), default=None)
         if newest:
@@ -1169,6 +1299,7 @@ def scan_locked(folder, days, force, out, transcript):
         state["last_scan"] = day
     save_state(folder, state)
     print(f"scanned {len(windows)} transcript(s), {len(out_lines)} finding(s)", file=out)
+    start_out_of_turn(critical_lines(routed), registry, out)
     return 0
 
 
@@ -1327,10 +1458,21 @@ def state_busy():
     return 1
 
 
+def seen_cost(line):
+    """The share of the weekly limit (in percent) that a `- seen:` line names (`spend-kit` writes it into the detail of
+    its rework, model and waste findings as `X% of the weekly limit`); 0 for none."""
+    total = 0.0
+    for number in WEEKLY_SHARE.findall(line):
+        with contextlib.suppress(ValueError):
+            total += float(number)
+    return total
+
+
 def read_item(path):
-    """`(status, kind, sightings)` of one item file."""
+    """`(status, kind, sightings, cost)` of one item file; cost: the sum of `seen_cost` of its `- seen:` lines."""
     status = kind = "?"
     sightings = 0
+    cost = 0.0
     for line in read_lines(path):
         if line.startswith("- status:"):
             status = fixes.status_word(line[len("- status:"):].strip() or "?")
@@ -1338,7 +1480,13 @@ def read_item(path):
             kind = line[len("- kind:"):].strip() or "?"
         elif line.startswith("- seen:"):
             sightings += 1
-    return status, kind, sightings
+            cost += seen_cost(line)
+    return status, kind, sightings, cost
+
+
+def cost_text(cost):
+    """`X.Y%` for a cost, `0%` for none."""
+    return f"{cost:.1f}%" if cost else "0%"
 
 
 def items(directory=None, out=None):
@@ -1381,11 +1529,13 @@ def items(directory=None, out=None):
     print("\n## Items", file=out)
     counts = []
     for name in names:
-        rows = []
+        found = []
         folder_items = set_dir(name) / "items"
         for path in sorted(folder_items.glob("*.md")) if folder_items.is_dir() else []:
-            status, kind, sightings = read_item(path)
-            rows.append(f"{path.stem} | {status} | {kind} | sightings {sightings}")
+            status, kind, sightings, cost = read_item(path)
+            found.append((-cost, -sightings, path.stem, f"{path.stem} | {status} | {kind} | sightings {sightings} | "
+                                                       f"cost {cost_text(cost)}"))
+        rows = [row for _, _, _, row in sorted(found)]  # the costliest first, then the most seen, then by key
         print(f"### {name} ({folder_items})", file=out)
         print("\n".join(rows) or "(none)", file=out)
         counts.append(f"landed fixes in the last 7 days ({name}): "
@@ -1511,11 +1661,13 @@ def docs_may_run(project):
     return bool(started and not older(docs, "docs_started", START_GUARD_HOURS) and (not finished or started > finished))
 
 
-def add(text, sender=None, directory=None, out=None, set_name=None, packet=None):
+def add(text, sender=None, directory=None, out=None, set_name=None, packet=None, critical=False):
     """Add one finding line to the `new/` of a set, as a file of its own. `set_name` names the set; otherwise the
     project (`--project`, see `project_for`) is the alias for the sets it reviews that the text names (a file or a
     skill or agent of that set), else for its own set. `packet`: the part reader's packet the finding came from; a set
-    none of whose own signs fired for that part also gets a `sign-gap` line in the same file (`packets.gap_line`)."""
+    none of whose own signs fired for that part also gets a `sign-gap` line in the same file (`packets.gap_line`).
+    `critical`: the line counts as critical whatever it says (a refusal to move to a fresh context is written
+    `move refusal | <reason>`), so the retro of every project that reviews the set starts out of turn."""
     out = out or sys.stdout
     registry = None
     data = None
@@ -1551,6 +1703,8 @@ def add(text, sender=None, directory=None, out=None, set_name=None, packet=None)
         print(f"added to {write_new(name, file_name, [line] + ([gap] if gap else []))}", file=out)
         if gap:
             print(f"sign gap recorded for {name}", file=out)
+    if critical:
+        start_out_of_turn({name: line for name in names}, registry, out)
     return 0
 
 
@@ -1583,7 +1737,7 @@ def parts_command(session=None, since=None, limit=PACKETS_MAX, out=None):
     prune(folder, SEEN_DAYS)
     hooks = parts.HookIndex()
     kinds = Counter()
-    written = skipped = 0
+    written = capped = skipped = 0  # `capped`: the packets that count against the limit (a re-ask packet never does)
     for _, main in sorted(mains, reverse=True):
         entries = parts.read_file(main)
         title = parts.title_of(entries).strip()
@@ -1602,11 +1756,13 @@ def parts_command(session=None, since=None, limit=PACKETS_MAX, out=None):
             kinds.update(part.kind for part in found)
             skip_first = kind == "session" and title.startswith(talk.STARTED_BY_SESSION)
             for marks in packets.mark(found_entries, found, registry, own, skip_first):
-                if written >= limit:
+                reasked = REASK_SIGN in marks.general  # the owner's re-asks are never dropped
+                if not reasked and capped >= limit:
                     skipped += 1
                     continue
                 packet, data = packets.write(folder, path, part_label, found_entries, marks, registry, own)
                 written += 1
+                capped += not reasked
                 signs = [item["sign"] for item in data["general"]] + [
                     f"{set_name}: {sign}" for set_name, names in data["own_signs"].items() for sign in names]
                 print(f"{packet} | {part_label} | {marks.part.label()} lines {marks.part.start}-{marks.part.end} | "
@@ -1768,6 +1924,116 @@ def list_command(days=None, out=None):
     return 0
 
 
+def spend_text(args):
+    """The text `spend-kit <args>` printed, or None when it is not installed, fails or prints nothing."""
+    done = spend_client.run(args, SPEND_STATS_TIMEOUT_S)
+    text = done.stdout.strip() if done is not None and done.returncode == 0 else ""
+    return text or None
+
+
+def weekly_fixed(data_dir, sets_root):
+    """The done-list lines of the last WEEKLY_DAYS days of the summary (WEEKLY_ACTIONS), grouped by `(set, key)`, as
+    lines, the costliest item first (then the most seen, then by key), WEEKLY_LIST_MAX at most: `<title> (<set>): <what
+    happened, in words>`, for a fixed item `, підтверджено` when a later `worked` line of the done list has the same item,
+    else `, ще не підтверджено`; a line with no item file behind it (the out-of-turn retro) is the done list's own text
+    and costs 0."""
+    groups = {}
+    for entry in fixes.read_done(data_dir, WEEKLY_DAYS):
+        if entry.get("action") in WEEKLY_ACTIONS:
+            groups.setdefault((str(entry.get("set")), str(entry.get("key"))), []).append(entry)
+    everything = fixes.read_done(data_dir)
+    rows = []
+    for (set_name, key), entries in groups.items():
+        path = Path(sets_root) / set_name / "items" / f"{key}.md"
+        _, _, sightings, cost = read_item(path)
+        words = []
+        for entry in entries:
+            word = WEEKLY_WORDS[entry["action"]]
+            if word not in words:
+                words.append(word)
+        if path.is_file():
+            text = f"{fixes.Item(path, set_name).title} ({set_name}): {', '.join(words)}"
+        else:  # no item behind the line (an out-of-turn retro): the done list's own words
+            text = f"{entries[-1].get('text') or key} ({set_name})"
+        fixed_on = max((str(entry.get("date")) for entry in entries if entry.get("action") in ("fixed", "sign added")),
+                       default=None)
+        if fixed_on:
+            later = any(other.get("action") == "worked" and other.get("set") == set_name and other.get("key") == key
+                        and str(other.get("date")) >= str(fixed_on) for other in everything)
+            text += ", підтверджено" if later else ", ще не підтверджено"
+        rows.append((cost, sightings, key, text))
+    rows.sort(key=lambda row: (-row[0], -row[1], row[2]))
+    return [row[3] for row in rows[:WEEKLY_LIST_MAX]]
+
+
+def weekly_planned(sets_root):
+    """The items with status `waiting` or `second-try` in every set, costliest first (then the most seen, then by key),
+    WEEKLY_LIST_MAX at most, each `<title> (<set>) - бачили N раз, X% тижневого ліміту`."""
+    rows = []
+    root = Path(sets_root)
+    for folder in sorted(root.iterdir()) if root.is_dir() else []:
+        for item in fixes.items_of(root, [folder.name]):
+            status, _, sightings, cost = read_item(item.path)
+            if status.lower() in WEEKLY_WAITING:
+                rows.append((-cost, -sightings, item.key,
+                             f"{item.title} ({item.set}) - бачили {sightings} раз, {cost_text(cost)} тижневого ліміту"))
+    return [row[3] for row in sorted(rows)[:WEEKLY_LIST_MAX]]
+
+
+def weekly_command(start=False, out=None):
+    """`rules-kit weekly`: the main retro summary (module doc, "Weekly"); with `start` start its session instead."""
+    out = out or sys.stdout
+    if start:
+        return weekly_start(out)
+    data_dir = retro_dir(create=False)
+    sets_root = data_dir / SETS_FOLDER
+    blocks = [("Витрати", spend_text(["stats"]) or "spend-kit недоступний")]
+    experiments = spend_text(["experiments"])
+    if experiments:
+        blocks.append(("Експерименти", experiments))
+    blocks.append(("Виправлено за тиждень", "\n".join(f"- {line}" for line in weekly_fixed(data_dir, sets_root))
+                   or "(нічого)"))
+    blocks.append(("Заплановано", "\n".join(f"- {line}" for line in weekly_planned(sets_root)) or "(нічого)"))
+    print("\n\n".join(f"{title}\n{text}" for title, text in blocks), file=out)
+    return 0
+
+
+def weekly_start(out=None, only_when_due=False):
+    """Start the main retro session now (`claude --bg` on Opus, `/rules-kit:weekly-retro`; the owner talks with it, so
+    no `--settings` file without Remote Control) in the checkout of the project named ClaudeDevKit (the `root` of its
+    state folder) and stamp `weekly_started` of the global state under `scan.lock`. `only_when_due`: only when that stamp
+    is missing or WEEKLY_DAYS old (the SessionStart hook). Env RULES_KIT_NO_START=1 stamps but starts nothing. Prints
+    `started` or the reason it did not; returns the exit code (1 when no ClaudeDevKit root is known)."""
+    out = out or sys.stdout
+    if only_when_due and not older(load_state(retro_dir(create=False)), "weekly_started", WEEKLY_DAYS * 24):
+        return 0
+    known = known_roots().get(DEVKIT_NAME)
+    if not known:
+        print("not started: no known ClaudeDevKit project (its state folder has no root)", file=out)
+        return 1
+    root = known[1]
+    claude = claude_path.find_claude()
+    if not claude:
+        print("not started: no claude command found", file=out)
+        return 1
+    with scan_lock(retro_dir(), LOCK_WAIT_WEEKLY_S) as held:
+        if not held:
+            print("not started: another scan holds scan.lock", file=out)
+            return 1
+        state = load_state(retro_dir())
+        if only_when_due and not older(state, "weekly_started", WEEKLY_DAYS * 24):
+            return 0
+        state["weekly_started"] = now_utc().isoformat()
+        save_state(retro_dir(), state)
+    if os.environ.get(NO_START_ENV) == "1":
+        print("not started: RULES_KIT_NO_START=1 (stamped)", file=out)
+        return 0
+    spawn([claude, "--bg", "--name", WEEKLY_TITLE, "--permission-mode", "bypassPermissions", "--model", "opus",
+           "--effort", "medium", "--", "/rules-kit:weekly-retro"], cwd=root)
+    print("started", file=out)
+    return 0
+
+
 def budget_command(session_id, out=None):
     word, _, text = fixes.budget(session_id)
     print(f"{word}: {text}", file=out or sys.stdout)
@@ -1807,7 +2073,10 @@ def hook_start(payload):
     """SessionStart in a retro project: record the lead, start the daily scan and the retro session (module doc)."""
     project = Mapper().project_of_cwd(payload.get("cwd"))
     title = str(payload.get("session_title") or "").strip()
-    if not project or title.startswith(SKIP_TITLES):
+    if title.startswith(SKIP_TITLES):
+        return
+    weekly_start(io.StringIO(), only_when_due=True)  # the main retro session, once in WEEKLY_DAYS, from any project
+    if not project:
         return
     folder = project_folder(project)
     retro = retro_dir()
@@ -1828,12 +2097,26 @@ def hook_start(payload):
         spawn(command, cwd=str(project.root))
 
 
-def retro_start_command(project, folder, state, names, registry=None):
+def retro_running(state):
+    """Whether a retro of the project started less than OUT_OF_TURN_GUARD_HOURS ago and has not finished: its
+    `retro_started` is newer than its `last_review` (the retro's `done` stamps that)."""
+    if older(state, "retro_started", OUT_OF_TURN_GUARD_HOURS):
+        return False
+    reviewed = parse_time(state.get("last_review", ""))
+    return not reviewed or parse_time(state.get("retro_started", "")) > reviewed
+
+
+def retro_start_command(project, folder, state, names, registry=None, out_of_turn=False):
     """The command that starts the retro session when a retro is due in the sets `names` (`retro_due`: findings, a
     revert request, a reverted item, a fixed item with new sessions to check), the review is old and no
     start is recent; it stamps `retro_started` (the caller holds the project lock). None otherwise, and with env
-    RULES_KIT_NO_START=1."""
-    if not retro_due(names, state, registry) or not older(state, "retro_started", START_GUARD_HOURS):
+    RULES_KIT_NO_START=1. `out_of_turn`: a critical finding starts it now, so REVIEW_HOURS, START_GUARD_HOURS and
+    `retro_due` are skipped; only a retro still running (`retro_running`) holds it, and the docs session and a missing
+    `claude` as always."""
+    if out_of_turn:
+        if retro_running(state):
+            return None
+    elif not retro_due(names, state, registry) or not older(state, "retro_started", START_GUARD_HOURS):
         return None
     if docs_may_run(project):
         return None  # dev-kit's docs session may still run: never both at once
@@ -1885,6 +2168,8 @@ def main(argv=None):
             command.add_argument("--from", dest="sender")
             command.add_argument("--set", dest="set_name", help="the rule set that gets the finding (instead of --project)")
             command.add_argument("--packet", help="the part packet the finding came from (adds a sign-gap line)")
+            command.add_argument("--critical", action="store_true",
+                                 help="the line is critical: the retro of the sets' reviewers starts out of turn")
     command = sub.add_parser("parts")
     command.add_argument("--session", help="the start of a session id")
     command.add_argument("--since", help="a date YYYY-MM-DD (default: yesterday)")
@@ -1913,6 +2198,8 @@ def main(argv=None):
     command.add_argument("--message", default="")
     command = sub.add_parser("list")
     command.add_argument("--days", type=int)
+    command = sub.add_parser("weekly")
+    command.add_argument("--start", action="store_true", help="start the main retro session now instead of printing")
     command = sub.add_parser("budget")
     command.add_argument("--session-id", required=True)
     sub.add_parser("hook-start")
@@ -1942,8 +2229,11 @@ def main(argv=None):
         return list_command(args.days)
     if args.command == "budget":
         return budget_command(args.session_id)
+    if args.command == "weekly":
+        return weekly_command(args.start)
     if args.command == "add":
-        return add(args.text, args.sender, args.project, set_name=args.set_name, packet=args.packet)
+        return add(args.text, args.sender, args.project, set_name=args.set_name, packet=args.packet,
+                   critical=args.critical)
     if args.command == "parts":
         return parts_command(args.session, args.since, args.limit)
     if args.command == "sets":
