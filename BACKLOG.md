@@ -37,9 +37,8 @@ Why: owner, 2026-11-25, «Обговорення: Перевірка зібра�
 Cheapest test: list every role name the owner sees in a lead's chat and session titles, and check each has one meaning.
 Verdict (2026-11-25): owner «Можна зараз»: discussion started («Обговорення: Назви ролей сесій»).
 
-## A `.cmd` file made for the owner was left on the desktop after use
+## Review session: the screen question alone, in its own message
 
-What: make the clean-up of an agent-written `.cmd` survive the session that wrote it, e.g. a Lead or Pult check that lists `.cmd` files on the desktop and in `Desktop/Claude` older than a day and removes the ones an agent wrote, or a record of written files that the next Lead start cleans up; and keep such files only in `Desktop/Claude`.
-Why: L: Zhratva, found 2026-11-26. `Zhratva - allow push main.cmd` (made 2026-11-22, lifts the push-to-main deny lines) stayed on the owner's desktop itself, not in the `Claude` folder, and nobody deleted it after the owner ran it. On 2026-11-26 the owner looked for a new script, saw only that old file and was confused. The owner's global rule says the agent writes the `.cmd` into `Desktop/Claude` and deletes it after the owner's «Готово»; neither held (wrong place, not deleted, the session that made it ended). Owner: «там тіки старий файл який ти н прибрав схоже», then «видалити і написати девкіту що ти не видалив його сам». The Lead deleted it on 2026-11-26.
-Cheapest test: write a `.cmd` in a session, end it without the owner's «Готово»; the next Lead start reports or removes it.
-Verdict (2026-11-27): build in one Manager (a Lead or Pult check plus the rule); asked as the Lead's question.
+What: in `plugins/dev-kit/skills/project-lead/SKILL.md`, the first prompt of a review «Discuss:» session of a built screen (the «так» / «є питання» ask) should say: ask «екран прийнято?» in a message of its own with only the screen pictures and no other question; the user-walk design questions come in later messages, one at a time (`web-kit:design-screen`, "Show to the owner"), never as a batch beside it.
+Why: owner, 2026-11-27 (Zhratva review session «Discuss: Огляд картки типу страви»): the session put the screen question, a defect note and a 5-question batch in one message; the owner's bare «Так» was ambiguous, the session asked «1 чи 2?», owner: «Знову каша з питань». Idea approved by the owner 2026-11-27.
+Cheapest test: replay that review prompt; the first owner-facing message holds the pictures and only the screen question.

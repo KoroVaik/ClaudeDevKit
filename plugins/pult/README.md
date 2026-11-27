@@ -8,10 +8,14 @@ that project's lead as a message (`scripts/send-to-lead.ps1`).
 
 ## How it works
 
-- The plugin is enabled at user scope, so it loads in every session on the machine. It acts only in a
+- The plugin is enabled at user scope, so it loads in every session on the machine. Its hub rules act only in a
   session whose cwd is exactly the home folder: the SessionStart hook `hooks/hub-rules.py` then adds the
   hub rules (`rules/hub.md`) to the context. Everywhere else (any project folder, including those under
   home) the hook prints nothing.
+- One hook acts in every session: `hooks/owner-scripts.py` keeps the `.cmd` files agents write for you in the
+  folder `Claude` on your desktop and deletes one left there over a day unchanged (log
+  `~/.claude/pult/logs/owner-scripts.log`; rules:
+  [Clean up scripts made for the owner](../../docs/features/clean-up-scripts-made-for-the-owner.md)).
 - The Remote Control server "Pult" runs with cwd = the home folder, so its sessions get these rules.
 - The project list is the lead entries of `scripts/servers.psd1`. To add a project, add one row there.
 - One permission mode: every session the plugin starts (leads, the hub, `start-session.ps1`) runs in
