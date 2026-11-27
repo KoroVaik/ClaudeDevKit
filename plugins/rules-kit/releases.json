@@ -1,4 +1,5 @@
 {
   "0.1.0": {"kind": "routine", "date": "2026-11-24", "reason": "first release: the retro and edit-rules moved here, rule subscriptions, rule checks by type, the retro fixes rules itself"},
-  "0.1.1": {"kind": "routine", "date": "2026-11-25", "reason": "retro and talk match the new session titles L:, M:, Retro:, Docs: and the old ones"}
+  "0.1.1": {"kind": "routine", "date": "2026-11-25", "reason": "retro and talk match the new session titles L:, M:, Retro:, Docs: and the old ones"},
+  "0.1.2": {"kind": "routine", "date": "2026-11-27", "reason": "every re-ask counts, items ordered by cost, out-of-turn retro on a critical finding, weekly retro session for the owner"}
 }

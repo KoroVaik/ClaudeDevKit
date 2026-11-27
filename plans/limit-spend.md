@@ -1,6 +1,6 @@
 # Spend the 5-hour limit slower
 
-Status: discussion closed 2026-11-27, owner «Так» to the short plan; build next.
+Status: built 2026-11-27 (M: token-waste); open items below.
 
 ## Owner's words
 
@@ -179,7 +179,7 @@ picture: «автозапуски службових ретросесій в п�
 
 ## Build (M: token-waste, 2026-11-27)
 
-Spend: ~0% of the weekly limit, estimate; API: 0 USD (updated per step).
+Spend: ~3% of the weekly limit, estimate; API: 0 USD.
 
 Surveys (local, agents only): C:/Users/korov/.claude/jobs/fd86cac7/tmp/survey-{rules,spend,pult}.md.
 

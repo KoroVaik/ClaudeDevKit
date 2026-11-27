@@ -9,5 +9,6 @@
   "0.1.39": {"kind": "routine", "date": "2026-11-26", "reason": "each lead start sets the lead's title in the Claude app to its name, so renamed leads show «L: <project>»"},
   "0.1.40": {"kind": "routine", "date": "2026-11-27", "reason": "a hook keeps the owner's .cmd files in the desktop folder Claude and deletes ones left there over a day"},
   "0.1.41": {"kind": "routine", "date": "2026-11-27", "reason": "the hard-ban gate reads master when a project has no main, so its sessions can start"},
-  "0.1.42": {"kind": "routine", "date": "2026-11-27", "reason": "Pult passes the owner's requests for a project to its lead as a ДОРУЧЕННЯ message"}
+  "0.1.42": {"kind": "routine", "date": "2026-11-27", "reason": "Pult passes the owner's requests for a project to its lead as a ДОРУЧЕННЯ message"},
+  "0.1.43": {"kind": "routine", "date": "2026-11-27", "reason": "the watcher asks idle Leads, Managers and Discuss sessions to move to a fresh context before the cache expires and moves them"}
 }
