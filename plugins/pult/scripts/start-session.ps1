@@ -21,12 +21,12 @@ function ConvertTo-NativeArg([string]$s) {
 
 $prompt = [IO.File]::ReadAllText((Resolve-Path $PromptFile), (New-Object System.Text.UTF8Encoding $false))
 if (-not $prompt.Trim()) { Write-Output 'Empty prompt file.'; exit 1 }
-# The one mode is bypassPermissions, only in a project with hard bans on main (resume-lib.ps1): no fallback.
+# The one mode is bypassPermissions, only in a project with hard bans on its trunk branch (resume-lib.ps1): no fallback.
 . (Join-Path $PSScriptRoot 'resume-lib.ps1')
 $gate = @{ Start = $false; Reason = 'the hard-ban check failed' }
 try { $gate = Get-LeadPermissionMode $Path } catch { }
 if (-not $gate.Start) {
-    Write-Output "NO-BANS $Name ($($gate.Reason)): session not started. Hard bans are missing on main. Hub: show the owner the exact lines, on his yes write .claude/hard-bans.json in the project's main checkout and run: $(Get-AddBansCommand $Path)"
+    Write-Output "NO-BANS $Name ($($gate.Reason)): session not started. Hard bans are missing on the trunk branch. Hub: show the owner the exact lines, on his yes write .claude/hard-bans.json in the project's main checkout and run: $(Get-AddBansCommand $Path)"
     exit 2
 }
 Push-Location $Path

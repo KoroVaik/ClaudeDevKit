@@ -357,7 +357,7 @@ function Write-Critical([string]$Msg) {
 # $NoBansRetryMin minutes (then the gate runs again, so bans added meanwhile let it start). The owner is told once
 # (Write-Critical: log line and a message to Pult), until the lead is started or restarted again.
 function Register-NoBans([string]$Name, [string]$Said) {
-    $reason = if ($Said -cmatch ('NO-BANS ' + [regex]::Escape($Name) + ' \(([^)]*)\)')) { $Matches[1] } else { 'no hard-ban lines on main' }
+    $reason = if ($Said -cmatch ('NO-BANS ' + [regex]::Escape($Name) + ' \(([^)]*)\)')) { $Matches[1] } else { 'no hard-ban lines on the trunk branch' }
     $noBansUntil[$Name] = (Get-Date).AddMinutes($NoBansRetryMin)
     if (-not $noBansTold[$Name]) {
         $noBansTold[$Name] = $true

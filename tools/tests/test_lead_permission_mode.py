@@ -67,6 +67,16 @@ class LeadPermissionModeTest(unittest.TestCase):
         self.commit_settings(HARD_BANS)
         self.assertEqual(self.gate(), "True|bypassPermissions|hard bans on main")
 
+    # protects: Flow - a repo with only master (MyPC, Job) reads the bans from master
+    def test_bypass_with_hard_bans_on_master(self):
+        git(self.repo, "branch", "-m", "master")
+        self.commit_settings(HARD_BANS)
+        self.assertEqual(self.gate(), "True|bypassPermissions|hard bans on master")
+        out = ps(f"Get-TrunkBranch '{self.repo}'")
+        self.assertEqual(out, "master")
+        git(self.repo, "branch", "-m", "dev")
+        self.assertEqual(ps(f"Get-TrunkBranch '{self.repo}'"), "")  # neither main nor master
+
     # protects: Rule
     def test_no_start_without_shell_deny_lines(self):
         self.commit_settings(EDIT_ONLY)

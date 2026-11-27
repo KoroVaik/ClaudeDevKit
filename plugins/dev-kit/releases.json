@@ -40,5 +40,6 @@
   "0.1.141": {"kind": "routine", "date": "2026-11-26", "reason": "a project's session edits and releases its own web-kit or unity-kit itself"},
   "0.1.142": {"kind": "routine", "date": "2026-11-27", "reason": "a lead forced to reply with nothing changed writes only «Без змін...»"},
   "0.1.143": {"kind": "routine", "date": "2026-11-27", "reason": "a built screen is judged against real-world references and each moving state is shown with a clip"},
-  "0.1.144": {"kind": "routine", "date": "2026-11-27", "reason": "Claude facts: Claude Code stops an idle background shell command under OS memory pressure, Windows too"}
+  "0.1.144": {"kind": "routine", "date": "2026-11-27", "reason": "Claude facts: Claude Code stops an idle background shell command under OS memory pressure, Windows too"},
+  "0.1.145": {"kind": "routine", "date": "2026-11-27", "reason": "dev-kit-bans works in a repo whose trunk is master when it has no main"}
 }

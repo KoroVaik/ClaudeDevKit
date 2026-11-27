@@ -137,7 +137,7 @@ Why: owner, 2026-11-21 (his «так»): only leads and discussion sessions mess
 
 ### No permission prompts in any session
 Every session a project starts, the Lead included, runs with no permission prompts, so a message between two
-sessions is never held for your approval. A project whose committed main has no hard-ban deny rules (push
+sessions is never held for your approval. A project whose committed main (or master, when it has no main) has no hard-ban deny rules (push
 to main where it deploys, deleting data, and the like) starts no sessions. The Lead shows you the exact lines
 and, on your «так», writes them to `.claude/hard-bans.json` and adds them on main itself; you cannot
 decline them and type nothing. Removing a ban stays yours: you run the undo from a file the lead puts in the folder `Claude` on your desktop (only
