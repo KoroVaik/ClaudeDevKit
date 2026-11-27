@@ -1,4 +1,4 @@
-"""Add hard-ban deny lines to a project's `.claude/settings.json` on main, one commit per run, and undo the latest add.
+"""Add hard-ban deny lines to a project's `.claude/settings.json` on its trunk, one commit per run, and undo the latest add.
 
     dev-kit-bans add <repo-path> <deny-line> [<deny-line> ...]
     dev-kit-bans add-approved [<repo-path>]
@@ -10,7 +10,7 @@ The project lead (or the Pult hub) runs `add-approved` itself after the owner's 
 cannot type a `!` command in a lead's chat.
 
 `add` only appends deny lines (`Tool(...)`) to `permissions.deny`: it never removes or changes a line or a key. The
-repo must be on branch `main` and `.claude/settings.json` must have no uncommitted change (other dirty files stay
+repo must be on its trunk branch (below) and `.claude/settings.json` must have no uncommitted change (other dirty files stay
 untouched and unstaged). Lines already present are skipped; when nothing is new it commits nothing. Each run that adds
 lines is one commit of that file alone, subject `hard bans: add <N> deny lines`, trailer `Hard-Bans: add`. The file is
 rewritten with a 2-space indent (its line endings and BOM are kept), so a file formatted otherwise changes in format
@@ -22,7 +22,7 @@ exactly like `add` (same checks), printing each added line. One commit holds `.c
 `.claude/hard-bans.json` (the latter when it is untracked, staged or changed), trailer `Hard-Bans: add`. With nothing to
 add and `hard-bans.json` unchanged it prints "nothing to add" and commits nothing. Other dirty or staged files stay out.
 
-`undo` reverts only the latest ban-adding commit, one step back: the newest commit on main with a `Hard-Bans:`
+`undo` reverts only the latest ban-adding commit, one step back: the newest commit on the trunk with a `Hard-Bans:`
 trailer must be an `add` and the newest commit of the settings file at all, and it must have touched only the settings
 file and `.claude/hard-bans.json` (that one too must not have changed since). The revert is checked before it is
 committed: the parent's settings must equal the file as it is now minus exactly the lines that commit added. Both
@@ -30,10 +30,15 @@ files are set back to the parent's content and committed alone (staged work on o
 commit). The revert commit has the trailer `Hard-Bans: undo <sha>`. A second undo is refused: older bans are removed by
 the owner by hand. Nothing is pushed.
 
-`check` tells whether the committed `main:.claude/settings.json` passes Pult's gate (same rule as
+`check` tells whether the `.claude/settings.json` committed on the trunk passes Pult's gate (same rule as
 `Get-LeadPermissionMode` in plugins/pult/scripts/resume-lib.ps1): a deny line starting with `Bash(git push`,
 `Bash(rm -rf` or `Bash(docker` and one starting with `PowerShell(git push`, `PowerShell(Remove-Item` or
 `PowerShell(docker` (case-insensitive).
+
+The trunk is the first of `main` and `master` that exists as a local branch (git's two default names; the same order
+as the changed-files base in sessions.py). The checked-out branch is never taken as the trunk, so a checkout left on a
+work branch is still refused. Why: owner, 2026-11-27: MyPC and Job have only `master`. Same rule as `Get-TrunkBranch`
+in plugins/pult/scripts/resume-lib.ps1.
 
 Exit codes: 0 ok, 1 refused or not passing, 2 usage or git error.
 """
@@ -46,7 +51,7 @@ import sys
 
 SETTINGS = ".claude/settings.json"
 HARD_BANS = ".claude/hard-bans.json"
-BRANCH = "main"
+TRUNKS = ("main", "master")
 TRAILER = "Hard-Bans"
 LINE = re.compile(r"[A-Za-z]+\(.+\)")
 BASH_PREFIXES = ("bash(git push", "bash(rm -rf", "bash(docker")
@@ -83,10 +88,23 @@ def repo_root(path):
     return top
 
 
+def trunk_branch(root):
+    """The first of TRUNKS that exists as a local branch ('' when none does)."""
+    for name in TRUNKS:
+        if git(root, "rev-parse", "-q", "--verify", f"refs/heads/{name}", check=False)[0] == 0:
+            return name
+    return ""
+
+
 def require_main(root):
+    """Refuse unless the checkout is on the trunk; return the trunk's name."""
+    trunk = trunk_branch(root)
+    if not trunk:
+        raise Refused("no trunk branch: the repo has neither main nor master")
     code, branch = git(root, "symbolic-ref", "--short", "-q", "HEAD", check=False)
-    if code != 0 or branch != BRANCH:
-        raise Refused(f"the checkout is not on branch {BRANCH} (it is on {branch or 'a detached HEAD'})")
+    if code != 0 or branch != trunk:
+        raise Refused(f"the checkout is not on branch {trunk} (it is on {branch or 'a detached HEAD'})")
+    return trunk
 
 
 def require_clean_settings(root):
@@ -269,16 +287,16 @@ def normalized(data):
 
 def cmd_undo(path):
     root = repo_root(path)
-    require_main(root)
+    trunk = require_main(root)
     require_clean_settings(root)
-    _, listing = git(root, "log", BRANCH, "--format=%H", "--", SETTINGS)
+    _, listing = git(root, "log", trunk, "--format=%H", "--", SETTINGS)
     commits = listing.split()
     for index, sha in enumerate(commits):
         value = trailer_of(root, sha)
         if value:
             break
     else:
-        raise Refused(f"no hard-bans commit touches {SETTINGS} on {BRANCH}")
+        raise Refused(f"no hard-bans commit touches {SETTINGS} on {trunk}")
     if value.startswith("undo"):
         raise Refused("the latest hard-bans commit is an undo: only one step back; "
                       "older bans are removed by the owner by hand")
@@ -291,7 +309,7 @@ def cmd_undo(path):
     if SETTINGS not in touched or not set(touched) <= {SETTINGS, HARD_BANS}:
         raise Refused(f"commit {sha[:10]} touched more than {SETTINGS} and {HARD_BANS}; not undoing")
     if HARD_BANS in touched:
-        _, bans_log = git(root, "log", BRANCH, "-1", "--format=%H", "--", HARD_BANS)
+        _, bans_log = git(root, "log", trunk, "-1", "--format=%H", "--", HARD_BANS)
         _, bans_status = git(root, "status", "--porcelain", "--", HARD_BANS)
         if bans_log != sha or bans_status.strip():
             raise Refused(f"{HARD_BANS} changed after the hard-bans commit {sha[:10]}; not undoing")
@@ -336,38 +354,39 @@ def passes_gate(deny):
 
 def cmd_check(path):
     root = repo_root(path)
-    if git(root, "rev-parse", "-q", "--verify", f"refs/heads/{BRANCH}", check=False)[0] != 0:
-        raise GitError(f"there is no branch {BRANCH}")
-    text = show_settings(root, BRANCH)
+    trunk = trunk_branch(root)
+    if not trunk or git(root, "rev-parse", "-q", "--verify", f"refs/heads/{trunk}", check=False)[0] != 0:
+        raise GitError("there is no trunk branch (neither main nor master)")
+    text = show_settings(root, trunk)
     if not text.strip():
-        print(f"not passing: no {SETTINGS} committed on {BRANCH}")
+        print(f"not passing: no {SETTINGS} committed on {trunk}")
         return 1
     try:
         data = json.loads(text)
-        deny = deny_list(data, f"{BRANCH}:{SETTINGS}")
+        deny = deny_list(data, f"{trunk}:{SETTINGS}")
     except (ValueError, AttributeError, Refused):
-        print(f"not passing: {BRANCH}:{SETTINGS} does not parse or has no usable permissions.deny")
+        print(f"not passing: {trunk}:{SETTINGS} does not parse or has no usable permissions.deny")
         return 1
     bash, powershell = passes_gate(deny)
     if bash and powershell:
-        print(f"passing: {BRANCH}:{SETTINGS} has Bash and PowerShell hard-ban deny lines")
+        print(f"passing: {trunk}:{SETTINGS} has Bash and PowerShell hard-ban deny lines")
         return 0
     missing = [name for name, found in (("Bash", bash), ("PowerShell", powershell)) if not found]
-    print(f"not passing: no {' and '.join(missing)} hard-ban deny line on {BRANCH}")
+    print(f"not passing: no {' and '.join(missing)} hard-ban deny line on {trunk}")
     return 1
 
 
 def main(argv=None):
     parser = argparse.ArgumentParser(prog="dev-kit-bans", description=__doc__.split("\n\n")[0])
     sub = parser.add_subparsers(dest="command", required=True)
-    add = sub.add_parser("add", help="add deny lines and commit them on main")
+    add = sub.add_parser("add", help="add deny lines and commit them on the trunk")
     add.add_argument("repo")
     add.add_argument("lines", nargs="+", metavar="deny-line")
-    approved = sub.add_parser("add-approved", help="add the lines of .claude/hard-bans.json and commit both files on main")
+    approved = sub.add_parser("add-approved", help="add the lines of .claude/hard-bans.json and commit both files on the trunk")
     approved.add_argument("repo", nargs="?", default=None, help="default: the git top folder of the current directory")
     undo = sub.add_parser("undo", help="revert the latest ban-adding commit (one step back)")
     undo.add_argument("repo")
-    check = sub.add_parser("check", help="tell whether committed main passes Pult's gate")
+    check = sub.add_parser("check", help="tell whether the committed trunk passes Pult's gate")
     check.add_argument("repo")
     args = parser.parse_args(argv)
     try:

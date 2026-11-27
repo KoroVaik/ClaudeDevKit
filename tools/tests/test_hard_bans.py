@@ -320,5 +320,55 @@ class HardBansTestCase(unittest.TestCase):
             self.assertEqual(hard_bans.main(["check", str(folder)]), 2)
 
 
+
+class MasterTrunkTest(unittest.TestCase):
+    """A repo with no `main` (MyPC, Job): the trunk is `master`."""
+    run_cmd, deny = HardBansTestCase.run_cmd, HardBansTestCase.deny
+
+    def setUp(self):
+        HardBansTestCase.setUp(self)
+        git(self.repo, "branch", "-m", "master")
+
+    def write_approved(self):
+        path = self.repo / ".claude" / "hard-bans.json"
+        path.parent.mkdir(exist_ok=True)
+        path.write_text(json.dumps({"deny": [BASH, PWSH]}), encoding="utf-8")
+
+    # protects: Flow - add-approved commits both files on master
+    def test_add_approved_on_master(self):
+        self.write_approved()
+        code, out = self.run_cmd("add-approved")
+        self.assertEqual((code, self.deny()), (0, [BASH, PWSH]), out)
+        self.assertEqual(git(self.repo, "rev-parse", "--abbrev-ref", "HEAD"), "master")
+        self.assertEqual(sorted(git(self.repo, "show", "--name-only", "--format=", "HEAD").split()),
+                         [".claude/hard-bans.json", SETTINGS])
+        code, out = self.run_cmd("check")
+        self.assertEqual((code, out.strip()), (0, f"passing: master:{SETTINGS} has Bash and PowerShell hard-ban deny lines"))
+        self.assertEqual(self.run_cmd("undo")[0], 0)
+        self.assertFalse(self.settings.exists())
+
+    # protects: Rule - the main checkout left on a work branch is refused, not taken as the trunk
+    def test_refuses_checkout_off_master(self):
+        git(self.repo, "checkout", "-q", "-b", "work")
+        code, out = self.run_cmd("add", BASH)
+        self.assertEqual(code, 1)
+        self.assertIn("not on branch master", out)
+
+    # protects: Edge - with neither main nor master, add refuses (1) and check is an error (2)
+    def test_no_trunk(self):
+        git(self.repo, "branch", "-m", "dev")
+        code, out = self.run_cmd("add", BASH)
+        self.assertEqual(code, 1)
+        self.assertIn("neither main nor master", out)
+        self.assertEqual(self.run_cmd("check")[0], 2)
+
+    # protects: Rule - a local main still wins, so a main repo keeps its old trunk
+    def test_main_wins_when_present(self):
+        git(self.repo, "branch", "main")
+        code, out = self.run_cmd("add", BASH)
+        self.assertEqual(code, 1)
+        self.assertIn("not on branch main", out)
+
+
 if __name__ == "__main__":
     unittest.main()

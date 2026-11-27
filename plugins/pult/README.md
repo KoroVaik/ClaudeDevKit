@@ -19,10 +19,10 @@ that project's lead as a message (`scripts/send-to-lead.ps1`).
 - The Remote Control server "Pult" runs with cwd = the home folder, so its sessions get these rules.
 - The project list is the lead entries of `scripts/servers.psd1`. To add a project, add one row there.
 - One permission mode: every session the plugin starts (leads, the hub, `start-session.ps1`) runs in
-  `bypassPermissions`, never `auto`. A project with no hard-ban deny lines on main starts no sessions: its
+  `bypassPermissions`, never `auto`. A project with no hard-ban deny lines on its trunk (`main`, or `master` when it has no `main`) starts no sessions: its
   lead is not started (log NO-BANS), Pult tells you which project lacks them and asks your «так» to the exact
   lines; on it the hub writes `.claude/hard-bans.json` in the project and adds them itself with
-  `dev-kit-bans add-approved` (one commit on main, adding only). No agent runs `dev-kit-bans add` or `undo`, and
+  `dev-kit-bans add-approved` (one commit on the trunk, adding only). No agent runs `dev-kit-bans add` or `undo`, and
   no agent removes or edits a ban; `undo` (the latest add only) you run yourself, from a `.cmd` file the hub puts in the folder `Claude` on your desktop.
 - Logs: `~/.claude/pult/logs/servers.log` (written by `start-servers.ps1` and `watch-servers.ps1`; nothing is
   written inside the plugin folder). `start-servers.ps1` also sets each lead's title in the Claude app to its

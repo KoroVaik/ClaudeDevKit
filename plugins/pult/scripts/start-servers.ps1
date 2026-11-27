@@ -193,7 +193,7 @@ foreach ($p in $projects) {
         if (-not $perm.Start) {
             # The watcher reads this line from the output (watch-servers.ps1) and the hub shows the log line.
             Write-Log "NO-BANS $sessionName ($($perm.Reason))"
-            Write-Output "NO-BANS $sessionName ($($perm.Reason)): lead not started. Hard bans are missing on main. Hub: show the owner the exact lines, on his yes write .claude/hard-bans.json in the project's main checkout and run: $(Get-AddBansCommand $p.Path)"
+            Write-Output "NO-BANS $sessionName ($($perm.Reason)): lead not started. Hard bans are missing on the trunk branch. Hub: show the owner the exact lines, on his yes write .claude/hard-bans.json in the project's main checkout and run: $(Get-AddBansCommand $p.Path)"
             Pop-Location; continue
         }
         Write-Log "MODE $sessionName $($perm.Mode) ($($perm.Reason))"
