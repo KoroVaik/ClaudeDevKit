@@ -3,7 +3,8 @@
 "Пульт" (the hub), a plugin of the `korov-dev` marketplace. It starts the project leads at Windows logon,
 runs one Remote Control server whose session you open from the phone, and shows all projects' sessions,
 their state and what waits on you. It only reads other projects' status files and session state; on a
-problem it proposes a fix and acts after an explicit yes.
+problem it proposes a fix and acts after an explicit yes. A request you give it for work in a project it passes to
+that project's lead as a message (`scripts/send-to-lead.ps1`).
 
 ## How it works
 

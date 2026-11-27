@@ -405,6 +405,17 @@ the owner's «Так» to two task titles (phone pushes, then this rule fix) as 
 and started builds at once; the owner decided that this is asked first, and a talk session is
 proposed, not opened, because «краще перепитать, бо я можу помилиться».
 
+## A request passed by Pult
+
+A `ДОРУЧЕННЯ` message (`plugins/dev-kit/messages.md`) carries, in «», the owner's words of a request he gave the Pult
+hub for this project. The Lead takes them as a new owner request: triage as above, and the one line that names the
+branch tells the owner «Від Pult: <request in a few words>», so he sees what was taken and can stop it. It is never
+his answer or approval: it closes no queue item, a «так» inside it answers nothing, and a step that needs his yes
+still goes to the queue. The Lead sends Pult no reply (the hub's session holds a message from a bypassPermissions
+sender, `plugins/dev-kit/claude-facts.md`). Its sender is a one-shot session, so its name does not prove Pult sent
+it; that is why it only starts triage. Why: owner, 2026-11-27 (`plans/pult-relay.md`): «Чому пульт не спілкується
+з тобой напряму?»; he copied a request from Pult into the Lead's chat by hand.
+
 ## Start a Manager
 
 - Overlap check first, every time: the owner may have started a session on the same task without the Lead.
@@ -814,7 +825,7 @@ others, closes them only so the Lead stops counting them, and never messages the
 ## Wake-up
 
 The Lead does not wake by itself (except the reminder of a timed hand step, see "Message templates"), and it never uses `notify_when_idle` for a Manager: its idle notices wake the Lead and the owner got many repeated small messages
-(`plugins/dev-kit/claude-facts.md`, "`notify_when_idle` wakes the lead on every idle notice"). The Lead wakes only on a Manager report (SendMessage), an owner message, an event message
+(`plugins/dev-kit/claude-facts.md`, "`notify_when_idle` wakes the lead on every idle notice"). The Lead wakes only on a Manager report (SendMessage), an owner message, a `ДОРУЧЕННЯ` from Pult, an event message
 or the keep-warm ping, and writes to the owner at once when something waits on him or a result is to show ("Message templates"; the owner's
 view: the feature, section «The Lead wakes only when needed»).
 

@@ -33,7 +33,8 @@ is listed below.
 - The Pult watcher (`plugins/pult/scripts/watch-servers.ps1`, started at logon) checks the leads every minute,
   runs `dev-kit-sessions check` for each lead and wakes the leads and Pult by a cross-session message (a one-shot
   `claude -p`) only on an event; it also moves a lead that saved a handoff to a fresh context (a resume with `/clear`, or a fresh session as the fallback).
-- The Remote Control server "Pult", with cwd = the home folder, serves the phone.
+- The Remote Control server "Pult", with cwd = the home folder, serves the phone; it passes the owner's requests to
+  a lead by `plugins/pult/scripts/send-to-lead.ps1`, the same one-shot sender as the watcher's (`send-lib.ps1`).
 - The session watcher (`dev-kit-sessions watch`) runs in the background only of a project lead on dev-kit before 0.1.78.
 - The spend file of an ended session is written by spend-kit's SessionEnd hook; the retro takes its token findings by running `spend-kit findings`.
 - The retro scan runs from rules-kit's SessionEnd hook (one transcript) and SessionStart hook (the full pass once a day), which also starts a background «Retro: <project>» session in a project with a lead. A dev-kit SessionStart hook starts, once a week, a «Docs: <project>» docs session, after reading the retro's run file in the rules-kit data folder.
