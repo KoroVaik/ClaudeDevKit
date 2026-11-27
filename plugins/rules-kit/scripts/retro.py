@@ -890,6 +890,7 @@ def analyse(lines, since=None, first_line=1, at_start=True, hooks=None):
     title = ""
     last_result_time = None
     entries = []
+    results_seen = set()  # tool_use ids whose result was counted: a transcript may hold the same block twice
     for index, raw in enumerate(lines):
         try:
             entry = json.loads(raw)
@@ -923,6 +924,8 @@ def analyse(lines, since=None, first_line=1, at_start=True, hooks=None):
             for block in content:
                 if not isinstance(block, dict) or block.get("type") != "tool_use":
                     continue
+                if block.get("id") and block.get("id") in calls:
+                    continue  # the same tool_use written twice: counted once
                 name = block.get("name") or "?"
                 tool_input = block.get("input") or {}
                 key = name + " " + json.dumps(tool_input, sort_keys=True, ensure_ascii=False)
@@ -942,6 +945,11 @@ def analyse(lines, since=None, first_line=1, at_start=True, hooks=None):
             for block in content:
                 if not isinstance(block, dict) or block.get("type") != "tool_result":
                     continue
+                use_id = block.get("tool_use_id")
+                if use_id:
+                    if use_id in results_seen:
+                        continue  # the same tool_result written twice: counted once
+                    results_seen.add(use_id)
                 got_result = True
                 name, called = calls.get(block.get("tool_use_id"), ("?", None))
                 if block.get("is_error"):

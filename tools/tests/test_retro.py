@@ -214,7 +214,7 @@ class RetroTestCase(RetroFixture):
         for n in range(2):
             self.write(f"proj/s1/subagents/agent-{n}.jsonl", entries)
             (self.projects / f"proj/s1/subagents/agent-{n}.meta.json").write_text('{"agentType": "dev-kit:coder"}')
-        self.write("proj/s1/subagents/agent-2.jsonl", [call("c", "Glob", {"pattern": "*"}, stamp)] * 3)
+        self.write("proj/s1/subagents/agent-2.jsonl", [call(f"c{n}", "Glob", {"pattern": "*"}, stamp) for n in range(3)])
         (self.projects / "proj/s1/subagents/agent-2.meta.json").write_text('{"agentType": "dev-kit:coder"}')
         self.assertIn("scanned 3 transcript(s)", self.run_cmd("scan"))  # one window per run
         listing = self.project_cmd("items")
@@ -364,8 +364,8 @@ class RetroTestCase(RetroFixture):
         _, devkit = self.devkit_project()
         plain = make_repo(self.tmp / "plain", retro_project=False)
         stamp = "2026-11-19T10:00:00Z"
-        failure = [call("s", "SendMessage", {"to": "x"}, stamp),
-                   send_result("s", stamp, False, "No agent named 'x' is reachable. Use ListAgents")]
+        failure = [call("m", "SendMessage", {"to": "x"}, stamp),
+                   send_result("m", stamp, False, "No agent named 'x' is reachable. Use ListAgents")]
         self.write("proj/lead1234.jsonl", failure)  # a project with a lead
         self.write("proj/home1234.jsonl", self.session() + failure, cwd=plain)  # a folder with no lead
         self.run_cmd("scan")
@@ -377,6 +377,20 @@ class RetroTestCase(RetroFixture):
         log = (self.retro / f"scan-{retro.today()}.md").read_text(encoding="utf-8")
         self.assertEqual(log.count("claude app | SendMessage"), 2)
         self.assertIn("C: Task (home1234) | failed calls", log)
+
+    # protects: Rule
+    def test_a_tool_use_and_tool_result_written_twice_count_once(self):
+        stamp = "2026-11-19T10:00:00Z"
+        entries = []
+        for n in range(2):  # two failed calls: below the failed-calls and repeat thresholds when counted once
+            entries += [call(f"t{n}", "Bash", {"command": "ls"}, stamp), result(f"t{n}", stamp, error=True)]
+        doubled = []
+        for entry in entries:
+            doubled += [entry, entry]
+        once, twice = (retro.analyse([json.dumps(e) for e in lines]) for lines in (entries, doubled))
+        self.assertEqual((twice["calls"], twice["errors"], twice["repeats"]), (once["calls"], once["errors"], once["repeats"]))
+        self.assertEqual(retro.findings_of(twice), retro.findings_of(once))
+        self.assertEqual((once["errors"], sum(once["repeats"].values())), (2, 2))
 
     # protects: Rule
     def test_claude_app_failures_are_found_by_the_tool_not_by_the_words(self):
@@ -447,8 +461,8 @@ class RetroTestCase(RetroFixture):
         """The transcript of a retro session with findings of its own and of a subagent."""
         entries = [{"type": "custom-title", "customTitle": title}] + self.session()[1:]  # [0] is another title
         entries.append(assistant("a", "claude-sonnet-5-5", {"output_tokens": 500}, "2026-11-19T10:40:00Z"))
-        self.write(f"proj/{session}/subagents/agent-0.jsonl", [call("c", "Glob", {"pattern": "*"},
-                                                                    "2026-11-19T10:00:00Z")] * 3)
+        self.write(f"proj/{session}/subagents/agent-0.jsonl", [call(f"c{n}", "Glob", {"pattern": "*"},
+                                                                    "2026-11-19T10:00:00Z") for n in range(3)])
         return self.write(f"proj/{session}.jsonl", entries)
 
     # protects: Bug
@@ -507,7 +521,7 @@ class RetroTestCase(RetroFixture):
     def test_a_transcript_scan_reads_only_that_session_into_its_own_file(self):
         stamp = "2026-11-19T10:00:00Z"
         main = self.write("proj/abcdef1234.jsonl", self.session())
-        agent = self.write("proj/abcdef1234/subagents/agent-0.jsonl", [call("c", "Glob", {"pattern": "*"}, stamp)] * 3)
+        agent = self.write("proj/abcdef1234/subagents/agent-0.jsonl", [call(f"c{n}", "Glob", {"pattern": "*"}, stamp) for n in range(3)])
         (self.projects / "proj/abcdef1234/subagents/agent-0.meta.json").write_text('{"agentType": "dev-kit:coder"}')
         other = self.write("proj/99999999.jsonl", self.session())
         self.run_cmd("scan", "--transcript", str(main))
