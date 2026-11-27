@@ -442,6 +442,22 @@ One entry per behaviour. A newer direct observation replaces an older one; the o
 - Status: checked
 - History: 2026-11-16, live test with a throwaway session: only "No agent named ... is reachable" was seen. On 2026-11-23 the second text appeared over Remote Control.
 
+### `SendMessage` needs the exact session name; a near name fails with "Did you mean"
+- What happens: `SendMessage` to a name that is not exactly a listed session name fails with "No agent named 'Discuss: <name>' is reachable. Use ListAgents to see everyone you can message." (several sessions). When a close name exists the error adds a hint: addressed as 'P: Prishch' it said "Did you mean: L: Prishch?"; addressed as 'M: <name> [c2d636]' (a name with a short-id suffix) it said "Did you mean: M: <name>?". So the old role letter and a `[ref]` suffix are not part of the name. Whether a «Discuss:» name was missing because the session was stopped or because the name differs was not told by the error.
+- Workaround: take the exact name from `ListAgents` (or `claude agents --json`) before sending; send to the hinted name.
+- App: `SendMessage` tool | Claude Code: unknown
+- Seen: 2026-11-27 | error texts in the retro scan of 2026-11-27 | several sessions
+- Re-check: none cheap (needs a session to send from) | owner-only
+- Status: checked
+
+### `SendMessage` over the local pipe fails with ENOINBOX when no session registered an inbox
+- What happens: `SendMessage` can fail with "Failed to send to uds:\\.\pipe\LOCAL\cc-msg-<id>: No running session has registered an inbox ... (ENOINBOX: no-key) - refusing to s..." (text cut in the scan). The target is addressed by a pipe name, and no running session holds the inbox for it, so the send is refused and not queued. Cause on the target side (stopped session, wrong id) was not recorded.
+- Workaround: none known; check that the target runs (`claude agents --json`) and send again by its exact name (see the entry on a send to a stopped session).
+- App: `SendMessage` tool, Windows | Claude Code: unknown
+- Seen: 2026-11-27 | error text in the retro scan of 2026-11-27 | session not named
+- Re-check: none cheap | owner-only
+- Status: doubtful
+
 ### A message between sessions in different permission modes may be held
 - What happens: Earlier sightings: a session held a message from a session in another permission mode for the owner's approval (the message may expire). The measurement of 2026-11-21 shows delivery across modes works from manual and acceptEdits to auto, and between two bypassPermissions sessions; "a held message was the earlier trouble of mixed modes". It may depend on the sender (a session's own `SendMessage` against the `-p` sender).
 - Workaround: sessions in one permission mode (see `plugins/dev-kit/skills/project-lead/SKILL.md`, "Start a Manager").
