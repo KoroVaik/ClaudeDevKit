@@ -128,21 +128,27 @@ def read_picks():
     return picks
 
 
-def choose(kind, session="", tool_use_id=None, task=None, now=None):
+def choose(kind, session="", tool_use_id=None, task=None, now=None, before=None):
     """Pick the next variant of `kind` and log it: `(variant, model, effort)` or None when the override stops (or the
-    state is busy). A Manager (`task`) gets the old variant's values instead of None, not logged."""
+    state is busy). A Manager (`task`) gets the old variant's values instead of None, not logged.
+
+    `before(variant, model, effort)` is called under the lock once a variant is picked, before the state advances and
+    the pick is logged: when it raises (the hook's output could not be written) nothing is saved or logged."""
     spec = EXPERIMENTS[kind]
     with lock() as held:
         if not held:
             return None
         state = load_state()
         variant = pick_variant(type_state(state, kind), spec)
-        save_state(state)
         if variant is None:
+            save_state(state)
             if task is None:
                 return None
             return (spec["old"], *spec["variants"][spec["old"]])
         model, effort = spec["variants"][variant]
+        if before:
+            before(variant, model, effort)
+        save_state(state)
         pick = {"time": now_text(now), "session": session, "type": kind, "variant": variant, "model": model,
                 "effort": effort}
         pick.update({"task": task} if task is not None else {"tool_use_id": tool_use_id})
@@ -150,10 +156,13 @@ def choose(kind, session="", tool_use_id=None, task=None, now=None):
         return variant, model, effort
 
 
-def log_reset(kind, session, tool_use_id, model, was, now=None):
-    """Log a context-heavy helper whose Opus or Fable model was reset to its file's `model`."""
+def log_reset(kind, session, tool_use_id, model, was, now=None, before=None):
+    """Log a context-heavy helper whose Opus or Fable model was reset to its file's `model`; `before()` runs first (as in
+    `choose`): when it raises nothing is logged."""
     with lock() as held:
         if held:
+            if before:
+                before()
             append_pick({"time": now_text(now), "session": session, "type": kind, "variant": "reset", "model": model,
                          "effort": None, "was": was, "tool_use_id": tool_use_id})
 

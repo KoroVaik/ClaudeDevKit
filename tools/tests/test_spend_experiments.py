@@ -1,5 +1,6 @@
 """spend-kit experiments: the PreToolUse hook that alternates the variants of a helper, the commands, and the daily count
 with its alarm, packet and result findings. Synthetic transcripts in temp folders."""
+import importlib.util
 import json
 import os
 import re
@@ -86,6 +87,36 @@ class HookTestCase(ExperimentFixture):
         code, _, err = self.run_code("experiment", "stop", "--type", "dev-kit:coder", "--variant", "nope", "--reason", "x")
         self.assertEqual(code, 2)
         self.assertIn("unknown", err)
+
+    # protects: Bug
+    # Broke: under a non-UTF-8 console code page (cp1252) the Cyrillic output raised and the pick was already logged
+    def test_a_cyrillic_prompt_comes_back_as_utf8_under_another_console_encoding(self):
+        self.coder_file()
+        payload = {"tool_input": {"subagent_type": "dev-kit:coder", "description": "робота", "prompt": "Зроби це, будь ласка"},
+                   "tool_use_id": "tu1", "session_id": "s1", "cwd": str(self.tmp / "repo")}
+        done = subprocess.run([sys.executable, str(HOOK)], input=json.dumps(payload).encode("utf-8"), capture_output=True,
+                              timeout=60, env={**os.environ, "PYTHONIOENCODING": "cp1252"})
+        self.assertEqual(done.returncode, 0)
+        given = json.loads(done.stdout.decode("utf-8"))["hookSpecificOutput"]["updatedInput"]
+        self.assertEqual((given["prompt"], given["description"], given["model"]), ("Зроби це, будь ласка", "робота", "sonnet"))
+        self.assertEqual(len(self.picks()), 1)
+
+    # protects: Rule
+    def test_a_failed_write_leaves_no_pick_and_does_not_advance_the_turn(self):
+        self.coder_file()
+        hook = importlib.util.spec_from_file_location("experiment_hook", HOOK)
+        module = importlib.util.module_from_spec(hook)
+        hook.loader.exec_module(module)
+        payload = {"tool_input": {"subagent_type": "dev-kit:coder", "prompt": "x"}, "tool_use_id": "tu1", "cwd": str(self.tmp)}
+
+        def broken(changed):
+            raise OSError("closed pipe")
+
+        with self.assertRaises(OSError):
+            module.run(payload, broken)
+        self.assertEqual(self.picks(), [])
+        self.assertEqual(experiments.load_state()["types"].get("dev-kit:coder", {}).get("next", 0), 0)
+        self.assertEqual(self.call("dev-kit:coder")["model"], "sonnet")  # the first variant is still the next one
 
     # protects: Edge
     def test_broken_input_prints_nothing_and_never_fails(self):
