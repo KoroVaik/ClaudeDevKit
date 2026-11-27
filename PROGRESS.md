@@ -47,5 +47,4 @@ Open work of the features: `dev-kit-check-docs --open`.
 
 ## Open questions
 
-- 2026-11-27 · Lead: яку задачу дати новій сесії в MyPC? (заборони там уже додано) немає рекомендації: не знаю, що ти хотів у ній робити.
 
