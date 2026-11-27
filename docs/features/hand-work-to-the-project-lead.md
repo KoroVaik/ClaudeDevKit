@@ -112,6 +112,12 @@ how a screen looks: the Lead proposes a «Discuss:» session and opens it after 
 is no task: the Lead does it itself. A "how will it work" question whose answer needs reading code or docs the Lead
 researches with a read-only subagent and never puts to you.
 
+### Pult passes your task to the Lead
+You can ask Pult for work in a project (a plugin change belongs to ClaudeDevKit): Pult sends your words verbatim to
+that project's Lead and says in one line that it passed them on. The Lead sorts the task as above and its line starts
+«Від Pult:». Only a new task goes this way: an answer or a «так» you give Pult reaches no Lead, so you give it in the
+Lead's chat. With the Lead down, Pult says so and offers to start a session as before.
+
 ### A discussion ends in the feature file
 In a «Discuss:» session you settle the meaning and the mockup with one agent, and the feature file
 ends with an «Approved design» section (acceptance criteria, the approved mockup, the user's situation).
@@ -137,7 +143,7 @@ Why: owner, 2026-11-21 (his «так»): only leads and discussion sessions mess
 
 ### No permission prompts in any session
 Every session a project starts, the Lead included, runs with no permission prompts, so a message between two
-sessions is never held for your approval. A project whose committed main has no hard-ban deny rules (push
+sessions is never held for your approval. A project whose committed main (or master, when it has no main) has no hard-ban deny rules (push
 to main where it deploys, deleting data, and the like) starts no sessions. The Lead shows you the exact lines
 and, on your «так», writes them to `.claude/hard-bans.json` and adds them on main itself; you cannot
 decline them and type nothing. Removing a ban stays yours: you run the undo from a file the lead puts in the folder `Claude` on your desktop (only
@@ -235,6 +241,7 @@ format instead of removing them. Those rules live outside this repo and change o
 - You answer a session's question inside that session: the Lead never asks you the same thing in its own chat.
 - A task is finished: the Lead merges it into main and tells you the result; you need not start or watch the Manager.
 - You write in a Manager's chat: it follows your words and the Lead is told at once; it asks you nothing there.
+- You ask Pult for work in a project: the Lead gets your words verbatim and sorts the task, with no copying by hand; a «так» you give Pult answers no Lead question.
 - A second session already works on the same task: the Lead does not start another one.
 - A plugin update renames a session prefix: the restarted Lead starts its next session with the new prefix; after a small fix the Lead keeps its conversation.
 - A session's message wakes the Lead and the Lead writes a note beside the blocks: the Lead gets a reminder of the form and you do not get the message twice; the Lead's answer to your own question is not checked.
@@ -253,6 +260,9 @@ format instead of removing them. Those rules live outside this repo and change o
 - `tools/tests/test_hard_bans.py`
 - `plugins/pult/scripts/watch-servers.ps1`
 - `plugins/pult/scripts/restart-leads.ps1`
+- `plugins/pult/rules/hub.md`
+- `plugins/pult/scripts/send-to-lead.ps1`
+- `plugins/pult/scripts/send-lib.ps1`
 - `tools/tests/test_watch_servers_handoff.py`
 - `tools/tests/test_watch_servers_restart.py`
 - `plugins/dev-kit/hooks/lead-reply-form.py`

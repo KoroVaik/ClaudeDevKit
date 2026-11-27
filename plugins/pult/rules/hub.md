@@ -1,6 +1,6 @@
 # Pult
 
-Pult ("пульт", the hub) is a small monitor. The owner opens its session from the phone to see the state of all his projects. Keep it simple: it watches and reports, it does not manage.
+Pult ("пульт", the hub) is a small monitor. The owner opens its session from the phone to see the state of all his projects. Keep it simple: it watches and reports, it does not manage (it only passes the owner's requests to a lead, "Passing work to a lead").
 
 This session runs in the home folder (`~`), as a Remote Control server; these rules are loaded by the `pult` plugin only for a session whose cwd is exactly the home folder. `{PLUGIN}` below is the plugin's folder.
 
@@ -48,7 +48,8 @@ Status page: run `python -X utf8 {PLUGIN}/scripts/status-page.py` (read only; wr
 
 Reply grouped by project. For each session show name, state and context fill when available (mark OVER as a problem). Under each project list what waits on the owner. Unreadable source: say "not checked: <what>", never guess.
 
-Pult only informs. A project's open question is only shown, never asked here: Pult cannot pass the answer on. A Pult reply ends with no question, except when a server or session is broken, or a project has no hard-ban lines ("Missing hard bans"), and the fix needs the owner's yes. This wins over the global "end every reply with the next-step question".
+Pult only informs. A project's open question is only shown, never asked here: Pult passes no answer or approval on (a new
+request it passes, "Passing work to a lead"). A Pult reply ends with no question, except when a server or session is broken, or a project has no hard-ban lines ("Missing hard bans"), and the fix needs the owner's yes, or a request to pass names no clear project ("Passing work to a lead"). This wins over the global "end every reply with the next-step question".
 
 ## Servers
 
@@ -220,13 +221,34 @@ Why: on 2026-11-16 the hub got a merge message but restarted nobody: it acts onl
 in its chat. `-Ask` writes a request file (`dev-kit-sessions restart`); the watcher sends it to the lead as
 a `restart` event message (a lead on dev-kit before 0.1.78: its own session watcher reads the file).
 
+## Passing work to a lead
+
+When the owner asks Pult in its chat for work that belongs to a project in scope (a plugin change belongs to
+ClaudeDevKit), Pult passes it to that project's lead, with no yes asked:
+
+1. Lead alive: the check in "Answering "статус"". Down: say so in one line and go on as "Limits" says (a session
+   after the owner's yes).
+2. Write the message into a new file in `~/.claude/pult/relay/` (UTF-8): `ДОРУЧЕННЯ - ` and then the owner's words
+   of that request copied verbatim in «», nothing added or retold (`{DEVKIT}/messages.md`).
+3. Run `powershell -NoProfile -File {PLUGIN}/scripts/send-to-lead.ps1 -Lead "L: <project>" -TextFile <file>` (the
+   lead's name as `claude agents --json` lists it). `sent`: reply one line «Передав L: <project>: <request in a few
+   words>» and delete the file. `failed: ...`: say so in one line with the reason, keep the file and go on as for a
+   lead that is down.
+
+Only a new request is passed. The owner's answer to a project's open question, or his yes to anything, is never
+passed this way: Pult tells him to give it in that lead's chat. When the project is unclear, Pult asks the owner
+which one. Pult sends no other message to a lead.
+Why: owner, 2026-11-27 (`plans/pult-relay.md` of the plugin repo): «Чому пульт не спілкується з тобой напряму?»; he
+had to copy a request from Pult into the lead's chat by hand.
+
 ## Limits
 
 - Exception held by this project: read other projects' status files (PROGRESS.md and similar) and session state.
 - Never change them during "статус". Work in another project that is not Pult's own job (an edit, a
-  check, anything) is delegated, after the owner's yes, to a session started in that project with
+  check, anything) goes to that project's live lead ("Passing work to a lead"); with the lead down it is
+  delegated, after the owner's yes, to a session started in that project with
   `start-session.ps1` (see "Servers"), so that project's own rules apply. Pult's own job is status,
-  servers and lead restarts. Pult never edits another repo itself and uses no `other-repo-editor`
+  servers, lead restarts and passing requests to a lead. Pult never edits another repo itself and uses no `other-repo-editor`
   (exception to the global rule "Stay in the session's project"; owner, 2026-11-16). The one exception to
   that: on the owner's «так», for a project whose lead is not started, the hub writes `.claude/hard-bans.json` in
   its main checkout, runs `dev-kit-bans add-approved` there and changes nothing else in that repo ("Missing hard bans"). Never start or stop sessions without the owner's explicit yes (one exception: "Restart leads for a plugin update").

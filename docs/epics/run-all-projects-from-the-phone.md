@@ -7,7 +7,8 @@ Part of the [ClaudeDevKit product](../product.md).
 The `pult` plugin ("Пульт", the hub) starts the project leads at Windows logon, runs one Remote Control
 server whose session you open from the phone, and shows all projects' sessions, their state and what
 waits on you. It only reads other projects' status files and session state; on a problem it proposes a
-fix and acts after an explicit yes. It is enabled at user scope and acts only in a session whose cwd is
+fix and acts after an explicit yes. A request you give it for work in a project it passes to that project's lead
+([Hand work to the project lead](../features/hand-work-to-the-project-lead.md)). It is enabled at user scope and acts only in a session whose cwd is
 exactly the home folder; everywhere else it prints nothing. How to operate it:
 [the plugin README](../../plugins/pult/README.md); the hub rules:
 [hub rules](../../plugins/pult/rules/hub.md).
