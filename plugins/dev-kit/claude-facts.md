@@ -312,11 +312,19 @@ One entry per behaviour. A newer direct observation replaces an older one; the o
 - Status: doubtful
 
 ### A low-memory spell closes idle background sessions
-- What happens: On low memory Claude Code closes idle background sessions early. On 2026-11-16 a Manager that waited on the owner vanished; a stopped background watcher of a lead was seen in the same spell. A long low-memory spell can close pinned sessions too.
+- What happens: On low memory Claude Code closes idle background sessions early. On 2026-11-16 a Manager that waited on the owner vanished; a stopped background watcher of a lead was seen in the same spell. A long low-memory spell can close pinned sessions too. A background shell command is stopped by a separate rule (see "Claude Code stops an idle background shell command under OS memory pressure (Windows too)").
 - Workaround: bring the session back with `claude respawn <id>`; the Pult watcher heals leads.
 - App: background sessions | Claude Code: 2.1.331
 - Seen: 2026-11-16 | seen live; re-check 2026-11-24: `daemon.log` holds lines like `bg retire 2d9fb437: idle-prompt, idle 25m [low memory]` | ClaudeDevKit, Pult
 - Re-check: `tail -n 200 ~/.claude/daemon.log | grep 'bg retire'` | safe
+- Status: checked
+
+### Claude Code stops an idle background shell command under OS memory pressure (Windows too)
+- What happens: When the OS signals critical memory pressure, the session is idle (30 min, not checked in the code) and no turn or subagent runs, Claude Code stops a background shell command; the task gets "Background command ... was stopped because the system is running low on memory". On Windows it takes the OS signal as is (the `/proc/meminfo` scarcity check runs only on Linux and WSL), so it can fire with memory free (Zhratva 2026-11-25: 3 GB RAM free, 29 GB commit free, no event 2004). Not the same as closing the session itself (see "A low-memory spell closes idle background sessions"). Checked in the code (strings `DISABLE_BG_SHELL_PRESSURE_REAP`, "running low on memory", "memory-pressure reap" in claude.exe 2.1.332); the 30 min idle value is unchecked.
+- Workaround: start Claude Code with `CLAUDE_CODE_DISABLE_BG_SHELL_PRESSURE_REAP=1` in its own environment (set from a shell command it has no effect). The official env-vars doc says it has no effect on Windows; the shipped code runs it there.
+- App: background Bash commands, Windows | Claude Code: 2.1.332
+- Seen: 2026-11-25 | Zhratva session records; code read in claude.exe 2.1.332 | Zhratva, MyPC `docs/known-issues.md`
+- Re-check: grep claude.exe for `DISABLE_BG_SHELL_PRESSURE_REAP`; next "stopped because the system is running low on memory" notice | safe
 - Status: checked
 
 ### Pinned sessions are not closed when idle
