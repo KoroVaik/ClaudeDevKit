@@ -54,6 +54,19 @@ subagents (~23%), Zhratva catalogue-next with a Sonnet judge loop (~19%), L: Pri
    `range_units`), per session and per task, as rework. Each retro item carries the rework tokens behind it, and the
    retro fixes the costliest items first (today the order is by sightings only).
 
+2026-11-27, owner «Так» to questions 7-9:
+
+4. Duplicated work is flagged: several helpers (subagents) of one session or task reading the same files, and a
+   session redoing what its helper already did (it reads again the files the helper read and reported on, or starts
+   the same `Agent` task again). The data is already in the transcripts (`Read` / `Grep` inputs, `Agent` calls).
+5. Once a week the owner sees one number: the share of tokens spent on rework (point 3) this week, next to last
+   week's, so he sees whether the changes work. Shown where the weekly spend stats already reach him (`spend-kit
+   stats`, the Lead's status), not as an extra push.
+6. Reasoning lowered from high to medium now for `dev-kit:investigator`, `dev-kit:reviewer` and
+   `rules-kit:rule-reviewer` (their `effort:` lines); `dev-kit:coder` stays high (its mistakes cost more). Each of the
+   three goes back to high when the rework count (point 3) shows its runs led to rework; the retro raises that as
+   an item, with the rework tokens behind it.
+
 ## Goal of the talk
 
 Agree with the owner what changes so the 5-hour limit lasts (for example a cap on parallel Opus sessions, cheaper

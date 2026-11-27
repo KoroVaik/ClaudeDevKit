@@ -47,4 +47,4 @@ Open work of the features: `dev-kit-check-docs --open`.
 
 ## Open questions
 
-- 2026-11-27 · Discuss: less token waste (owner «Так» to 4-6): every owner message checked for re-asks, model and reasoning per step flagged, rework tokens counted and retro fixes ranked by them. Talk still open. Plan: [plans/limit-spend.md](plans/limit-spend.md) «Owner's approval».
+- 2026-11-27 · Discuss: less token waste (owner «Так» to 4-9): every owner message checked for re-asks, model and reasoning per step flagged, duplicated work flagged, rework tokens counted and retro fixes ranked by them, a weekly rework share for the owner, reasoning of investigator and reviewers lowered to medium. Next: owner's yes to the short plan, then build. Plan: [plans/limit-spend.md](plans/limit-spend.md) «Owner's approval».
