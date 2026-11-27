@@ -165,6 +165,16 @@ picture: «автозапуски службових ретросесій в п�
    hours). Experiment results and decisions go to the ClaudeDevKit retro (the helpers belong to the plugins) and
    show in the main retro session (point 7).
 
+2026-11-27, owner «Давай» to question 22 (after the second short plan; his idea: «критичні поінти виносить прямо ліду
+дев кіта, щоб вирішити тут і зараз, або пропозиція запутити позачергове ретро»; the out-of-turn retro was chosen):
+
+15. A critical finding starts an out-of-turn ClaudeDevKit retro, past the 20-hour and 6-hour start gaps, with no
+   question to the owner: an experiment variant with an obvious problem (point 14), a critical token problem
+   (spend-kit `critical`), a refusal to move to a fresh context (point 11). The retro acts the same day (for an
+   experiment: switch back to the old variant). The owner sees only one line in Pult's status, where critical spend
+   already shows. The retro's own spend cap (2% of the weekly limit per run) stays; at most one out-of-turn retro
+   runs at a time.
+
 ## Goal of the talk
 
 Agree with the owner what changes so the 5-hour limit lasts (for example a cap on parallel Opus sessions, cheaper
