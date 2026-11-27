@@ -57,6 +57,8 @@ The brief chooses the kind; you do not change it.
    instead passes when it is exactly the window width and height times the scale and shows the asked state.
 4. Otherwise retake with a smaller selector or margin, at most twice. Then report it as failing.
 
+Delete a file only by its exact path, never with a glob or a path built from a variable.
+
 Never log in with a typed secret, never print one, never put one in a spec or a message: a password
 goes only as `"@<file>"` in a `fill` step. Do not read the password file yourself.
 
