@@ -34,7 +34,23 @@ of «Retro:» and «Docs:» sessions):
   `rules-kit add --set <set> --text "<item line>" --from <project>`; the item gets `status: handed`.
 - A file with a special editor (`special editor` in the subscription) is never edited here: its findings go to it.
 
-Spend findings (`long session`, `opus coder`, token spend and waste) are ordinary items, with the numbers as evidence.
+Spend findings (`long session`, `opus coder`, token spend and waste, `rework`, `model mismatch`, `cheap step redone`,
+`duplicate work`) are ordinary items, with the numbers as evidence. When they show that runs of `dev-kit:investigator`,
+`dev-kit:reviewer` or `rules-kit:rule-reviewer` led to rework, the fix is that agent file's `model:` / `effort:` lines
+back to Sonnet high. Why: owner, 2026-11-27 (`plans/limit-spend.md`, points 6 and 12).
+
+A run started out of turn (the scan or `rules-kit add --critical` found a critical line: `experiment alarm`, `move
+refusal`, or a token line marked critical) does the critical lines first, then the rest as usual:
+- `experiment alarm`: one `spend-kit:run-reader` (model haiku) gets the packet path the line names as its whole brief.
+  `obvious: <why>` -> `spend-kit experiment stop --type <type> --variant <variant> --reason "<why>"` the same day, then an
+  item `experiment-<type>-<variant>` marked `rules-kit mark --item <key> --status no-fix --note "Експеримент: <variant>
+  зупинено, <why>"`; `unclear` -> no item, the count goes on to 10 runs per variant.
+- `experiment result` (10 runs per variant): the variant with fewer units per run wins unless its signs per run are
+  higher; `spend-kit experiment decide --type <type> --variant <winner> --reason "<numbers>"`, then the agent file's
+  `model:` / `effort:` lines get the winner as a fix through step 4 (a Manager variant: the Lead's start command).
+- `move refusal`: the reviewer of step 1 says whether the reason was critical (work or a decision the handoff could not
+  carry); a reason that was not is an item for the rule that let the session refuse.
+Why: owner, 2026-11-27 (`plans/limit-spend.md`, points 14 and 15).
 
 ## 1. Check every finding
 
@@ -82,7 +98,9 @@ counts separate sessions or days: a lead and its own subagents are one session.
 - Noise or already fixed: no item. `code bug` and `other set`: as "Scope" says.
 - `one-off`, or a first sighting that is not urgent: `status: waiting`; it expires by itself after 14 days.
 - Seen in a second session or on a second day, or urgent: fix it now (step 4), while `items` shows fewer than 5
-  landed fixes for its set this week; an urgent one also over the cap.
+  landed fixes for its set this week; an urgent one also over the cap. Take them in the order `items` lists them:
+  costliest first, by the share of the weekly limit behind their sightings (owner, 2026-11-27, `plans/limit-spend.md`
+  point 3).
 - `ignored rule`: its fix is a hook, script or check, never a new wording: a `task: <what to build and why>` line for
   the closing `ГОТОВО`, then `rules-kit mark --item <key> --status handed --note "<task>"`.
 - `sign-gap`: the fix is a new row in that set's Signs table, through step 4 like any fix (`fixed --sign`).

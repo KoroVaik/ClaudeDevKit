@@ -3,7 +3,8 @@
 "Пульт" (the hub), a plugin of the `korov-dev` marketplace. It starts the project leads at Windows logon,
 runs one Remote Control server whose session you open from the phone, and shows all projects' sessions,
 their state and what waits on you. It only reads other projects' status files and session state; on a
-problem it proposes a fix and acts after an explicit yes.
+problem it proposes a fix and acts after an explicit yes. A request you give it for work in a project it passes to
+that project's lead as a message (`scripts/send-to-lead.ps1`).
 
 ## How it works
 
@@ -18,10 +19,10 @@ problem it proposes a fix and acts after an explicit yes.
 - The Remote Control server "Pult" runs with cwd = the home folder, so its sessions get these rules.
 - The project list is the lead entries of `scripts/servers.psd1`. To add a project, add one row there.
 - One permission mode: every session the plugin starts (leads, the hub, `start-session.ps1`) runs in
-  `bypassPermissions`, never `auto`. A project with no hard-ban deny lines on main starts no sessions: its
+  `bypassPermissions`, never `auto`. A project with no hard-ban deny lines on its trunk (`main`, or `master` when it has no `main`) starts no sessions: its
   lead is not started (log NO-BANS), Pult tells you which project lacks them and asks your «так» to the exact
   lines; on it the hub writes `.claude/hard-bans.json` in the project and adds them itself with
-  `dev-kit-bans add-approved` (one commit on main, adding only). No agent runs `dev-kit-bans add` or `undo`, and
+  `dev-kit-bans add-approved` (one commit on the trunk, adding only). No agent runs `dev-kit-bans add` or `undo`, and
   no agent removes or edits a ban; `undo` (the latest add only) you run yourself, from a `.cmd` file the hub puts in the folder `Claude` on your desktop.
 - Logs: `~/.claude/pult/logs/servers.log` (written by `start-servers.ps1` and `watch-servers.ps1`; nothing is
   written inside the plugin folder). `start-servers.ps1` also sets each lead's title in the Claude app to its
@@ -75,13 +76,23 @@ problem it proposes a fix and acts after an explicit yes.
   for every lead on dev-kit 0.1.78 or later and sends each new event (a task session gone, finished, on the
   usage limit, waiting 20 minutes, past a third of its context, or a restart request) to the lead as a
   cross-session message `[EVT-<id>] Pult server watcher: ...`, by a one-shot `claude -p` (haiku, safe mode,
-  only the SendMessage tool, `bypassPermissions`; `plugins/dev-kit/claude-facts.md`, "A one-shot `claude -p` delivers a message into a running session"). GIVEUP, GIVEUP-TASK, RESTART-LEAD-FAILED, RESTART-LEAD-TIMEOUT, HANDOFF-FAILED and HANDOFF-TIMEOUT go to
+  only the SendMessage tool, `bypassPermissions`; `plugins/dev-kit/claude-facts.md`, "A one-shot `claude -p` delivers a message into a running session"). GIVEUP, GIVEUP-TASK, RESTART-LEAD-FAILED, RESTART-LEAD-TIMEOUT, HANDOFF-FAILED, HANDOFF-TIMEOUT and MOVE-FAILED go to
   the Pult session the same way; Pult pushes them to your phone. A lead silent 50 minutes while one of its
-  task sessions works gets a keep-warm ping. A lead past a third of its own context that saved a handoff
+  task sessions works gets a keep-warm ping. Every other live session (a Manager, a `Discuss:` session, a lead with no
+  working task; not Pult) idle 50 minutes, before its one-hour cache expires, is asked to move to a fresh context
+  (log MOVE-ASKED; it is a message like the ping and is dropped, not pushed, when not taken): at a safe point it saves a
+  handoff and runs `dev-kit-sessions handoff save --go` (a task session with `--session <its id>`), or refuses with
+  `dev-kit-sessions handoff refuse --reason "<critical reason>"`, which is logged and reported to the retro as critical. A lead past a third of its own context that saved a handoff
   (`dev-kit-sessions handoff save`) is moved to a fresh context in the same session, by a resume with `/clear`
   and then the handoff prompt, so no phone push; if that fails, a fresh session of the same name loads it (when:
   the feature above; HANDOFF-CLEAR, or HANDOFF-FALLBACK and HANDOFF, in the log; a move still running after 10
-  minutes is stopped as HANDOFF-TIMEOUT and the old lead comes back by HEAL). A message counts as delivered once its id shows in the
+  minutes is stopped as HANDOFF-TIMEOUT and the old lead comes back by HEAL). A task session that saved a handoff
+  (`handoff save --session <id>`) is moved the same way as a plain background job, no 30-second warning: stop, `/clear`,
+  stop, resume with `/continue-work-in-another-context load <file>`, then its registry record takes the new session id
+  (MOVE in the log); a failing `/clear` falls back to the load resume alone (MOVE-FALLBACK, nothing is lost). A move
+  that fails (the stop does not finish, the load resume fails, the job does not come back) is MOVE-FAILED: a problem
+  that goes to Pult and, as the event line `move failed: <session name> | <handoff file>`, to the session's lead, which
+  starts a fresh session from that handoff. A message counts as delivered once its id shows in the
   target's transcript; until then it is sent again, then pushed to your phone (for Pult: «Pult не піднявся -
   запусти його на комп'ютері»). A push also goes once per session when a conversation passes 0.7 of its
   window. Every live lead gets a `ЛІМІТ:` line when the weekly limit reaches 90%, 95% and 98% or the 5-hour one 90%, once per window, and the leads told get one more when that limit resets (log LIMIT-NOTICE, LIMIT-BACK; mark `limit-notices.json`; `docs/features/wind-down-at-weekly-limit.md`). The watcher cannot push by itself (a fresh session's push is refused: `plugins/dev-kit/claude-facts.md`,

@@ -594,8 +594,8 @@ class RetroCommandsTestCase(RetroFixture):
         self.assertEqual(out.splitlines()[:3], [str(self.retro / retro.SETS_FOLDER), "sets: repo", "last review: never"])
         self.assertLess(out.index("token spend"), out.index("## New findings"))
         self.assertLess(out.index("## New findings"), out.index("repeated call"))
-        self.assertIn("\nstale-doc | fixed | rule gap | sightings 2\n", out)
-        self.assertIn("\nother | open | ? | sightings 0\n", out)
+        self.assertIn("\nstale-doc | fixed | rule gap | sightings 2 | cost 0%\n", out)
+        self.assertIn("\nother | open | ? | sightings 0 | cost 0%\n", out)
         self.assertTrue(out.rstrip().endswith(f"landed fixes in the last 7 days (repo): 2 of {retro.FIXES_PER_WEEK}"), out)
         self.assertIn(f"### repo ({self.folder / 'items'})\n", out)
         self.assertEqual(self.project_state()["shown"], ["repo/scan-a.md"])
@@ -1145,6 +1145,275 @@ class RetroSetsTestCase(RetroFixture):
         self.assertEqual(len(self.new_files()), 1)
         self.assertEqual(self.new_files()[0].parent.parent, self.folder)
         self.assertIn("old-key | waiting |", self.project_cmd("items"))
+
+
+FAKE_SPEND = """import json
+import sys
+from pathlib import Path
+
+data = json.loads(Path(__file__).with_name("fake.json").read_text(encoding="utf-8"))
+command = sys.argv[1] if len(sys.argv) > 1 else ""
+if command == "findings":
+    print(json.dumps({"findings": data.get("findings", []), "table": []}, ensure_ascii=False))
+elif command in ("stats", "experiments") and data.get(command) is not None:
+    print(data[command])
+else:
+    sys.exit(2)
+"""  # a spend-kit that prints what the test put in fake.json; `stats` / `experiments` exit 2 when the test left them out
+CRITICAL_TOKEN = ("- Zhratva | L: Zhratva (abcd1234) | token spend | 2026-11-27: spent 12% of the weekly limit; "
+                  "critical (shown in Pult's status)")
+
+
+class LimitSpendTestCase(RetroFixture):
+    """Critical lines start the retro out of turn, items are ordered by cost, the weekly summary and its session start
+    (plans/limit-spend.md, points 3, 7, 14, 15), with a fake spend-kit."""
+
+    def setUp(self):
+        super().setUp()
+        bin_dir = self.tmp / "fakebin"
+        bin_dir.mkdir()
+        (bin_dir / "fake_spend.py").write_text(FAKE_SPEND, encoding="utf-8")
+        patcher = mock.patch.dict(os.environ, {"SPEND_KIT_BIN": str(bin_dir / "fake_spend.py")})
+        patcher.start()
+        self.addCleanup(patcher.stop)
+        self.fake_json = bin_dir / "fake.json"
+        self.fake()
+        self.devkit = None
+        # A full scan counts the repository that holds the plugin as a project too (script candidates): here that is
+        # the real ClaudeDevKit checkout, a second project of the same name beside the temp one.
+        patcher = mock.patch.object(retro, "plugin_project", return_value=None)
+        patcher.start()
+        self.addCleanup(patcher.stop)
+
+    def fake(self, **data):
+        self.fake_json.write_text(json.dumps(data), encoding="utf-8")
+
+    def with_devkit(self, **state):
+        """The retro project ClaudeDevKit, known by its state folder; `state`: more keys of that state."""
+        self.devkit, self.devkit_set = self.devkit_project()
+        self.devkit_folder = self.retro / folder_naming.folder_name(self.devkit)
+        self.devkit_state(**state)
+
+    def devkit_state(self, **values):
+        retro.save_project(self.devkit_folder, {"root": str(self.devkit), **values})
+
+    def devkit_stamps(self):
+        return retro.load_project(self.devkit_folder)
+
+    def plugin_set(self, name, reviewer="ClaudeDevKit"):
+        path = self.tmp / "plugins" / name / subscriptions.FILE_NAME
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(SUBSCRIPTION.format(name=name, reviewer=reviewer), encoding="utf-8")
+
+    def hours(self, value):
+        return (retro.now_utc() - datetime.timedelta(hours=value)).isoformat()
+
+    def spawned_by(self, *args, hook=None):
+        """Run a command (or `hook_start` with the payload `hook`) with the start enabled and `claude` faked; returns the
+        recorded `(argv, cwd)` of every spawn and the output."""
+        spawned = []
+        out = io.StringIO()
+        with mock.patch.object(retro, "spawn", lambda argv, cwd=None: spawned.append((argv, cwd))), \
+                mock.patch.object(claude_path, "find_claude", return_value="fake-claude"), \
+                mock.patch.dict(os.environ), mock.patch("sys.stdout", out):
+            os.environ.pop(retro.NO_START_ENV, None)
+            if hook is not None:
+                retro.hook_start(hook)
+            else:
+                retro.main(list(args))
+        return spawned, out.getvalue()
+
+    def retro_command(self, name):
+        return ["fake-claude", "--bg", "--name", f"Retro: {name}", "--settings", str(retro.NO_REMOTE_CONTROL), "--model",
+                "sonnet", "--effort", "medium", "--permission-mode", "bypassPermissions", "--", "/rules-kit:retro"]
+
+    def scanned_today(self):
+        self.retro.mkdir(parents=True, exist_ok=True)
+        (self.retro / "state.json").write_text(json.dumps({"offsets": {}, "last_scan": retro.today()}), encoding="utf-8")
+
+    # protects: Flow
+    def test_a_critical_token_line_starts_the_devkit_retro_out_of_turn_but_not_twice_while_it_runs(self):
+        self.plugin_set("spend-kit")
+        plain = make_repo(self.tmp / "plain", retro_project=False)
+        self.with_devkit(last_review=self.hours(1))  # reviewed an hour ago: the 20 h gap would hold a normal start
+        self.fake(findings=[{"session": "p/s", "title": "L: Zhratva", "cwd": str(plain), "line": CRITICAL_TOKEN}])
+        spawned, out = self.spawned_by("scan", "--force")
+        self.assertEqual(spawned, [(self.retro_command("ClaudeDevKit"), str(self.devkit))])
+        self.assertIn("out-of-turn retro started: ClaudeDevKit", out)
+        self.assertIn(CRITICAL_TOKEN, self.new_text(self.set_folder("spend-kit")))  # the project has no own set here
+        done = retro.fixes.read_done(self.retro)
+        self.assertEqual([(entry["action"], entry["set"]) for entry in done], [("out-of-turn retro", "spend-kit")])
+        self.assertEqual(done[0]["text"], "Позачергове ретро ClaudeDevKit: token spend: L: Zhratva (abcd1234)")
+        self.assertIn("Позачергове ретро ClaudeDevKit", self.run_cmd("list"))  # what Pult's status shows
+        self.assertEqual(self.spawned_by("scan", "--force")[0], [])  # started a moment ago and not finished
+        self.devkit_state(last_review=self.hours(5), retro_started=self.hours(retro.OUT_OF_TURN_GUARD_HOURS + 1))
+        self.assertEqual(len(self.spawned_by("scan", "--force")[0]), 1)  # the last one started long ago
+        self.devkit_state(last_review=self.hours(0.5), retro_started=self.hours(1))
+        self.assertEqual(len(self.spawned_by("scan", "--force")[0]), 1)  # it finished (reviewed after its start)
+        self.assertEqual(len(retro.fixes.read_done(self.retro)), 3)
+
+    # protects: Rule
+    def test_experiment_lines_go_to_the_spend_kit_set_whatever_their_cwd_and_only_an_alarm_or_a_critical_token_is_critical(self):
+        self.plugin_set("spend-kit")
+        self.with_devkit()
+        cwd = str(self.repo)
+        detail = "- Zhratva | L: Zhratva (abcd1234) | "
+        result = f"{detail}experiment result | dev-kit:coder: 10 runs per variant, keep Sonnet high"
+        plain = f"{detail}token spend | 2026-11-27: 1.2% of the weekly limit"
+        rework = f"{detail}rework | 0.4% of the weekly limit"
+        alarm = f"{detail}experiment alarm | dev-kit:coder opus-low: 3 re-asks in 3 runs"
+        self.fake(findings=[{"title": "L: Zhratva", "cwd": cwd, "line": line} for line in (result, plain, rework)])
+        with mock.patch.object(claude_path, "find_claude", return_value="c"):  # NO_START is on: a start would only stamp
+            self.run_cmd("scan", "--force")
+            self.assertNotIn("retro_started", self.devkit_stamps())  # a result, a plain token line and a rework: not critical
+            self.fake(findings=[{"title": "L: Zhratva", "cwd": cwd, "line": line} for line in (alarm, CRITICAL_TOKEN)])
+            self.run_cmd("scan", "--force")
+        spend, own = self.new_text(self.set_folder("spend-kit")), self.new_text()
+        for line in (result, alarm, CRITICAL_TOKEN):
+            self.assertIn(line, spend)
+        for line in (plain, rework):
+            self.assertNotIn(line, spend)
+        self.assertIn(CRITICAL_TOKEN, own)  # a critical token line is in its project's set too
+        for line in (plain, rework):
+            self.assertIn(line, own)
+        for line in (result, alarm):
+            self.assertNotIn(line, own)
+        self.assertIsNotNone(retro.parse_time(self.devkit_stamps()["retro_started"]))
+
+    # protects: Flow
+    def test_add_critical_starts_the_retro_of_the_sets_reviewer_out_of_turn_and_a_plain_add_does_not(self):
+        self.plugin_set("pult")
+        self.with_devkit(last_review=self.hours(1))
+        refusal = ("--set", "pult", "--from", "L: Zhratva", "--text", "move refusal | the build in progress would be lost")
+        spawned, _ = self.spawned_by("add", *refusal)
+        self.assertEqual(spawned, [])  # without --critical a line waits for the normal start
+        spawned, out = self.spawned_by("add", "--critical", *refusal)
+        self.assertEqual(spawned, [(self.retro_command("ClaudeDevKit"), str(self.devkit))])
+        self.assertIn("| move refusal | the build in progress would be lost", self.new_text(self.set_folder("pult")))
+        done = retro.fixes.read_done(self.retro)
+        self.assertEqual((done[0]["action"], done[0]["set"], done[0]["text"]),
+                         ("out-of-turn retro", "pult", "Позачергове ретро ClaudeDevKit: move refusal: from L: Zhratva"))
+        self.assertEqual(self.spawned_by("add", "--critical", *refusal)[0], [])  # the first retro still runs
+
+    # protects: Rule
+    def test_an_out_of_turn_retro_still_waits_for_the_docs_session_and_the_missing_claude_command(self):
+        self.plugin_set("pult")
+        self.with_devkit(last_review=self.hours(1))
+        state_root = self.tmp / "dev-kit-state"
+        docs = state_root / folder_naming.folder_name(self.devkit) / "docs.json"
+        docs.parent.mkdir(parents=True)
+        docs.write_text(json.dumps({"docs_started": self.hours(1)}), encoding="utf-8")
+        args = ("add", "--critical", "--set", "pult", "--text", "move refusal | x")
+        with mock.patch.dict(os.environ, {retro.STATE_ENV: str(state_root)}):
+            self.assertEqual(self.spawned_by(*args)[0], [])  # the docs session may still run
+        self.assertNotIn("retro_started", self.devkit_stamps())
+        with mock.patch.object(claude_path, "find_claude", return_value=None), \
+                mock.patch.object(retro, "spawn") as spawn, mock.patch("sys.stdout", io.StringIO()):
+            retro.main(list(args))
+        spawn.assert_not_called()
+        self.assertNotIn("retro_started", self.devkit_stamps())
+        self.assertEqual(len(self.spawned_by(*args)[0]), 1)
+
+    # protects: Rule
+    def test_items_are_listed_costliest_first_then_most_seen_then_by_key(self):
+        def item(key, *details):
+            text = "# t\n- status: waiting\n- kind: no rule\n" + "".join(
+                f"- seen: 2026-11-2{n} | S | {detail}\n" for n, detail in enumerate(details))
+            path = self.folder / "items" / f"{key}.md"
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(text, encoding="utf-8")
+
+        share = "- repo | S | rework | {} of the weekly limit"
+        item("a-cheap", "x", "y")
+        item("b-costly", share.format("1.5%"), share.format("~3.0%"))
+        item("c-costlier-seen-more", share.format("1.5%"), share.format("1.5%"), share.format("1.5%"))
+        item("d-free", "x", "y", "z")
+        item("e-free", "x", "y", "z")
+        rows = [row for row in self.project_cmd("items").splitlines() if " | waiting | " in row]
+        self.assertEqual(rows, ["c-costlier-seen-more | waiting | no rule | sightings 3 | cost 4.5%",
+                                "b-costly | waiting | no rule | sightings 2 | cost 4.5%",
+                                "d-free | waiting | no rule | sightings 3 | cost 0%",
+                                "e-free | waiting | no rule | sightings 3 | cost 0%",
+                                "a-cheap | waiting | no rule | sightings 2 | cost 0%"])
+
+    # protects: Flow
+    def test_the_weekly_summary_has_the_four_blocks_costliest_first_and_says_whether_a_fix_is_confirmed(self):
+        today = datetime.date.today()
+        old = today - datetime.timedelta(days=10)
+
+        def item(set_name, key, status, title, *costs):
+            path = self.set_folder(set_name) / "items" / f"{key}.md"
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(f"# {title}\n- status: {status}\n" + "".join(
+                f"- seen: 2026-11-2{n} | S | rework {cost}% of the weekly limit\n" for n, cost in enumerate(costs)),
+                encoding="utf-8")
+
+        item("repo", "fixed-ok", "worked", "Ціна A", 2.0)
+        item("repo", "fixed-open", "fixed", "Ціна B", 5.0)
+        item("repo", "long-ago", "fixed", "Давня", 9.0)
+        item("alpha", "wait-a", "waiting", "Чекає A", 1.0)
+        item("alpha", "wait-b", "second-try", "Чекає B", 1.5, 1.5)
+        item("repo", "parked-one", "parked", "Відкладена", 8.0)
+        record = retro.fixes.record
+        record(self.retro, "repo", "fixed-ok", "fixed", "Виправлено: Ціна A", today)
+        record(self.retro, "repo", "fixed-ok", "worked", "Перевірено: Ціна A", today)
+        record(self.retro, "repo", "fixed-open", "fixed", "Виправлено: Ціна B", today)
+        record(self.retro, "repo", "long-ago", "fixed", "Виправлено: Давня", old)
+        record(self.retro, "repo", "parked-one", "parked", "Відкладено: Відкладена", today)  # not an action of the summary
+        record(self.retro, "spend-kit", "out-of-turn-claudedevkit", "out-of-turn retro", "Позачергове ретро ClaudeDevKit: x", today)
+        self.fake(stats="Тиждень ліміту: 25.11 - 02.12, витрачено 69%", experiments="coder: Opus low 4 запуски")
+        self.assertEqual(self.run_cmd("weekly"), "\n".join([
+            "Витрати", "Тиждень ліміту: 25.11 - 02.12, витрачено 69%", "",
+            "Експерименти", "coder: Opus low 4 запуски", "",
+            "Виправлено за тиждень",
+            "- Ціна B (repo): виправлено, ще не підтверджено",
+            "- Ціна A (repo): виправлено, спрацювало, підтверджено",
+            "- Позачергове ретро ClaudeDevKit: x (spend-kit)", "",
+            "Заплановано",
+            "- Чекає B (alpha) - бачили 2 раз, 3.0% тижневого ліміту",
+            "- Чекає A (alpha) - бачили 1 раз, 1.0% тижневого ліміту", ""]))
+
+    # protects: Edge
+    def test_the_weekly_summary_without_spend_kit_or_experiments_or_items_still_prints(self):
+        self.fake()  # stats and experiments exit 2
+        out = self.run_cmd("weekly")
+        self.assertEqual(out, "Витрати\nspend-kit недоступний\n\nВиправлено за тиждень\n(нічого)\n\nЗаплановано\n(нічого)\n")
+        self.assertNotIn("Експерименти", out)
+        with mock.patch.dict(os.environ, {"SPEND_KIT_BIN": str(self.tmp / "none")}):  # a path that is no file
+            self.assertTrue(self.run_cmd("weekly").startswith("Витрати\nspend-kit недоступний\n"))
+
+    # protects: Flow
+    def test_the_weekly_session_starts_once_in_seven_days_from_any_session_and_on_request(self):
+        self.with_devkit()
+        self.scanned_today()
+        command = ["fake-claude", "--bg", "--name", "Retro: тиждень", "--permission-mode", "bypassPermissions", "--model",
+                   "opus", "--effort", "medium", "--", "/rules-kit:weekly-retro"]  # no `--settings`: the owner talks with it
+        payload = {"cwd": str(self.repo), "session_id": "s", "session_title": "L: Zhratva"}
+        self.assertEqual(self.spawned_by(hook=payload)[0], [(command, str(self.devkit))])
+        self.assertIsNotNone(retro.parse_time(self.global_state()["weekly_started"]))
+        self.assertEqual(self.spawned_by(hook=payload)[0], [])  # once in WEEKLY_DAYS days
+        self.assertEqual(self.spawned_by(hook={**payload, "session_title": "Retro: тиждень"})[0], [])  # skipped like a retro
+        state = self.global_state()
+        state["weekly_started"] = self.hours(retro.WEEKLY_DAYS * 24 + 1)
+        retro.write_json(self.retro / "state.json", state)
+        plain = make_repo(self.tmp / "plain", retro_project=False)
+        self.assertEqual(self.spawned_by(hook={**payload, "cwd": str(plain)})[0], [(command, str(self.devkit))])  # any project
+        spawned, out = self.spawned_by("weekly", "--start")  # on the owner's request, whenever he asks
+        self.assertEqual((spawned, out), ([(command, str(self.devkit))], "started\n"))
+
+    # protects: Rule
+    def test_weekly_start_needs_a_known_devkit_project_and_honours_the_no_start_switch(self):
+        self.scanned_today()
+        spawned, out = self.spawned_by("weekly", "--start")
+        self.assertEqual(spawned, [])
+        self.assertIn("no known ClaudeDevKit", out)
+        self.assertNotIn("weekly_started", self.global_state())  # nothing started, nothing stamped
+        self.assertEqual(self.spawned_by(hook={"cwd": str(self.repo), "session_id": "s", "session_title": "L: x"})[0], [])
+        self.with_devkit()
+        with mock.patch.object(retro, "spawn") as spawn, mock.patch.object(claude_path, "find_claude", return_value="c"):
+            self.run_cmd("weekly", "--start")  # RULES_KIT_NO_START=1 of setUp
+        spawn.assert_not_called()
+        self.assertIn("weekly_started", self.global_state())
 
 
 if __name__ == "__main__":

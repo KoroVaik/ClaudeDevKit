@@ -48,7 +48,7 @@ def table(out):
         if line.strip() and not line.startswith(" "):
             name = line
             groups[name] = []
-        elif line.strip():
+        elif line.strip() and ROW.fullmatch(line.strip()):  # the counts line of the causes block has no share cell
             groups[name].append(ROW.fullmatch(line.strip()).groups())
     return groups
 

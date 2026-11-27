@@ -16,6 +16,7 @@ split across projects, tasks, agents and skills, with past weeks kept for compar
   limit, the same base the Claude app shows.
 
 ### Groups
+- Before the groups, the spend by cause with last week's share: [Catch wasted work](catch-wasted-work.md).
 - Projects: every project with a share, largest first.
 - Tasks: the top 5 sessions by share, as «project · session title».
 - Agents: subagent type and model, share and number of runs.

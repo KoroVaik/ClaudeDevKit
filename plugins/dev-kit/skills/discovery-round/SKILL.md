@@ -23,7 +23,7 @@ again. Record it as accepted when the words are an explicit yes, and ask only wh
 
 When the talk is about how an existing mechanism behaves (a script, a hook, a watcher, who starts or
 restarts what), check how it works now in its code and rules before a recommendation, a weak spot or a
-plan line rests on it; a sweep over about 100 lines goes to a `dev-kit:investigator` (sonnet). Why:
+plan line rests on it; a sweep over about 100 lines goes to a `dev-kit:investigator`. Why:
 ClaudeDevKit, 2026-11-22: a discussion told the owner a project lead may stay closed for days and wrote it
 into the plan; Pult's watcher restarts leads.
 

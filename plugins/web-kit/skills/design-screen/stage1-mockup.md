@@ -43,7 +43,7 @@ numbered block.
    `mockups.css`, document it in `spec-format.md`, and rebuild. Otherwise compose with existing blocks.
 6. Run `web-kit-mockups --check`: it must report OK.
 7. **Cut text:** walk every screen and remove each word the screen stays clear without ("Less text").
-8. **Facts, before the first show:** a read-only `dev-kit:investigator` (haiku or sonnet) gets the spec and
+8. **Facts, before the first show:** a read-only `dev-kit:investigator` (haiku, or its own model) gets the spec and
    lists every claim the screens make about how the app works (where a value comes from, which step or
    link leads where, what a button does, which data is shown), and checks each in the code or data, with
    file:line. A claim it cannot confirm is fixed or marked as a placeholder in `authorNotes` before the owner

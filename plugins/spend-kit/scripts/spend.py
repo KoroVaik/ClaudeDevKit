@@ -15,6 +15,12 @@ problems. It reads the transcripts and uses no model.
     spend-kit findings [--transcript PATH] [--days N]
                                                   scan, then print as JSON the spend findings no reader has taken yet
                                                   and the `## Spend` table lines (see Findings)
+    spend-kit experiment next --type T [--task NAME]
+                                                  pick and log the next variant of a type (a Manager at its start passes
+                                                  its session name), print its effort word (see Experiments)
+    spend-kit experiment stop|decide --type T --variant V --reason R
+                                                  stop a variant / name the winner of a type
+    spend-kit experiments                         the status of every experiment type, as plain text
     spend-kit units --path FILE --from N --to M   the units of the transcript lines in the byte range [N, M)
     spend-kit hook-end                            SessionEnd hook (JSON on stdin): write the ended session's spend file
 
@@ -32,9 +38,11 @@ over from `~/.claude/dev-kit` are copied once, see there). Transcripts: every `*
 else `~/.claude/projects`, subagent ones in `<session>/subagents/` included. `state.json` keeps: `offsets` (a byte
 offset per transcript, up to the last complete line), `last_scan`, `scan_started`, `titles` and `cwds` per
 `project/session`, `daily` (per local day by message time, DAILY_KEPT days, and per session with its subagents summed: the
-units and the waste in them), `turns` (main turns so far per session), `runs` (units of the last RUNS_KEPT runs per
-subagent type and model), `last_assistant`, `fit`, `fit_checked`, `fit_windows`, `critical_shown`, `noted_days` and
-`pending` (the findings not yet taken by `findings`). It is read, changed and written only while `scan.lock` exists
+units and the waste in them, and the numbers of the waste signals below), `turns` (main turns so far per session),
+`runs` (units of the last RUNS_KEPT runs per subagent type and model), `last_assistant`, `fit`, `fit_checked`,
+`fit_windows`, `critical_shown`, `noted_days`, `signal_keys` (the signal events already counted, by key, with their
+day), `flags` (the model mismatches and cheap steps redone of a day, per session), `recheck` (sessions with a helper
+still running, read again by the next scan) and `pending` (the findings not yet taken by `findings`). It is read, changed and written only while `scan.lock` exists
 (stale after LOCK_STALE_S); a transcript scan waits up to LOCK_WAIT_TRANSCRIPT_S and then does nothing, a full scan,
 `critical`, `findings` and `calibrate` wait up to LOCK_WAIT_FULL_S. On the first full scan (no full scan yet) a file
 last changed before `--days` days ago (default 1) that has no offset is skipped and its offset set to its size.
@@ -47,6 +55,64 @@ Waste is counted once per message, in this order:
   a peer or coordinator message) that came after the prompt cache lifetime (5 min after a 5-minute write, 60 min after
   a 1-hour write, as the previous message wrote it) since the previous message of that file;
 - bloated context: the cache read above BLOAT_CONTEXT tokens of a message, at the cache read weight.
+Waste signals (docs/features/catch-wasted-work.md; the rules are in `signals.py`, pure functions over the transcript
+lines, used by the scan, the per-session file and `collect`). Each is found in the main transcript of a session and its
+helper files (`<session>/subagents/agent-<id>.jsonl` with `agent-<id>.meta.json`: `agentType`, `toolUseId` of the
+parent's `Agent` call, `description`, `finished`). A signal event has a key that does not change when the file grows;
+the scan counts an event once (`signal_keys`) and puts it on the day of its time:
+- re-ask: an owner message (a `user` line, not meta, no tool result, no slash command, `origin.kind` human) that, after
+  `signals.cleaned` (no code, quote lines, table rows, «quoted» words), matches REASK_STRONG (the pattern of the retro's
+  correction words), or REASK_SHORT (a bare «?», «що?», or a start with «ще раз» / «again»), or repeats a question: a
+  `?`, 3 or more words of 3+ letters, Jaccard >= 0.6 of the word sets with one of the previous 3 owner messages. The
+  first owner message of a session titled `M:`, `C:`, `Discuss:` or `Обговорення:` is the task and is skipped.
+- rework of a re-ask: the units of the main messages from it to the next owner message (exclusive) plus the whole units
+  of each helper file whose `toolUseId` is an `Agent` call of that span, a message id once. A re-ask is counted when
+  first seen, with the span read so far.
+- model and reasoning per run: the family with the most units and the `effort` field of the helper's first assistant
+  line; per main session the family with the most units and the most common `effort` (the per-session file's `model`
+  and `effort`). `model mismatch`: a finished run whose family (haiku < sonnet < opus < fable) or effort (low < medium
+  < high < xhigh < max) ranks above its agent file's `model:` / `effort:` (`plugin:name` -> the plugin's
+  `agents/name.md`, found like dev-kit's `narrow-agents.py` does, the plugin folder named by env
+  SPEND_KIT_PLUGINS_DIR first and alone when set; a bare `name` -> `<cwd>/.claude/agents/name.md`, then
+  `~/.claude/agents/name.md`; no file or `inherit`: no check). A run listed in the experiment log
+  `<data folder>/experiments.jsonl` (one JSON per line: `tool_use_id`, `type`, `variant`, `model`, `effort`, `time`,
+  `session`; written by the experiment hook, `signals.read_experiments`) is left out. `cheap step redone`: a finished
+  run on Sonnet or Haiku, or with effort low, after which the next owner message is a re-ask or another `Agent` call of
+  the same type with a description of Jaccard >= 0.6 comes before it and starts after the run's tool result (a parallel
+  launch is not a redo).
+- duplicated work (units are an estimate): (1) a file read (`Read` `file_path`, resolved, lowercase, forward slashes) by
+  2 or more helper runs; (2) a file the main chain reads after a helper that read it has finished; (3) an `Agent` call
+  with the type and a description (Jaccard >= 0.6) of an earlier finished one. Units of (1) and (2): the duplicate read's
+  result size in characters / 4 as tokens, at the 5-minute cache write weight times the reader's model weight; of (3):
+  the whole units of the repeated run. Reads of the files every agent is told to read (`CLAUDE.md`,
+  `.claude/dev-kit.md`, any `SKILL.md`, `agents/*.md`, `rules-subscription.md`, `claude-facts.md`, `messages.md`) are
+  left out of (1) and (2).
+A run counts as finished when its meta says so or its file did not grow for 10 minutes. The scan reads a session whenever
+one of its files grew (and the sessions in `recheck`), so it reads each such main file and its helpers whole.
+Noise floor: a model mismatch or cheap step redone is a finding line and a count in `stats` only when its units are
+NOTE_WASTE_PCT of the weekly limit or more; duplicated work when the session's day reaches it together. Every re-ask
+counts, whatever its share: the `reasks` and `rework` of the day row, the `rework` finding of each session-day with a
+re-ask, the count in `stats`. The cause shares in `stats` sum every event.
+
+Experiments (docs/features/catch-wasted-work.md; the types, state, pick log and rules are `experiments.py`, the pick
+hook for helpers is `hooks/experiment.py`): two variants of one helper or Manager kind alternate by run (a Manager: by
+task), each pick logged with its variant in `<data folder>/experiments.jsonl` (the file the model-mismatch check reads).
+The daily count runs inside the full scan (the one `findings` forces), never as a scheduler of its own: it joins the log
+to the transcripts (a helper pick to the helper file whose `meta.json` `toolUseId` is the pick's `tool_use_id`, in the
+pick's session; a Manager pick to the session whose title is its `task`) and counts, per variant, the finished runs,
+their units (a Manager: the session with its helpers) and the signs after them: in the parent session after a helper's
+tool result and before the next owner message a re-ask, another `Agent` launch of the same type, a failed check (a
+Bash or PowerShell result with `is_error` whose command matches `test|lint|check|pytest|unittest`); a Manager run's
+signs are the session's re-asks and failed checks. With 3 or more runs of each variant a variant is alarming when its
+signs per run are 2 times the other's or more with at least 2 signs, or its units per run 1.5 times the other's or more:
+a packet `<data folder>/experiment-packets/<type with : as ->-<variant>-<date>.md` (the numbers, and per run its
+transcript, helper file and signs with line numbers and excerpts, about 40 lines) is written and the finding
+`experiment alarm` is added: `<type> <variant>: <signs>/<runs> signs, <units per run> units per run vs <other variant>
+<...>; packet: <path>; X% of the weekly limit` (X: the units of that variant's runs), once for a run count. With USUAL_MIN or
+more runs of each variant one finding `experiment result` with both variants' numbers, once per type until decided.
+Both carry the session, title and cwd of the type's newest run. A caller's own other model for a helper is left alone;
+a context-heavy helper (CONTEXT_HEAVY) whose model is Opus or Fable is reset to its file's model by the hook.
+
 A session's day is a problem when it spent NOTE_SPEND_PCT or wasted NOTE_WASTE_PCT of the weekly limit
 (`weekly_limit()`: the fit kept in `state.json`, else the seed WEEKLY_LIMIT_UNITS; one place), and critical from
 CRITICAL_SPEND_PCT or CRITICAL_WASTE_PCT. `critical` prints, for today and CRITICAL_DAYS days before, one line per
@@ -70,7 +136,14 @@ nothing): each scan adds lines to `pending` in the format `- <project folder> | 
 - `opus coder`: a coder subagent run on Opus, with its units against the usual Sonnet coder run (only with USUAL_MIN
   or more such runs kept);
 - `token spend` / `token waste`: when a scan runs on a later day, each finished day's problems, once per day:
-  `<date>: <detail>[; critical (shown in Pult's status)]`.
+  `<date>: <detail>[; critical (shown in Pult's status)]`;
+- the waste signals, when a scan runs on a later day, never critical, each detail with `X% of the weekly limit` in the
+  number format of the lines above (the retro sums the numbers before `% of the weekly limit`): `rework` per session per
+  finished day with a re-ask: `<date>: N re-asks, rework X% of the weekly limit (U units)`; `model mismatch` per run:
+  `<type> ran on <Model> <effort>, its file says <model> <effort>; X% of the weekly limit`; `cheap step redone` per run:
+  `<type> ran on <Model> <effort>, then its step was redone; X% of the weekly limit`; `duplicate work` per session per
+  finished day: `<date>: N files read by 2+ helpers, M read again by the session, K repeated launches; ~X% of the weekly
+  limit, estimate`.
 The `table` lines are the `## Spend` section of a full scan (sessions by title, subagents by type and model). "Usual" is
 the median units per run of one subagent type on one model over the last RUNS_KEPT runs, shown only with USUAL_MIN or
 more runs.
@@ -104,7 +177,11 @@ SESSIONS_KEPT_DAYS deleted. Other plugins read it, never import this script:
      "main": {"units": 8000000, "share_pct": 1.1, "turns": 120},
      "subagents": {"units": 7900000, "share_pct": 1.2, "runs": [{"type": "dev-kit:coder", "model": "sonnet", "units": 1000}]},
      "models": {"opus": 1000, "sonnet": 2000},
-     "waste": {"units": 100, "share_pct": 0.01, "idle": 60, "cold": 30, "bloat": 10, "wakes": 2}}
+     "waste": {"units": 100, "share_pct": 0.01, "idle": 60, "cold": 30, "bloat": 10, "wakes": 2},
+     "rework": {"units": 2000, "share_pct": 0.3, "reasks": 2}, "model": "opus", "effort": "medium"}
+
+(each subagent run also has `effort` when its file names one; `model` and `effort` are the session's own, `null` when
+unknown; `rework` is the rework of the re-asks above, whole session.)
 
 Stats (`stats`, docs/features/limit-usage-stats.md): a text table of where the current weekly limit went, for a project
 lead to paste in chat. The window is the newest status line reading's `week_resets` minus 7 days up to it (no reading:
@@ -115,16 +192,38 @@ main session's folder), a task (`project · session title`; a subagent counts to
 (`type · Model`, one run per subagent file) and, roughly, a skill (the units of the main messages from a Skill tool
 call or a `/command` launch to the next owner message). A share is the units over the window's units times the
 header's per cent, so each group adds up to the header. Groups: Проєкти, Задачі (top 5), Агенти (top 5), Скіли (приблизно, top 5);
-`--detail` prints one group in full, agents with runs and the usual (median) units per run. Each closed window is
+`--detail` prints one group in full, agents with runs and the usual (median) units per run. Before the groups (not in
+a `--detail` view) the block «Куди пішли токени» shows where the units went by cause, one line each with its share of the
+window's units and, next to it, the share of the same cause in the newest archived week (`немає даних` when that line
+has no `causes`), then one line with the counts:
+
+    Куди пішли токени
+      Великий контекст      31%  (минулого тижня 35%)
+      ...
+      Перепитування 6, модель вище за файл 3, повтори кроку 1, дубльована робота 4
+
+The causes (`collect`'s `causes`, in units; wider than the waste definitions above, which stay as they are for `critical`
+and the `token waste` findings): `large context` (the whole units of every message, main and helper, whose prompt - input
++ cache read + cache write tokens - is above LARGE_PROMPT), `cold restarts` (the cache-write units of the first message
+of any turn, the owner's too, that came after the cache lifetime since the previous message of that file: 5 min after a
+5-minute write, 60 after a 1-hour write), `expensive models` (units of helper runs whose model is Opus or Fable), `duplicated
+work` (the estimate above) and `rework` (the rework units above). Their shares are of the window's units and may add
+up to more than 100%: one message can be in several causes (a cold restart inside a re-ask's span). `counts`: re-asks,
+model mismatches, cheap steps redone, duplicate-work cases. The signals of a window are those whose time is in it. Each
+closed window is
 appended once to `<data folder>/weekly.jsonl`, never cut (Claude deletes transcripts after 30 days), by `stats` and by
 the detached run of the SessionEnd hook (`write-session --archive`), under `weekly.lock`:
 
     {"v": 1, "start": "<UTC ISO>", "end": "<UTC ISO>", "pct": 95.0, "units": 549000000, "limit_units": 549000000,
      "projects": {"ClaudeDevKit": 1000}, "tasks": {"ClaudeDevKit · title": 1000},
-     "agents": {"coder · Sonnet": {"units": 1000, "runs": 3, "usual": 300}}, "skills": {"fix-bug": 100}}
+     "agents": {"coder · Sonnet": {"units": 1000, "runs": 3, "usual": 300}}, "skills": {"fix-bug": 100},
+     "causes": {"large context": 100, "cold restarts": 0, "expensive models": 50, "duplicated work": 20, "rework": 10},
+     "counts": {"reasks": 6, "mismatches": 3, "redone": 1, "duplicates": 4}}
 
-`stats --week -1` prints the newest archived week in the same table, -2 the one before; exit code 2 when it is not
-there.
+(`causes` and `counts` are optional: lines archived before them have neither.)
+
+`stats --week -1` prints the newest archived week in the same table, -2 the one before (the causes block compares with
+the week before it); exit code 2 when it is not there.
 
 Exit codes: 0 done, 1 busy (calibrate), 2 bad arguments, no session or no archived week.
 """
@@ -141,6 +240,8 @@ from collections import Counter, defaultdict
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))  # the launcher runs this file with runpy, which adds nothing
+import experiments  # noqa: E402  the experiment state, pick log and rules
+import signals  # noqa: E402  the waste signals: re-asks, model against agent file, duplicated work
 import spend_dir  # noqa: E402  the data folder and the one-time move from dev-kit
 import statusline  # noqa: E402  the status line script owns the usage log file
 
@@ -179,6 +280,7 @@ IDLE_MAX_CALLS = 8  # (IDLE_TOOLS) calls is idle: it re-armed a watcher and acte
 IDLE_TOOLS = {"Bash", "PowerShell", "ListAgents", "Read", "Grep", "Glob", "CronList"}
 WAKE_ORIGINS = {"task-notification", "agent-notification", "peer", "coordinator"}  # turn starts not by the owner
 BLOAT_CONTEXT = 300_000  # the cache read above this many tokens in one message counts as bloated context
+LARGE_PROMPT = 200_000  # a message whose prompt (input + cache read + cache write tokens) is above this is `large context` in `stats`
 COLD_TTL_MIN = {"5m": 5, "1h": 60}  # the prompt cache lifetime by write kind
 DAILY_KEPT = 14  # days of per-session units kept in `state.json`
 WEEK = datetime.timedelta(days=7)
@@ -228,12 +330,7 @@ def short(text):
 
 # ---------------------------------------------------------------- state and locks
 
-def write_json(path, data):
-    """Write a JSON file atomically: a temp file of this process, then replace."""
-    path.parent.mkdir(parents=True, exist_ok=True)
-    tmp = path.with_name(f"{path.stem}.{os.getpid()}.tmp")
-    tmp.write_text(json.dumps(data, indent=1, sort_keys=True), encoding="utf-8")
-    os.replace(tmp, path)
+write_json = spend_dir.write_json
 
 
 def migrate_state(folder):
@@ -268,41 +365,8 @@ def save_state(folder, state):
     write_json(folder / "state.json", state)
 
 
-def lock_age(path):
-    """Seconds since the lock file was made, or None when there is none."""
-    try:
-        return time.time() - path.stat().st_mtime
-    except OSError:
-        return None
-
-
-@contextlib.contextmanager
-def file_lock(path, wait, stale):
-    """Hold a lock file (made with O_EXCL; one older than `stale` s is taken over); yields False after `wait` s."""
-    path.parent.mkdir(parents=True, exist_ok=True)
-    deadline = time.monotonic() + wait
-    while True:
-        try:
-            handle = os.open(path, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
-        except (FileExistsError, PermissionError):  # Windows: PermissionError while the other side deletes it
-            age = lock_age(path)
-            if age is not None and age > stale:
-                with contextlib.suppress(OSError):
-                    path.unlink()
-                continue
-            if time.monotonic() >= deadline:
-                yield False
-                return
-            time.sleep(0.1)
-            continue
-        os.write(handle, str(os.getpid()).encode("ascii"))
-        os.close(handle)
-        break
-    try:
-        yield True
-    finally:
-        with contextlib.suppress(OSError):
-            path.unlink()
+lock_age = spend_dir.lock_age  # the lock files and the atomic JSON write live in `spend_dir.py` (the experiments use them too)
+file_lock = spend_dir.file_lock
 
 
 def scan_lock(folder, wait):
@@ -363,6 +427,9 @@ def units_of(usage, model):
     return raw * MODEL_WEIGHTS.get(model_family(model), 1)
 
 
+PRICING = signals.Pricing(units_of, lambda model: MODEL_WEIGHTS.get(model_family(model), 1), WEIGHTS["cache_5m"])
+
+
 def waste_of(usage, model):
     """(cache write units, units of the cache read above BLOAT_CONTEXT) of one message."""
     five, hour = cache_writes(usage)
@@ -402,9 +469,9 @@ def analyse(lines, seen=None, since=None, last=None):
     """Counters of one transcript window: units by model family, main turns, the per-day units and waste (`days`),
     the title, the `cwd` and the units of the run.
 
-    `seen` is the set of message ids already counted in this scan; lines dated before `since` are not counted.
-    `last` is `(time, cache lifetime in minutes)` of the previous assistant message of this file, from an earlier scan;
-    the result's `last` is the same for the next scan."""
+    `seen` is the set of message ids already counted in this scan; lines dated before `since` are not counted. `last` is
+    `(time, cache lifetime in minutes)` of the previous assistant message of this file, from an earlier scan; the
+    result's `last` is the same for the next scan."""
     seen = set() if seen is None else seen
     days = {}
     turn = new_turn(None)
@@ -489,6 +556,272 @@ def merge(a, b):
         "units": a["units"] + b["units"], "turns": a["turns"] + b["turns"], "runs": a["runs"] + b["runs"],
         "run_units": a["run_units"] + b["run_units"],
     }
+
+
+# ---------------------------------------------------------------- the waste signals
+
+def entries_of(path):
+    """The parsed `user`, `assistant` and `custom-title` lines of a transcript, in file order (other lines are skipped
+    before parsing); each dict gets `_line`, its line number in the file."""
+    try:
+        handle = open(path, "rb")
+    except OSError:
+        return
+    with handle:
+        for number, raw in enumerate(handle, 1):
+            if b'"user"' not in raw and b'"assistant"' not in raw and b"custom-title" not in raw:
+                continue
+            try:
+                entry = json.loads(raw)
+            except ValueError:
+                continue
+            if isinstance(entry, dict):
+                entry["_line"] = number
+                yield entry
+
+
+def helper_runs(main):
+    """`signals.read_run` of every subagent file of a main transcript."""
+    runs = []
+    for file in sorted((main.with_suffix("") / "subagents").rglob("*.jsonl")):
+        try:
+            meta = json.loads(file.with_suffix(".meta.json").read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            meta = {}
+        runs.append({**signals.read_run(entries_of(file), meta, PRICING, run_id=file.stem), "path": str(file)})
+    return runs
+
+
+def session_signals(main, title="", now=None):
+    """The signals of one main transcript and its helpers (`signals.analyse_session`), plus the helpers' `runs`."""
+    trace = signals.read_trace(entries_of(main), PRICING, main_only=True)
+    runs = helper_runs(main)
+    found = signals.analyse_session(trace, runs, PRICING, now or now_utc(), title=title,
+                                    experiments=signals.read_experiments(spend_dir.data_dir()))
+    found["runs"] = runs
+    return found
+
+
+def event_day(event):
+    """The local date of an event's time (today when it has none)."""
+    return (event["stamp"] or now_utc()).astimezone().date().isoformat()
+
+
+SIGNAL_FLAGS = {"mismatch": "model mismatch", "redone": "cheap step redone"}  # event kind -> the finding kind
+DAILY_FIELDS = ("units", "idle", "cold", "bloat", "wakes", "reasks", "rework", "dup_files", "dup_reread", "dup_launch",
+                "dup_units")  # the numbers of a session's day in `state["daily"]`; the last seven are the signals
+
+
+def noted(event, limit):
+    """True when a model mismatch or cheap step redone is worth a finding: its units are NOTE_WASTE_PCT of the weekly
+    limit or more (duplicated work is judged per session and day, in `signal_lines`; a re-ask always counts)."""
+    return percent(event["units"], limit) >= NOTE_WASTE_PCT
+
+
+def add_event(state, key, event, limit):
+    """Add one new signal event of the session `key` to the state: re-asks and duplicated work to the session's day
+    (`reasks`, `rework`; `dup_files`, `dup_reread`, `dup_launch`, `dup_units`), a model mismatch or a cheap step redone to
+    `state["flags"]` (date -> session key -> flags). A mismatch or redone step under the note share (`noted`) is not
+    added; every re-ask is (the owner's rule: every re-ask counts)."""
+    day = event_day(event)
+    if event["kind"] in SIGNAL_FLAGS:
+        if noted(event, limit):
+            state.setdefault("flags", {}).setdefault(day, {}).setdefault(key, []).append(
+                {"kind": SIGNAL_FLAGS[event["kind"]], "detail": event["detail"], "units": round(event["units"])})
+        return
+    row =state.setdefault("daily", {}).setdefault(day, {}).setdefault(key, {})
+    for field in DAILY_FIELDS:
+        row.setdefault(field, 0)
+    if event["kind"] == "reask":
+        row["reasks"] += 1
+        row["rework"] = round(row["rework"] + event["units"])
+        return
+    row["dup_units"] = round(row["dup_units"] + event["units"])
+    field = {"dup_shared": "dup_files", "dup_reread": "dup_reread", "dup_launch": "dup_launch"}[event["kind"]]
+    row[field] += event["count"]
+
+
+def scan_signals(state, sessions, root):
+    """Add the new signal events of the sessions `{(project folder, session)}` to the state. An event is new when its key
+    (`project/session|<event key>`) is not in `state["signal_keys"]`; events older than DAILY_KEPT days are left out.
+    Sessions with a helper still running go to `state["recheck"]`: the next scan reads them again."""
+    taken = state.setdefault("signal_keys", {})
+    keep = (now_utc().astimezone().date() - datetime.timedelta(days=DAILY_KEPT)).isoformat()
+    for old in [key for key, day in taken.items() if day < keep]:
+        del taken[old]
+    recheck = set()
+    limit = weekly_limit(state)[0]
+    for project, session in sorted(sessions |{tuple(key.rpartition("/")[::2]) for key in state.get("recheck", [])}):
+        main = root / project / f"{session}.jsonl"
+        if not main.is_file():
+            continue
+        key = f"{project}/{session}"
+        found = session_signals(main, state.get("titles", {}).get(key, ""))
+        if found["open_runs"]:
+            recheck.add(key)
+        for event in found["events"]:
+            day = event_day(event)
+            if day < keep or f"{key}|{event['key']}" in taken:
+                continue
+            taken[f"{key}|{event['key']}"] = day
+            add_event(state, key, event, limit)
+    state["recheck"] = sorted(recheck)
+
+
+def signal_lines(state, date, limit):
+    """`(share, session key, scan line)` of the signal findings of one finished day: `rework` and `duplicate work` per
+    session, `model mismatch` and `cheap step redone` per run, each with its share of the weekly limit."""
+    found = []
+    for key, row in state.get("daily", {}).get(date, {}).items():
+        project, label = session_label_of(state, key)
+        prefix = f"- {project} | {label.replace('|', '/')} | "
+        if row.get("reasks"):
+            share = percent(row.get("rework", 0), limit)
+            found.append((share, key, f"{prefix}rework | {date}: {row['reasks']} re-asks, rework {pct_text(share)} of the "
+                                      f"weekly limit ({amount(row.get('rework', 0))} units)"))
+        files, reread, launches = (row.get(field, 0) for field in ("dup_files", "dup_reread", "dup_launch"))
+        share = percent(row.get("dup_units", 0), limit)
+        if (files or reread or launches) and share >= NOTE_WASTE_PCT:
+            found.append((share, key, f"{prefix}duplicate work | {date}: {files} files read by 2+ helpers, {reread} read "
+                                      f"again by the session, {launches} repeated launches; ~{pct_text(share)} of the "
+                                      f"weekly limit, estimate"))
+    for key, flags in state.get("flags", {}).get(date, {}).items():
+        project, label = session_label_of(state, key)
+        for flag in flags:
+            share = percent(flag["units"], limit)
+            found.append((share, key, f"- {project} | {label.replace('|', '/')} | {flag['kind']} | {flag['detail']}; "
+                                      f"{pct_text(share)} of the weekly limit"))
+    return found
+
+
+# ---------------------------------------------------------------- the experiments
+
+EXPERIMENT_DAYS = 30  # picks older than this are not joined to transcripts: Claude deletes those after 30 days
+
+
+def experiment_runs(state, root, now):
+    """The finished runs of the picks in the experiment log, `{type: {variant: [run]}}`; a run is `{"units", "signs",
+    "transcript", "subagent", "project", "session", "title", "cwd", "stamp"}`.
+
+    A helper pick is joined to the helper file whose `meta.json` `toolUseId` is the pick's `tool_use_id`, in the pick's
+    session; its signs are `signals.run_signs` and its units the run's. A Manager pick is joined to the session whose
+    title is the pick's `task`; its units are the session's with its helpers' and its signs `signals.session_signs`.
+    A `reset` pick is no run."""
+    first = now - datetime.timedelta(days=EXPERIMENT_DAYS)
+    seen = {}  # main path -> (trace, runs, reasks)
+    found = defaultdict(lambda: defaultdict(list))
+
+    def read(main):
+        if main not in seen:
+            trace = signals.read_trace(entries_of(main), PRICING, main_only=True)
+            seen[main] = (trace, helper_runs(main), signals.find_reasks(trace["owners"], trace["title"]))
+        return seen[main]
+
+    def record(main, trace, units, signs, stamp, subagent=""):
+        return {"units": units, "signs": signs, "transcript": str(main), "subagent": subagent,
+                "project": main.parent.name, "session": main.stem, "title": trace["title"], "cwd": trace["cwd"] or "",
+                "stamp": stamp}
+
+    for pick in experiments.read_picks():
+        stamp = parse_time(pick.get("time")) or now
+        if pick["variant"] == "reset" or stamp < first or pick["type"] not in experiments.EXPERIMENTS:
+            continue
+        if pick.get("tool_use_id"):
+            mains = session_files(str(pick.get("session") or ""), None) if pick.get("session") else []
+            if not mains:
+                continue
+            trace, runs, reasks = read(mains[0])
+            run = next((item for item in runs if item["tool_use_id"] == pick["tool_use_id"]), None)
+            if run and signals.is_finished(run, now):
+                found[pick["type"]][pick["variant"]].append(record(
+                    mains[0], trace, run["units"], signals.run_signs(trace, reasks, pick["tool_use_id"]), stamp,
+                    run["path"]))
+            continue
+        titles = state.get("titles", {})
+        mains = [root / f"{key.rpartition('/')[0]}" / f"{key.rpartition('/')[2]}.jsonl" for key, title in sorted(titles.items())
+                 if pick.get("task") and title == pick["task"]]
+        mains = [main for main in mains if main.is_file()]
+        if mains:
+            trace, runs, reasks = read(mains[-1])
+            units = sum(message["units"] for message in trace["messages"]) + sum(item["units"] for item in runs)
+            found[pick["type"]][pick["variant"]].append(
+                record(mains[-1], trace, units, signals.session_signs(trace, reasks), stamp))
+    return {kind: dict(by_variant) for kind, by_variant in found.items()}
+
+
+def experiment_entries(state, root, day, now=None):
+    """The experiment findings of the daily count (`experiment alarm`, `experiment result`: see the module doc,
+    Experiments) as pending entries; writes the packet of an alarm and keeps the marks in the experiments state."""
+    now = now or now_utc()
+    runs = experiment_runs(state, root, now)
+    if not runs:
+        return []
+    limit = weekly_limit(state)[0]
+    entries = []
+    with experiments.lock() as held:
+        if not held:
+            return []
+        stored = experiments.load_state()
+        for kind, by_variant in sorted(runs.items()):
+            variants = experiments.EXPERIMENTS[kind]["variants"]
+            tallies = {variant: experiments.tally(by_variant.get(variant, [])) for variant in variants}
+            newest = max((run for rows in by_variant.values() for run in rows), key=lambda run: run["stamp"])
+            key = f"{newest['project']}/{newest['session']}"
+            name = newest["title"].replace("|", "/")
+            label = f"{name} ({newest['session'][:8]})" if name else newest["session"]
+            for action, variant in experiments.actions(kind, tallies, stored["marks"], experiments.type_state(stored, kind)):
+                if action == "alarm":
+                    other = next(item for item in tallies if item != variant)
+                    rows = by_variant[variant]
+                    path = experiments.packet_path(spend_dir.data_dir(), kind, variant, day)
+                    path.parent.mkdir(parents=True, exist_ok=True)
+                    path.write_text(experiments.packet_text(kind, variant, tallies, rows, amount, day), encoding="utf-8")
+                    stored["marks"][f"alarm|{kind}|{variant}"] = tallies[variant]["runs"]
+                    share = pct_text(percent(sum(run["units"] for run in rows), limit))
+                    detail = (f"{kind} {variant}: {experiments.numbers(variant, tallies[variant], amount)} vs {other} "
+                              f"{experiments.numbers(other, tallies[other], amount)}; packet: {path}; {share} of the "
+                              f"weekly limit")
+                    what = "experiment alarm"
+                else:
+                    stored["marks"][f"result|{kind}"] = 1
+                    detail = f"{kind}: " + "; ".join(f"{variant} {experiments.numbers(variant, tally, amount)}"
+                                                      for variant, tally in tallies.items())
+                    what = "experiment result"
+                entries.append({"session": key, "title": newest["title"], "cwd": newest["cwd"], "day": day,
+                                "line": f"- {newest['project']} | {label} | {what} | {detail}"})
+        experiments.save_state(stored)
+    return entries
+
+
+def experiments_status(out=None):
+    """Print the status of every experiment type: variants with runs, units and signs per run, stopped and decided."""
+    out = out or sys.stdout
+    state = load_state(spend_dir.data_dir())
+    runs = experiment_runs(state, projects_dir(), now_utc())
+    stored = experiments.load_state()
+    for kind in experiments.EXPERIMENTS:
+        tallies = {variant: experiments.tally(runs.get(kind, {}).get(variant, []))
+                   for variant in experiments.EXPERIMENTS[kind]["variants"]}
+        print("\n".join(experiments.status_text(kind, tallies, experiments.type_state(stored, kind), amount)), file=out)
+    return 0
+
+
+def experiment_command(args, out=None, err=None):
+    """`spend-kit experiment next|stop|decide`; exit code 2 for an unknown type or variant."""
+    out, err = out or sys.stdout, err or sys.stderr
+    try:
+        if args.action == "next":
+            if args.type not in experiments.EXPERIMENTS:
+                raise ValueError(f"unknown type {args.type!r}; known: {', '.join(experiments.EXPERIMENTS)}")
+            spec = experiments.EXPERIMENTS[args.type]
+            picked = experiments.choose(args.type, os.environ.get("CLAUDE_CODE_SESSION_ID", ""), task=args.task or "")
+            print((picked or (spec["old"], *spec["variants"][spec["old"]]))[2], file=out)
+        else:
+            (experiments.decide if args.action == "decide" else experiments.stop)(args.type, args.variant, args.reason)
+    except ValueError as problem:
+        print(problem, file=err)
+        return 2
+    return 0
 
 
 # ---------------------------------------------------------------- the weekly limit and the problems
@@ -577,6 +910,9 @@ def priority_lines(state, day):
     daily = state.setdefault("daily", {})
     for old in [date for date in daily if date < keep]:
         del daily[old]
+    flags = state.setdefault("flags", {})
+    for old in [date for date in flags if date < keep]:
+        del flags[old]
     stale = (now_utc() - datetime.timedelta(days=3)).isoformat()
     last = state.setdefault("last_assistant", {})
     for old in [path for path, (stamp, _) in last.items() if parse_time(stamp) < parse_time(stale)]:
@@ -584,14 +920,15 @@ def priority_lines(state, day):
     written = state.setdefault("noted_days", [])
     limit = weekly_limit(state)[0]
     lines = []
-    for date in sorted(date for date in daily if date < day and date not in written):
+    for date in sorted(date for date in {*daily, *flags} if date < day and date not in written):
         written.append(date)
         found = []
-        for key, row in daily[date].items():
+        for key, row in daily.get(date, {}).items():
             project, label = session_label_of(state, key)
             found += [(share, key, f"- {project} | {label.replace('|', '/')} | token {kind} | {date}: {detail}"
                        + ("; critical (shown in Pult's status)" if critical else ""))
                       for kind, share, detail, critical in problems(row, limit)]
+        found += signal_lines(state, date, limit)
         lines += [(key, line) for _, key, line in sorted(found, key=lambda item: -item[0])]
     state["noted_days"] = written[-DAILY_KEPT:]
     alive = {key for sessions in daily.values() for key in sessions}
@@ -710,6 +1047,7 @@ def scan_locked(folder, days, force, out, transcript, drain, result):
     known = state.setdefault("titles", {})  # a title is written once, often in an earlier scan's lines
     cwds = state.setdefault("cwds", {})
     windows = {}  # (project, session, subagent type) -> counters; subagents of one type in one session are summed
+    changed = set()  # (project folder, session) of every transcript with new lines: the signals read these sessions
     if transcript:
         main_file = Path(transcript)
         root = main_file.parent.parent  # the project folder is its parent: the same labels as in the full scan
@@ -736,6 +1074,7 @@ def scan_locked(folder, days, force, out, transcript, drain, result):
         if not lines:
             continue
         project, session, sub = session_label(path, root)
+        changed.add((project, session))
         before = state.setdefault("last_assistant", {}).get(key)
         found = analyse(lines, seen, since, (parse_time(before[0]), before[1]) if before else None)
         if found["last"]:
@@ -751,7 +1090,8 @@ def scan_locked(folder, days, force, out, transcript, drain, result):
             cwds[f"{project}/{session}"] = found["cwd"]
         merged = windows.get((project, session, sub))
         windows[(project, session, sub)] = merge(merged, found) if merged else found
-    titles = {(project, session): known[f"{project}/{session}"] for project, session, _ in windows
+    scan_signals(state, changed, root)
+    titles ={(project, session): known[f"{project}/{session}"] for project, session, _ in windows
               if known.get(f"{project}/{session}")}
     new = []  # (project, session, line)
     findings, table = spend_findings(windows, titles, state)
@@ -768,6 +1108,7 @@ def scan_locked(folder, days, force, out, transcript, drain, result):
         for key, line in priority_lines(state, day):
             entries.append({"session": key, "title": state.get("titles", {}).get(key, ""),
                             "cwd": cwds.get(key, ""), "line": line, "day": day})
+        entries += experiment_entries(state, root, day)
     else:
         table = []
     pending = state.setdefault("pending", [])
@@ -1107,15 +1448,19 @@ def analyse_files(files, seen):
     return merged
 
 
-def subagent_runs(files, seen):
-    """`[{"type", "model", "units"}]` of the subagent files that spent units, a message id once over `seen`."""
+def subagent_runs(files, seen, efforts=None):
+    """`[{"type", "model", "effort", "units"}]` of the subagent files that spent units, a message id once over `seen`;
+    `efforts` maps a file's name to the reasoning level of its first assistant line (the key is left out when unknown)."""
     runs = []
     for file in files:
         lines, _ = read_new_lines(file, 0)
         found = analyse(lines, seen)
         if found["units"]:
             kind = session_label(file, file.parents[2])[2][len("subagent "):] or "?"
-            runs.append({"type": kind, "model": found["run_units"][0][0], "units": round(sum(found["units"].values()))})
+            run = {"type": kind, "model": found["run_units"][0][0], "units": round(sum(found["units"].values()))}
+            if (efforts or {}).get(file.stem):
+                run["effort"] = efforts[file.stem]
+            runs.append(run)
     return runs
 
 
@@ -1124,8 +1469,12 @@ def session_record(session_id, mains):
     seen = set()
     main = analyse_files(mains, seen)
     subs = subagent_files(mains)
-    runs = subagent_runs(subs, seen)
+    found = [session_signals(path, main["title"] if main else "") for path in mains]
+    efforts = {run["id"]: run["effort"] for result in found for run in result["runs"]}
+    runs = subagent_runs(subs, seen, efforts)
     limit, date = weekly_limit()
+    reasks = [event for result in found for event in result["events"] if event["kind"] == "reask"]
+    rework = sum(event["units"] for event in reasks)
     main_units = sum(main["units"].values()) if main else 0
     sub_units = sum(run["units"] for run in runs)
     models = Counter(main["units"] if main else {})
@@ -1147,6 +1496,9 @@ def session_record(session_id, mains):
         "models": {family: round(units) for family, units in models.items()},
         "waste": {"units": round(wasted), "share_pct": round(percent(wasted, limit), 3), "idle": round(waste["idle"]),
                   "cold": round(waste["cold"]), "bloat": round(waste["bloat"]), "wakes": waste["wakes"]},
+        "rework": {"units": round(rework), "share_pct": round(percent(rework, limit), 3), "reasks": len(reasks)},
+        "model": next((result["model"] for result in found if result["model"]), None),
+        "effort": next((result["effort"] for result in found if result["effort"]), None),
     }
 
 
@@ -1272,17 +1624,92 @@ def repo_name(folder):
     return project_name(folder).partition("/")[0] or "?"
 
 
+CAUSES = ("large context", "cold restarts", "expensive models", "duplicated work", "rework")  # the keys of `causes`
+COUNTS = ("reasks", "mismatches", "redone", "duplicates")  # the keys of `counts`
+EXPENSIVE_MODELS = ("Opus", "Fable")  # helper runs on these models are the `expensive models` cause
+EVENT_COUNTS = {"reask": "reasks", "mismatch": "mismatches", "redone": "redone", "dup_shared": "duplicates",
+                "dup_reread": "duplicates", "dup_launch": "duplicates"}
+
+
+def prompt_tokens(usage):
+    """The prompt of one message: input, cache read and cache write tokens."""
+    five, hour = cache_writes(usage)
+    return number(usage.get("input_tokens")) + number(usage.get("cache_read_input_tokens")) + five + hour
+
+
+def cause_units(path, start, end, seen):
+    """`(large context, cold restarts)` units of the messages of one transcript dated in [start, end), a message id once
+    over `seen` (module doc, Stats): the whole units of every message with a prompt above LARGE_PROMPT tokens, and the
+    cache-write units of the first message of any turn (the owner's too) that came after the cache lifetime since the
+    previous message of the file (5 min after a 5-minute write, 60 after a 1-hour write)."""
+    large = cold = 0.0
+    turn_open, previous, ttl = False, None, COLD_TTL_MIN["1h"]
+    for entry in entries_of(path):
+        kind = entry.get("type")
+        message = entry.get("message") if isinstance(entry.get("message"), dict) else {}
+        content = message.get("content")
+        if kind == "user" and not entry.get("isMeta") and not (
+                isinstance(content, list) and any(isinstance(b, dict) and b.get("type") == "tool_result" for b in content)):
+            turn_open = True
+        if kind != "assistant":
+            continue
+        stamp = parse_time(entry.get("timestamp"))
+        usage, model, mid = message.get("usage"), message.get("model"), message.get("id")
+        first = turn_open
+        turn_open = False
+        late = bool(first and stamp and previous and (stamp - previous).total_seconds() / 60 >= ttl)
+        if stamp:
+            previous = stamp
+        if not isinstance(usage, dict) or model == "<synthetic>":
+            continue
+        counted = bool(stamp and start <= stamp < end) and not (mid and mid in seen)
+        if counted and mid:
+            seen.add(mid)
+        if counted and prompt_tokens(usage) > LARGE_PROMPT:
+            large += units_of(usage, model)
+        if counted and late:
+            cold += waste_of(usage, model)[0]
+        five, hour = cache_writes(usage)
+        ttl = COLD_TTL_MIN["1h"] if hour else COLD_TTL_MIN["5m"] if five else ttl
+    return large, cold
+
+
+def window_events(path, start, end, causes, counts):
+    """Add the signal events of the main transcript `path` dated in [start, end) to `causes` (units, every event) and
+    `counts` (every re-ask; a mismatch or redone step only of NOTE_WASTE_PCT of the weekly limit or more; the
+    duplicate-work cases of a session's day that reach it together)."""
+    limit = weekly_limit()[0]
+    duplicates = {}  # local day -> [units, cases]
+    for event in session_signals(path)["events"]:
+        if event["stamp"] is None or not start <= event["stamp"] < end:
+            continue
+        if event["kind"].startswith("dup_"):
+            causes["duplicated work"] += event["units"]
+            day = duplicates.setdefault(event_day(event), [0.0, 0])
+            day[0] += event["units"]
+            day[1] += event["count"]
+            continue
+        if event["kind"] == "reask":
+            causes["rework"] += event["units"]
+        if event["kind"] == "reask" or noted(event, limit):
+            counts[EVENT_COUNTS[event["kind"]]] += event["count"]
+    counts["duplicates"] += sum(cases for units, cases in duplicates.values() if percent(units, limit) >= NOTE_WASTE_PCT)
+
+
 def collect(start, end, root=None):
     """Where the units of the window [start, end) went, over ALL transcripts under `root` (subagents included, a message
-    id once, the scan's weights): `{"units", "projects", "tasks", "agents", "skills"}`.
+    id once, the scan's weights): `{"units", "projects", "tasks", "agents", "skills", "causes", "counts"}`.
 
     projects/tasks/skills map a name to units; agents map `type · Model` to `{"units", "runs", "usual"}` (a run is one
     subagent file with units in the window, usual the median units per run). A subagent's units go to its parent
-    session's task. See the module doc, Stats."""
+    session's task. `causes` maps each of CAUSES to units and `counts` each of COUNTS to a number (the signals of the
+    module doc, Waste signals; the causes may overlap). See the module doc, Stats."""
     root = root or projects_dir()
     state_titles = load_state(spend_dir.data_dir()).get("titles", {})
     first = start.timestamp()
     seen = set()
+    seen_causes = set()
+    causes, counts = Counter(), Counter()
     projects, sessions, skills = Counter(), Counter(), Counter()  # sessions: (project folder, session) -> units
     titles = {}
     runs = defaultdict(list)  # (type, Model) -> units per run
@@ -1309,12 +1736,20 @@ def collect(start, end, root=None):
                 models[model_name(model)] += units
                 if skill and not sub:
                     skills[skill] += units
+        large, cold = cause_units(path, start, end, seen_causes)
+        causes["large context"] += large
+        causes["cold restarts"] += cold
+        if not sub:
+            window_events(path, start, end, causes, counts)
         if total:
             projects[repo_name(folder)] += total
             sessions[(folder, session)] += total
             if sub:
                 kind = sub[len("subagent "):].rpartition(":")[2] or "?"
-                runs[(kind, models.most_common(1)[0][0])].append(total)
+                family = models.most_common(1)[0][0]
+                runs[(kind, family)].append(total)
+                if family in EXPENSIVE_MODELS:
+                    causes["expensive models"] += total
     tasks = Counter()
     for (folder, session), units in sessions.items():
         title = titles.get((folder, session)) or state_titles.get(f"{folder}/{session}") or session[:8]
@@ -1322,7 +1757,8 @@ def collect(start, end, root=None):
     agents = {f"{kind} · {model}": {"units": sum(values), "runs": len(values), "usual": median(values)}
               for (kind, model), values in runs.items()}
     return {"units": sum(projects.values()), "projects": dict(projects), "tasks": dict(tasks), "agents": agents,
-            "skills": dict(skills)}
+            "skills": dict(skills), "causes": {name: causes[name] for name in CAUSES},
+            "counts": {name: counts[name] for name in COUNTS}}
 
 
 def log_windows(readings):
@@ -1419,7 +1855,8 @@ def archive_previous(now=None):
                   **{name: {key: round(value) for key, value in data[name].items()}
                      for name in ("projects", "tasks", "skills")},
                   "agents": {key: {field: round(value) for field, value in row.items()}
-                             for key, row in data["agents"].items()}}
+                             for key, row in data["agents"].items()},
+                  "causes": {key: round(value) for key, value in data["causes"].items()}, "counts": data["counts"]}
         weekly_path().parent.mkdir(parents=True, exist_ok=True)
         with open(weekly_path(), "a", encoding="utf-8") as handle:
             handle.write(json.dumps(record, ensure_ascii=False) + "\n")
@@ -1455,9 +1892,40 @@ def group_lines(title, rows, share_of, agents=False, full=False):
     return lines
 
 
-def render_stats(data, start, end, pct, limit, detail=None):
+CAUSE_NAMES = {"large context": "Великий контекст", "cold restarts": "Холодні перезапуски",
+               "expensive models": "Дорогі моделі", "duplicated work": "Дубльована робота", "rework": "Переробка"}
+COUNT_NAMES = {"reasks": "Перепитування", "mismatches": "модель вище за файл", "redone": "повтори кроку",
+               "duplicates": "дубльована робота"}
+
+
+def cause_share(share):
+    return "0%" if share <= 0 else share_cell(share)
+
+
+def cause_lines_text(data, before):
+    """The block «Куди пішли токени»: a line per cause with its share of the window's units and, from the archived week
+    `before` (None: no such week), the same share of that week or `немає даних` when it has no `causes`; then the counts."""
+    total = data["units"]
+    width = max(len(name) for name in CAUSE_NAMES.values())
+    last = before.get("causes") if isinstance(before, dict) and isinstance(before.get("causes"), dict) else None
+    before_total = number(before.get("units")) if isinstance(before, dict) else 0
+    lines = ["Куди пішли токени"]
+    shares = [cause_share(data["causes"].get(key, 0) * 100 / total) for key in CAUSE_NAMES]
+    cell = max(len(text) for text in shares)
+    for (key, name), text in zip(CAUSE_NAMES.items(), shares):
+        if last is not None and before_total > 0:
+            then = f"минулого тижня {cause_share(number(last.get(key)) * 100 / before_total)}"
+        else:
+            then = "минулого тижня немає даних"
+        lines.append(f"  {name.ljust(width)}   {text.rjust(cell)}  ({then})")
+    counts = data.get("counts") or {}
+    lines.append("  " + ", ".join(f"{name} {int(number(counts.get(key)))}" for key, name in COUNT_NAMES.items()))
+    return lines
+
+
+def render_stats(data, start, end, pct, limit, detail=None, before=None):
     """The stats table (see the module doc) of `collect` data: shares are units / the window's units * the header's per
-    cent, or units / the weekly limit without a per cent."""
+    cent, or units / the weekly limit without a per cent. `before`: the archived week the causes block compares with."""
     total = data["units"]
     shown = pct if pct else None
     if shown is not None:
@@ -1482,6 +1950,8 @@ def render_stats(data, start, end, pct, limit, detail=None):
               ("tasks", "Задачі" if detail == "tasks" else f"Задачі (топ-{STATS_TOP})", ranked("tasks", STATS_TOP), False),
               ("agents", "Агенти", agent_rows if detail == "agents" else agent_rows[:STATS_TOP], True),
               ("skills", "Скіли (приблизно)", ranked("skills", STATS_TOP), False)]
+    if detail is None and "causes" in data:
+        lines += [""] + cause_lines_text(data, before)
     for name, title, rows, agents in groups:
         if rows and detail in (None, name):
             lines += [""] + group_lines(title, rows, share_of, agents, full=detail == "agents")
@@ -1511,11 +1981,17 @@ def stats(detail=None, week=0, out=None, err=None):
                 "agents": {key: {"units": number(row.get("units")), "runs": number(row.get("runs")),
                                  "usual": number(row.get("usual"))}
                            for key, row in (entry.get("agents") or {}).items() if isinstance(row, dict)}}
+        for name in ("causes", "counts"):  # optional: a line archived before the signals has neither
+            if isinstance(entry.get(name), dict):
+                data[name] = entry[name]
+        earlier = weeks[week - 1] if -week < len(weeks) else None
         print("\n".join(render_stats(data, parse_time(entry["start"]), parse_time(entry["end"]), number(entry.get("pct")),
-                                     number(entry.get("limit_units")) or limit, detail)), file=out)
+                                     number(entry.get("limit_units")) or limit, detail, earlier)), file=out)
         return 0
     start, end, pct = current_window(read_log(), now)
-    print("\n".join(render_stats(collect(start, end), start, end, pct, limit, detail)), file=out)
+    weeks = read_weekly()
+    print("\n".join(render_stats(collect(start, end), start, end, pct, limit, detail, weeks[-1] if weeks else None)),
+          file=out)
     return 0
 
 
@@ -1583,6 +2059,16 @@ def main(argv=None):
     shown = sub.add_parser("stats")
     shown.add_argument("--detail", choices=("projects", "tasks", "agents", "skills"))
     shown.add_argument("--week", type=int, default=0)
+    sub.add_parser("experiments")
+    experiment = sub.add_parser("experiment").add_subparsers(dest="action", required=True)
+    following = experiment.add_parser("next")
+    following.add_argument("--type", required=True)
+    following.add_argument("--task", default="")
+    for name in ("stop", "decide"):
+        closing = experiment.add_parser(name)
+        closing.add_argument("--type", required=True)
+        closing.add_argument("--variant", required=True)
+        closing.add_argument("--reason", required=True)
     units = sub.add_parser("units")
     units.add_argument("--path", required=True)
     units.add_argument("--from", dest="start", type=int, required=True)
@@ -1592,6 +2078,10 @@ def main(argv=None):
         return hook_main()
     if args.command == "calibrate":
         return calibrate()
+    if args.command == "experiment":
+        return experiment_command(args)
+    if args.command == "experiments":
+        return experiments_status()
     if args.command == "session":
         return session(args.id, args.path, not args.no_subagents)
     if args.command == "write-session":

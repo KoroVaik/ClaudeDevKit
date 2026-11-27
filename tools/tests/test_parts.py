@@ -1,9 +1,12 @@
+import importlib.util
 import io
 import json
 import os
+import re
 import shutil
 import sys
 import tempfile
+import time
 import unittest
 from pathlib import Path
 from unittest import mock
@@ -286,6 +289,52 @@ class PacketTestCase(unittest.TestCase):
         self.assertNotIn("Ordinary reply", text)  # a talk-typed section is not a process rule
 
     # protects: Rule
+    def test_an_owner_message_is_a_re_ask_by_strong_words_a_bare_short_one_or_a_repeated_question(self):
+        earlier = ["Покажи звіт витрат за тиждень будь ласка", "Збери і задеплой.", "Ок."]
+        rows = [
+            ("?", [], True), ("???", [], True), ("що?", [], True), ("Шо?!", [], True), ("What", [], True),
+            ("ще раз", [], True), ("Ще раз покажи звіт", [], True), ("Again, the same report", [], True),
+            ("не так, я ж казав", [], True),
+            ("Що це за файл?", [], False),  # a real question that only starts with «що»
+            ("Так, дякую", [], False), ("", [], False),
+            ("Покажи звіт витрат за тиждень?", earlier, True),  # the same words as his earlier message
+            ("Покажи звіт витрат за тиждень", earlier, False),  # no «?»: a statement
+            ("Покажи звіт витрат за тиждень?", earlier[1:], False),  # nothing like it before
+            ("Як це?", earlier, False),  # fewer than REPEAT_MIN_WORDS words of 3 letters
+            ("Покажи звіт витрат за тиждень?", ["Покажи звіт витрат за тиждень будь ласка", "а", "б", "в"], False),  # older than the lookback
+        ]
+        for text, previous, expected in rows:
+            self.assertEqual(packets.reask(text, previous) is not None, expected, text)
+
+    # protects: Rule
+    def test_a_bare_question_mark_marks_the_part_but_not_the_first_message_of_a_managers_session(self):
+        def signs(entries, skip_first):
+            found = parts.split(entries, hooks=self.hooks)
+            return [sorted(marks.general) for marks in packets.mark(entries, found, None, None, skip_first)]
+
+        entries = numbered([owner("Збери."), said("Готово."), owner("?")])
+        self.assertEqual(signs(entries, False), [["owner correction"]])
+        self.assertEqual(signs(numbered([owner("?"), said("Готово.")]), True), [])  # the task, not a reply
+        self.assertEqual(signs(numbered([owner("?"), said("Готово."), owner("Збери.")]), False), [["owner correction"]])
+        quoted = numbered([owner("Збери."), said("Готово."), owner("у файлі стоїть «що?» і більше нічого")])
+        self.assertEqual(signs(quoted, False), [])  # a quoted word is not his own
+
+    # protects: Rule
+    def test_the_re_ask_pattern_is_the_same_in_rules_kit_and_spend_kit(self):
+        path = PLUGIN.parent / "spend-kit" / "scripts" / "signals.py"
+        if not path.is_file():
+            self.skipTest(f"{path} does not exist yet: nothing to compare the re-ask pattern with")
+        spec = importlib.util.spec_from_file_location("spend_kit_signals_copy", path)
+        signals = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(signals)
+        for name in ("REASK_STRONG", "REASK_SHORT", "REPEAT_MIN_WORDS", "REPEAT_LOOKBACK", "REPEAT_JACCARD"):
+            self.assertEqual(getattr(packets, name), getattr(signals, name), name)
+        self.assertEqual(packets.REASK_SHORT_RE.flags & (re.IGNORECASE | re.DOTALL), re.IGNORECASE | re.DOTALL)
+        for text, previous in (("?", []), ("що?", []), ("ще раз", []), ("не так", []), ("Привіт", []),
+                               ("Покажи звіт витрат за тиждень?", ["Покажи звіт витрат за тиждень будь ласка"])):
+            self.assertEqual(packets.reask(text, previous) is not None, signals.reask_kind(text, previous) is not None, text)
+
+    # protects: Rule
     def test_failed_calls_mark_a_main_session_but_a_subagent_only_for_one_error_repeated(self):
         # A coder's tests failing while it works are normal: three different errors in a subagent are no sign.
         def errors(*texts):
@@ -366,6 +415,20 @@ class ScanPartsTestCase(RetroFixture):
         talk_lines = [text for text in self.new_lines("global") if "| talk " in text]
         self.assertEqual(len(talk_lines), 1, talk_lines)
         self.assertIn("| s1 | talk dash | global: CLAUDE.md:16 (No em dash): x1; L2:", talk_lines[0])
+
+    # protects: Rule
+    def test_parts_never_drops_a_re_ask_for_the_limit_and_the_limit_counts_only_the_other_packets(self):
+        repeated = [use(f"r{n}", "Read", {"file_path": "a.md"}) for n in range(3)]
+        for name, entries, age in (("aaaaaaaa-0", [owner("Збери."), said("Готово."), owner("?")], 3000),  # the oldest
+                                   ("bbbbbbbb-0", repeated, 2000), ("cccccccc-0", repeated, 1000)):
+            path = self.write(f"proj/{name}.jsonl", entries)
+            os.utime(path, (time.time() - age, time.time() - age))
+        out = self.run_cmd("parts", "--since", "2000-01-01", "--limit", "1")
+        self.assertIn("aaaaaaaa", out)  # the re-ask is written although the limit is spent
+        self.assertIn("signs: owner correction", out)
+        self.assertIn("cccccccc", out)  # the newest of the other packets takes the one place of the limit
+        self.assertNotIn("bbbbbbbb", out)
+        self.assertIn("packets: 2 (1 more over the limit of 1)", out)
 
     # protects: Bug
     def test_line_numbers_go_on_across_scans_of_one_growing_transcript(self):

@@ -14,7 +14,9 @@ full their context is.
     dev-kit-sessions size --id <id> [--id <id> ...] [--wakes <state file>]
     dev-kit-sessions limited --id <id> [--id <id> ...]
     dev-kit-sessions restart request --version <V> [--clean] | ready [--version <V>] | status | clear
-    dev-kit-sessions handoff save --file <name.md> [--go] | go | request | status | clear
+    dev-kit-sessions handoff save --file <name.md> [--go] | go | request | status | clear  [--session <id>]
+    dev-kit-sessions handoff refuse --reason "<text>" [--session <id>]
+    dev-kit-sessions rekey --old <session id> --new <session id>
     dev-kit-sessions fill --self [<id>] [--limit 0.33] [--window N] [--over-only]
     dev-kit-sessions release --from <V|older> --to <V> [--started <ISO time>] [--file <releases.json>]  (prints a `clean` line too)
     dev-kit-sessions quiet --id <session id> [--minutes 5]
@@ -161,6 +163,27 @@ quiet) sets `asked` and prints `handoff asked: NAME`, or `handoff already asked:
 when nothing is saved); `status` prints `none`, `saved NAME <seconds>` (since the save) or `go NAME <seconds>` (since
 `go_at`, else since the save); `clear` removes the file (fine when absent).
 
+`handoff ... --session <id>` is the same handshake for a registry session (a Manager, a `Discuss:` session), which the
+Pult watcher moves to a fresh context when it has been idle about 50 minutes (the watcher asks it; plans/limit-spend.md):
+the marker is `handoff-<id>.json` in the same state folder, the same fields; without `--session` everything is as above
+(the lead's `handoff.json`). The id is the session's own id, a full id of letters, digits and hyphens (else exit 1). The
+watcher reads the marker under the registry id and under the id its session list shows. `request` and `go` work too.
+
+`handoff refuse --reason "<text>" [--session <id>]` is a session's refusal to move: only for a move that would lose work or
+a decision the handoff cannot carry. It appends `{"time", "session", "name", "reason"}` to `refusals.jsonl` in the state
+folder (name: the registry record of `--session`, else `L: <repository folder name>` for a lead) and reports it as
+critical to the retro by running rules-kit as a process (rules_kit_client.py: `rules-kit add --set pult --critical --from
+<name> --text "move refusal | <name>: <reason>"`); a failure of that report prints a warning on stderr and never fails the
+command. When `refusals.jsonl` already holds a refusal of the same session (and name) from the last REFUSAL_REPEAT_HOURS
+(12) hours, the line is still appended but the retro is not told again. An empty reason is refused (exit 2). The reason
+is one line (white space folded).
+
+`rekey --old <session id> --new <session id>` gives the registry record of the old id (full, or 8+ char short id as in
+`end`) the new id, keeping every other field: a `/clear` resume gives the background job a new session id (plugins/dev-kit/claude-facts.md,
+"A resume with `/clear` as its prompt clears the context and keeps the job and the Remote Control link"), which the Pult
+watcher writes into the registry after a move. Exit 1 when the old id is not registered or the new id belongs to another
+record; the same id twice changes nothing.
+
 `release` tells the Pult watcher whether a lead that runs an older plugin must restart the same day. The release
 marks are `releases.json` in the dev-kit plugin folder; `--file` names another plugin's own file (the watcher asks
 once per changed plugin: dev-kit, rules-kit, spend-kit, web-kit, unity-kit): a JSON object, version -> `{"kind":
@@ -202,6 +225,7 @@ from pathlib import Path
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import dev_kit_state  # noqa: E402
+import rules_kit_client  # noqa: E402
 import session_titles  # noqa: E402  the new and the old session title prefixes
 import spend_client  # noqa: E402
 
@@ -209,6 +233,10 @@ REGISTRY = "sessions.json"
 RESTART = "restart.json"
 HANDOFF = "handoff.json"
 HANDOFF_NAME = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]*\.md")  # a bare file name: the watcher puts it on a command line
+SESSION_ID = re.compile(r"[0-9A-Za-z-]+")  # a session id: part of a marker file name and of a command line
+REFUSALS = "refusals.jsonl"  # the move refusals of the state folder (`handoff refuse`)
+RULES_KIT_TIMEOUT = 60  # seconds the report of a refusal to rules-kit may take
+REFUSAL_REPEAT_HOURS = 12  # a session refusing again within this is logged but not reported to the retro again
 PROJECTS_ENV = "DEV_KIT_PROJECTS_DIR"
 JOBS_ENV = "DEV_KIT_JOBS_DIR"
 DEFAULT_WINDOW = 200000
@@ -413,6 +441,25 @@ def cmd_end(args, path, records):
     record.update(status=args.status, ended=now())
     save(path, records)
     print(f"{args.status}: {record['name']} ({record['id']})")
+    return 0
+
+
+def cmd_rekey(args, path, records):
+    """A `/clear` resume gave the job a new session id: the record of the old id takes the new one, all else kept."""
+    record = resolve(records, args.old)
+    if record is None:
+        print(f"dev-kit-sessions: id {args.old} is not registered (or the short id fits several)", file=sys.stderr)
+        return 1
+    if record["id"] == args.new:
+        print(f"unchanged: {record['name']} ({record['id']})")
+        return 0
+    if find(records, args.new) is not None:
+        print(f"dev-kit-sessions: id {args.new} is already registered", file=sys.stderr)
+        return 1
+    old = record["id"]
+    record["id"] = args.new
+    save(path, records)
+    print(f"rekeyed: {record['name']} ({old} -> {args.new})")
     return 0
 
 
@@ -1221,10 +1268,16 @@ def cmd_restart(args, path, records):
     return 0
 
 
-def read_handoff(path):
-    """The saved handoff (dict with a valid `file`) of the project, else None; an unreadable file counts as none."""
+def handoff_file_name(session=""):
+    """The marker file of the lead (`handoff.json`) or, for a registry session id, `handoff-<id>.json`."""
+    return f"handoff-{session}.json" if session else HANDOFF
+
+
+def read_handoff(path, session=""):
+    """The saved handoff (dict with a valid `file`) of the project (of the session id, when given), else None; an
+    unreadable file counts as none."""
     try:
-        data = json.loads(path.with_name(HANDOFF).read_text(encoding="utf-8-sig"))
+        data = json.loads(path.with_name(handoff_file_name(session)).read_text(encoding="utf-8-sig"))
     except (OSError, ValueError):
         return None
     if isinstance(data, dict) and isinstance(data.get("file"), str) and HANDOFF_NAME.fullmatch(data["file"]):
@@ -1232,9 +1285,68 @@ def read_handoff(path):
     return None
 
 
+def refuse_name(args, path):
+    """The name a refusal is logged under: the registry record of the session id, else (a lead) `L: <repository folder>`."""
+    if args.session:
+        try:
+            record = resolve(load(path.with_name(REGISTRY)), args.session)
+        except Unreadable:
+            record = None
+        return str(record.get("name")) if record and record.get("name") else args.session
+    main = dev_kit_state.main_checkout(args.project)
+    return f"L: {main.name}" if main else "lead"
+
+
+def refused_lately(log, session, name):
+    """Whether `log` (refusals.jsonl) already holds a refusal of this session (and name) from the last
+    REFUSAL_REPEAT_HOURS hours; unreadable lines and times are skipped."""
+    try:
+        lines = log.read_text(encoding="utf-8").splitlines()
+    except OSError:
+        return False
+    limit = datetime.now().astimezone().timestamp() - REFUSAL_REPEAT_HOURS * 3600
+    for line in lines:
+        try:
+            entry = json.loads(line)
+            when = datetime.fromisoformat(entry["time"]).timestamp()
+        except (ValueError, KeyError, TypeError):
+            continue
+        if isinstance(entry, dict) and entry.get("session") == session and entry.get("name") == name and when >= limit:
+            return True
+    return False
+
+
+def cmd_refuse(args, path):
+    """`handoff refuse`: log the refusal and report it as critical to the retro (see the module doc)."""
+    reason = " ".join(str(args.reason).split())
+    if not reason:
+        print("dev-kit-sessions: a refusal needs a reason", file=sys.stderr)
+        return 2
+    name = refuse_name(args, path)
+    entry = {"time": now(), "session": args.session, "name": name, "reason": reason}
+    repeated = refused_lately(path.with_name(REFUSALS), args.session, name)
+    with open(path.with_name(REFUSALS), "a", encoding="utf-8") as handle:
+        handle.write(json.dumps(entry, ensure_ascii=False) + "\n")
+    if repeated:  # the retro has this session's refusal already: a session asked again and refusing again is not a new finding
+        print(f"refusal logged: {name} (reported to the retro within the last {REFUSAL_REPEAT_HOURS} hours)")
+        return 0
+    done = rules_kit_client.run(["add", "--set", "pult", "--critical", "--from", name, "--text",
+                                 f"move refusal | {name}: {reason}"], RULES_KIT_TIMEOUT)
+    if done is None or done.returncode != 0:
+        said = " ".join(((done.stdout + done.stderr) if done else "rules-kit was not found or did not answer").split())
+        print(f"dev-kit-sessions: warning: the refusal was logged but not reported to the retro: {said}", file=sys.stderr)
+    print(f"refusal logged: {name}")
+    return 0
+
+
 def cmd_handoff(args, path, records):
-    target = path.with_name(HANDOFF)
-    saved = read_handoff(path)
+    if args.session and not SESSION_ID.fullmatch(args.session):
+        print(f"dev-kit-sessions: {args.session!r} is not a session id (letters, digits and hyphens)", file=sys.stderr)
+        return 1
+    if args.handoff_action == "refuse":
+        return cmd_refuse(args, path)
+    target = path.with_name(handoff_file_name(args.session))
+    saved = read_handoff(path, args.session)
     if args.handoff_action == "save":
         if not HANDOFF_NAME.fullmatch(args.file):
             print(f"dev-kit-sessions: {args.file!r} is not a bare file name like handoff-1.md", file=sys.stderr)
@@ -1812,8 +1924,15 @@ def main(argv=None):
     handoff_save = handoff_sub.add_parser("save")
     handoff_save.add_argument("--file", required=True, help="the handoff file name (bare, ends in .md)")
     handoff_save.add_argument("--go", action="store_true", help="move now: skip the quiet wait")
+    handoff_refuse = handoff_sub.add_parser("refuse", help="refuse the move with a reason (logged, reported as critical)")
+    handoff_refuse.add_argument("--reason", required=True, help="why the move would lose work or a decision")
     for action in ("go", "request", "status", "clear"):
         handoff_sub.add_parser(action)
+    for action_parser in handoff_sub.choices.values():
+        action_parser.add_argument("--session", default="", help="a registry session's id (default: the lead's marker)")
+    rekey = sub.add_parser("rekey", help="the registry record of the old session id takes the new id (after a /clear move)")
+    rekey.add_argument("--old", required=True)
+    rekey.add_argument("--new", required=True)
     release = sub.add_parser("release", help="whether the releases of a plugin a lead lacks hold a critical one")
     release.add_argument("--from", dest="from_version", required=True,
                          help="the dev-kit version the lead process started on, or older when unknown")
@@ -1825,7 +1944,7 @@ def main(argv=None):
     quiet.add_argument("--minutes", type=float, default=QUIET_MINUTES,
                        help="an owner message younger than this makes the chat active")
     args = parser.parse_args(argv)
-    for key in ("id", "parent", "predecessor", "self", "name", "worktree", "task"):  # ids pasted with a CR or spaces
+    for key in ("id", "parent", "predecessor", "self", "name", "worktree", "task", "old", "new", "session"):  # ids pasted with a CR or spaces
         value = getattr(args, key, None)
         if isinstance(value, str):
             setattr(args, key, value.strip())
@@ -1836,7 +1955,7 @@ def main(argv=None):
         path = registry_path(args.project, create=not stateless)
         no_rows = args.action in ("restart", "handoff") or (args.action == "fill" and args.self is not None)
         records = [] if no_rows or stateless else load(path)  # the handshakes and `fill --self` work with a broken registry too
-        return {"add": cmd_add, "end": cmd_end, "list": cmd_list, "fill": cmd_fill, "restart": cmd_restart, "handoff": cmd_handoff,
+        return {"add": cmd_add, "end": cmd_end, "rekey": cmd_rekey, "list": cmd_list, "fill": cmd_fill, "restart": cmd_restart, "handoff": cmd_handoff,
                 "others": cmd_others, "state": cmd_state, "answers": cmd_answers, "watch": cmd_watch, "check": cmd_check, "mark": cmd_mark,
                 "size": cmd_size, "limited": cmd_limited, "release": cmd_release,
                 "quiet": cmd_quiet}[args.action](args, path, records)

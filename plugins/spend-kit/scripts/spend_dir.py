@@ -13,8 +13,11 @@ throwaway runs never read the real `~/.claude`).
 The API spend log `api-calls.jsonl` and the weekly credit-check log `credits.md` are copied the same way
 (`migrate_api_files`). Programs of other projects append API spend lines to the old path by their own code, so the old
 `api-calls.jsonl` stays in use: `old_api_log` names it and the API client reads both (see `api_client.py`)."""
+import contextlib
+import json
 import os
 import shutil
+import time
 from pathlib import Path
 
 DIR_ENV = "SPEND_KIT_DIR"
@@ -32,6 +35,51 @@ def old_dir():
     if os.environ.get(OLD_ENV):
         return Path(os.environ[OLD_ENV])
     return None if os.environ.get(DIR_ENV) else Path.home() / ".claude" / "dev-kit"
+
+
+def write_json(path, data):
+    """Write a JSON file atomically: a temp file of this process, then replace."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp = path.with_name(f"{path.stem}.{os.getpid()}.tmp")
+    tmp.write_text(json.dumps(data, indent=1, sort_keys=True), encoding="utf-8")
+    os.replace(tmp, path)
+
+
+def lock_age(path):
+    """Seconds since the lock file was made, or None when there is none."""
+    try:
+        return time.time() - path.stat().st_mtime
+    except OSError:
+        return None
+
+
+@contextlib.contextmanager
+def file_lock(path, wait, stale):
+    """Hold a lock file (made with O_EXCL; one older than `stale` s is taken over); yields False after `wait` s."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    deadline = time.monotonic() + wait
+    while True:
+        try:
+            handle = os.open(path, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+        except (FileExistsError, PermissionError):  # Windows: PermissionError while the other side deletes it
+            age = lock_age(path)
+            if age is not None and age > stale:
+                with contextlib.suppress(OSError):
+                    path.unlink()
+                continue
+            if time.monotonic() >= deadline:
+                yield False
+                return
+            time.sleep(0.1)
+            continue
+        os.write(handle, str(os.getpid()).encode("ascii"))
+        os.close(handle)
+        break
+    try:
+        yield True
+    finally:
+        with contextlib.suppress(OSError):
+            path.unlink()
 
 
 def migrate_file(name, target, old_name=None):

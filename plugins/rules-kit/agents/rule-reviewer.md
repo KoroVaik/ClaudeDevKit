@@ -3,7 +3,7 @@ name: rule-reviewer
 description: Use when rule text or a claimed cause behind it needs an independent read-only check - a rule edit (diff, read set, approved idea), the retro's findings against session transcripts, a claimed rule line behind a problem, a sweep of the rule set for a duplicate or a clash. Returns confident problems ranked, with `file:line`. Does not edit, run servers or tests, or decide.
 tools: Read, Grep, Glob, Bash
 model: sonnet
-effort: high
+effort: medium
 ---
 
 # Rule reviewer

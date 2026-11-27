@@ -39,7 +39,10 @@ A new line goes after the last `- ` line of the head (the lines before the first
   failed too); a failed revert is aborted, nothing recorded. A revert request of the item is removed.
 - Revert request (`request`): `<data>/requests/<set>--<key>.json`; `items` of the reviewing project lists them.
 - Done list: `<data>/done.jsonl`, one JSON object per action: `{"date", "set", "key", "action", "text"}`; `action`
-  one of ACTIONS; `text` one Ukrainian line.
+  one of ACTIONS; `text` one Ukrainian line. The action `out-of-turn retro` is written by `retro.py` when a critical
+  finding starts a project's retro out of turn: its `key` is `out-of-turn-<project>`, its `set` the set that got the
+  critical line, its text `Позачергове ретро <project>: <kind and title of the line>`; Pult's «статус» shows it
+  through `rules-kit list`, and `rules-kit weekly` lists it under what happened in the week.
 - Spend cap (`budget`): `spend-kit session --id ID` (a process) prints `~X% of the weekly limit`; over BUDGET_PCT is
   `over`; no share (spend-kit missing or failing) is `unknown`. The command exits 0 for `under` and 1 for `over` and
   `unknown`: it fails closed, an unknown spend stops the run like an over one.
@@ -73,7 +76,7 @@ PACKETS_FOLDER = "packets"  # the same folder as `rules-kit parts` (retro.PACKET
 REPLAY_PREFIX = "replay-"
 SKIP_TITLES = session_titles.RETRO_PREFIXES + session_titles.DOCS_PREFIXES
 ACTIONS = ("fixed", "sign added", "reverted", "second try handed", "parked", "expired", "worked", "handed",
-           "revert requested")
+           "revert requested", "out-of-turn retro")  # the last one is written by `retro.start_out_of_turn`
 MARK_ACTIONS = {"worked": "worked", "second-try": "second try handed", "parked": "parked",
                 "handed": "handed"}  # the marks that go to the done list
 MARK_WORDS = {"worked": "Перевірено, зміна спрацювала", "second try handed": "Друга спроба передана Lead як задача",

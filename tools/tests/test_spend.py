@@ -15,6 +15,7 @@ from unittest import mock
 
 PLUGIN = Path(__file__).resolve().parent.parent.parent / "plugins" / "spend-kit"
 sys.path.insert(0, str(PLUGIN / "scripts"))
+import signals  # noqa: E402
 import spend  # noqa: E402
 import spend_dir  # noqa: E402
 import statusline  # noqa: E402
@@ -50,8 +51,10 @@ class SpendFixture(unittest.TestCase):
         self.data = tmp / "spend"
         self.projects = tmp / "projects"
         (self.projects / "proj").mkdir(parents=True)
+        self.plugins = tmp / "plugins"  # the agent files of the signals: none, so no run is held against a real file
         patcher = mock.patch.dict(os.environ, {spend_dir.DIR_ENV: str(self.data), spend.PROJECTS_ENV: str(self.projects),
-                                               statusline.USAGE_ENV: str(tmp / "usage")})
+                                               statusline.USAGE_ENV: str(tmp / "usage"),
+                                               signals.PLUGINS_ENV: str(self.plugins)})
         patcher.start()
         os.environ.pop(spend_dir.OLD_ENV, None)  # restored with the patch
         os.environ.pop("CLAUDE_CODE_SESSION_ID", None)

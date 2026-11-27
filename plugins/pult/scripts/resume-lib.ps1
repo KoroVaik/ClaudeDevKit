@@ -105,6 +105,16 @@ function Get-LeadClearArgs([string]$SessionId) {
     return @('--bg', '--resume', $SessionId, '--', '/clear')
 }
 
+# The resume that makes a stopped task session (a Manager, a Discuss: session) load a handoff file: the prompt is
+# `/continue-work-in-another-context load <file>` and no other flag (same rule as above). Used by the watcher's move of an
+# idle task session after its /clear, or alone when the /clear failed (watch-servers.ps1 Invoke-TaskMove). A name that is
+# not a bare .md file name throws.
+$TaskLoadPrompt = '/continue-work-in-another-context load'
+function Get-TaskLoadArgs([string]$SessionId, [string]$Handoff) {
+    if ($Handoff -cnotmatch $HandoffNamePattern) { throw "the handoff file name is not a bare .md file name: $Handoff" }
+    return @('--bg', '--resume', $SessionId, '--', ($TaskLoadPrompt + ' ' + $Handoff))
+}
+
 # The background jobs folder: env DEV_KIT_JOBS_DIR (tests), else ~\.claude\jobs.
 function Get-JobsDir {
     if ($env:DEV_KIT_JOBS_DIR) { return $env:DEV_KIT_JOBS_DIR }
@@ -289,8 +299,19 @@ function Get-AddBansCommand([string]$ProjectPath) {
     return "python `"$bin`" add-approved `"$($ProjectPath -replace '\\', '/')`""
 }
 
+# The project's trunk branch: the first of main and master that exists as a local branch ('' when none does); the
+# checked-out branch is never taken. Same rule as trunk_branch in plugins/dev-kit/scripts/hard_bans.py. Why: owner,
+# 2026-11-27: MyPC and Job have only master.
+function Get-TrunkBranch([string]$Path) {
+    foreach ($name in 'main', 'master') {
+        git -C $Path rev-parse -q --verify "refs/heads/$name" 2>$null | Out-Null
+        if ($LASTEXITCODE -eq 0) { return $name }
+    }
+    return ''
+}
+
 # Every session the plugin starts runs in $LeadPermissionMode (bypassPermissions); there is no other mode
-# and no fallback. A lead starts only when the settings committed on main of its project hold the
+# and no fallback. A lead starts only when the settings committed on the trunk (Get-TrunkBranch) of its project hold the
 # hard-ban deny rules for both shells (a Bash and a PowerShell deny line of the hard-ban set: git push,
 # rm -rf / Remove-Item, docker) and the owner has accepted the bypass disclaimer on this machine
 # (skipDangerousModePermissionPrompt in the user settings; plugins/dev-kit/claude-facts.md, "`claude --bg` with
@@ -301,16 +322,18 @@ function Get-LeadPermissionMode([string]$Path, [string]$UserSettings) {
     if (-not $UserSettings) { $UserSettings = Join-Path $env:USERPROFILE '.claude\settings.json' }
     $no = { param($why) @{ Start = $false; Mode = ''; Reason = $why } }
     $text = $null
-    try { $text = (git -C $Path show 'main:.claude/settings.json' 2>$null) -join "`n" } catch { }
-    if (-not $text) { return (& $no 'no .claude/settings.json committed on main') }
-    try { $deny = @(($text | ConvertFrom-Json).permissions.deny) } catch { return (& $no 'settings on main do not parse') }
+    $trunk = 'main'
+    try { $found = Get-TrunkBranch $Path; if ($found) { $trunk = $found } } catch { }
+    try { $text = (git -C $Path show "${trunk}:.claude/settings.json" 2>$null) -join "`n" } catch { }
+    if (-not $text) { return (& $no "no .claude/settings.json committed on $trunk") }
+    try { $deny = @(($text | ConvertFrom-Json).permissions.deny) } catch { return (& $no "settings on $trunk do not parse") }
     $bash = @($deny | Where-Object { $_ -like 'Bash(git push*' -or $_ -like 'Bash(rm -rf*' -or $_ -like 'Bash(docker*' })
     $pwsh = @($deny | Where-Object { $_ -like 'PowerShell(git push*' -or $_ -like 'PowerShell(Remove-Item*' -or $_ -like 'PowerShell(docker*' })
     if (-not $bash.Count -or -not $pwsh.Count) {
-        return (& $no 'no Bash and PowerShell hard-ban deny lines on main')
+        return (& $no "no Bash and PowerShell hard-ban deny lines on $trunk")
     }
     $accepted = $false
     try { $accepted = [bool]((Get-Content -Raw -Encoding UTF8 $UserSettings | ConvertFrom-Json).skipDangerousModePermissionPrompt) } catch { }
     if (-not $accepted) { return (& $no 'bypass disclaimer not accepted on this machine') }
-    return @{ Start = $true; Mode = $LeadPermissionMode; Reason = 'hard bans on main' }
+    return @{ Start = $true; Mode = $LeadPermissionMode; Reason = "hard bans on $trunk" }
 }
