@@ -63,7 +63,8 @@ nothing: the merge is the Lead's step, so the owner sees in this chat why the se
 - A `MOVE idle: ...` line from the Pult watcher (the session idle 50 minutes, its cache about to expire) is done as
   it says, at a safe point, with no message to the Lead: `continue-work-in-another-context save`, then `dev-kit-sessions
   handoff save --session <id> --file <file> --go`; the watcher resumes the session with `/clear` and that handoff. A
-  refusal only when the move would lose work or a decision the handoff cannot carry (`handoff refuse --reason`). A
+  refusal only when the move would lose work or a decision the handoff cannot carry (`handoff refuse --session <id>
+  --reason "<that reason>"`). A
   «Discuss:» session does the same. Why: owner, 2026-11-27 (`plans/limit-spend.md`, points 10 and 11).
 - A SendMessage to the Lead that fails, with any error (the known ones: `plugins/dev-kit/claude-facts.md`, "A send to a
   stopped session fails at the sender and is not queued"), usually means the Lead is being restarted (about 10 seconds). The Manager keeps the message,
@@ -185,7 +186,8 @@ The project's own types come from its `## manager` section.
 spend-kit's hook on every helper launch may change the model you pass; pass it as usual
 (`docs/features/catch-wasted-work.md` in the plugin repo). For `dev-kit:coder`, `dev-kit:reviewer` and
 `rules-kit:rule-reviewer` it sets the model and reasoning of its running experiment, unless you chose a model other
-than the one in the table. A choice of Opus or Fable for a helper whose work fills a large context but is not hard
+than the one in the table; the launch line names the model you passed, and the experiment's pick is not the
+`dev-kit:coder` row's escalation after a failed run. A choice of Opus or Fable for a helper whose work fills a large context but is not hard
 (overlap checks, question reads, mechanical edits, part reads, replays) goes back to the helper's own model. Why:
 owner, 2026-11-27 (`plans/limit-spend.md`, points 8 and 13): «Не хочу мікроменеджити опус і сонет».
 

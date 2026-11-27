@@ -204,7 +204,15 @@ How the parts fit (one owner of each signal, no plugin imports another's code):
   daily count writes a packet of the alarming runs; the out-of-turn retro has a cheap reader (haiku) judge it.
 - Agent files (6, 8, 12): investigator `model: opus`, `effort: low`; reviewer and rule-reviewer `effort: medium`;
   the same hook resets a caller's Opus / Fable override of context-heavy, not hard helpers to the file's model.
-- Session moves (10, 11): after the Pult survey.
+- Session moves (10, 11): the watcher asks Leads with no working task, Managers and «Discuss:» sessions idle 50
+  minutes to save a handoff and moves them (`MOVE idle`); Pult is left out (Lead, 2026-11-27).
+
+## Open
+
+- Check whether Pult (a Remote Control server session, not a `--bg` job) can move to a fresh context without losing
+  the phone link; until then it is not moved (point 11).
+- The owner's global rule sends reading over 100 lines to a sonnet or haiku helper, while point 12 puts
+  `dev-kit:investigator` on Opus low: the Lead asks the owner whether to change the global rule.
 
 Steps (each committed): 1 agent files and manager text; 2 spend-kit signals and stats by cause; 3 rules-kit parts
 cap, pattern, item order; 4 experiments hook, daily count, reader; 5 out-of-turn retro; 6 main retro session;

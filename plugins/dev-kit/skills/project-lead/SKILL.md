@@ -889,6 +889,7 @@ Event lines:
 - `restart requested: <version>`: the handshake of "Restart for a plugin update"; with a trailing ` clean`, its
   "Clean release" bullet.
 - `handoff requested: <file>`: the handshake of "Restart the Lead".
+- `MOVE idle: ...` and `move failed: <name> | <file>`: "Move ask" below.
 - "No text" for `stale` means no news about the event (seen in L: Zhratva, 2026-11-15:
   text on watcher exits confused the owner); the Lead sends the forced-output state of "Message templates"
   only under the condition set there (the host's own reminder asks the Lead to tell the user something).
