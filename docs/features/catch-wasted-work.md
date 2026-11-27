@@ -2,7 +2,7 @@
 
 Epic: [Work through a project lead](../epics/work-through-a-project-lead.md)
 
-Status: building. Plan: [plans/limit-spend.md](../../plans/limit-spend.md).
+Status: built. Plan: [plans/limit-spend.md](../../plans/limit-spend.md).
 
 ## Purpose
 The owner cares about tokens spent against the quality of the work, not the type of limit. Owner: «Мені пофігу на тип
@@ -67,3 +67,8 @@ cannot carry would be lost); a refusal is logged and starts an out-of-turn retro
 - An idle session is moved to a fresh context before its cache expires, or its refusal is logged with the reason.
 
 ## Built in
+- `plugins/spend-kit/scripts/signals.py`, `spend.py` (scan, `findings`, `stats` block «Куди пішли токени», weekly `causes`)
+- `plugins/spend-kit/scripts/experiments.py`, `plugins/spend-kit/hooks/experiment.py`, `plugins/spend-kit/agents/run-reader.md`
+- `plugins/rules-kit/scripts/packets.py` (re-asks), `retro.py` (`items` by cost, out-of-turn start, `weekly`), `plugins/rules-kit/skills/retro/SKILL.md`, `plugins/rules-kit/skills/weekly-retro/SKILL.md`
+- `plugins/pult/scripts/watch-servers.ps1`, `resume-lib.ps1` (move ask and move), `plugins/dev-kit/scripts/sessions.py` (`handoff --session`, `refuse`, `rekey`)
+- `plugins/dev-kit/agents/investigator.md`, `reviewer.md`, `plugins/rules-kit/agents/rule-reviewer.md`, the `dev-kit:manager` and `dev-kit:project-lead` skills
