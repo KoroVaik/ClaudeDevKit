@@ -41,6 +41,7 @@ Verdict (2026-11-25): owner «Можна зараз»: discussion started («О�
 - What: add a claude-facts entry: Claude Code (2.1.332) stops a background shell command when the OS signals "critical" memory pressure, the session has been idle 30 min and no turn or subagent runs; on Windows it takes the OS signal as is (the /proc/meminfo scarcity check is Linux-only), so it can fire with several GB free; the task gets "Background command ... was stopped because the system is running low on memory". Off switch: env CLAUDE_CODE_DISABLE_BG_SHELL_PRESSURE_REAP=1 in Claude Code's own start environment (set from a shell command it has no effect); the official env-vars doc says it has no effect on Windows, but the shipped 2.1.332 code runs the listener on Windows and the variable disables it.
 - Why: Zhratva, 2026-11-25: 4 paid-run background commands stopped this way; MyPC notes called the cause unknown.
 - Cheapest test: grep the installed claude.exe for "memory-pressure reap" and DISABLE_BG_SHELL_PRESSURE_REAP; check the next "stopped because the system is running low on memory" notice on Windows.
+Verdict (2026-11-27): add as one claude-facts entry via facts-keeper (simple); reviewer found both strings in claude.exe 2.1.332 and the Linux-only scarcity check; the 30 min idle value is unchecked; cross-link "A low-memory spell closes idle background sessions". Asked as the Lead's question.
 
 ## A `.cmd` file made for the owner was left on the desktop after use
 
