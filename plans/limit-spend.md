@@ -1,6 +1,6 @@
 # Spend the 5-hour limit slower
 
-Status: discussion started 2026-11-27 by L: ClaudeDevKit.
+Status: discussion closed 2026-11-27, owner «Так» to the short plan; build next.
 
 ## Owner's words
 
@@ -135,7 +135,9 @@ picture: «автозапуски службових ретросесій в п�
    moved to a fresh context through the handoff route of point 10, at a safe point. A session may refuse only with a
    clear written reason whose effect is critical (work or a decision would be lost or redone that the handoff
    cannot carry); the refusal and its reason are logged, and the retro reviews refusals as findings. Everything
-   else is moved.
+   else is moved. Timing (owner asked): the watcher's round is 60 s (`watch-servers.ps1:268`), so the move starts at
+   50-51 minutes idle; the session's own handoff turn and the restart must end before the cache expires at about 60
+   minutes (not measured; the builder measures it and lowers the 50 if the move does not fit).
 
 2026-11-27, owner «Так» to question 17:
 
