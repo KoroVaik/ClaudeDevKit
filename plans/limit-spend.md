@@ -137,6 +137,34 @@ picture: «автозапуски службових ретросесій в п�
    cannot carry); the refusal and its reason are logged, and the retro reviews refusals as findings. Everything
    else is moved.
 
+2026-11-27, owner «Так» to question 17:
+
+12. `dev-kit:investigator` runs by default on Opus with low reasoning (`model: opus`, `effort: low` in its agent
+   file) instead of Sonnet high; this replaces its example in point 8. The weekly spend by cause (point 9) shows its
+   units per run and the retro's model / reasoning flags (point 2) whether it keeps paying off; back to Sonnet high
+   if its runs cost more or lead to rework. Owner, next: «Можеш придумать ще якісь експерименти. Давай для
+   експериментів зробим перевірку раз на день покищо».
+
+2026-11-27, owner «Окей» to questions 18-20, refining 18: «Скрипт дає кількість спрацювань, отже можна запускать
+поверхневий аналіз якщо є якась кількість спрацювань і перевірять чи уже зараз очевидна проблема. А якщо результат
+нечіткий то збір статистики продовжується» (the refinement waits for his yes to question 21):
+
+13. Experiments alternate two variants of one helper or session kind by run or by task, each run marked with its
+   variant in the spend log. Running now: `dev-kit:coder`, `dev-kit:reviewer` and `rules-kit:rule-reviewer` on
+   Opus low vs Sonnet high (every other run); Managers on Opus low vs Opus medium (every other task). A script runs
+   once a day, counts the runs and units per variant and the signs after them (owner corrections, redone `Agent`
+   calls, failed checks). A full decision needs 10 runs per variant (the spend-kit threshold, `spend.py:162`).
+
+2026-11-27, owner «Так» to question 21:
+
+14. Early look: after 3 runs of each variant, and only when the daily script sees an alarming sign for a variant,
+   a cheap model (haiku or sonnet low) reads those runs and says whether the problem is obvious. Obvious: that
+   variant stops and the old one takes over, logged as a finding for the ClaudeDevKit retro. Unclear: collection
+   goes on to 10 runs per variant, then the decision. The daily count runs inside the existing daily full scan (a
+   script, no model); the service retro sessions keep their start rule (findings waiting, at most once per 20
+   hours). Experiment results and decisions go to the ClaudeDevKit retro (the helpers belong to the plugins) and
+   show in the main retro session (point 7).
+
 ## Goal of the talk
 
 Agree with the owner what changes so the 5-hour limit lasts (for example a cap on parallel Opus sessions, cheaper
