@@ -968,16 +968,15 @@ with the worktree that holds the app as the reason.
 
 The Manager owns all doc updates. On "done", the Lead checks only the list of changed doc files (a reviewer subagent if
 there are many). Then, in the main checkout: if it is not on `main` or `git status --porcelain -- . ':!.claude/worktrees'` (the worktrees folder never counts) is not
-empty, the Lead does not merge and adds its own question (merge after the owner tidies the main checkout). The Lead commits its own edits in the main checkout (PROGRESS.md,
-BACKLOG.md `Verdict:` lines) right after making them, so a dirty checkout is never the Lead's own (that is the owner's work in progress, not the Manager's conflict).
+empty, the Lead does not merge and adds its own question (merge after the owner tidies the main checkout). A dirty checkout is never the Lead's own (that is the owner's work in progress, not the Manager's conflict).
 Otherwise `git merge --ff-only c/<slug>`. A designed screen's Manager is merged only on its review
 session's `ЗАКРИТО` ("Build a designed screen"). If it refuses (main moved since the Manager pulled it), the Lead sends it back
 («ВКАЗІВКА - main moved, pull main») and does not resolve anything itself.
 
-When the Lead edits a file in the main checkout from outside its own worktree (PROGRESS.md, a feature's
-design state), it re-reads the file after each edit and checks that the edit fully applied before
-committing it. This is a stopgap: the cause, the host's worktree guard that blocks such edits, is out
-of reach (`plugins/dev-kit/claude-facts.md`, "The host's worktree guard blocks writes to the main checkout from another worktree").
+The Lead's own edits (PROGRESS.md, BACKLOG.md `Verdict:` lines, a feature's design state) never go into the main
+checkout directly: the host blocks them (`plugins/dev-kit/claude-facts.md`, "The host's worktree guard blocks writes to
+the main checkout from another worktree"). They are made in a throwaway worktree and merged `--ff-only` as a rule edit
+is; never a Python or shell script around the guard.
 
 For a «Discuss:» session, before the merge and before `claude rm`, the Lead reads its
 transcript and finds the owner's «так» to the short plan (or to «Закриваємо обговорення?» when nothing
