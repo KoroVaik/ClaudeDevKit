@@ -4,7 +4,7 @@ How the Claude apps behave in practice, where official docs say little: the desk
 Remote Control, background sessions, headless `claude -p`, plugins and hooks, subagents, the shell under Claude
 Code. Facts only, no rules: a rule that relies on a fact keeps what to do and links here.
 
-Last re-check: 2026-11-24 | Claude Code: 2.1.331
+Last re-check: 2026-11-28 | Claude Code: 2.1.332
 
 ## How to use
 
@@ -63,8 +63,8 @@ One entry per behaviour. A newer direct observation replaces an older one; the o
 ### Desktop app data layout
 - What happens: Sessions are `local_*.json` files under `%LOCALAPPDATA%/Claude-Data/claude_pzs8sxrjxfjjc/claude-code-sessions/<accountUuid>/<orgUuid>/`. The CLI writes `~/.claude/sessions/<pid>.json` with a `cliSessionId`. The app shows the statuses `blocked`, `completed` and `review_ready`.
 - Workaround: none; `plugins/pult/scripts/list-sessions.py` reads this layout.
-- App: desktop app | Claude Code: 2.1.331
-- Seen: 2026-11-15 | read of the folders ("Layout of the desktop app data checked on 2026-11-15"); re-check 2026-11-24: `list-sessions.py` still lists the sessions with statuses | ClaudeDevKit, Pult
+- App: desktop app | Claude Code: 2.1.332
+- Seen: 2026-11-15 | read of the folders ("Layout of the desktop app data checked on 2026-11-15"); re-check 2026-11-28 (2.1.332): `list-sessions.py` still lists the sessions with statuses (closed, idle, review_ready) | ClaudeDevKit, Pult
 - Re-check: `python -I -X utf8 plugins/pult/scripts/list-sessions.py` | safe
 - Status: checked
 
@@ -190,8 +190,8 @@ One entry per behaviour. A newer direct observation replaces an older one; the o
 ### The Remote Control server's own session has a system name
 - What happens: The session of a Remote Control server (cwd = the home folder) has a system name like "<user>-e9" in `claude agents --json` (kind `interactive`). The app shows the name the server sets ("Pult"). `SendMessage` to the name the server sets does not resolve; to the system name it does.
 - Workaround: send to the system name from `claude agents --json`; the name the server sets ("Pult") is the one that shows in the app (see `plugins/pult/rules/hub.md`, "Answering "статус"").
-- App: Remote Control | Claude Code: 2.1.331
-- Seen: 2026-11-23 | live send (the set name failed, the system name worked) and a read of `claude agents --json`; re-check 2026-11-24: `claude agents --json` still lists an `interactive` session with cwd = the home folder under a system name ("korov-e9"; the suffix changes between server starts) | ClaudeDevKit, Pult hub; server started 2026-11-21 with the name Pult
+- App: Remote Control | Claude Code: 2.1.332
+- Seen: 2026-11-23 | live send (the set name failed, the system name worked) and a read of `claude agents --json`; re-check 2026-11-28 (2.1.332): `claude agents --json` still lists an `interactive` session named "Pult" (the set name; the system-name part was not re-seen, earlier "korov-e9", the suffix changes between server starts) | ClaudeDevKit, Pult hub; server started 2026-11-21 with the name Pult
 - Re-check: `claude agents --json` | safe
 - Status: checked
 - History: until 2026-11-23 the entry named only the list; `SendMessage` to the system name was not recorded (status doubtful, date not stated).
@@ -242,8 +242,8 @@ One entry per behaviour. A newer direct observation replaces an older one; the o
 ### `claude --bg` with `bypassPermissions` fails until the owner accepts a disclaimer once
 - What happens: `claude --bg --permission-mode bypassPermissions` fails with exit 1 until the owner accepts a disclaimer once per machine. The accepted choice is recorded as `skipDangerousModePermissionPrompt` in the user settings.
 - Workaround: the owner runs `claude --dangerously-skip-permissions` interactively once and accepts.
-- App: background sessions | Claude Code: 2.1.331
-- Seen: 2026-11-15 | live, exit code; re-check 2026-11-24: `skipDangerousModePermissionPrompt` is present in `~/.claude/settings.json` | ClaudeDevKit, project-lead skill
+- App: background sessions | Claude Code: 2.1.332
+- Seen: 2026-11-15 | live, exit code; re-check 2026-11-28 (2.1.332): `skipDangerousModePermissionPrompt` is present in `~/.claude/settings.json` | ClaudeDevKit, project-lead skill
 - Re-check: look for `skipDangerousModePermissionPrompt` in `~/.claude/settings.json` | safe
 - Status: checked
 
@@ -314,8 +314,8 @@ One entry per behaviour. A newer direct observation replaces an older one; the o
 ### A low-memory spell closes idle background sessions
 - What happens: On low memory Claude Code closes idle background sessions early. On 2026-11-16 a Manager that waited on the owner vanished; a stopped background watcher of a lead was seen in the same spell. A long low-memory spell can close pinned sessions too. A background shell command is stopped by a separate rule (see "Claude Code stops an idle background shell command under OS memory pressure (Windows too)").
 - Workaround: bring the session back with `claude respawn <id>`; the Pult watcher heals leads.
-- App: background sessions | Claude Code: 2.1.331
-- Seen: 2026-11-16 | seen live; re-check 2026-11-24: `daemon.log` holds lines like `bg retire 2d9fb437: idle-prompt, idle 25m [low memory]` | ClaudeDevKit, Pult
+- App: background sessions | Claude Code: 2.1.332
+- Seen: 2026-11-16 | seen live; re-check 2026-11-28 (2.1.332): `daemon.log` holds lines like `bg retire 9d8a1c43: settled, idle 50m [low memory, pinned]` (2026-11-27 22:28Z; a pinned session was closed too) | ClaudeDevKit, Pult
 - Re-check: `tail -n 200 ~/.claude/daemon.log | grep 'bg retire'` | safe
 - Status: checked
 
@@ -323,7 +323,7 @@ One entry per behaviour. A newer direct observation replaces an older one; the o
 - What happens: When the OS signals critical memory pressure, the session is idle (30 min, not checked in the code) and no turn or subagent runs, Claude Code stops a background shell command; the task gets "Background command ... was stopped because the system is running low on memory". On Windows it takes the OS signal as is (the `/proc/meminfo` scarcity check runs only on Linux and WSL), so it can fire with memory free (Zhratva 2026-11-25: 3 GB RAM free, 29 GB commit free, no event 2004). Not the same as closing the session itself (see "A low-memory spell closes idle background sessions"). Checked in the code (strings `DISABLE_BG_SHELL_PRESSURE_REAP`, "running low on memory", "memory-pressure reap" in claude.exe 2.1.332); the 30 min idle value is unchecked.
 - Workaround: start Claude Code with `CLAUDE_CODE_DISABLE_BG_SHELL_PRESSURE_REAP=1` in its own environment (set from a shell command it has no effect). The official env-vars doc says it has no effect on Windows; the shipped code runs it there.
 - App: background Bash commands, Windows | Claude Code: 2.1.332
-- Seen: 2026-11-25 | Zhratva session records; code read in claude.exe 2.1.332 | Zhratva, MyPC `docs/known-issues.md`
+- Seen: 2026-11-25 | Zhratva session records; code read in claude.exe 2.1.332; re-check 2026-11-28: `DISABLE_BG_SHELL_PRESSURE_REAP` still in claude.exe 2.1.332 | Zhratva, MyPC `docs/known-issues.md`
 - Re-check: grep claude.exe for `DISABLE_BG_SHELL_PRESSURE_REAP`; next "stopped because the system is running low on memory" notice | safe
 - Status: checked
 
@@ -424,12 +424,13 @@ One entry per behaviour. A newer direct observation replaces an older one; the o
 - Status: checked
 
 ### The host's worktree guard blocks writes to the main checkout from another worktree
-- What happens: Writes to the main checkout from outside the session's own worktree are blocked, also for a subagent (a coder sent to the main checkout was blocked four times in a minute). Shell edits were half-applied. It is not clear whether the guard is Claude Code's own or a project hook.
-- Workaround: edit in a throwaway worktree (a stopgap: re-read after each edit).
-- App: background sessions, Claude Code | Claude Code: unknown
-- Seen: 2026-11-18 | seen in Zhratva; a coder case on 2026-11-21 | Zhratva, ClaudeDevKit
-- Re-check: write to the main checkout from a worktree session | owner-only
-- Status: doubtful
+- What happens: Writes to the main checkout from outside the session's own worktree are blocked, also for a subagent (a coder sent to the main checkout was blocked four times in a minute). Shell edits were half-applied. The guard is Claude Code's own background-session check: an edit from a background session that is not in a worktree yet is refused with "This background session hasn't isolated its changes yet. Call EnterWorktree first so edits land in a worktree instead of the shared checkout, then retry this edit ..." (the text is in claude.exe 2.1.332, not in any repo hook or plugin). Whether the older "from another worktree" blocks came from the same check was not told by their text.
+- Workaround: edit in a throwaway worktree, or call `EnterWorktree` first (a stopgap: re-read after each edit).
+- App: background sessions, Claude Code | Claude Code: 2.1.332
+- Seen: 2026-11-18 | seen in Zhratva; a coder case on 2026-11-21 | Zhratva, ClaudeDevKit; 2026-11-27 | error text, and the same text found in claude.exe 2.1.332 (`grep -c "isolated its changes yet"` gives 2) | ClaudeDevKit, lead session a983566f
+- Re-check: `grep -c "isolated its changes yet" <claude.exe>` | safe
+- Status: checked
+- History: until 2026-11-28 the source of the guard was unknown (status doubtful).
 
 ## Messages between sessions
 
@@ -619,8 +620,8 @@ One entry per behaviour. A newer direct observation replaces an older one; the o
 ### The status line JSON holds the subscription limits
 - What happens: For subscribers the status line JSON holds `rate_limits.seven_day.used_percentage` and `resets_at` (and `five_hour`). Claude Code runs the status line script on each turn. Without `rate_limits` (API login, old version) nothing is given.
 - Workaround: none.
-- App: status line | Claude Code: 2.1.331
-- Seen: date not stated | read in the Claude Code 2.1.330 bundle; re-check 2026-11-24 (2.1.331): `usage-log.jsonl` still gets new lines with `week_pct`, `week_resets` and `five_hour_pct` | ClaudeDevKit, `plugins/spend-kit/scripts/statusline.py`
+- App: status line | Claude Code: 2.1.332
+- Seen: date not stated | read in the Claude Code 2.1.330 bundle; re-check 2026-11-28 (2.1.332): `usage-log.jsonl` still gets new lines (last 2026-11-27 22:27Z) with `week_pct`, `week_resets` and `five_hour_pct` | ClaudeDevKit, `plugins/spend-kit/scripts/statusline.py`
 - Re-check: pipe a sample JSON to `spend-kit-statusline`, or read `~/.claude/spend-kit/usage-log.jsonl` | safe
 - Status: checked
 
