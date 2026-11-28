@@ -44,5 +44,6 @@
   "0.1.145": {"kind": "routine", "date": "2026-11-27", "reason": "dev-kit-bans works in a repo whose trunk is master when it has no main"},
   "0.1.146": {"kind": "routine", "date": "2026-11-27", "reason": "new message kind ДОРУЧЕННЯ: the Lead takes a request Pult passed as a new owner request, never as approval"},
   "0.1.147": {"kind": "routine", "date": "2026-11-27", "reason": "investigator on Opus low, reviewers medium; Leads and Managers answer the idle move ask; Managers alternate Opus low / medium"},
-  "0.1.148": {"kind": "routine", "date": "2026-11-27", "reason": "the lead merge check ignores the worktrees folder in the main checkout"}
+  "0.1.148": {"kind": "routine", "date": "2026-11-27", "reason": "the lead merge check ignores the worktrees folder in the main checkout"},
+  "0.1.149": {"kind": "routine", "date": "2026-11-28", "reason": "the lead edits its own files through a throwaway worktree, never around the host guard"}
 }
